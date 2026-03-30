@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Smart Compliance - Guia de Estudo e Apresentacao</title>
+    <style>
+      :root {
+        --bg: #f4f5f7;
+        --surface: #ffffff;
+        --ink: #10131a;
+        --muted: #505765;
+        --line: #d8dde6;
+        --red: #c8193c;
+        --red-soft: #fdecef;
+        --dark: #131720;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Segoe UI", Arial, sans-serif;
+        background: var(--bg);
+        color: var(--ink);
+        line-height: 1.55;
+      }
+
+      .page {
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 40px 32px 64px;
+      }
+
+      .hero {
+        background: linear-gradient(135deg, rgba(200, 25, 60, 0.12), rgba(19, 23, 32, 0.06)),
+          var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 24px;
+        padding: 32px;
+        margin-bottom: 28px;
+      }
+
+      .eyebrow {
+        margin: 0 0 10px;
+        color: var(--red);
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      h1,
+      h2,
+      h3 {
+        margin: 0 0 12px;
+        line-height: 1.2;
+      }
+
+      h1 {
+        font-size: 34px;
+      }
+
+      h2 {
+        margin-top: 30px;
+        font-size: 24px;
+        padding-bottom: 8px;
+        border-bottom: 2px solid var(--line);
+      }
+
+      h3 {
+        font-size: 18px;
+        margin-top: 20px;
+      }
+
+      p {
+        margin: 0 0 14px;
+      }
+
+      ul,
+      ol {
+        margin: 0 0 16px 22px;
+      }
+
+      li {
+        margin-bottom: 8px;
+      }
+
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        padding: 22px 24px;
+        margin-bottom: 18px;
+      }
+
+      .accent {
+        border-left: 6px solid var(--red);
+        padding-left: 16px;
+      }
+
+      .two-col {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 18px;
+      }
+
+      .pill {
+        display: inline-block;
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: var(--red-soft);
+        color: var(--red);
+        font-size: 12px;
+        font-weight: 700;
+        margin: 0 8px 8px 0;
+      }
+
+      .quote {
+        background: #fff8f9;
+        border: 1px solid #f3cfd7;
+        border-radius: 16px;
+        padding: 16px 18px;
+        color: #5a2432;
+      }
+
+      .footer {
+        margin-top: 36px;
+        color: var(--muted);
+        font-size: 12px;
+        text-align: center;
+      }
+
+      @media print {
+        body {
+          background: white;
+        }
+
+        .page {
+          max-width: none;
+          padding: 18mm 14mm 20mm;
+        }
+
+        .card,
+        .hero {
+          break-inside: avoid;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <section class="hero">
+        <p class="eyebrow">Smart Compliance</p>
+        <h1>Guia de Estudo e Preparacao para Apresentacao Comercial</h1>
+        <p>
+          Este material consolida a analise qualitativa do MVP, os pontos fortes
+          da proposta, os riscos ainda presentes e um roteiro pratico para
+          apresentar a plataforma a um potencial cliente.
+        </p>
+      </section>
+
+      <section class="card accent">
+        <h2>1. Visao Geral</h2>
+        <p>
+          O projeto ja saiu da fase de ideia e virou um MVP com narrativa
+          comercial coerente. Hoje a plataforma consegue demonstrar, de forma
+          integrada, quatro pilares de alto valor corporativo:
+        </p>
+        <div>
+          <span class="pill">Compliance</span>
+          <span class="pill">Avaliacoes</span>
+          <span class="pill">Desenvolvimento</span>
+          <span class="pill">Reconhecimento</span>
+          <span class="pill">Dashboards</span>
+        </div>
+        <p>
+          Isso e importante porque o produto nao parece mais um conjunto de
+          telas isoladas. Ele ja comunica uma tese de valor clara: governanca de
+          pessoas com protecao de sigilo, leitura executiva e historico
+          institucional.
+        </p>
+      </section>
+
+      <h2>2. Analise Qualitativa do MVP</h2>
+
+      <div class="two-col">
+        <section class="card">
+          <h3>Pontos Fortes</h3>
+          <ul>
+            <li>A proposta esta coerente e bem posicionada.</li>
+            <li>O modulo de avaliacoes ficou forte e crivel.</li>
+            <li>Ja existe separacao entre visao executiva e visao individual.</li>
+            <li>O tema visual e mais maduro e apresentavel.</li>
+            <li>O conceito de sigilo agregado comecou a ser respeitado.</li>
+            <li>A abertura de ciclo ja gera assignments automaticamente.</li>
+          </ul>
+        </section>
+
+        <section class="card">
+          <h3>Pontos Ainda em Estagio de MVP</h3>
+          <ul>
+            <li>Trilha de auditoria ainda nao esta explicita na interface.</li>
+            <li>Notificacoes ainda nao viraram fluxo real.</li>
+            <li>Score institucional ainda nao esta maduro.</li>
+            <li>Consultores e terceiros ainda podem evoluir bastante.</li>
+            <li>Dashboards ainda podem ficar mais analiticos.</li>
+            <li>Administracao de formularios ainda e mais tecnica do que operacional.</li>
+          </ul>
+        </section>
+      </div>
+
+      <section class="card">
+        <h3>Leitura por Modulo</h3>
+        <ul>
+          <li>
+            <strong>Compliance:</strong> o sistema ja transmite seriedade e
+            organizacao institucional.
+          </li>
+          <li>
+            <strong>Avaliacoes:</strong> e o modulo mais forte do MVP hoje,
+            porque conecta biblioteca de perguntas, tipos de avaliacao, pesos e
+            sigilo.
+          </li>
+          <li>
+            <strong>Desenvolvimento:</strong> ainda simples, mas funcional para
+            contar a historia de evolucao profissional.
+          </li>
+          <li>
+            <strong>Aplause:</strong> bom diferencial comercial, porque
+            humaniza a plataforma e a distancia de um sistema so punitivo.
+          </li>
+          <li>
+            <strong>Dashboards:</strong> tem alto valor para reunioes e
+            apresentacoes, o que ajuda muito em venda B2B.
+          </li>
+        </ul>
+      </section>
+
+      <h2>3. Como Posicionar o Produto para o Cliente</h2>
+
+      <section class="card">
+        <p class="quote">
+          "Uma plataforma de governanca de pessoas que integra compliance,
+          avaliacoes, desenvolvimento e reconhecimento, com leitura executiva e
+          protecao de sigilo."
+        </p>
+        <p>
+          Essa frase funciona bem porque comunica maturidade, seriedade e valor
+          institucional. Ela evita a sensacao de que o produto e apenas um app
+          de RH ou um canal de denuncia isolado.
+        </p>
+      </section>
+
+      <section class="card">
+        <h3>Termos que ajudam</h3>
+        <ul>
+          <li>Governanca</li>
+          <li>Evidencia institucional</li>
+          <li>Leitura consolidada</li>
+          <li>Feedback estruturado</li>
+          <li>Evolucao profissional</li>
+          <li>Protecao de sigilo</li>
+        </ul>
+
+        <h3>Termos que e melhor evitar</h3>
+        <ul>
+          <li>Monitoramento de funcionario</li>
+          <li>Ranking interno de pessoas</li>
+          <li>Controle de colaborador</li>
+          <li>Pontuacao punitiva</li>
+        </ul>
+      </section>
+
+      <h2>4. Estrutura Recomendada da Apresentacao</h2>
+
+      <section class="card">
+        <ol>
+          <li>
+            <strong>Problema:</strong> feedback pulverizado, denuncias fora de
+            fluxo, ausencia de historico institucional e baixa leitura
+            consolidada da organizacao.
+          </li>
+          <li>
+            <strong>Solucao:</strong> plataforma unica para compliance,
+            avaliacoes, desenvolvimento, reconhecimento e dashboards.
+          </li>
+          <li>
+            <strong>Diferenciais:</strong> sigilo por perfil, respostas
+            agregadas, biblioteca padrao, assignments automáticos e dashboard
+            executivo.
+          </li>
+          <li>
+            <strong>Demonstracao:</strong> apresentar a experiencia de gestor e
+            de colaborador.
+          </li>
+          <li>
+            <strong>Beneficios:</strong> governanca, consistencia, historico,
+            cultura e visibilidade.
+          </li>
+          <li>
+            <strong>Proximo passo:</strong> proposta de piloto controlado.
+          </li>
+        </ol>
+      </section>
+
+      <h2>5. Roteiro da Demo</h2>
+
+      <section class="card">
+        <h3>Tempo sugerido: 12 a 18 minutos</h3>
+        <ol>
+          <li>
+            Entrar como <strong>gestor</strong> e mostrar dashboard executivo.
+          </li>
+          <li>
+            Ir para <strong>Avaliacoes</strong> e mostrar biblioteca, pesos,
+            sigilo e criacao de ciclo.
+          </li>
+          <li>
+            Mostrar que o ciclo gera assignments automaticamente.
+          </li>
+          <li>
+            Mostrar respostas individuais permitidas e leituras agregadas
+            confidenciais.
+          </li>
+          <li>
+            Entrar em <strong>Compliance</strong> e reforcar o carater
+            estruturado do relato.
+          </li>
+          <li>
+            Mostrar <strong>Aplause</strong> como reconhecimento formal com
+            contexto e trava.
+          </li>
+          <li>
+            Mostrar <strong>Desenvolvimento</strong> como linha do tempo
+            profissional.
+          </li>
+          <li>
+            Fazer logout e entrar como <strong>colaborador</strong> para mostrar
+            o recorte pessoal.
+          </li>
+        </ol>
+      </section>
+
+      <section class="card">
+        <h3>Frases curtas para usar durante a demo</h3>
+        <ul>
+          <li>
+            "Aqui a lideranca enxerga tendencia, nao exposicao individual
+            indevida."
+          </li>
+          <li>
+            "O ciclo nao depende de planilha; ele ja nasce distribuido."
+          </li>
+          <li>
+            "Leituras sensiveis de lideranca e empresa entram apenas em formato
+            agregado."
+          </li>
+          <li>
+            "O reconhecimento entra como evidencia complementar, nao como moeda
+            social vazia."
+          </li>
+          <li>
+            "A evolucao profissional deixa de ficar dispersa em conversas e
+            documentos soltos."
+          </li>
+        </ul>
+      </section>
+
+      <h2>6. Perguntas que o Cliente Pode Fazer</h2>
+
+      <section class="card">
+        <h3>1. Como voces tratam sigilo?</h3>
+        <p>
+          Com recorte por perfil, separacao entre respostas individuais e
+          agregadas e protecao especial para leituras de lideranca e empresa.
+        </p>
+
+        <h3>2. Isso substitui o processo atual?</h3>
+        <p>
+          Pode comecar como complemento do processo atual e evoluir para sistema
+          principal em rollout gradual.
+        </p>
+
+        <h3>3. E personalizavel?</h3>
+        <p>
+          Sim. Principalmente em questionarios, ciclos, perfis e regras
+          operacionais por empresa.
+        </p>
+
+        <h3>4. Serve para terceiros e consultores?</h3>
+        <p>
+          Sim. O conceito da plataforma ja foi desenhado para acomodar vinculos
+          diferentes e pode evoluir nesse modulo.
+        </p>
+
+        <h3>5. Como evitam abuso no reconhecimento?</h3>
+        <p>
+          Com contexto obrigatorio, limites de uso e travas contra padroes
+          suspeitos.
+        </p>
+      </section>
+
+      <h2>7. Como Fechar a Reuniao</h2>
+
+      <section class="card">
+        <p class="quote">
+          "Nossa proposta nao e apenas digitalizar formularios. E estruturar um
+          processo corporativo mais confiavel para conduta, feedback,
+          reconhecimento e evolucao profissional, com leitura executiva e
+          protecao de sigilo."
+        </p>
+        <p>Depois disso, feche com duas mensagens:</p>
+        <ul>
+          <li>Podemos comecar por uma area, unidade ou piloto controlado.</li>
+          <li>O produto e modular, entao o cliente nao precisa adotar tudo de uma vez.</li>
+        </ul>
+      </section>
+
+      <h2>8. Avaliacao Honesta do Estagio Atual</h2>
+
+      <section class="card">
+        <p>
+          O MVP ja esta suficientemente forte para uma conversa comercial seria.
+          Ele ainda nao e um produto enterprise pronto, mas ja e robusto o
+          bastante para:
+        </p>
+        <ul>
+          <li>validar interesse real de mercado</li>
+          <li>abrir conversas de piloto</li>
+          <li>coletar feedback de decisores</li>
+          <li>demonstrar visao clara de produto</li>
+        </ul>
+        <p>
+          Em resumo: a proposta ja consegue vender visao, processo e potencial.
+        </p>
+      </section>
+
+      <p class="footer">
+        Documento gerado localmente para estudo e preparacao comercial do Smart
+        Compliance.
+      </p>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,7 @@
+relationship_type,template_name,description,dimension_key,dimension_title,prompt_text,sort_order,is_required,visibility,confidentiality,manager_custom_questions_limit
+peer,Biblioteca Colaboracao Cliente,Modelo personalizado para feedback entre pares,delivery,Qualidade das Entregas,Quao satisfeito voce ficou com a qualidade das entregas desta pessoa?,1,true,shared,mixed,2
+peer,Biblioteca Colaboracao Cliente,Modelo personalizado para feedback entre pares,collaboration,Colaboracao,Quao satisfeito voce ficou com a colaboracao desta pessoa com o time?,2,true,shared,mixed,2
+manager,Biblioteca Gestor Cliente,Modelo personalizado para avaliacao gerencial,leadership,Direcionamento,Quao satisfeito voce ficou com a clareza de direcionamento do gestor no periodo?,1,true,shared,mixed,0
+self,Biblioteca Autoavaliacao Cliente,Modelo personalizado de autoavaliacao,development,Desenvolvimento,Quao satisfeito voce esta com sua propria evolucao profissional no semestre?,1,true,private,private-to-employee-and-hr,0
+leader,Biblioteca Lideranca Cliente,Modelo personalizado de lideranca,trust,Confianca,Quao satisfeito voce esta com a confianca transmitida pela lideranca?,1,true,confidential,anonymous-aggregate,0
+company,Biblioteca Empresa Cliente,Modelo personalizado institucional,culture,Cultura,Quao satisfeito voce esta com a cultura praticada pela empresa?,1,true,shared,anonymous-aggregate,0

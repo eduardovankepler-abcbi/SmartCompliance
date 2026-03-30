@@ -1,0 +1,129 @@
+# Evolucao Recomendada
+
+Este documento organiza as frentes possiveis do produto e a ordem recomendada para evoluir o MVP sem perder estabilidade.
+
+## Opcoes que temos agora
+
+### 1. Qualidade e seguranca de evolucao
+- objetivo: reduzir regressao antes de novas features
+- foco: testes de fumaça, checklist operacional, verificacao unica do projeto
+- quando priorizar: sempre que o app estiver mudando em varias frentes ao mesmo tempo
+
+### 2. UX por perfil
+- objetivo: deixar a experiencia mais clara para colaborador, gestor, RH, compliance e admin
+- foco: esconder ruído, simplificar telas e refinar fluxos de uso real
+- quando priorizar: se a prioridade for demonstracao e adocao interna
+
+### 3. Fluxos de avaliacoes
+- objetivo: tornar `Avaliacoes` ainda mais forte como modulo principal
+- foco: telas mais independentes por submodulo, historico por ciclo, comparativos e regras de ciclo
+- quando priorizar: se a prioridade for RH, lideranca e jornada de feedback
+
+### 4. Dashboards executivos
+- objetivo: fortalecer leitura gerencial e comercial
+- foco: recortes por periodo, area, setor e consolidado por tipo de avaliacao
+- quando priorizar: se a prioridade for reuniao executiva ou apresentacao comercial
+
+### 5. Governanca e rastreabilidade
+- objetivo: maturidade operacional
+- foco: trilha de auditoria, historico de alteracoes, maior rigor em compliance e usuarios
+- quando priorizar: se o MVP estiver indo para uso mais serio ou piloto controlado
+
+## Sequencia recomendada
+
+### Passo 1. Baseline de verificacao
+Status: concluido.
+
+Entregas:
+- comando unico `npm run verify`
+- consolidacao dos testes existentes
+- criterio claro para validar backend + frontend antes de cada rodada
+
+Resultado:
+- toda nova rodada pode ser fechada com um check simples e repetivel
+- menos chance de quebrar login, avaliacoes, dashboard e navegacao sem perceber
+
+### Passo 2. Refino por perfil
+Status: concluido.
+
+Foco:
+- revisar jornada de colaborador
+- revisar jornada de gestor
+- revisar jornada administrativa
+- remover blocos apenas explicativos e reforcar o que e acionavel
+
+Entregas ja aplicadas:
+- navegacao mais coerente por perfil
+- secao inicial priorizada por papel (`Avaliacoes` para colaborador e `Compliance` para perfil de compliance)
+- contexto do topo mais aderente a cada jornada
+- formularios do colaborador e do canal de relato com menos campos sem utilidade no fluxo
+- remocao de ruido em jornadas com opcao unica de pessoa ou identificacao anonima
+
+Resultado esperado:
+- telas mais objetivas
+- menos confusao visual
+- demonstracao mais convincente
+
+### Passo 3. Avaliacoes em experiencia ainda mais modular
+Status: concluido.
+
+Foco:
+- avaliar separacao maior dos submodulos
+- reforcar historico por ciclo
+- melhorar comparativos e filtros
+
+Entregas ja aplicadas:
+- destaque proprio do submodulo ativo
+- comparacao entre ciclos com deltas de evolucao
+- historico do submodulo mais contextualizado no ciclo em foco
+- separacao clara entre `Responder`, `Leituras` e `Operacao`
+- governanca de ciclo e biblioteca isoladas do fluxo de resposta
+- roteamento proprio para workspace operacional do modulo
+
+Resultado esperado:
+- modulo mais maduro
+- menos acoplamento visual na mesma tela
+
+### Passo 4. Dashboards por leitura executiva
+Status: concluido.
+
+Foco:
+- leitura temporal mais forte
+- recortes por area e setor
+- consolidado por elemento do ciclo
+
+Entregas ja aplicadas:
+- sintese executiva do recorte logo no topo do dashboard
+- narrativa rapida com foco, evolucao temporal e principal ponto de atencao
+- comparativo automatico por periodo com melhora, queda e area critica
+- mensagens-chave com risco principal, sinal positivo e prioridade recomendada
+- alternancia entre leitura executiva e leitura analitica
+
+Resultado esperado:
+- melhor uso em reunioes
+- melhor narrativa comercial
+
+### Passo 5. Auditoria e trilha operacional
+Status: concluido.
+
+Foco:
+- historico de alteracoes em usuarios, ciclos, compliance e feedback direto
+- maior confiabilidade para operacao
+
+Entregas ja aplicadas:
+- trilha operacional persistida para usuarios, compliance, ciclos e feedback direto
+- endpoint dedicado de auditoria com escopo por perfil
+- leitura da trilha exibida nas telas de Usuarios, Compliance e Avaliacoes
+- cobertura minima de regressao para acesso e filtragem da auditoria
+
+Resultado esperado:
+- produto mais robusto
+- menos dependencia de memoria operacional
+
+## Regra pratica para as proximas rodadas
+
+Antes de considerar qualquer etapa concluida:
+
+1. Rodar `npm run verify`
+2. Testar login com pelo menos um perfil operacional
+3. Validar rapidamente `Avaliacoes` e a secao principal do perfil usado
