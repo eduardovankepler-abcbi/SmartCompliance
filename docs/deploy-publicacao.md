@@ -18,20 +18,22 @@ Este projeto pode ser publicado sem depender da maquina local usando:
 
 ### Backend
 
-- plataforma: `Railway`
+- plataforma: `Render`
 - diretorio raiz do servico: `backend`
+- build command: `npm install`
 - start command: `npm run start`
+- health check: `/health`
 
 ### Banco de dados
 
 - usar MySQL gerenciado
-- pode ser o MySQL da propria Railway ou um banco externo compatível
+- pode ser o MySQL que voce ja possui ou outro provedor externo compatível
 
 ## Variaveis de ambiente
 
 ### Backend
 
-Configurar no servico da Railway:
+Configurar no servico do Render:
 
 - `NODE_ENV=production`
 - `STORAGE_MODE=mysql`
@@ -46,7 +48,7 @@ Configurar no servico da Railway:
 Observacao:
 
 - em producao, `AUTH_SECRET` nao pode ficar no valor padrao
-- `PORT` normalmente e fornecida pela propria Railway
+- `PORT` normalmente e fornecida pela propria plataforma
 
 ### Frontend
 
@@ -76,7 +78,7 @@ Voce pode fazer isso:
 ## Ordem de publicacao
 
 1. Suba o codigo para um repositorio Git.
-2. Publique o backend na Railway.
+2. Publique o backend no Render.
 3. Configure as variaveis de ambiente do backend.
 4. Execute `schema.sql` e `seed.sql` no banco.
 5. Valide o endpoint `GET /health`.
@@ -103,9 +105,9 @@ Se quiser publicar primeiro uma versao de demonstracao:
 
 Mas para nao depender da sua maquina de forma confiavel, o recomendado e:
 
-- `backend` publicado
-- `mysql` publicado
-- `frontend` publicado
+- `backend` publicado no Render
+- `mysql` gerenciado
+- `frontend` publicado na Vercel
 
 ## Risco principal
 
@@ -122,3 +124,4 @@ Se esses 4 pontos estiverem corretos, o deploy tende a ser direto.
 
 - `backend/.env.production.example`
 - `frontend/.env.production.example`
+- `render.yaml`
