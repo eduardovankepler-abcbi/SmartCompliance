@@ -1185,6 +1185,23 @@ select {
   min-height: 0;
 }
 
+.evaluation-assignment-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.evaluation-assignment-meta-item {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
 .evaluation-assignment-card.active {
   border-color: rgba(77, 136, 255, 0.3);
   background:

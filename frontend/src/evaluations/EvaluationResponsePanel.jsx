@@ -82,15 +82,24 @@ export function EvaluationResponsePanel({
                 onClick={() => setSelectedAssignment(assignment.id)}
               >
                 <div className="row">
-                  <strong>{assignment.revieweeName}</strong>
+                  <strong>
+                    {assignment.relationshipType === "company"
+                      ? getRelationshipLabel(assignment.relationshipType)
+                      : assignment.revieweeName}
+                  </strong>
                   <span className="badge">{assignment.status}</span>
                 </div>
-                <p>{getRelationshipLabel(assignment.relationshipType)}</p>
-                <p className="muted">Ciclo: {assignment.cycleStatus}</p>
-                <p className="muted">
-                  Peso no consolidado: {(assignment.weight * 100).toFixed(1)}%
-                </p>
-                <p className="muted">Prazo: {formatDate(assignment.dueDate)}</p>
+                {assignment.relationshipType !== "company" ? (
+                  <p>{getRelationshipLabel(assignment.relationshipType)}</p>
+                ) : null}
+                <div className="evaluation-assignment-meta">
+                  <span className="evaluation-assignment-meta-item">
+                    Ciclo: {assignment.cycleStatus}
+                  </span>
+                  <span className="evaluation-assignment-meta-item">
+                    Prazo: {formatDate(assignment.dueDate)}
+                  </span>
+                </div>
                 <p className="muted">{assignment.collaborationContext}</p>
               </button>
             ))
