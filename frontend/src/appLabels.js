@@ -254,6 +254,14 @@ export function getAssignmentStatusLabel(status) {
   return labels[status] || status;
 }
 
+export function getAssignmentStatusBadgeLabel(status) {
+  const labels = {
+    pending: "Pendente",
+    submitted: "Concluida"
+  };
+  return labels[status] || status;
+}
+
 export function getFeedbackRequestStatusLabel(status) {
   const labels = {
     pending: "Pendente",

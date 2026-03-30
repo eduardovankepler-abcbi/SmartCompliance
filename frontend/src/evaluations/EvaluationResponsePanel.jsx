@@ -1,4 +1,5 @@
 import {
+  getAssignmentStatusBadgeLabel,
   getEvaluationModuleExperience,
   getEvaluationWorkspaceCopy
 } from "../appLabels.js";
@@ -56,9 +57,8 @@ export function EvaluationResponsePanel({
           <div
             className={`list-card evaluation-workspace-spotlight ${moduleExperience.tone}`}
           >
-            <strong>{workspaceCopy.heading}</strong>
             <p className="muted">{workspaceCopy.description}</p>
-            {moduleExperience.spotlightItems.length ? (
+            {activeEvaluationWorkspace === "insights" && moduleExperience.spotlightItems.length ? (
               <div className="evaluation-context-grid">
                 {moduleExperience.spotlightItems.map((item) => (
                   <div className="evaluation-context-pill" key={item.label}>
@@ -87,7 +87,7 @@ export function EvaluationResponsePanel({
                       ? getRelationshipLabel(assignment.relationshipType)
                       : assignment.revieweeName}
                   </strong>
-                  <span className="badge">{assignment.status}</span>
+                  <span className="badge">{getAssignmentStatusBadgeLabel(assignment.status)}</span>
                 </div>
                 {assignment.relationshipType !== "company" ? (
                   <p>{getRelationshipLabel(assignment.relationshipType)}</p>
