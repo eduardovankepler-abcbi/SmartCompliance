@@ -1171,7 +1171,7 @@ select {
 }
 
 .evaluation-assignment-list {
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .evaluation-workspace-spotlight {
