@@ -213,28 +213,15 @@ function RespondView({
     <form className="card nested-card evaluation-response-form" onSubmit={handleAssignmentSubmit}>
       <div className="card-header">
         <h3>{workspaceCopy.responseTitle}</h3>
-        <span>{assignmentDetail.assignment.revieweeName}</span>
+        {assignmentDetail.assignment.relationshipType !== "company" ? (
+          <span>{assignmentDetail.assignment.revieweeName}</span>
+        ) : null}
       </div>
       <div className={`list-card evaluation-response-summary ${moduleExperience.tone}`}>
         <strong>{getRelationshipLabel(assignmentDetail.assignment.relationshipType)}</strong>
         <p className="muted">
           {getRelationshipDescription(assignmentDetail.assignment.relationshipType)}
         </p>
-        <p className="muted">
-          Peso no consolidado: {(assignmentDetail.assignment.weight * 100).toFixed(1)}% | Sigilo do
-          modelo: {assignmentDetail.template.policy.confidentiality}
-        </p>
-        <p className="muted">Status do ciclo: {assignmentDetail.assignment.cycleStatus}</p>
-        {moduleExperience.spotlightItems.length ? (
-          <div className="evaluation-context-grid">
-            {moduleExperience.spotlightItems.map((item) => (
-              <div className="evaluation-context-pill" key={item.label}>
-                <span>{item.label}</span>
-                <strong>{item.value}</strong>
-              </div>
-            ))}
-          </div>
-        ) : null}
       </div>
       {questionSections.map((section) => (
         <div className="stack-list" key={section.key}>
