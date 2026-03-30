@@ -20,12 +20,13 @@ export function createIncidentsRouter(store) {
       classification,
       anonymity,
       reporterLabel,
-      assignedTo,
+      responsibleArea,
+      assignedPersonId,
       description
     } =
       req.body;
 
-    if (!title || !category || !classification || !anonymity || !assignedTo || !description) {
+    if (!title || !category || !classification || !anonymity || !responsibleArea || !description) {
       return badRequest(res, "Campos obrigatorios do relato nao informados.");
     }
 
@@ -37,7 +38,8 @@ export function createIncidentsRouter(store) {
         anonymity,
         reporterLabel:
           reporterLabel || (anonymity === "anonymous" ? "Anonimo" : "Identificado"),
-        assignedTo,
+        responsibleArea,
+        assignedPersonId: assignedPersonId || null,
         description
       }, req.auth.user);
 
@@ -51,16 +53,21 @@ export function createIncidentsRouter(store) {
     "/:incidentId",
     requireRoles("admin", "hr", "compliance"),
     async (req, res) => {
-      const { classification, status, assignedTo } = req.body;
+      const { classification, status, responsibleArea, assignedPersonId } = req.body;
 
-      if (!classification || !status || !assignedTo) {
-        return badRequest(res, "classification, status e assignedTo sao obrigatorios.");
+      if (!classification || !status || !responsibleArea) {
+        return badRequest(res, "classification, status e responsibleArea sao obrigatorios.");
       }
 
       try {
         const incident = await store.updateIncident(
           req.params.incidentId,
-          { classification, status, assignedTo },
+          {
+            classification,
+            status,
+            responsibleArea,
+            assignedPersonId: assignedPersonId || null
+          },
           req.auth.user
         );
         res.json(incident);

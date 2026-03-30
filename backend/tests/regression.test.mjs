@@ -123,6 +123,194 @@ try {
     "weight nao pode resultar em NaN"
   );
 
+  const customLibraryDraft = await store.importCustomLibraryDraft({
+    fileName: "biblioteca-customizada.xlsx",
+    createdByUserId: admin.id,
+    errors: [],
+    templates: [
+      {
+        relationshipType: "company",
+        modelName: "Biblioteca de satisfacao customizada",
+        description: "Modelo institucional customizado para teste.",
+        policy: {
+          strategy: "company-upload",
+          managerCustomQuestionsLimit: 0,
+          confidentiality: "manager-confidential",
+          showStrengthsNote: false,
+          showDevelopmentNote: false
+        },
+        questions: [
+          {
+            id: "custom_company_q1",
+            sectionKey: "satisfacao",
+            sectionTitle: "Satisfacao customizada",
+            sectionDescription: "Perguntas personalizadas do ciclo.",
+            dimensionKey: "custom-satisfaction",
+            dimensionTitle: "Leitura customizada",
+            prompt: "A empresa oferece o suporte que voce precisa para performar bem?",
+            helperText: "",
+            sortOrder: 1,
+            isRequired: true,
+            visibility: "shared",
+            inputType: "scale",
+            scaleProfile: "agreement",
+            collectEvidenceOnExtreme: false
+          }
+        ]
+      }
+    ],
+    summary: {
+      templates: 1,
+      relationshipTypes: 1,
+      questions: 1
+    }
+  });
+
+  const publishedLibrary = await store.publishCustomLibraryDraft({
+    draftId: customLibraryDraft.id,
+    name: "Biblioteca customizada de teste",
+    description: "Biblioteca criada na regressao.",
+    createdByUserId: admin.id
+  });
+
+  const createdCycle = await store.createEvaluationCycle(
+    {
+      libraryId: publishedLibrary.id,
+      title: "Ciclo customizado",
+      semesterLabel: "2026.2",
+      dueDate: "2026-10-15",
+      targetGroup: "Todos os colaboradores",
+      createdByUserId: admin.id
+    },
+    admin
+  );
+
+  assert.equal(
+    createdCycle.libraryId,
+    publishedLibrary.id,
+    "Novo ciclo deve manter a biblioteca selecionada"
+  );
+
+  const cycleTemplate = await store.getEvaluationTemplateForCycleRelationship(
+    createdCycle.id,
+    "company"
+  );
+  assert.equal(
+    cycleTemplate.modelName,
+    "Biblioteca de satisfacao customizada",
+    "Ciclo deve carregar o template da biblioteca publicada"
+  );
+
+  const createdIncident = await store.createIncident(
+    {
+      title: "Teste estruturado de compliance",
+      category: "Conduta Impropria",
+      classification: "Conduta e Relacionamento",
+      anonymity: "anonymous",
+      reporterLabel: "Anonimo",
+      responsibleArea: "Compliance",
+      assignedPersonId: compliance.personId,
+      description: "Caso de teste para validar area e responsavel."
+    },
+    admin
+  );
+  assert.equal(
+    createdIncident.responsibleArea,
+    "Compliance",
+    "Caso deve manter a area responsavel selecionada"
+  );
+  assert.equal(
+    createdIncident.assignedPersonId,
+    compliance.personId,
+    "Caso deve manter o responsavel designado"
+  );
+
+  const createdDevelopmentRecord = await store.createDevelopmentRecord(
+    {
+      personId: employee.personId,
+      recordType: "Curso",
+      title: "Programa de Lideranca Situacional",
+      providerName: "ABC Academy",
+      completedAt: "2026-03-20",
+      skillSignal: "Gestao de conflitos",
+      notes: "Registro criado para validar manutencao."
+    },
+    employee
+  );
+
+  const archivedDevelopmentRecord = await store.updateDevelopmentRecord(
+    createdDevelopmentRecord.id,
+    {
+      personId: employee.personId,
+      recordType: "Curso",
+      title: "Programa de Lideranca Situacional",
+      providerName: "ABC Academy",
+      completedAt: "2026-03-20",
+      skillSignal: "Gestao de conflitos",
+      notes: "Registro arquivado para teste.",
+      status: "archived"
+    },
+    employee
+  );
+
+  assert.equal(
+    archivedDevelopmentRecord.status,
+    "archived",
+    "Registro de desenvolvimento deve permitir arquivamento"
+  );
+  assert.ok(
+    archivedDevelopmentRecord.archivedAt,
+    "Registro arquivado deve expor data de arquivamento"
+  );
+
+  const createdApplause = await store.createApplauseEntry({
+    senderPersonId: employee.personId,
+    receiverPersonId: manager.personId,
+    category: "Colaboracao",
+    impact: "Apoio direto em entrega critica.",
+    contextNote: "Reconhecimento criado para validar manutencao administrativa do modulo."
+  });
+
+  const updatedApplause = await store.updateApplauseEntry(
+    createdApplause.id,
+    {
+      receiverPersonId: manager.personId,
+      category: "Resolucao de problema",
+      impact: "Apoio refinado para investigacao de causa raiz.",
+      contextNote: "Registro revisado no fluxo administrativo.",
+      status: "Arquivado"
+    },
+    admin
+  );
+
+  assert.equal(
+    updatedApplause.status,
+    "Arquivado",
+    "Aplause deve permitir ajuste administrativo de status"
+  );
+  assert.equal(
+    updatedApplause.category,
+    "Resolucao de problema",
+    "Aplause deve permitir atualizacao de categoria"
+  );
+
+  const createdPerson = await store.createPerson(
+    {
+      name: "Pessoa Homologacao",
+      roleTitle: "Analista de Testes",
+      area: "Tecnologia",
+      managerPersonId: manager.personId,
+      employmentType: "internal"
+    },
+    admin
+  );
+
+  assert.equal(
+    createdPerson.satisfactionScore,
+    4,
+    "Cadastro de pessoa sem score manual deve assumir valor padrao"
+  );
+
   console.log("Backend regression tests passed.");
 } finally {
   await new Promise((resolve, reject) => {

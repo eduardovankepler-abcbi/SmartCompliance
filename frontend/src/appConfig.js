@@ -70,11 +70,13 @@ export const emptyIncident = {
   classification: "Nao classificado",
   anonymity: "anonymous",
   reporterLabel: "",
-  assignedTo: "RH Corporativo",
+  responsibleArea: "",
+  assignedPersonId: "",
   description: ""
 };
 
 export const emptyCycle = {
+  libraryId: "",
   title: "",
   semesterLabel: "",
   dueDate: "",
@@ -114,8 +116,7 @@ export const emptyPerson = {
   roleTitle: "",
   area: "",
   managerPersonId: "",
-  employmentType: "internal",
-  satisfactionScore: "4.0"
+  employmentType: "internal"
 };
 
 export const emptyArea = {

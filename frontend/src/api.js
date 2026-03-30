@@ -197,10 +197,20 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload)
     }),
+  updateApplauseEntry: (applauseId, payload) =>
+    request(`/api/applause/${applauseId}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload)
+    }),
   getDevelopmentRecords: () => request("/api/development/records"),
   createDevelopmentRecord: (payload) =>
     request("/api/development/records", {
       method: "POST",
+      body: JSON.stringify(payload)
+    }),
+  updateDevelopmentRecord: (recordId, payload) =>
+    request(`/api/development/records/${recordId}`, {
+      method: "PATCH",
       body: JSON.stringify(payload)
     }),
   getDashboardOverview: (area = null, timeGrouping = "semester") => {

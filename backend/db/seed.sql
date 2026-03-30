@@ -148,8 +148,8 @@ INSERT INTO evaluation_questions (
 ('q_company_23', 't1', 'final', 'Consideracoes Finais', 'Espaco final para autoavaliacao do periodo e sugestoes de melhoria para a empresa.', 'final-comments', 'Sugestoes gerais', 'Deixe aqui sua sugestao! Pode ser sobre cursos do seu interesse, melhorias nos processos das suas atividades, melhoria na comunicacao da empresa, etc.', 'Use este espaco para compartilhar ideias, opinioes ou propostas que possam contribuir para seu desenvolvimento, para a eficiencia do trabalho ou para melhorar o ambiente e a comunicacao na empresa.', 'text', NULL, 323, TRUE, FALSE)
 ON DUPLICATE KEY UPDATE prompt_text = VALUES(prompt_text), question_type = VALUES(question_type), options_json = VALUES(options_json);
 
-INSERT INTO evaluation_cycles (id, template_id, title, semester_label, status, due_date, target_group, created_by_user_id) VALUES
-('c1', 't1', 'Ciclo Semestral 2026.1', '2026.1', 'Liberado', '2026-04-15', 'Todos os colaboradores', 'u6')
+INSERT INTO evaluation_cycles (id, template_id, library_id, library_name, title, semester_label, status, due_date, target_group, created_by_user_id) VALUES
+('c1', 't1', 'library_standard_02_2026', 'Biblioteca padrao 02/2026', 'Ciclo Semestral 2026.1', '2026.1', 'Liberado', '2026-04-15', 'Todos os colaboradores', 'u6')
 ON DUPLICATE KEY UPDATE title = VALUES(title);
 
 INSERT INTO evaluation_assignments (id, cycle_id, reviewer_user_id, reviewee_person_id, relationship_type, project_context, collaboration_context, status, due_date) VALUES
@@ -183,9 +183,9 @@ INSERT INTO evaluation_answers (id, submission_id, question_id, score, evidence_
 ('ans6', 'es1', 'q6', 4, 'Relacao respeitosa e colaborativa com o time.')
 ON DUPLICATE KEY UPDATE score = VALUES(score);
 
-INSERT INTO incident_reports (id, title, category, classification, status, anonymity, reporter_label, assigned_to, created_at, description) VALUES
-('i1', 'Conduta impropria em reuniao', 'Conduta Impropria', 'Conduta e Relacionamento', 'Em triagem', 'anonymous', 'Anonimo', 'RH Corporativo', '2026-03-10 10:00:00', 'Relato de comentario inadequado em reuniao de area.'),
-('i2', 'Possivel conflito de interesse em fornecedor', 'Conflito de interesse', 'Integridade e Etica', 'Em apuracao', 'identified', 'Canal identificado', 'Compliance Corporativo', '2026-03-14 15:20:00', 'Sinalizacao de relacionamento proximo entre colaborador e fornecedor participante de cotacao.')
+INSERT INTO incident_reports (id, title, category, classification, status, anonymity, reporter_label, responsible_area, assigned_person_id, assigned_to, created_at, description) VALUES
+('i1', 'Conduta impropria em reuniao', 'Conduta Impropria', 'Conduta e Relacionamento', 'Em triagem', 'anonymous', 'Anonimo', 'Compliance', 'p6', 'RH Corporativo', '2026-03-10 10:00:00', 'Relato de comentario inadequado em reuniao de area.'),
+('i2', 'Possivel conflito de interesse em fornecedor', 'Conflito de interesse', 'Integridade e Etica', 'Em apuracao', 'identified', 'Canal identificado', 'Compliance', 'p7', 'Compliance Corporativo', '2026-03-14 15:20:00', 'Sinalizacao de relacionamento proximo entre colaborador e fornecedor participante de cotacao.')
 ON DUPLICATE KEY UPDATE title = VALUES(title);
 
 INSERT INTO applause_entries (id, sender_person_id, receiver_person_id, category, impact, context_note, created_at, status) VALUES

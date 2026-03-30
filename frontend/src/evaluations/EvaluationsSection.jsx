@@ -227,6 +227,16 @@ export function EvaluationsSection(props) {
             value={cycleForm.title}
             onChange={(value) => setCycleForm({ ...cycleForm, title: value })}
           />
+          <Select
+            label="Biblioteca aplicada"
+            value={cycleForm.libraryId}
+            options={evaluationLibrary?.cycleLibraries?.map((library) => library.id) || []}
+            renderLabel={(value) =>
+              evaluationLibrary?.cycleLibraries?.find((library) => library.id === value)?.name ||
+              value
+            }
+            onChange={(value) => setCycleForm({ ...cycleForm, libraryId: value })}
+          />
           <Input
             label="Semestre"
             value={cycleForm.semesterLabel}
@@ -261,6 +271,7 @@ export function EvaluationsSection(props) {
                   <span className="badge">{cycle.status}</span>
                 </div>
                 <strong>{cycle.title}</strong>
+                <p className="muted">{cycle.libraryName || cycle.modelName}</p>
                 <p className="muted">{getCycleStatusDescription(cycle.status)}</p>
                 <p className="muted">Prazo: {formatDate(cycle.dueDate)}</p>
               </div>
@@ -283,6 +294,7 @@ export function EvaluationsSection(props) {
                   <span className="badge">{cycle.status}</span>
                 </div>
                 <strong>{cycle.title}</strong>
+                <p className="muted">{cycle.libraryName || cycle.modelName}</p>
                 <p className="muted">{cycle.targetGroup}</p>
                 <p className="muted">{getCycleStatusDescription(cycle.status)}</p>
                 <p className="muted">Prazo: {formatDate(cycle.dueDate)}</p>

@@ -34,9 +34,12 @@ CREATE TABLE IF NOT EXISTS incident_reports (
   status VARCHAR(40) NOT NULL,
   anonymity VARCHAR(20) NOT NULL,
   reporter_label VARCHAR(120) NOT NULL,
+  responsible_area VARCHAR(120) NOT NULL,
+  assigned_person_id VARCHAR(36) NULL,
   assigned_to VARCHAR(120) NOT NULL,
   created_at DATETIME NOT NULL,
-  description TEXT NOT NULL
+  description TEXT NOT NULL,
+  FOREIGN KEY (assigned_person_id) REFERENCES people(id)
 );
 
 CREATE TABLE IF NOT EXISTS evaluation_templates (
@@ -68,6 +71,8 @@ CREATE TABLE IF NOT EXISTS evaluation_questions (
 CREATE TABLE IF NOT EXISTS evaluation_cycles (
   id VARCHAR(36) PRIMARY KEY,
   template_id VARCHAR(36) NOT NULL,
+  library_id VARCHAR(120) NULL,
+  library_name VARCHAR(160) NULL,
   title VARCHAR(160) NOT NULL,
   semester_label VARCHAR(60) NOT NULL,
   status VARCHAR(40) NOT NULL,
@@ -170,6 +175,8 @@ CREATE TABLE IF NOT EXISTS development_records (
   completed_at DATE NOT NULL,
   skill_signal VARCHAR(120) NOT NULL,
   notes TEXT NOT NULL,
+  status VARCHAR(30) NOT NULL DEFAULT 'active',
+  archived_at DATETIME NULL,
   FOREIGN KEY (person_id) REFERENCES people(id)
 );
 

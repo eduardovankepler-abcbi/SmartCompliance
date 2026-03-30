@@ -14,14 +14,7 @@ export function createPeopleRouter(store) {
   });
 
   router.post("/", requireRoles("admin", "hr"), async (req, res) => {
-    const {
-      name,
-      roleTitle,
-      area,
-      managerPersonId,
-      employmentType,
-      satisfactionScore
-    } = req.body;
+    const { name, roleTitle, area, managerPersonId, employmentType, satisfactionScore } = req.body;
 
     if (!name || !roleTitle || !area || !employmentType) {
       return badRequest(res, "Campos obrigatorios da pessoa nao informados.");
@@ -35,7 +28,10 @@ export function createPeopleRouter(store) {
           area,
           managerPersonId: managerPersonId || null,
           employmentType,
-          satisfactionScore: Number(satisfactionScore || 0)
+          satisfactionScore:
+            satisfactionScore === undefined || satisfactionScore === null
+              ? undefined
+              : Number(satisfactionScore)
         },
         req.auth.user
       );
@@ -46,14 +42,7 @@ export function createPeopleRouter(store) {
   });
 
   router.patch("/:personId", requireRoles("admin", "hr"), async (req, res) => {
-    const {
-      name,
-      roleTitle,
-      area,
-      managerPersonId,
-      employmentType,
-      satisfactionScore
-    } = req.body;
+    const { name, roleTitle, area, managerPersonId, employmentType, satisfactionScore } = req.body;
 
     if (!name || !roleTitle || !area || !employmentType) {
       return badRequest(res, "Campos obrigatorios da pessoa nao informados.");
@@ -68,7 +57,10 @@ export function createPeopleRouter(store) {
           area,
           managerPersonId: managerPersonId || null,
           employmentType,
-          satisfactionScore: Number(satisfactionScore || 0)
+          satisfactionScore:
+            satisfactionScore === undefined || satisfactionScore === null
+              ? undefined
+              : Number(satisfactionScore)
         },
         req.auth.user
       );

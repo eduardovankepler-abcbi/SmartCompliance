@@ -56,5 +56,57 @@ export function createDevelopmentRouter(store) {
     }
   });
 
+  router.patch("/records/:recordId", async (req, res, next) => {
+    const { recordId } = req.params;
+    const {
+      personId,
+      recordType,
+      title,
+      providerName,
+      completedAt,
+      skillSignal,
+      notes,
+      status
+    } = req.body;
+
+    if (
+      !personId ||
+      !recordType ||
+      !title ||
+      !providerName ||
+      !completedAt ||
+      !skillSignal ||
+      !status
+    ) {
+      return badRequest(
+        res,
+        "Campos obrigatorios do registro de desenvolvimento nao informados."
+      );
+    }
+
+    try {
+      const record = await store.updateDevelopmentRecord(
+        recordId,
+        {
+          personId,
+          recordType,
+          title,
+          providerName,
+          completedAt,
+          skillSignal,
+          notes: notes || "",
+          status
+        },
+        req.auth.user
+      );
+
+      res.json(record);
+    } catch (error) {
+      res
+        .status(400)
+        .json({ error: error.message || "Falha ao atualizar desenvolvimento." });
+    }
+  });
+
   return router;
 }

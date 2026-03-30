@@ -613,16 +613,18 @@ export function ComplianceSection({
   formatDate,
   handleIncidentSubmit,
   handleIncidentUpdate,
+  incidentAreaOptions,
   incidentClassificationOptions,
   incidentStatusOptions,
   incidentForm,
   incidents,
+  incidentResponsibleOptions,
   roleKey,
   setIncidentForm
 }) {
   const isOperationalCompliance = roleKey === "compliance";
   const shouldShowReporterLabel = incidentForm.anonymity === "identified";
-  const shouldShowAssignedTo = canManageIncidentQueue;
+  const shouldShowAssignedPerson = canManageIncidentQueue;
 
   return (
     <section className="page-grid">
@@ -672,11 +674,34 @@ export function ComplianceSection({
             onChange={(value) => setIncidentForm({ ...incidentForm, reporterLabel: value })}
           />
         ) : null}
-        {shouldShowAssignedTo ? (
-          <Input
-            label="Area responsavel"
-            value={incidentForm.assignedTo}
-            onChange={(value) => setIncidentForm({ ...incidentForm, assignedTo: value })}
+        <Select
+          label="Area responsavel"
+          value={incidentForm.responsibleArea}
+          options={incidentAreaOptions.map((item) => item.value)}
+          renderLabel={(value) =>
+            incidentAreaOptions.find((item) => item.value === value)?.label || value
+          }
+          onChange={(value) =>
+            setIncidentForm({
+              ...incidentForm,
+              responsibleArea: value,
+              assignedPersonId:
+                incidentResponsibleOptions.find((item) => item.area === value && item.isAreaManager)
+                  ?.value || ""
+            })
+          }
+        />
+        {shouldShowAssignedPerson ? (
+          <Select
+            label="Responsavel inicial"
+            value={incidentForm.assignedPersonId}
+            options={incidentResponsibleOptions
+              .filter((item) => item.value === "" || item.area === incidentForm.responsibleArea)
+              .map((item) => item.value)}
+            renderLabel={(value) =>
+              incidentResponsibleOptions.find((item) => item.value === value)?.label || value
+            }
+            onChange={(value) => setIncidentForm({ ...incidentForm, assignedPersonId: value })}
           />
         ) : null}
         <Textarea
@@ -706,7 +731,9 @@ export function ComplianceSection({
                 canManage={canManageIncidentQueue}
                 formatDate={formatDate}
                 incident={incident}
+                areaOptions={incidentAreaOptions}
                 incidentClassificationOptions={incidentClassificationOptions}
+                responsibleOptions={incidentResponsibleOptions}
                 incidentStatusOptions={incidentStatusOptions}
                 onSave={handleIncidentUpdate}
               />
@@ -735,6 +762,9 @@ export function ComplianceSection({
 }
 
 export function DevelopmentSection({
+  auditEntries,
+  canViewAuditTrail,
+  DevelopmentRecordAdminCard,
   Input,
   MetricCard,
   Select,
@@ -745,12 +775,14 @@ export function DevelopmentSection({
   developmentHighlights,
   developmentMetrics,
   developmentRecordTypes,
+  developmentEditablePeopleOptions,
   developmentViewLabels,
   developmentViewOptions,
   filteredDevelopmentRecords,
   formatDate,
   getDevelopmentTrackLabel,
   handleDevelopmentSubmit,
+  handleDevelopmentUpdate,
   roleKey,
   setActiveDevelopmentView,
   setDevelopmentForm
@@ -908,19 +940,17 @@ export function DevelopmentSection({
         <div className="stack-list">
           {filteredDevelopmentRecords.length ? (
             filteredDevelopmentRecords.map((record) => (
-              <article className="list-card" key={record.id}>
-                <div className="row">
-                  <strong>{record.title}</strong>
-                  <span className="badge">{record.recordType}</span>
-                </div>
-                <p>{record.personName}</p>
-                <p className="muted">
-                  {getDevelopmentTrackLabel(record.recordType)} | {record.providerName}
-                </p>
-                <p className="muted">{record.skillSignal}</p>
-                <p className="muted">Conclusao: {formatDate(record.completedAt)}</p>
-                {record.notes ? <p className="muted">{record.notes}</p> : null}
-              </article>
+              <DevelopmentRecordAdminCard
+                key={record.id}
+                developmentRecordTypes={developmentRecordTypes}
+                getDevelopmentTrackLabel={getDevelopmentTrackLabel}
+                onSave={handleDevelopmentUpdate}
+                personOptions={developmentEditablePeopleOptions}
+                record={{
+                  ...record,
+                  completedAt: record.completedAt?.slice?.(0, 10) || record.completedAt
+                }}
+              />
             ))
           ) : (
             <div className="list-card">
@@ -932,18 +962,34 @@ export function DevelopmentSection({
           )}
         </div>
       </div>
+
+      {canViewAuditTrail ? (
+        <AuditTrailPanel
+          entries={auditEntries.slice(0, 6)}
+          emptyMessage="Criacoes, atualizacoes e arquivamentos de desenvolvimento aparecerao aqui."
+          formatDate={formatDate}
+          subtitle="Historico recente de manutencao e evolucao"
+          title="Trilha operacional"
+        />
+      ) : null}
     </section>
   );
 }
 
 export function ApplauseSection({
+  ApplauseAdminCard,
   Input,
   Select,
   Textarea,
+  auditEntries,
   applauseEntries,
-  applauseForm,
   applausePeopleOptions,
+  applauseForm,
+  canManageApplause,
+  canViewAuditTrail,
+  formatDate,
   handleApplauseSubmit,
+  handleApplauseUpdate,
   roleKey,
   setApplauseForm
 }) {
@@ -1007,20 +1053,39 @@ export function ApplauseSection({
         </div>
         <div className="stack-list">
           {applauseEntries.map((entry) => (
-            <article className="list-card" key={entry.id}>
-              <div className="row">
-                <strong>
-                  {entry.senderName} {"->"} {entry.receiverName}
-                </strong>
-                <span className="badge">{entry.status}</span>
-              </div>
-              <p>{entry.category}</p>
-              <p className="muted">{entry.impact}</p>
-              <p className="muted">{entry.contextNote}</p>
-            </article>
+            canManageApplause ? (
+              <ApplauseAdminCard
+                key={entry.id}
+                onSave={handleApplauseUpdate}
+                personOptions={applausePeopleOptions}
+                record={entry}
+              />
+            ) : (
+              <article className="list-card" key={entry.id}>
+                <div className="row">
+                  <strong>
+                    {entry.senderName} {"->"} {entry.receiverName}
+                  </strong>
+                  <span className="badge">{entry.status}</span>
+                </div>
+                <p>{entry.category}</p>
+                <p className="muted">{entry.impact}</p>
+                <p className="muted">{entry.contextNote}</p>
+              </article>
+            )
           ))}
         </div>
       </div>
+
+      {canViewAuditTrail ? (
+        <AuditTrailPanel
+          entries={auditEntries.slice(0, 6)}
+          emptyMessage="Criacoes e revisoes de Aplause aparecerao nesta trilha."
+          formatDate={formatDate}
+          subtitle="Historico recente de reconhecimento e manutencao"
+          title="Trilha operacional"
+        />
+      ) : null}
     </section>
   );
 }

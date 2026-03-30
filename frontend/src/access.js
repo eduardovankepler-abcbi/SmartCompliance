@@ -17,6 +17,7 @@ export function getCapabilities(userOrRoleKey) {
     canViewResponses: roleKey === "admin" || roleKey === "manager",
     canViewEvaluationInsights: roleKey === "admin" || roleKey === "manager",
     canViewEvaluationLibrary: roleKey === "admin" || roleKey === "hr",
+    canManageApplause: roleKey === "admin" || roleKey === "hr" || roleKey === "manager",
     canManageDevelopmentScope:
       roleKey === "admin" || roleKey === "hr" || roleKey === "manager",
     canFilterDashboardByArea: roleKey === "admin" || roleKey === "hr",

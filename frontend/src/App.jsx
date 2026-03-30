@@ -38,7 +38,9 @@ import {
 } from "./appLabels.js";
 import { buildAppHash, parseAppHash } from "./appRoute";
 import {
+  ApplauseAdminCard,
   AreaAdminCard,
+  DevelopmentRecordAdminCard,
   IncidentQueueCard,
   PersonStructureCard,
   UserAdminCard
@@ -123,6 +125,7 @@ export default function App() {
     canViewResponses,
     canViewEvaluationInsights,
     canViewEvaluationLibrary,
+    canManageApplause,
     canManageDevelopmentScope,
     canFilterDashboardByArea,
     canViewTeamDevelopment,
@@ -217,6 +220,7 @@ export default function App() {
     cycles,
     assignments,
     feedbackRequests,
+    evaluationLibrary,
     responsesBundle,
     canViewEvaluationInsights,
     canViewEvaluationOperations,
@@ -352,6 +356,24 @@ export default function App() {
     [peopleOptions]
   );
 
+  const incidentAreaOptions = useMemo(
+    () => areas.map((area) => ({ value: area.name, label: area.name })),
+    [areas]
+  );
+
+  const incidentResponsibleOptions = useMemo(
+    () => [
+      { value: "", label: "Nao definido", area: "", isAreaManager: false },
+      ...people.map((person) => ({
+        value: person.id,
+        label: `${person.name} · ${person.area}`,
+        area: person.area,
+        isAreaManager: person.areaManagerPersonId === person.id
+      }))
+    ],
+    [people]
+  );
+
   const availableUserPeopleOptions = useMemo(() => {
     const linkedPersonIds = new Set(users.map((item) => item.personId));
     return peopleOptions.filter((person) => !linkedPersonIds.has(person.value));
@@ -411,6 +433,11 @@ export default function App() {
     user
   ]);
 
+  const activeDevelopmentRecords = useMemo(
+    () => filteredDevelopmentRecords.filter((record) => (record.status || "active") !== "archived"),
+    [filteredDevelopmentRecords]
+  );
+
   const developmentFormPeopleOptions = useMemo(() => {
     if (!user) {
       return [];
@@ -432,22 +459,42 @@ export default function App() {
     user
   ]);
 
+  const developmentEditablePeopleOptions = useMemo(() => {
+    const visiblePeople = new Map();
+    filteredDevelopmentRecords.forEach((record) => {
+      if (!visiblePeople.has(record.personId)) {
+        visiblePeople.set(record.personId, {
+          value: record.personId,
+          label: record.personName
+        });
+      }
+    });
+
+    developmentFormPeopleOptions.forEach((person) => {
+      if (!visiblePeople.has(person.value)) {
+        visiblePeople.set(person.value, person);
+      }
+    });
+
+    return Array.from(visiblePeople.values());
+  }, [developmentFormPeopleOptions, filteredDevelopmentRecords]);
+
   const developmentMetrics = useMemo(() => {
-    const peopleInScope = new Set(filteredDevelopmentRecords.map((record) => record.personId)).size;
-    const academicRecords = filteredDevelopmentRecords.filter((record) =>
+    const peopleInScope = new Set(activeDevelopmentRecords.map((record) => record.personId)).size;
+    const academicRecords = activeDevelopmentRecords.filter((record) =>
       academicDevelopmentTypes.has(record.recordType)
     ).length;
-    const certificationRecords = filteredDevelopmentRecords.filter(
+    const certificationRecords = activeDevelopmentRecords.filter(
       (record) => record.recordType === "Certificacao"
     ).length;
-    const continuousLearningRecords = filteredDevelopmentRecords.filter(
+    const continuousLearningRecords = activeDevelopmentRecords.filter(
       (record) =>
         !academicDevelopmentTypes.has(record.recordType) &&
         record.recordType !== "Certificacao"
     ).length;
 
     return [
-      { label: "Registros no recorte", value: filteredDevelopmentRecords.length },
+      { label: "Registros no recorte", value: activeDevelopmentRecords.length },
       { label: "Formacao academica", value: academicRecords },
       { label: "Certificacoes", value: certificationRecords },
       {
@@ -456,12 +503,12 @@ export default function App() {
       },
       { label: "Aprendizagem continua", value: continuousLearningRecords }
     ];
-  }, [activeDevelopmentView, filteredDevelopmentRecords]);
+  }, [activeDevelopmentView, activeDevelopmentRecords]);
 
   const developmentHighlights = useMemo(
     () =>
       Object.values(
-        filteredDevelopmentRecords.reduce((acc, record) => {
+        activeDevelopmentRecords.reduce((acc, record) => {
           const entry = acc[record.personId] || {
             personId: record.personId,
             personName: record.personName,
@@ -484,7 +531,17 @@ export default function App() {
           return acc;
         }, {})
       ).sort((left, right) => right.totalRecords - left.totalRecords),
-    [filteredDevelopmentRecords]
+    [activeDevelopmentRecords]
+  );
+
+  const developmentAuditEntries = useMemo(
+    () => auditTrail.filter((item) => item.category === "development"),
+    [auditTrail]
+  );
+
+  const applauseAuditEntries = useMemo(
+    () => auditTrail.filter((item) => item.category === "applause"),
+    [auditTrail]
   );
 
   const dashboardCompositionOptions = useMemo(
@@ -578,6 +635,30 @@ export default function App() {
       }));
     }
   }, [areaOptions, areas.length, personForm.area]);
+
+  useEffect(() => {
+    if (!incidentAreaOptions.length) {
+      return;
+    }
+
+    if (!incidentAreaOptions.some((option) => option.value === incidentForm.responsibleArea)) {
+      const nextArea = incidentAreaOptions[0]?.value || "";
+      const nextResponsible =
+        incidentResponsibleOptions.find((item) => item.area === nextArea && item.isAreaManager)
+          ?.value || "";
+
+      setIncidentForm((current) => ({
+        ...current,
+        responsibleArea: nextArea,
+        assignedPersonId: current.assignedPersonId || nextResponsible
+      }));
+    }
+  }, [
+    incidentAreaOptions,
+    incidentForm.responsibleArea,
+    incidentResponsibleOptions,
+    setIncidentForm
+  ]);
 
   useEffect(() => {
     const nextPersonId =
@@ -674,8 +755,7 @@ export default function App() {
       setError("");
       await api.createPerson({
         ...personForm,
-        managerPersonId: personForm.managerPersonId || null,
-        satisfactionScore: Number(personForm.satisfactionScore || 0)
+        managerPersonId: personForm.managerPersonId || null
       });
       setPersonForm(emptyPerson);
       await reloadData();
@@ -770,6 +850,16 @@ export default function App() {
     }
   }
 
+  async function handleApplauseUpdate(applauseId, payload) {
+    try {
+      setError("");
+      await api.updateApplauseEntry(applauseId, payload);
+      await reloadData();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
   async function handleDevelopmentSubmit(event) {
     event.preventDefault();
     try {
@@ -779,6 +869,16 @@ export default function App() {
         ...emptyDevelopment,
         personId: current.personId
       }));
+      await reloadData();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function handleDevelopmentUpdate(recordId, payload) {
+    try {
+      setError("");
+      await api.updateDevelopmentRecord(recordId, payload);
       await reloadData();
     } catch (err) {
       setError(err.message);
@@ -894,10 +994,12 @@ export default function App() {
             formatDate={formatDate}
             handleIncidentSubmit={handleIncidentSubmit}
             handleIncidentUpdate={handleIncidentUpdate}
+            incidentAreaOptions={incidentAreaOptions}
             incidentClassificationOptions={incidentClassificationOptions}
             incidentStatusOptions={incidentStatusOptions}
             incidentForm={incidentForm}
             incidents={incidents}
+            incidentResponsibleOptions={incidentResponsibleOptions}
             roleKey={user.roleKey}
             setIncidentForm={setIncidentForm}
           />
@@ -980,6 +1082,9 @@ export default function App() {
 
         {!loading && activeSection === "Desenvolvimento" ? (
           <DevelopmentSection
+            auditEntries={developmentAuditEntries}
+            canViewAuditTrail={canViewAuditTrail}
+            DevelopmentRecordAdminCard={DevelopmentRecordAdminCard}
             Input={Input}
             MetricCard={MetricCard}
             Select={Select}
@@ -990,12 +1095,14 @@ export default function App() {
             developmentHighlights={developmentHighlights}
             developmentMetrics={developmentMetrics}
             developmentRecordTypes={developmentRecordTypes}
+            developmentEditablePeopleOptions={developmentEditablePeopleOptions}
             developmentViewLabels={developmentViewLabels}
             developmentViewOptions={developmentViewOptions}
             filteredDevelopmentRecords={filteredDevelopmentRecords}
             formatDate={formatDate}
             getDevelopmentTrackLabel={getDevelopmentTrackLabel}
             handleDevelopmentSubmit={handleDevelopmentSubmit}
+            handleDevelopmentUpdate={handleDevelopmentUpdate}
             roleKey={user.roleKey}
             setActiveDevelopmentView={setActiveDevelopmentView}
             setDevelopmentForm={setDevelopmentForm}
@@ -1004,13 +1111,19 @@ export default function App() {
 
         {!loading && activeSection === "Aplause" ? (
           <ApplauseSection
+            ApplauseAdminCard={ApplauseAdminCard}
             Input={Input}
             Select={Select}
             Textarea={Textarea}
+            auditEntries={applauseAuditEntries}
             applauseEntries={applauseEntries}
             applauseForm={applauseForm}
             applausePeopleOptions={applausePeopleOptions}
+            canManageApplause={canManageApplause}
+            canViewAuditTrail={canViewAuditTrail}
+            formatDate={formatDate}
             handleApplauseSubmit={handleApplauseSubmit}
+            handleApplauseUpdate={handleApplauseUpdate}
             roleKey={user.roleKey}
             setApplauseForm={setApplauseForm}
           />

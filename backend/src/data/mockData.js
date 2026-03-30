@@ -1374,6 +1374,8 @@ export const seed = {
     {
       id: "c1",
       templateId: "t1",
+      libraryId: "library_standard_02_2026",
+      libraryName: "Biblioteca padrao 02/2026",
       title: "Ciclo Semestral 2026.1",
       semesterLabel: "2026.1",
       status: "Liberado",
@@ -1546,6 +1548,8 @@ export const seed = {
       status: "Em triagem",
       anonymity: "anonymous",
       reporterLabel: "Anonimo",
+      responsibleArea: "Compliance",
+      assignedPersonId: "p6",
       assignedTo: "RH Corporativo",
       createdAt: "2026-03-10T10:00:00.000Z",
       description: "Relato de comentario inadequado em reuniao de area."
@@ -1558,6 +1562,8 @@ export const seed = {
       status: "Em apuracao",
       anonymity: "identified",
       reporterLabel: "Canal identificado",
+      responsibleArea: "Compliance",
+      assignedPersonId: "p7",
       assignedTo: "Compliance Corporativo",
       createdAt: "2026-03-14T15:20:00.000Z",
       description:
@@ -1585,7 +1591,9 @@ export const seed = {
       providerName: "SAP Learning",
       completedAt: "2026-02-05",
       skillSignal: "Governanca de acessos",
-      notes: "Certificacao vinculada ao projeto de compliance."
+      notes: "Certificacao vinculada ao projeto de compliance.",
+      status: "active",
+      archivedAt: null
     },
     {
       id: "d2",
@@ -1595,7 +1603,9 @@ export const seed = {
       providerName: "FIA Business School",
       completedAt: "2025-12-10",
       skillSignal: "Lideranca, governanca e estrategia",
-      notes: "Formacao utilizada para fortalecer rituais de acompanhamento e desenvolvimento da equipe."
+      notes: "Formacao utilizada para fortalecer rituais de acompanhamento e desenvolvimento da equipe.",
+      status: "active",
+      archivedAt: null
     },
     {
       id: "d3",
@@ -1605,7 +1615,9 @@ export const seed = {
       providerName: "Universidade Presbiteriana Mackenzie",
       completedAt: "2024-12-18",
       skillSignal: "Arquitetura, produto e analise de requisitos",
-      notes: "Base academica aplicada nas frentes de tecnologia e integracao."
+      notes: "Base academica aplicada nas frentes de tecnologia e integracao.",
+      status: "active",
+      archivedAt: null
     },
     {
       id: "d4",
@@ -1615,7 +1627,9 @@ export const seed = {
       providerName: "FGV",
       completedAt: "2025-08-22",
       skillSignal: "Etica, controles internos e investigacao",
-      notes: "Evolucao academica diretamente conectada ao papel atual no time de compliance."
+      notes: "Evolucao academica diretamente conectada ao papel atual no time de compliance.",
+      status: "active",
+      archivedAt: null
     }
   ],
   auditLogs: [

@@ -42,7 +42,7 @@ export function createEvaluationsRouter(store) {
   });
 
   router.post("/cycles", requireRoles("admin", "hr"), async (req, res, next) => {
-    const { title, semesterLabel, dueDate, targetGroup } = req.body;
+    const { title, semesterLabel, dueDate, targetGroup, libraryId } = req.body;
 
     if (!title || !semesterLabel || !dueDate || !targetGroup) {
       return badRequest(res, "Campos obrigatorios do ciclo nao informados.");
@@ -50,7 +50,7 @@ export function createEvaluationsRouter(store) {
 
     try {
       const cycle = await store.createEvaluationCycle({
-        templateId: "t1",
+        libraryId,
         title,
         semesterLabel,
         dueDate,
@@ -106,7 +106,8 @@ export function createEvaluationsRouter(store) {
         return res.status(404).json({ error: "Assignment nao encontrado." });
       }
 
-      const template = await store.getEvaluationTemplateForRelationship(
+      const template = await store.getEvaluationTemplateForCycleRelationship(
+        assignment.cycleId,
         assignment.relationshipType
       );
       res.json({

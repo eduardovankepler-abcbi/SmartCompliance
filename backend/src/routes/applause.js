@@ -34,5 +34,32 @@ export function createApplauseRouter(store) {
     }
   });
 
+  router.patch("/:applauseId", async (req, res, next) => {
+    const { applauseId } = req.params;
+    const { receiverPersonId, category, impact, contextNote, status } = req.body;
+
+    if (!receiverPersonId || !category || !impact || !contextNote || !status) {
+      return badRequest(res, "Campos obrigatorios do Aplause nao informados.");
+    }
+
+    try {
+      const applause = await store.updateApplauseEntry(
+        applauseId,
+        {
+          receiverPersonId,
+          category,
+          impact,
+          contextNote,
+          status
+        },
+        req.auth.user
+      );
+
+      res.json(applause);
+    } catch (error) {
+      res.status(400).json({ error: error.message || "Falha ao atualizar Aplause." });
+    }
+  });
+
   return router;
 }

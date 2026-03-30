@@ -127,3 +127,50 @@ Antes de considerar qualquer etapa concluida:
 1. Rodar `npm run verify`
 2. Testar login com pelo menos um perfil operacional
 3. Validar rapidamente `Avaliacoes` e a secao principal do perfil usado
+
+## Proxima trilha recomendada
+
+### Passo 1. Fechar Biblioteca de Avaliacoes com criacao real de ciclo
+Status: concluido.
+
+Entregas:
+- novo ciclo passa a escolher a biblioteca aplicada
+- backend deixa de fixar o ciclo no template `t1`
+- biblioteca publicada passa a governar o template carregado no assignment do ciclo
+- ciclos passam a exibir a biblioteca usada
+
+### Passo 2. Vincular Compliance a area e responsavel real
+Status: concluido.
+
+Entregas:
+- `Compliance` deixa de depender de `assignedTo` em texto livre
+- cada caso passa a registrar `area responsavel`
+- a fila operacional permite definir `responsavel designado`
+- exibicao do caso passa a refletir area, responsavel e fallback para o gestor da area
+
+### Passo 3. Completar ciclo de vida de Desenvolvimento
+Status: concluido.
+
+Entregas:
+- registros de desenvolvimento agora podem ser editados
+- historico ganhou manutencao direta por registro
+- arquivamento passou a fazer parte do fluxo, sem perder o historico
+- backend cobre criacao, atualizacao e arquivamento com regressao automatizada
+
+### Passo 4. Completar ciclo de vida de Aplause
+Status: concluido.
+
+Entregas:
+- Aplause agora permite manutencao administrativa dos registros
+- status pode ser ajustado no fluxo publicado
+- gestores e perfis administrativos conseguem revisar e arquivar registros
+- backend cobre criacao e atualizacao com regressao automatizada
+
+### Passo 5. Homologacao final dos modulos
+Status: concluido.
+
+Entregas:
+- revisao final das jornadas publicadas por modulo
+- remocao do acoplamento invisivel do score no cadastro de pessoas
+- trilha operacional conectada tambem a Desenvolvimento e Aplause
+- regressao adicional para garantir cadastro de pessoa sem score manual

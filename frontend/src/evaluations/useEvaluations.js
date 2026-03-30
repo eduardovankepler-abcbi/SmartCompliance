@@ -163,6 +163,7 @@ export function useEvaluations({
   cycles,
   assignments,
   feedbackRequests,
+  evaluationLibrary,
   responsesBundle,
   canViewEvaluationInsights,
   canViewEvaluationOperations,
@@ -203,6 +204,10 @@ export function useEvaluations({
   );
 
   const evaluationCycleOptions = useMemo(() => cycles, [cycles]);
+  const cycleLibraryOptions = useMemo(
+    () => evaluationLibrary?.cycleLibraries || [],
+    [evaluationLibrary]
+  );
 
   const feedbackProviderOptions = useMemo(
     () =>
@@ -408,6 +413,20 @@ export function useEvaluations({
       }));
     }
   }, [feedbackRequestCycleOptions, feedbackRequestForm.cycleId]);
+
+  useEffect(() => {
+    const nextLibraryId =
+      cycleLibraryOptions.find((library) => library.id === cycleForm.libraryId)?.id ||
+      cycleLibraryOptions[0]?.id ||
+      "";
+
+    if (nextLibraryId !== cycleForm.libraryId) {
+      setCycleForm((current) => ({
+        ...current,
+        libraryId: nextLibraryId
+      }));
+    }
+  }, [cycleForm.libraryId, cycleLibraryOptions]);
 
   useEffect(() => {
     if (!canViewEvaluationInsights && activeEvaluationWorkspace === "insights") {

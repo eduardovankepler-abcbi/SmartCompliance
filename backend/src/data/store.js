@@ -32,6 +32,8 @@ const CYCLE_STATUS = {
 };
 const USER_ROLE_OPTIONS = ["admin", "hr", "manager", "employee", "compliance"];
 const USER_STATUS_OPTIONS = ["active", "inactive"];
+const DEVELOPMENT_RECORD_STATUS_OPTIONS = ["active", "archived"];
+const APPLAUSE_STATUS_OPTIONS = ["Validado", "Em revisao", "Arquivado"];
 const FEEDBACK_REQUEST_STATUS = {
   pending: "pending",
   approved: "approved",
@@ -41,7 +43,9 @@ const AUDIT_CATEGORIES = {
   user: "user",
   incident: "incident",
   cycle: "cycle",
-  feedbackRequest: "feedback_request"
+  feedbackRequest: "feedback_request",
+  applause: "applause",
+  development: "development"
 };
 const CUSTOM_LIBRARY_STORAGE_FILE = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -51,6 +55,11 @@ const ANONYMOUS_RESPONSE_STORAGE_FILE = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "anonymous-responses.json"
 );
+const DEFAULT_EVALUATION_LIBRARY_ID = "library_standard_02_2026";
+const DEFAULT_EVALUATION_LIBRARY_NAME = "Biblioteca padrao 02/2026";
+const DEFAULT_EVALUATION_LIBRARY_DESCRIPTION =
+  "Biblioteca oficial do ciclo, com os modelos base do produto.";
+const DEFAULT_PERSON_SATISFACTION_SCORE = 4;
 
 const createId = (prefix) =>
   `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
@@ -145,12 +154,19 @@ function getAuditCategoriesForUser(user) {
         AUDIT_CATEGORIES.user,
         AUDIT_CATEGORIES.incident,
         AUDIT_CATEGORIES.cycle,
-        AUDIT_CATEGORIES.feedbackRequest
+        AUDIT_CATEGORIES.feedbackRequest,
+        AUDIT_CATEGORIES.applause,
+        AUDIT_CATEGORIES.development
       ];
     case "compliance":
       return [AUDIT_CATEGORIES.incident];
     case "manager":
-      return [AUDIT_CATEGORIES.cycle, AUDIT_CATEGORIES.feedbackRequest];
+      return [
+        AUDIT_CATEGORIES.cycle,
+        AUDIT_CATEGORIES.feedbackRequest,
+        AUDIT_CATEGORIES.applause,
+        AUDIT_CATEGORIES.development
+      ];
     default:
       return [];
   }
@@ -209,6 +225,18 @@ function assertValidUserRole(roleKey) {
 function assertValidUserStatus(status) {
   if (!USER_STATUS_OPTIONS.includes(status)) {
     throw new Error("Status de usuario invalido.");
+  }
+}
+
+function assertValidDevelopmentRecordStatus(status) {
+  if (!DEVELOPMENT_RECORD_STATUS_OPTIONS.includes(status)) {
+    throw new Error("Status de desenvolvimento invalido.");
+  }
+}
+
+function assertValidApplauseStatus(status) {
+  if (!APPLAUSE_STATUS_OPTIONS.includes(status)) {
+    throw new Error("Status do Aplause invalido.");
   }
 }
 
@@ -360,6 +388,46 @@ function assertValidAreaManagerReference(people, managerPersonId) {
   }
 }
 
+function enrichIncident(incident, people = [], areas = []) {
+  const assignedPerson = people.find((person) => person.id === incident.assignedPersonId);
+  const responsibleArea = areas.find(
+    (area) => normalizeAreaName(area.name) === normalizeAreaName(incident.responsibleArea)
+  );
+
+  return {
+    ...incident,
+    responsibleArea: incident.responsibleArea || "",
+    assignedPersonId: incident.assignedPersonId || null,
+    assignedPersonName: assignedPerson?.name || "",
+    areaManagerPersonId: responsibleArea?.managerPersonId || null,
+    areaManagerName: responsibleArea?.managerName || "",
+    assignedTo:
+      assignedPerson?.name ||
+      responsibleArea?.managerName ||
+      incident.assignedTo ||
+      "Nao definido"
+  };
+}
+
+function assertValidIncidentArea(areas, areaName) {
+  if (!areaName) {
+    throw new Error("Area responsavel obrigatoria.");
+  }
+
+  assertValidAreaReference(areas, areaName);
+}
+
+function assertValidIncidentAssignee(people, assignedPersonId) {
+  if (!assignedPersonId) {
+    return;
+  }
+
+  const assignedPerson = people.find((person) => person.id === assignedPersonId);
+  if (!assignedPerson) {
+    throw new Error("Responsavel informado nao foi encontrado.");
+  }
+}
+
 function buildSummary(db, user) {
   if (isOrgWideUser(user)) {
     return {
@@ -410,6 +478,15 @@ function buildSummary(db, user) {
     pendingAssignments: db.assignments.filter(
       (item) => item.reviewerUserId === user.id && item.status === "pending"
     ).length
+  };
+}
+
+function presentDevelopmentRecord(record, personName = "") {
+  return {
+    ...record,
+    personName,
+    status: record.status || "active",
+    archivedAt: record.archivedAt || null
   };
 }
 
@@ -599,9 +676,17 @@ function buildDashboard(db, user, anonymousResponses = []) {
 }
 
 function buildTemplate(definition) {
+  const normalizedDefinition = {
+    id: definition.id || `${definition.relationshipType || "custom"}_template`,
+    key: definition.key || definition.relationshipType || "custom",
+    modelName: definition.modelName || definition.name || "Template customizado",
+    description: definition.description || "",
+    policy: definition.policy || {},
+    questions: definition.questions || []
+  };
   const dimensions = [];
   const sections = [];
-  for (const question of definition.questions) {
+  for (const question of normalizedDefinition.questions) {
     if (question.sectionKey && !sections.find((item) => item.key === question.sectionKey)) {
       sections.push({
         key: question.sectionKey,
@@ -622,26 +707,82 @@ function buildTemplate(definition) {
   }
 
   return {
-    id: definition.id,
-    key: definition.key,
-    modelName: definition.modelName,
-    description: definition.description,
-    policy: definition.policy,
+    id: normalizedDefinition.id,
+    key: normalizedDefinition.key,
+    modelName: normalizedDefinition.modelName,
+    description: normalizedDefinition.description,
+    policy: normalizedDefinition.policy,
     sections,
     dimensions,
-    questions: definition.questions
+    questions: normalizedDefinition.questions
   };
 }
 
 function buildEvaluationLibraryPayload(customLibraries = []) {
+  const defaultLibrary = {
+    id: DEFAULT_EVALUATION_LIBRARY_ID,
+    name: DEFAULT_EVALUATION_LIBRARY_NAME,
+    description: DEFAULT_EVALUATION_LIBRARY_DESCRIPTION,
+    sourceType: "default",
+    templateCount: Object.values(evaluationLibrary.templates).length,
+    questionCount: Object.values(evaluationLibrary.templates).reduce(
+      (total, template) => total + template.questions.length,
+      0
+    )
+  };
+  const customLibrarySummaries = customLibraries.map((library) => ({
+    ...library,
+    sourceType: "custom"
+  }));
+
   return {
     scale: evaluationLibrary.scale,
     weights: evaluationLibrary.weights,
+    defaultLibrary,
+    cycleLibraries: [defaultLibrary, ...customLibrarySummaries].map((library) => ({
+      id: library.id,
+      name: library.name,
+      description: library.description || "",
+      sourceType: library.sourceType,
+      templateCount: library.templateCount,
+      questionCount: library.questionCount
+    })),
     templates: Object.values(evaluationLibrary.templates).map((template) =>
       buildTemplate(template)
     ),
-    customLibraries
+    customLibraries: customLibrarySummaries
   };
+}
+
+function presentCycle(row) {
+  return {
+    ...row,
+    templateId: row.templateId || questionTemplate.id,
+    libraryId: row.libraryId || DEFAULT_EVALUATION_LIBRARY_ID,
+    libraryName: row.libraryName || DEFAULT_EVALUATION_LIBRARY_NAME,
+    modelName:
+      row.modelName || row.libraryName || DEFAULT_EVALUATION_LIBRARY_NAME
+  };
+}
+
+function findPublishedLibrary(customLibraries, libraryId) {
+  return (customLibraries || []).find((library) => library.id === libraryId) || null;
+}
+
+function findTemplateInPublishedLibrary(library, relationshipType) {
+  return (
+    library?.templates?.find((template) => template.relationshipType === relationshipType) || null
+  );
+}
+
+function getTemplateDefinitionForCycle({
+  cycle,
+  relationshipType,
+  customLibraries = []
+}) {
+  const customLibrary = findPublishedLibrary(customLibraries, cycle?.libraryId);
+  const customTemplate = findTemplateInPublishedLibrary(customLibrary, relationshipType);
+  return customTemplate || getTemplateForRelationship(relationshipType);
 }
 
 function resolveTemplateKey(relationshipType) {
@@ -661,27 +802,36 @@ function getTemplateForRelationship(relationshipType) {
   return evaluationLibrary.templates[resolveTemplateKey(relationshipType)];
 }
 
-function findQuestionDefinition(questionId) {
-  return Object.values(evaluationLibrary.templates)
+function findQuestionDefinition(questionId, customLibraries = []) {
+  return [
+    ...Object.values(evaluationLibrary.templates),
+    ...customLibraries.flatMap((library) => library.templates || [])
+  ]
     .flatMap((template) => template.questions)
     .find((question) => question.id === questionId);
 }
 
-function presentAssignment(row) {
+function presentAssignment(row, customLibraries = []) {
+  const cycle = presentCycle(row);
+  const templateDefinition = getTemplateDefinitionForCycle({
+    cycle,
+    relationshipType: row.relationshipType,
+    customLibraries
+  });
   return {
-    ...row,
-    templateKey: resolveTemplateKey(row.relationshipType),
-    templateId:
-      getTemplateForRelationship(row.relationshipType)?.id || row.templateId || questionTemplate.id,
+    ...cycle,
+    templateKey: templateDefinition?.key || resolveTemplateKey(row.relationshipType),
+    templateId: templateDefinition?.id || row.templateId || questionTemplate.id,
     weight: evaluationLibrary.weights[row.relationshipType] || 0,
-    cycleStatus: row.cycleStatus || "",
+    cycleStatus: cycle.cycleStatus || "",
     revieweeName: row.relationshipType === "company" ? "Empresa" : row.revieweeName,
     revieweeArea: row.relationshipType === "company" ? "Institucional" : row.revieweeArea
   };
 }
 
-function enrichAssignment(db, assignment) {
+function enrichAssignment(db, assignment, customLibraries = []) {
   const cycle = db.cycles.find((item) => item.id === assignment.cycleId);
+  const presentedCycle = presentCycle(cycle || {});
   const reviewer = db.users.find((item) => item.id === assignment.reviewerUserId);
   const reviewee = db.people.find((item) => item.id === assignment.revieweePersonId);
   const revieweeManager = reviewee
@@ -694,14 +844,23 @@ function enrichAssignment(db, assignment) {
 
   return {
     ...assignment,
-    cycleTitle: cycle?.title || "",
-    semesterLabel: cycle?.semesterLabel || "",
-    cycleStatus: cycle?.status || "",
+    cycleTitle: presentedCycle.title || "",
+    semesterLabel: presentedCycle.semesterLabel || "",
+    cycleStatus: presentedCycle.status || "",
     templateId:
-      getTemplateForRelationship(assignment.relationshipType)?.id ||
-      cycle?.templateId ||
-      questionTemplate.id,
-    templateKey: resolveTemplateKey(assignment.relationshipType),
+      getTemplateDefinitionForCycle({
+        cycle: presentedCycle,
+        relationshipType: assignment.relationshipType,
+        customLibraries
+      })?.id || presentedCycle.templateId || questionTemplate.id,
+    templateKey:
+      getTemplateDefinitionForCycle({
+        cycle: presentedCycle,
+        relationshipType: assignment.relationshipType,
+        customLibraries
+      })?.key || resolveTemplateKey(assignment.relationshipType),
+    libraryId: presentedCycle.libraryId,
+    libraryName: presentedCycle.libraryName,
     weight: evaluationLibrary.weights[assignment.relationshipType] || 0,
     reviewerName: reviewerPerson?.name || "",
     revieweeName: assignment.relationshipType === "company" ? "Empresa" : reviewee?.name || "",
@@ -716,7 +875,7 @@ function enrichAssignment(db, assignment) {
   };
 }
 
-function enrichSubmission(db, submission) {
+function enrichSubmission(db, submission, customLibraries = []) {
   const reviewer = db.users.find((item) => item.id === submission.reviewerUserId);
   const reviewee = db.people.find((item) => item.id === submission.revieweePersonId);
   const assignment = db.assignments.find((item) => item.id === submission.assignmentId);
@@ -726,7 +885,7 @@ function enrichSubmission(db, submission) {
   const answers = db.answers
     .filter((item) => item.submissionId === submission.id)
     .map((answer) => {
-      const question = findQuestionDefinition(answer.questionId);
+      const question = findQuestionDefinition(answer.questionId, customLibraries);
       return {
         ...answer,
         questionPrompt: question?.prompt || "",
@@ -1652,21 +1811,21 @@ function assertCanCreateFeedbackRequest(db, actorUser, payload) {
 }
 
 function assertCanCreateDevelopmentRecord(actorUser, people, personId) {
+  const actorPersonId = actorUser.person?.id || actorUser.personId;
+
   if (isOrgWideUser(actorUser)) {
     return;
   }
 
   if (
     isManagerUser(actorUser) &&
-    (actorUser.person.id === personId ||
-      people.some(
-        (person) => person.id === personId && person.managerPersonId === actorUser.person.id
-      ))
+    (actorPersonId === personId ||
+      people.some((person) => person.id === personId && person.managerPersonId === actorPersonId))
   ) {
     return;
   }
 
-  if (actorUser.person.id !== personId) {
+  if (actorPersonId !== personId) {
     throw new Error("Voce so pode registrar desenvolvimento no proprio perfil ou na sua equipe.");
   }
 }
@@ -1708,6 +1867,35 @@ function assertCanCreateApplause(existingEntries, payload) {
   if (reciprocalEntries.length >= MAX_RECIPROCAL_APPLAUSE) {
     throw new Error("Padrao reciproco excessivo detectado para este Aplause.");
   }
+}
+
+function canManageApplause(actorUser) {
+  return ["admin", "hr", "manager"].includes(actorUser?.roleKey || "");
+}
+
+function assertCanManageApplauseEntry(actorUser, people, entry) {
+  if (!canManageApplause(actorUser)) {
+    throw new Error("Perfil sem permissao para atualizar Aplause.");
+  }
+
+  if (isOrgWideUser(actorUser)) {
+    return;
+  }
+
+  const actorPersonId = actorUser.person?.id || actorUser.personId;
+  const visiblePersonIds = new Set([
+    actorPersonId,
+    ...getTeamPeople(people, actorPersonId).map((item) => item.id)
+  ]);
+
+  if (
+    visiblePersonIds.has(entry.senderPersonId) ||
+    visiblePersonIds.has(entry.receiverPersonId)
+  ) {
+    return;
+  }
+
+  throw new Error("Voce so pode atualizar Aplause do seu proprio escopo.");
 }
 
 async function loadCustomLibraryState() {
@@ -1822,7 +2010,7 @@ async function fetchUserRows(pool) {
   return rows;
 }
 
-async function fetchMysqlResponses(pool) {
+async function fetchMysqlResponses(pool, customLibraries = []) {
   const [submissions] = await pool.query(
     `SELECT s.id, s.assignment_id AS assignmentId, s.cycle_id AS cycleId,
             s.reviewer_user_id AS reviewerUserId, s.reviewee_person_id AS revieweePersonId,
@@ -1846,8 +2034,8 @@ async function fetchMysqlResponses(pool) {
             a.evidence_note AS evidenceNote, a.answer_text AS textValue, a.answer_options_json AS answerOptionsJson, q.prompt_text AS questionPrompt,
             q.dimension_title AS dimensionTitle
      FROM evaluation_answers a
-     JOIN evaluation_questions q ON q.id = a.question_id
-     ORDER BY q.sort_order ASC`
+     LEFT JOIN evaluation_questions q ON q.id = a.question_id
+     ORDER BY a.id ASC`
   );
 
   return submissions.map((submission) => ({
@@ -1872,6 +2060,14 @@ async function fetchMysqlResponses(pool) {
       .filter((answer) => answer.submissionId === submission.id)
       .map((answer) => ({
         ...answer,
+        questionPrompt:
+          answer.questionPrompt ||
+          findQuestionDefinition(answer.questionId, customLibraries)?.prompt ||
+          "",
+        dimensionTitle:
+          answer.dimensionTitle ||
+          findQuestionDefinition(answer.questionId, customLibraries)?.dimensionTitle ||
+          "",
         selectedOptions: answer.answerOptionsJson ? JSON.parse(answer.answerOptionsJson) : []
       }))
   }));
@@ -1986,7 +2182,7 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         area: payload.area,
         managerPersonId: payload.managerPersonId || null,
         employmentType: payload.employmentType,
-        satisfactionScore: Number(payload.satisfactionScore || 0)
+        satisfactionScore: Number(payload.satisfactionScore ?? DEFAULT_PERSON_SATISFACTION_SCORE)
       };
       db.people.unshift(person);
       return enrichPerson(db.people, person, db.areas.map((area) => enrichArea(db.people, area)));
@@ -2009,7 +2205,9 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
       person.area = payload.area;
       person.managerPersonId = payload.managerPersonId || null;
       person.employmentType = payload.employmentType;
-      person.satisfactionScore = Number(payload.satisfactionScore || 0);
+      if (payload.satisfactionScore !== undefined && payload.satisfactionScore !== null) {
+        person.satisfactionScore = Number(payload.satisfactionScore);
+      }
 
       return enrichPerson(db.people, person, db.areas.map((area) => enrichArea(db.people, area)));
     },
@@ -2105,16 +2303,29 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
       if (!canAccessIncidents(actorUser)) {
         return [];
       }
-      return db.incidents;
+      return db.incidents.map((incident) => enrichIncident(incident, db.people, db.areas));
     },
     async createIncident(payload, actorUser) {
       assertValidIncidentClassification(payload.classification);
+      assertValidIncidentArea(db.areas, payload.responsibleArea);
+      assertValidIncidentAssignee(db.people, payload.assignedPersonId);
+
+      const area = db.areas.find(
+        (item) => normalizeAreaName(item.name) === normalizeAreaName(payload.responsibleArea)
+      );
+      const assignedPerson =
+        db.people.find((person) => person.id === payload.assignedPersonId) ||
+        db.people.find((person) => person.id === area?.managerPersonId) ||
+        null;
 
       const incident = {
         id: createId("incident"),
         status: "Em triagem",
         createdAt: new Date().toISOString(),
-        ...payload
+        ...payload,
+        responsibleArea: area?.name || payload.responsibleArea,
+        assignedPersonId: assignedPerson?.id || null,
+        assignedTo: assignedPerson?.name || area?.managerName || "Nao definido"
       };
       db.incidents.unshift(incident);
       pushAuditLog(db.auditLogs, {
@@ -2125,9 +2336,9 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         entityLabel: incident.title,
         actorUser,
         summary: `Relato registrado: ${incident.title}`,
-        detail: `${incident.classification} · Responsavel inicial: ${incident.assignedTo}`
+        detail: `${incident.classification} · Area: ${incident.responsibleArea} · Responsavel inicial: ${incident.assignedTo}`
       });
-      return incident;
+      return enrichIncident(incident, db.people, db.areas);
     },
     async updateIncident(incidentId, payload, actorUser) {
       if (!canManageIncidentQueue(actorUser)) {
@@ -2141,10 +2352,22 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
 
       assertValidIncidentClassification(payload.classification);
       assertValidIncidentStatus(payload.status);
+      assertValidIncidentArea(db.areas, payload.responsibleArea);
+      assertValidIncidentAssignee(db.people, payload.assignedPersonId);
+
+      const area = db.areas.find(
+        (item) => normalizeAreaName(item.name) === normalizeAreaName(payload.responsibleArea)
+      );
+      const assignedPerson =
+        db.people.find((person) => person.id === payload.assignedPersonId) ||
+        db.people.find((person) => person.id === area?.managerPersonId) ||
+        null;
 
       incident.classification = payload.classification;
       incident.status = payload.status;
-      incident.assignedTo = payload.assignedTo;
+      incident.responsibleArea = area?.name || payload.responsibleArea;
+      incident.assignedPersonId = assignedPerson?.id || null;
+      incident.assignedTo = assignedPerson?.name || area?.managerName || "Nao definido";
 
       pushAuditLog(db.auditLogs, {
         category: AUDIT_CATEGORIES.incident,
@@ -2154,10 +2377,10 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         entityLabel: incident.title,
         actorUser,
         summary: `Caso atualizado: ${incident.title}`,
-        detail: `${incident.status} · ${incident.classification} · Responsavel: ${incident.assignedTo}`
+        detail: `${incident.status} · ${incident.classification} · Area: ${incident.responsibleArea} · Responsavel: ${incident.assignedTo}`
       });
 
-      return incident;
+      return enrichIncident(incident, db.people, db.areas);
     },
     async getEvaluationTemplate() {
       return buildTemplate(evaluationLibrary.templates.collaboration);
@@ -2206,16 +2429,35 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
       await saveCustomLibraryState(customLibraryState);
       return published;
     },
-    async getEvaluationTemplateForRelationship(relationshipType) {
-      return buildTemplate(getTemplateForRelationship(relationshipType));
+    async getEvaluationTemplateForCycleRelationship(cycleId, relationshipType) {
+      const cycle = db.cycles.find((item) => item.id === cycleId);
+      return buildTemplate(
+        getTemplateDefinitionForCycle({
+          cycle: presentCycle(cycle || {}),
+          relationshipType,
+          customLibraries: customLibraryState.published
+        })
+      );
     },
     async getEvaluationCycles() {
-      return db.cycles;
+      return db.cycles.map((cycle) => presentCycle(cycle));
     },
     async createEvaluationCycle(payload, actorUser) {
+      const selectedLibrary =
+        payload.libraryId && payload.libraryId !== DEFAULT_EVALUATION_LIBRARY_ID
+          ? findPublishedLibrary(customLibraryState.published, payload.libraryId)
+          : null;
+
+      if (payload.libraryId && payload.libraryId !== DEFAULT_EVALUATION_LIBRARY_ID && !selectedLibrary) {
+        throw new Error("Biblioteca selecionada nao foi encontrada.");
+      }
+
       const cycle = {
         id: createId("cycle"),
         ...payload,
+        templateId: questionTemplate.id,
+        libraryId: selectedLibrary?.id || DEFAULT_EVALUATION_LIBRARY_ID,
+        libraryName: selectedLibrary?.name || DEFAULT_EVALUATION_LIBRARY_NAME,
         status: CYCLE_STATUS.planning
       };
       db.cycles.unshift(cycle);
@@ -2239,7 +2481,7 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
       });
 
       return {
-        ...cycle,
+        ...presentCycle(cycle),
         generatedAssignmentsCount: generatedAssignments.length
       };
     },
@@ -2262,12 +2504,12 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         summary: `Status do ciclo atualizado: ${cycle.title}`,
         detail: `${previousStatus} -> ${nextStatus}`
       });
-      return cycle;
+      return presentCycle(cycle);
     },
     async getEvaluationAssignmentsForUser(userId) {
       return db.assignments
         .filter((item) => item.reviewerUserId === userId)
-        .map((item) => enrichAssignment(db, item));
+        .map((item) => enrichAssignment(db, item, customLibraryState.published));
     },
     async getEvaluationAssignmentById(assignmentId, userId) {
       const assignment = db.assignments.find(
@@ -2276,11 +2518,11 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
       if (!assignment) {
         return null;
       }
-      return enrichAssignment(db, assignment);
+      return enrichAssignment(db, assignment, customLibraryState.published);
     },
     async getEvaluationResponses(actorUser) {
       const responses = [
-        ...db.submissions.map((item) => enrichSubmission(db, item)),
+        ...db.submissions.map((item) => enrichSubmission(db, item, customLibraryState.published)),
         ...anonymousResponseState.responses
       ];
       return buildResponsesBundle(responses, actorUser);
@@ -2415,7 +2657,11 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         throw new Error("As avaliacoes deste ciclo ainda nao foram liberadas pelo RH.");
       }
 
-      const templateDefinition = getTemplateForRelationship(assignment.relationshipType);
+      const templateDefinition = getTemplateDefinitionForCycle({
+        cycle: assignment,
+        relationshipType: assignment.relationshipType,
+        customLibraries: customLibraryState.published
+      });
       validateEvaluationAnswers(payload.answers, templateDefinition);
 
       if (isAnonymousRelationship(assignment.relationshipType)) {
@@ -2506,13 +2752,68 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         ...payload
       };
       db.applauseEntries.unshift(applause);
-      return applause;
+      const sender = db.people.find((person) => person.id === applause.senderPersonId);
+      const receiver = db.people.find((person) => person.id === applause.receiverPersonId);
+      pushAuditLog(db.auditLogs, {
+        category: AUDIT_CATEGORIES.applause,
+        action: "created",
+        entityType: "applause_entry",
+        entityId: applause.id,
+        entityLabel: applause.category,
+        actorUser: db.users.find((user) => user.personId === applause.senderPersonId) || null,
+        summary: `Aplause registrado para ${receiver?.name || "colaborador"}`,
+        detail: `${applause.category} · ${sender?.name || "-"} -> ${receiver?.name || "-"}`
+      });
+      return {
+        ...applause,
+        senderName: sender?.name || "",
+        receiverName: receiver?.name || ""
+      };
+    },
+    async updateApplauseEntry(applauseId, payload, actorUser) {
+      const applause = db.applauseEntries.find((item) => item.id === applauseId);
+      if (!applause) {
+        throw new Error("Registro de Aplause nao encontrado.");
+      }
+
+      assertCanManageApplauseEntry(actorUser, db.people, applause);
+      assertValidApplauseStatus(payload.status);
+
+      applause.receiverPersonId = payload.receiverPersonId;
+      applause.category = payload.category;
+      applause.impact = payload.impact;
+      applause.contextNote = payload.contextNote;
+      applause.status = payload.status;
+
+      const sender = db.people.find((person) => person.id === applause.senderPersonId);
+      const receiver = db.people.find((person) => person.id === applause.receiverPersonId);
+      pushAuditLog(db.auditLogs, {
+        category: AUDIT_CATEGORIES.applause,
+        action: payload.status === "Arquivado" ? "archived" : "updated",
+        entityType: "applause_entry",
+        entityId: applause.id,
+        entityLabel: applause.category,
+        actorUser,
+        summary:
+          payload.status === "Arquivado"
+            ? `Aplause arquivado para ${receiver?.name || "colaborador"}`
+            : `Aplause atualizado para ${receiver?.name || "colaborador"}`,
+        detail: `${applause.category} · ${sender?.name || "-"} -> ${receiver?.name || "-"}`
+      });
+
+      return {
+        ...applause,
+        senderName: sender?.name || "",
+        receiverName: receiver?.name || ""
+      };
     },
     async getDevelopmentRecords(actorUser) {
       const records = db.developmentRecords.map((item) => {
         const person = db.people.find((person) => person.id === item.personId);
         return {
           ...item,
+          status: item.status || "active",
+          archivedAt: item.archivedAt || null,
           personName: person?.name || ""
         };
       });
@@ -2536,10 +2837,62 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
 
       const record = {
         id: createId("development"),
-        ...payload
+        ...payload,
+        status: "active",
+        archivedAt: null
       };
       db.developmentRecords.unshift(record);
+      const person = db.people.find((item) => item.id === record.personId);
+      pushAuditLog(db.auditLogs, {
+        category: AUDIT_CATEGORIES.development,
+        action: "created",
+        entityType: "development_record",
+        entityId: record.id,
+        entityLabel: record.title,
+        actorUser,
+        summary: `Registro de desenvolvimento criado para ${person?.name || "pessoa"}`,
+        detail: `${record.recordType} · ${record.providerName} · ${record.skillSignal}`
+      });
       return record;
+    },
+    async updateDevelopmentRecord(recordId, payload, actorUser) {
+      const record = db.developmentRecords.find((item) => item.id === recordId);
+      if (!record) {
+        throw new Error("Registro de desenvolvimento nao encontrado.");
+      }
+
+      assertCanCreateDevelopmentRecord(actorUser, db.people, payload.personId);
+      assertValidDevelopmentRecordStatus(payload.status);
+
+      record.personId = payload.personId;
+      record.recordType = payload.recordType;
+      record.title = payload.title;
+      record.providerName = payload.providerName;
+      record.completedAt = payload.completedAt;
+      record.skillSignal = payload.skillSignal;
+      record.notes = payload.notes;
+      record.status = payload.status;
+      record.archivedAt = payload.status === "archived" ? new Date().toISOString() : null;
+
+      const person = db.people.find((item) => item.id === record.personId);
+      pushAuditLog(db.auditLogs, {
+        category: AUDIT_CATEGORIES.development,
+        action: payload.status === "archived" ? "archived" : "updated",
+        entityType: "development_record",
+        entityId: record.id,
+        entityLabel: record.title,
+        actorUser,
+        summary:
+          payload.status === "archived"
+            ? `Registro de desenvolvimento arquivado para ${person?.name || "pessoa"}`
+            : `Registro de desenvolvimento atualizado para ${person?.name || "pessoa"}`,
+        detail: `${record.recordType} · ${record.providerName} · ${record.skillSignal}`
+      });
+
+      return {
+        ...record,
+        personName: person?.name || ""
+      };
     },
     async getDashboardOverview(actorUser, options = {}) {
       const allResponses = [
@@ -2819,7 +3172,7 @@ function buildMysqlStore(pool, customLibraryState, anonymousResponseState) {
         area: payload.area,
         managerPersonId: payload.managerPersonId || null,
         employmentType: payload.employmentType,
-        satisfactionScore: Number(payload.satisfactionScore || 0)
+        satisfactionScore: Number(payload.satisfactionScore ?? DEFAULT_PERSON_SATISFACTION_SCORE)
       };
 
       await pool.query(
@@ -2863,7 +3216,11 @@ function buildMysqlStore(pool, customLibraryState, anonymousResponseState) {
           payload.area,
           payload.managerPersonId || null,
           payload.employmentType,
-          Number(payload.satisfactionScore || 0),
+          Number(
+            payload.satisfactionScore === undefined || payload.satisfactionScore === null
+              ? person.satisfactionScore
+              : payload.satisfactionScore
+          ),
           personId
         ]
       );
@@ -2878,7 +3235,11 @@ function buildMysqlStore(pool, customLibraryState, anonymousResponseState) {
                 area: payload.area,
                 managerPersonId: payload.managerPersonId || null,
                 employmentType: payload.employmentType,
-                satisfactionScore: Number(payload.satisfactionScore || 0)
+                satisfactionScore: Number(
+                  payload.satisfactionScore === undefined || payload.satisfactionScore === null
+                    ? item.satisfactionScore
+                    : payload.satisfactionScore
+                )
               }
             : item
         ),
@@ -2889,7 +3250,11 @@ function buildMysqlStore(pool, customLibraryState, anonymousResponseState) {
           area: payload.area,
           managerPersonId: payload.managerPersonId || null,
           employmentType: payload.employmentType,
-          satisfactionScore: Number(payload.satisfactionScore || 0)
+          satisfactionScore: Number(
+            payload.satisfactionScore === undefined || payload.satisfactionScore === null
+              ? person.satisfactionScore
+              : payload.satisfactionScore
+          )
         },
         areas
       );
@@ -3148,28 +3513,44 @@ function buildMysqlStore(pool, customLibraryState, anonymousResponseState) {
         return [];
       }
 
+      const [areas, people] = await Promise.all([fetchAreaRows(pool), fetchPeopleRows(pool)]);
       const [rows] = await pool.query(
         `SELECT id, title, category, classification, status, anonymity, reporter_label AS reporterLabel,
+                responsible_area AS responsibleArea, assigned_person_id AS assignedPersonId,
                 assigned_to AS assignedTo, created_at AS createdAt, description
          FROM incident_reports
          ORDER BY created_at DESC`
       );
-      return rows;
+      return rows.map((row) => enrichIncident(row, people, areas));
     },
     async createIncident(payload, actorUser) {
       assertValidIncidentClassification(payload.classification);
+      const [areas, people] = await Promise.all([fetchAreaRows(pool), fetchPeopleRows(pool)]);
+      assertValidIncidentArea(areas, payload.responsibleArea);
+      assertValidIncidentAssignee(people, payload.assignedPersonId);
+
+      const area = areas.find(
+        (item) => normalizeAreaName(item.name) === normalizeAreaName(payload.responsibleArea)
+      );
+      const assignedPerson =
+        people.find((person) => person.id === payload.assignedPersonId) ||
+        people.find((person) => person.id === area?.managerPersonId) ||
+        null;
 
       const incident = {
         id: createId("incident"),
         status: "Em triagem",
         createdAt: new Date().toISOString(),
-        ...payload
+        ...payload,
+        responsibleArea: area?.name || payload.responsibleArea,
+        assignedPersonId: assignedPerson?.id || null,
+        assignedTo: assignedPerson?.name || area?.managerName || "Nao definido"
       };
 
       await pool.query(
         `INSERT INTO incident_reports
-         (id, title, category, classification, status, anonymity, reporter_label, assigned_to, created_at, description)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (id, title, category, classification, status, anonymity, reporter_label, responsible_area, assigned_person_id, assigned_to, created_at, description)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           incident.id,
           incident.title,
@@ -3178,6 +3559,8 @@ function buildMysqlStore(pool, customLibraryState, anonymousResponseState) {
           incident.status,
           incident.anonymity,
           incident.reporterLabel,
+          incident.responsibleArea,
+          incident.assignedPersonId,
           incident.assignedTo,
           incident.createdAt,
           incident.description
@@ -3192,10 +3575,10 @@ function buildMysqlStore(pool, customLibraryState, anonymousResponseState) {
         entityLabel: incident.title,
         actorUser,
         summary: `Relato registrado: ${incident.title}`,
-        detail: `${incident.classification} · Responsavel inicial: ${incident.assignedTo}`
+        detail: `${incident.classification} · Area: ${incident.responsibleArea} · Responsavel inicial: ${incident.assignedTo}`
       });
 
-      return incident;
+      return enrichIncident(incident, people, areas);
     },
     async updateIncident(incidentId, payload, actorUser) {
       if (!canManageIncidentQueue(actorUser)) {
@@ -3204,6 +3587,17 @@ function buildMysqlStore(pool, customLibraryState, anonymousResponseState) {
 
       assertValidIncidentClassification(payload.classification);
       assertValidIncidentStatus(payload.status);
+      const [areas, people] = await Promise.all([fetchAreaRows(pool), fetchPeopleRows(pool)]);
+      assertValidIncidentArea(areas, payload.responsibleArea);
+      assertValidIncidentAssignee(people, payload.assignedPersonId);
+
+      const area = areas.find(
+        (item) => normalizeAreaName(item.name) === normalizeAreaName(payload.responsibleArea)
+      );
+      const assignedPerson =
+        people.find((person) => person.id === payload.assignedPersonId) ||
+        people.find((person) => person.id === area?.managerPersonId) ||
+        null;
 
       const [rows] = await pool.query(
         `SELECT id
@@ -3219,13 +3613,21 @@ function buildMysqlStore(pool, customLibraryState, anonymousResponseState) {
 
       await pool.query(
         `UPDATE incident_reports
-         SET classification = ?, status = ?, assigned_to = ?
+         SET classification = ?, status = ?, responsible_area = ?, assigned_person_id = ?, assigned_to = ?
          WHERE id = ?`,
-        [payload.classification, payload.status, payload.assignedTo, incidentId]
+        [
+          payload.classification,
+          payload.status,
+          area?.name || payload.responsibleArea,
+          assignedPerson?.id || null,
+          assignedPerson?.name || area?.managerName || "Nao definido",
+          incidentId
+        ]
       );
 
       const [updatedRows] = await pool.query(
         `SELECT id, title, category, classification, status, anonymity, reporter_label AS reporterLabel,
+                responsible_area AS responsibleArea, assigned_person_id AS assignedPersonId,
                 assigned_to AS assignedTo, created_at AS createdAt, description
          FROM incident_reports
          WHERE id = ?
@@ -3241,10 +3643,10 @@ function buildMysqlStore(pool, customLibraryState, anonymousResponseState) {
         entityLabel: updatedRows[0].title,
         actorUser,
         summary: `Caso atualizado: ${updatedRows[0].title}`,
-        detail: `${updatedRows[0].status} · ${updatedRows[0].classification} · Responsavel: ${updatedRows[0].assignedTo}`
+        detail: `${updatedRows[0].status} · ${updatedRows[0].classification} · Area: ${updatedRows[0].responsibleArea} · Responsavel: ${updatedRows[0].assignedTo}`
       });
 
-      return updatedRows[0];
+      return enrichIncident(updatedRows[0], people, areas);
     },
     async getEvaluationTemplate() {
       return buildTemplate(evaluationLibrary.templates.collaboration);
@@ -3293,24 +3695,51 @@ function buildMysqlStore(pool, customLibraryState, anonymousResponseState) {
       await saveCustomLibraryState(customLibraryState);
       return published;
     },
-    async getEvaluationTemplateForRelationship(relationshipType) {
-      return buildTemplate(getTemplateForRelationship(relationshipType));
+    async getEvaluationTemplateForCycleRelationship(cycleId, relationshipType) {
+      const [rows] = await pool.query(
+        `SELECT id, template_id AS templateId, library_id AS libraryId, library_name AS libraryName
+         FROM evaluation_cycles
+         WHERE id = ?
+         LIMIT 1`,
+        [cycleId]
+      );
+
+      return buildTemplate(
+        getTemplateDefinitionForCycle({
+          cycle: presentCycle(rows[0] || {}),
+          relationshipType,
+          customLibraries: customLibraryState.published
+        })
+      );
     },
     async getEvaluationCycles() {
       const [rows] = await pool.query(
         `SELECT c.id, c.template_id AS templateId, c.title, c.semester_label AS semesterLabel,
                 c.status, c.due_date AS dueDate, c.target_group AS targetGroup,
-                t.name AS modelName, c.created_by_user_id AS createdByUserId
+                c.library_id AS libraryId, c.library_name AS libraryName,
+                COALESCE(c.library_name, t.name) AS modelName, c.created_by_user_id AS createdByUserId
          FROM evaluation_cycles c
          JOIN evaluation_templates t ON t.id = c.template_id
          ORDER BY c.due_date DESC`
       );
-      return rows;
+      return rows.map((row) => presentCycle(row));
     },
     async createEvaluationCycle(payload, actorUser) {
+      const selectedLibrary =
+        payload.libraryId && payload.libraryId !== DEFAULT_EVALUATION_LIBRARY_ID
+          ? findPublishedLibrary(customLibraryState.published, payload.libraryId)
+          : null;
+
+      if (payload.libraryId && payload.libraryId !== DEFAULT_EVALUATION_LIBRARY_ID && !selectedLibrary) {
+        throw new Error("Biblioteca selecionada nao foi encontrada.");
+      }
+
       const cycle = {
         id: createId("cycle"),
         ...payload,
+        templateId: questionTemplate.id,
+        libraryId: selectedLibrary?.id || DEFAULT_EVALUATION_LIBRARY_ID,
+        libraryName: selectedLibrary?.name || DEFAULT_EVALUATION_LIBRARY_NAME,
         status: CYCLE_STATUS.planning
       };
       const users = await fetchUserRows(pool);
@@ -3328,8 +3757,8 @@ function buildMysqlStore(pool, customLibraryState, anonymousResponseState) {
 
         await connection.query(
           `INSERT INTO evaluation_cycles
-           (id, template_id, title, semester_label, status, due_date, target_group, created_by_user_id)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+           (id, template_id, title, semester_label, status, due_date, target_group, created_by_user_id, library_id, library_name)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             cycle.id,
             cycle.templateId,
@@ -3338,7 +3767,9 @@ function buildMysqlStore(pool, customLibraryState, anonymousResponseState) {
             cycle.status,
             cycle.dueDate,
             cycle.targetGroup,
-            cycle.createdByUserId
+            cycle.createdByUserId,
+            cycle.libraryId,
+            cycle.libraryName
           ]
         );
 
@@ -3382,7 +3813,7 @@ function buildMysqlStore(pool, customLibraryState, anonymousResponseState) {
       }
 
       return {
-        ...cycle,
+        ...presentCycle(cycle),
         generatedAssignmentsCount: generatedAssignments.length
       };
     },
@@ -3412,7 +3843,8 @@ function buildMysqlStore(pool, customLibraryState, anonymousResponseState) {
       const [updatedRows] = await pool.query(
         `SELECT c.id, c.template_id AS templateId, c.title, c.semester_label AS semesterLabel,
                 c.status, c.due_date AS dueDate, c.target_group AS targetGroup,
-                t.name AS modelName, c.created_by_user_id AS createdByUserId
+                c.library_id AS libraryId, c.library_name AS libraryName,
+                COALESCE(c.library_name, t.name) AS modelName, c.created_by_user_id AS createdByUserId
          FROM evaluation_cycles c
          JOIN evaluation_templates t ON t.id = c.template_id
          WHERE c.id = ?
@@ -3431,7 +3863,7 @@ function buildMysqlStore(pool, customLibraryState, anonymousResponseState) {
         detail: `${previousStatus} -> ${nextStatus}`
       });
 
-      return updatedRows[0];
+      return presentCycle(updatedRows[0]);
     },
     async getEvaluationAssignmentsForUser(userId) {
       const [rows] = await pool.query(
@@ -3439,7 +3871,7 @@ function buildMysqlStore(pool, customLibraryState, anonymousResponseState) {
                 a.reviewee_person_id AS revieweePersonId, a.relationship_type AS relationshipType,
                 a.project_context AS projectContext, a.collaboration_context AS collaborationContext,
                 a.status, a.due_date AS dueDate, c.title AS cycleTitle, c.semester_label AS semesterLabel,
-                c.template_id AS templateId, c.status AS cycleStatus,
+                c.template_id AS templateId, c.status AS cycleStatus, c.library_id AS libraryId, c.library_name AS libraryName,
                 p.name AS revieweeName, p.area AS revieweeArea,
                 reviewer_person.name AS reviewerName, s.overall_score AS overallScore,
                 s.submitted_at AS submittedAt
@@ -3453,7 +3885,7 @@ function buildMysqlStore(pool, customLibraryState, anonymousResponseState) {
          ORDER BY a.due_date ASC`,
         [userId]
       );
-      return rows.map(presentAssignment);
+      return rows.map((row) => presentAssignment(row, customLibraryState.published));
     },
     async getEvaluationAssignmentById(assignmentId, userId) {
       const [rows] = await pool.query(
@@ -3461,7 +3893,7 @@ function buildMysqlStore(pool, customLibraryState, anonymousResponseState) {
                 a.reviewee_person_id AS revieweePersonId, a.relationship_type AS relationshipType,
                 a.project_context AS projectContext, a.collaboration_context AS collaborationContext,
                 a.status, a.due_date AS dueDate, c.title AS cycleTitle, c.semester_label AS semesterLabel,
-                c.template_id AS templateId, c.status AS cycleStatus,
+                c.template_id AS templateId, c.status AS cycleStatus, c.library_id AS libraryId, c.library_name AS libraryName,
                 p.name AS revieweeName, p.area AS revieweeArea
          FROM evaluation_assignments a
          JOIN evaluation_cycles c ON c.id = a.cycle_id
@@ -3470,11 +3902,11 @@ function buildMysqlStore(pool, customLibraryState, anonymousResponseState) {
          LIMIT 1`,
         [assignmentId, userId]
       );
-      return rows[0] ? presentAssignment(rows[0]) : null;
+      return rows[0] ? presentAssignment(rows[0], customLibraryState.published) : null;
     },
     async getEvaluationResponses(actorUser) {
       const responses = [
-        ...(await fetchMysqlResponses(pool)),
+        ...(await fetchMysqlResponses(pool, customLibraryState.published)),
         ...anonymousResponseState.responses
       ];
       return buildResponsesBundle(responses, actorUser);
@@ -3720,7 +4152,11 @@ function buildMysqlStore(pool, customLibraryState, anonymousResponseState) {
         throw new Error("As avaliacoes deste ciclo ainda nao foram liberadas pelo RH.");
       }
 
-      const templateDefinition = getTemplateForRelationship(assignment.relationshipType);
+      const templateDefinition = getTemplateDefinitionForCycle({
+        cycle: assignment,
+        relationshipType: assignment.relationshipType,
+        customLibraries: customLibraryState.published
+      });
       validateEvaluationAnswers(payload.answers, templateDefinition);
 
       if (isAnonymousRelationship(assignment.relationshipType)) {
@@ -3860,13 +4296,101 @@ function buildMysqlStore(pool, customLibraryState, anonymousResponseState) {
           applause.status
         ]
       );
-      return applause;
+      const [people] = await pool.query(`SELECT id, name FROM people WHERE id IN (?, ?)`, [
+        applause.senderPersonId,
+        applause.receiverPersonId
+      ]);
+      const sender = people.find((person) => person.id === applause.senderPersonId);
+      const receiver = people.find((person) => person.id === applause.receiverPersonId);
+      await insertAuditLog(pool, {
+        category: AUDIT_CATEGORIES.applause,
+        action: "created",
+        entityType: "applause_entry",
+        entityId: applause.id,
+        entityLabel: applause.category,
+        actorUser: {
+          id: null,
+          email: null,
+          roleKey: "employee",
+          person: sender ? { id: sender.id, name: sender.name } : null
+        },
+        summary: `Aplause registrado para ${receiver?.name || "colaborador"}`,
+        detail: `${applause.category} · ${sender?.name || "-"} -> ${receiver?.name || "-"}`
+      });
+      return {
+        ...applause,
+        senderName: sender?.name || "",
+        receiverName: receiver?.name || ""
+      };
+    },
+    async updateApplauseEntry(applauseId, payload, actorUser) {
+      const [people, rows] = await Promise.all([
+        fetchPeopleRows(pool),
+        pool
+          .query(
+            `SELECT id, sender_person_id AS senderPersonId, receiver_person_id AS receiverPersonId,
+                    category, impact, context_note AS contextNote, created_at AS createdAt, status
+             FROM applause_entries
+             WHERE id = ?
+             LIMIT 1`,
+            [applauseId]
+          )
+          .then(([result]) => result)
+      ]);
+
+      const applause = rows[0];
+      if (!applause) {
+        throw new Error("Registro de Aplause nao encontrado.");
+      }
+
+      assertCanManageApplauseEntry(actorUser, people, applause);
+      assertValidApplauseStatus(payload.status);
+
+      await pool.query(
+        `UPDATE applause_entries
+         SET receiver_person_id = ?, category = ?, impact = ?, context_note = ?, status = ?
+         WHERE id = ?`,
+        [
+          payload.receiverPersonId,
+          payload.category,
+          payload.impact,
+          payload.contextNote,
+          payload.status,
+          applauseId
+        ]
+      );
+
+      const sender = people.find((person) => person.id === applause.senderPersonId);
+      const receiver = people.find((person) => person.id === payload.receiverPersonId);
+      await insertAuditLog(pool, {
+        category: AUDIT_CATEGORIES.applause,
+        action: payload.status === "Arquivado" ? "archived" : "updated",
+        entityType: "applause_entry",
+        entityId: applauseId,
+        entityLabel: payload.category,
+        actorUser,
+        summary:
+          payload.status === "Arquivado"
+            ? `Aplause arquivado para ${receiver?.name || "colaborador"}`
+            : `Aplause atualizado para ${receiver?.name || "colaborador"}`,
+        detail: `${payload.category} · ${sender?.name || "-"} -> ${receiver?.name || "-"}`
+      });
+
+      return {
+        ...applause,
+        ...payload,
+        id: applauseId,
+        senderPersonId: applause.senderPersonId,
+        createdAt: applause.createdAt,
+        senderName: sender?.name || "",
+        receiverName: receiver?.name || ""
+      };
     },
     async getDevelopmentRecords(actorUser) {
       const [rows] = await pool.query(
         `SELECT d.id, d.person_id AS personId, p.name AS personName, d.record_type AS recordType,
                 d.title, d.provider_name AS providerName, d.completed_at AS completedAt,
-                d.skill_signal AS skillSignal, d.notes
+                d.skill_signal AS skillSignal, d.notes, d.status, d.archived_at AS archivedAt
          FROM development_records d
          JOIN people p ON p.id = d.person_id
          ORDER BY d.completed_at DESC`
@@ -3891,11 +4415,16 @@ function buildMysqlStore(pool, customLibraryState, anonymousResponseState) {
       const people = await fetchPeopleRows(pool);
       assertCanCreateDevelopmentRecord(actorUser, people, payload.personId);
 
-      const record = { id: createId("development"), ...payload };
+      const record = {
+        id: createId("development"),
+        ...payload,
+        status: "active",
+        archivedAt: null
+      };
       await pool.query(
         `INSERT INTO development_records
-         (id, person_id, record_type, title, provider_name, completed_at, skill_signal, notes)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+         (id, person_id, record_type, title, provider_name, completed_at, skill_signal, notes, status, archived_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           record.id,
           record.personId,
@@ -3904,10 +4433,81 @@ function buildMysqlStore(pool, customLibraryState, anonymousResponseState) {
           record.providerName,
           record.completedAt,
           record.skillSignal,
-          record.notes
+          record.notes,
+          record.status,
+          record.archivedAt
         ]
       );
+      const person = people.find((item) => item.id === record.personId);
+      await insertAuditLog(pool, {
+        category: AUDIT_CATEGORIES.development,
+        action: "created",
+        entityType: "development_record",
+        entityId: record.id,
+        entityLabel: record.title,
+        actorUser,
+        summary: `Registro de desenvolvimento criado para ${person?.name || "pessoa"}`,
+        detail: `${record.recordType} · ${record.providerName} · ${record.skillSignal}`
+      });
       return record;
+    },
+    async updateDevelopmentRecord(recordId, payload, actorUser) {
+      const people = await fetchPeopleRows(pool);
+      const [[existingRecord]] = await pool.query(
+        `SELECT id, person_id AS personId
+         FROM development_records
+         WHERE id = ?`,
+        [recordId]
+      );
+
+      if (!existingRecord) {
+        throw new Error("Registro de desenvolvimento nao encontrado.");
+      }
+
+      assertCanCreateDevelopmentRecord(actorUser, people, payload.personId || existingRecord.personId);
+      assertValidDevelopmentRecordStatus(payload.status);
+
+      const archivedAt = payload.status === "archived" ? new Date().toISOString() : null;
+      await pool.query(
+        `UPDATE development_records
+         SET person_id = ?, record_type = ?, title = ?, provider_name = ?, completed_at = ?,
+             skill_signal = ?, notes = ?, status = ?, archived_at = ?
+         WHERE id = ?`,
+        [
+          payload.personId,
+          payload.recordType,
+          payload.title,
+          payload.providerName,
+          payload.completedAt,
+          payload.skillSignal,
+          payload.notes,
+          payload.status,
+          archivedAt,
+          recordId
+        ]
+      );
+
+      const person = people.find((item) => item.id === payload.personId);
+      await insertAuditLog(pool, {
+        category: AUDIT_CATEGORIES.development,
+        action: payload.status === "archived" ? "archived" : "updated",
+        entityType: "development_record",
+        entityId: recordId,
+        entityLabel: payload.title,
+        actorUser,
+        summary:
+          payload.status === "archived"
+            ? `Registro de desenvolvimento arquivado para ${person?.name || "pessoa"}`
+            : `Registro de desenvolvimento atualizado para ${person?.name || "pessoa"}`,
+        detail: `${payload.recordType} · ${payload.providerName} · ${payload.skillSignal}`
+      });
+
+      return {
+        id: recordId,
+        ...payload,
+        archivedAt,
+        personName: person?.name || ""
+      };
     },
     async getDashboardOverview(actorUser, options = {}) {
       const timeGrouping = options.timeGrouping || "semester";
