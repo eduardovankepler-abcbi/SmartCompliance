@@ -8,6 +8,16 @@ INSERT INTO people (id, name, role_title, area, manager_person_id, employment_ty
 ('p7', 'Compliance Demo', 'Analista de Compliance', 'Compliance', 'p6', 'internal', 4.2)
 ON DUPLICATE KEY UPDATE name = VALUES(name);
 
+INSERT INTO areas (id, name, manager_person_id) VALUES
+('a1', 'Compliance', 'p7'),
+('a2', 'Tecnologia', 'p4'),
+('a3', 'Consultoria', 'p4'),
+('a4', 'Administracao', 'p5'),
+('a5', 'Gente e Gestao', 'p6')
+ON DUPLICATE KEY UPDATE
+  name = VALUES(name),
+  manager_person_id = VALUES(manager_person_id);
+
 INSERT INTO users (id, person_id, email, password_hash, role_key, status) VALUES
 ('u1', 'p1', 'colaborador1@demo.local', SHA2('demo123', 256), 'employee', 'active'),
 ('u2', 'p2', 'colaborador2@demo.local', SHA2('demo123', 256), 'employee', 'active'),

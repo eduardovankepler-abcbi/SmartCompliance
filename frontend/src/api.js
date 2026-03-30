@@ -93,6 +93,17 @@ export const auth = {
 
 export const api = {
   getSummary: () => request("/api/summary"),
+  getAreas: () => request("/api/areas"),
+  createArea: (payload) =>
+    request("/api/areas", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    }),
+  updateArea: (areaId, payload) =>
+    request(`/api/areas/${areaId}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload)
+    }),
   getAuditTrail: (category = null, limit = 40) => {
     const params = new URLSearchParams();
     if (category) {
@@ -107,6 +118,11 @@ export const api = {
   createPerson: (payload) =>
     request("/api/people", {
       method: "POST",
+      body: JSON.stringify(payload)
+    }),
+  updatePerson: (personId, payload) =>
+    request(`/api/people/${personId}`, {
+      method: "PATCH",
       body: JSON.stringify(payload)
     }),
   getUsers: () => request("/api/users"),

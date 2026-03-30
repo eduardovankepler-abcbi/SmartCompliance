@@ -6,6 +6,7 @@ import {
   developmentRecordTypes,
   developmentViewLabels,
   emptyApplause,
+  emptyArea,
   emptyCycle,
   emptyDevelopment,
   emptyFeedbackRequest,
@@ -36,7 +37,12 @@ import {
   getVisibilityLabel
 } from "./appLabels.js";
 import { buildAppHash, parseAppHash } from "./appRoute";
-import { IncidentQueueCard, UserAdminCard } from "./components/AdminCards";
+import {
+  AreaAdminCard,
+  IncidentQueueCard,
+  PersonStructureCard,
+  UserAdminCard
+} from "./components/AdminCards";
 import {
   BarMetricRow,
   ColumnMetricCard,
@@ -83,6 +89,7 @@ export default function App() {
   const [dashboardTimeGrouping, setDashboardTimeGrouping] = useState("semester");
   const [error, setError] = useState("");
   const [incidentForm, setIncidentForm] = useState(emptyIncident);
+  const [areaForm, setAreaForm] = useState(emptyArea);
   const [personForm, setPersonForm] = useState(emptyPerson);
   const [userForm, setUserForm] = useState(emptyUser);
   const [applauseForm, setApplauseForm] = useState(emptyApplause);
@@ -127,6 +134,7 @@ export default function App() {
   const {
     auditTrail,
     applauseEntries,
+    areas,
     assignments,
     cycles,
     dashboard,
@@ -332,6 +340,11 @@ export default function App() {
   const peopleOptions = useMemo(
     () => people.map((person) => ({ value: person.id, label: person.name })),
     [people]
+  );
+
+  const areaOptions = useMemo(
+    () => areas.map((area) => ({ value: area.name, label: area.name })),
+    [areas]
   );
 
   const managerOptions = useMemo(
@@ -545,6 +558,28 @@ export default function App() {
   }, [activeDevelopmentView, developmentViewOptions]);
 
   useEffect(() => {
+    if (!areaForm.managerPersonId && managerOptions.length) {
+      setAreaForm((current) => ({
+        ...current,
+        managerPersonId: current.managerPersonId || ""
+      }));
+    }
+  }, [areaForm.managerPersonId, managerOptions]);
+
+  useEffect(() => {
+    if (!areas.length) {
+      return;
+    }
+
+    if (!areaOptions.some((option) => option.value === personForm.area)) {
+      setPersonForm((current) => ({
+        ...current,
+        area: areaOptions[0]?.value || ""
+      }));
+    }
+  }, [areaOptions, areas.length, personForm.area]);
+
+  useEffect(() => {
     const nextPersonId =
       availableUserPeopleOptions.find((person) => person.value === userForm.personId)?.value ||
       availableUserPeopleOptions[0]?.value ||
@@ -615,6 +650,7 @@ export default function App() {
     logoutSession();
     resetEvaluations();
     resetData();
+    setAreaForm(emptyArea);
     setPersonForm(emptyPerson);
     setUserForm(emptyUser);
   }
@@ -642,6 +678,41 @@ export default function App() {
         satisfactionScore: Number(personForm.satisfactionScore || 0)
       });
       setPersonForm(emptyPerson);
+      await reloadData();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function handleAreaSubmit(event) {
+    event.preventDefault();
+    try {
+      setError("");
+      await api.createArea({
+        ...areaForm,
+        managerPersonId: areaForm.managerPersonId || null
+      });
+      setAreaForm(emptyArea);
+      await reloadData();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function handleAreaUpdate(areaId, payload) {
+    try {
+      setError("");
+      await api.updateArea(areaId, payload);
+      await reloadData();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function handlePersonUpdate(personId, payload) {
+    try {
+      setError("");
+      await api.updatePerson(personId, payload);
       await reloadData();
     } catch (err) {
       setError(err.message);
@@ -947,13 +1018,22 @@ export default function App() {
 
         {!loading && activeSection === "Pessoas" ? (
           <PeopleSection
+            AreaAdminCard={AreaAdminCard}
             Input={Input}
+            PersonStructureCard={PersonStructureCard}
             Select={Select}
             canManagePeopleRegistry={canManagePeopleRegistry}
+            areaForm={areaForm}
+            areaOptions={areaOptions}
+            areas={areas}
+            handleAreaSubmit={handleAreaSubmit}
+            handleAreaUpdate={handleAreaUpdate}
             handlePersonSubmit={handlePersonSubmit}
+            handlePersonUpdate={handlePersonUpdate}
             managerOptions={managerOptions}
             people={people}
             personForm={personForm}
+            setAreaForm={setAreaForm}
             setPersonForm={setPersonForm}
           />
         ) : null}

@@ -126,3 +126,150 @@ export function UserAdminCard({ onSave, user, userRoleOptions, userStatusOptions
     </article>
   );
 }
+
+export function AreaAdminCard({ area, managerOptions, onSave }) {
+  const [draft, setDraft] = useState({
+    name: area.name,
+    managerPersonId: area.managerPersonId || ""
+  });
+
+  useEffect(() => {
+    setDraft({
+      name: area.name,
+      managerPersonId: area.managerPersonId || ""
+    });
+  }, [area.managerPersonId, area.name]);
+
+  return (
+    <article className="list-card compact-list-card">
+      <div className="row">
+        <strong>{area.name}</strong>
+        <span className="badge">{area.peopleCount} pessoas</span>
+      </div>
+      <p className="muted">Gestor responsavel: {area.managerName || "Nao definido"}</p>
+      <div className="incident-actions compact-actions structure-actions">
+        <Input
+          label="Nome da area"
+          value={draft.name}
+          onChange={(value) => setDraft((current) => ({ ...current, name: value }))}
+        />
+        <Select
+          label="Gestor responsavel"
+          value={draft.managerPersonId}
+          options={managerOptions.map((item) => item.value)}
+          renderLabel={(value) =>
+            managerOptions.find((item) => item.value === value)?.label || value
+          }
+          onChange={(value) =>
+            setDraft((current) => ({
+              ...current,
+              managerPersonId: value
+            }))
+          }
+        />
+        <button type="button" className="primary-button" onClick={() => onSave(area.id, draft)}>
+          Salvar area
+        </button>
+      </div>
+    </article>
+  );
+}
+
+export function PersonStructureCard({ areaOptions, managerOptions, onSave, person }) {
+  const [draft, setDraft] = useState({
+    name: person.name,
+    roleTitle: person.roleTitle,
+    area: person.area,
+    managerPersonId: person.managerPersonId || "",
+    employmentType: person.employmentType || "internal",
+    satisfactionScore: String(person.satisfactionScore ?? 0)
+  });
+
+  useEffect(() => {
+    setDraft({
+      name: person.name,
+      roleTitle: person.roleTitle,
+      area: person.area,
+      managerPersonId: person.managerPersonId || "",
+      employmentType: person.employmentType || "internal",
+      satisfactionScore: String(person.satisfactionScore ?? 0)
+    });
+  }, [
+    person.area,
+    person.employmentType,
+    person.managerPersonId,
+    person.name,
+    person.roleTitle,
+    person.satisfactionScore
+  ]);
+
+  return (
+    <article className="list-card compact-list-card">
+      <div className="row">
+        <strong>{person.name}</strong>
+        <span className="badge">{person.employmentType || "internal"}</span>
+      </div>
+      <p className="muted">
+        {person.roleTitle} | {person.area}
+      </p>
+      <p className="muted">
+        Gestor atual: {person.managerName || "Nao definido"} | Responsavel da area:{" "}
+        {person.areaManagerName || "Nao definido"}
+      </p>
+      <div className="incident-actions compact-actions structure-actions">
+        <Input
+          label="Nome"
+          value={draft.name}
+          onChange={(value) => setDraft((current) => ({ ...current, name: value }))}
+        />
+        <Input
+          label="Cargo"
+          value={draft.roleTitle}
+          onChange={(value) => setDraft((current) => ({ ...current, roleTitle: value }))}
+        />
+        <Select
+          label="Area"
+          value={draft.area}
+          options={areaOptions.map((item) => item.value)}
+          renderLabel={(value) => areaOptions.find((item) => item.value === value)?.label || value}
+          onChange={(value) => setDraft((current) => ({ ...current, area: value }))}
+        />
+        <Select
+          label="Gestor"
+          value={draft.managerPersonId}
+          options={managerOptions.map((item) => item.value)}
+          renderLabel={(value) =>
+            managerOptions.find((item) => item.value === value)?.label || value
+          }
+          onChange={(value) =>
+            setDraft((current) => ({
+              ...current,
+              managerPersonId: value
+            }))
+          }
+        />
+        <Select
+          label="Vinculo"
+          value={draft.employmentType}
+          options={["internal", "consultant"]}
+          renderLabel={(value) => (value === "internal" ? "Interno" : "Consultor")}
+          onChange={(value) => setDraft((current) => ({ ...current, employmentType: value }))}
+        />
+        <Input
+          label="Satisfacao"
+          type="number"
+          value={draft.satisfactionScore}
+          onChange={(value) =>
+            setDraft((current) => ({
+              ...current,
+              satisfactionScore: value
+            }))
+          }
+        />
+        <button type="button" className="primary-button" onClick={() => onSave(person.id, draft)}>
+          Salvar vinculos
+        </button>
+      </div>
+    </article>
+  );
+}

@@ -1026,87 +1026,165 @@ export function ApplauseSection({
 }
 
 export function PeopleSection({
+  AreaAdminCard,
   Input,
+  PersonStructureCard,
   Select,
+  areaForm,
+  areaOptions,
+  areas,
   canManagePeopleRegistry,
+  handleAreaSubmit,
+  handleAreaUpdate,
   handlePersonSubmit,
+  handlePersonUpdate,
   managerOptions,
   people,
   personForm,
+  setAreaForm,
   setPersonForm
 }) {
   return (
     <section className="page-grid">
       {canManagePeopleRegistry ? (
-        <form className="card compact-card admin-form-card" onSubmit={handlePersonSubmit}>
-          <div className="card-header">
-            <h3>Nova pessoa</h3>
-            <span>Cadastro organizacional base para autenticacao</span>
-          </div>
-          <Input
-            label="Nome"
-            value={personForm.name}
-            onChange={(value) => setPersonForm({ ...personForm, name: value })}
-          />
-          <Input
-            label="Cargo"
-            value={personForm.roleTitle}
-            onChange={(value) => setPersonForm({ ...personForm, roleTitle: value })}
-          />
-          <Input
-            label="Area"
-            value={personForm.area}
-            onChange={(value) => setPersonForm({ ...personForm, area: value })}
-          />
-          <Select
-            label="Gestor"
-            value={personForm.managerPersonId}
-            options={managerOptions.map((item) => item.value)}
-            renderLabel={(value) =>
-              managerOptions.find((item) => item.value === value)?.label || value
-            }
-            onChange={(value) => setPersonForm({ ...personForm, managerPersonId: value })}
-          />
-          <Select
-            label="Vinculo"
-            value={personForm.employmentType}
-            options={["internal", "consultant"]}
-            renderLabel={(value) => (value === "internal" ? "Interno" : "Consultor")}
-            onChange={(value) => setPersonForm({ ...personForm, employmentType: value })}
-          />
-          <Input
-            label="Score inicial de satisfacao"
-            value={personForm.satisfactionScore}
-            onChange={(value) => setPersonForm({ ...personForm, satisfactionScore: value })}
-          />
-          <button className="primary-button" type="submit">
-            Cadastrar pessoa
-          </button>
-        </form>
+        <>
+          <form className="card compact-card admin-form-card" onSubmit={handleAreaSubmit}>
+            <div className="card-header">
+              <h3>Nova area</h3>
+              <span>Defina a area e o gestor responsavel pelo recorte</span>
+            </div>
+            <Input
+              label="Nome da area"
+              value={areaForm.name}
+              onChange={(value) => setAreaForm({ ...areaForm, name: value })}
+            />
+            <Select
+              label="Gestor responsavel"
+              value={areaForm.managerPersonId}
+              options={managerOptions.map((item) => item.value)}
+              renderLabel={(value) =>
+                managerOptions.find((item) => item.value === value)?.label || value
+              }
+              onChange={(value) => setAreaForm({ ...areaForm, managerPersonId: value })}
+            />
+            <button className="primary-button" type="submit">
+              Cadastrar area
+            </button>
+          </form>
+
+          <form className="card compact-card admin-form-card" onSubmit={handlePersonSubmit}>
+            <div className="card-header">
+              <h3>Nova pessoa</h3>
+              <span>Conecte colaborador, gestor e area no cadastro base</span>
+            </div>
+            <Input
+              label="Nome"
+              value={personForm.name}
+              onChange={(value) => setPersonForm({ ...personForm, name: value })}
+            />
+            <Input
+              label="Cargo"
+              value={personForm.roleTitle}
+              onChange={(value) => setPersonForm({ ...personForm, roleTitle: value })}
+            />
+            <Select
+              label="Area"
+              value={personForm.area}
+              options={areaOptions.map((item) => item.value)}
+              renderLabel={(value) => areaOptions.find((item) => item.value === value)?.label || value}
+              onChange={(value) => setPersonForm({ ...personForm, area: value })}
+            />
+            <Select
+              label="Gestor"
+              value={personForm.managerPersonId}
+              options={managerOptions.map((item) => item.value)}
+              renderLabel={(value) =>
+                managerOptions.find((item) => item.value === value)?.label || value
+              }
+              onChange={(value) => setPersonForm({ ...personForm, managerPersonId: value })}
+            />
+            <Select
+              label="Vinculo"
+              value={personForm.employmentType}
+              options={["internal", "consultant"]}
+              renderLabel={(value) => (value === "internal" ? "Interno" : "Consultor")}
+              onChange={(value) => setPersonForm({ ...personForm, employmentType: value })}
+            />
+            <Input
+              label="Score inicial de satisfacao"
+              value={personForm.satisfactionScore}
+              onChange={(value) => setPersonForm({ ...personForm, satisfactionScore: value })}
+            />
+            <button className="primary-button" type="submit">
+              Cadastrar pessoa
+            </button>
+          </form>
+        </>
       ) : null}
 
-      <div className="card card-span compact-card">
+      <div className="card compact-card">
         <div className="card-header">
-          <h3>Colaboradores e consultores</h3>
+          <h3>Areas e liderancas</h3>
           <span>
             {canManagePeopleRegistry
-              ? "Base organizacional para equipe, desenvolvimento e usuarios"
+              ? "Conexao formal entre area e gestor responsavel"
+              : "Areas visiveis dentro do seu escopo"}
+          </span>
+        </div>
+        <div className="stack-list compact-stack">
+          {areas.map((area) =>
+            canManagePeopleRegistry ? (
+              <AreaAdminCard
+                key={area.id}
+                area={area}
+                managerOptions={managerOptions}
+                onSave={handleAreaUpdate}
+              />
+            ) : (
+              <article className="list-card compact-list-card" key={area.id}>
+                <div className="row">
+                  <strong>{area.name}</strong>
+                  <span className="badge">{area.peopleCount} pessoas</span>
+                </div>
+                <p className="muted">Gestor responsavel: {area.managerName || "Nao definido"}</p>
+              </article>
+            )
+          )}
+        </div>
+      </div>
+
+      <div className="card compact-card">
+        <div className="card-header">
+          <h3>Estrutura de pessoas</h3>
+          <span>
+            {canManagePeopleRegistry
+              ? "Conecte colaborador, gestor e area em um unico fluxo"
               : "Perfis visiveis dentro do seu escopo"}
           </span>
         </div>
-        <div className="table-list compact-table-list">
-          {people.map((person) => (
-            <div className="table-row" key={person.id}>
-              <div>
-                <strong>{person.name}</strong>
+        <div className="stack-list compact-stack">
+          {people.map((person) =>
+            canManagePeopleRegistry ? (
+              <PersonStructureCard
+                key={person.id}
+                areaOptions={areaOptions}
+                managerOptions={managerOptions}
+                onSave={handlePersonUpdate}
+                person={person}
+              />
+            ) : (
+              <article className="list-card compact-list-card" key={person.id}>
+                <div className="row">
+                  <strong>{person.name}</strong>
+                  <span className="badge">{person.employmentType || "-"}</span>
+                </div>
                 <p className="muted">{person.roleTitle}</p>
-              </div>
-              <span>{person.area}</span>
-              <span>{person.managerName || "-"}</span>
-              <span>{person.employmentType || "-"}</span>
-              <strong>{person.satisfactionScore ?? "-"}</strong>
-            </div>
-          ))}
+                <p className="muted">
+                  {person.area} | Gestor: {person.managerName || "-"}
+                </p>
+              </article>
+            )
+          )}
         </div>
       </div>
     </section>

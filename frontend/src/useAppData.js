@@ -23,6 +23,7 @@ export function useAppData({
   const [dashboard, setDashboard] = useState(null);
   const [template, setTemplate] = useState(null);
   const [evaluationLibrary, setEvaluationLibrary] = useState(null);
+  const [areas, setAreas] = useState([]);
   const [people, setPeople] = useState([]);
   const [users, setUsers] = useState([]);
   const [incidents, setIncidents] = useState([]);
@@ -40,6 +41,7 @@ export function useAppData({
     setDashboard(null);
     setTemplate(null);
     setEvaluationLibrary(null);
+    setAreas([]);
     setPeople([]);
     setUsers([]);
     setIncidents([]);
@@ -75,6 +77,7 @@ export function useAppData({
         dashboardRequest,
         api.getEvaluationTemplate(),
         api.getEvaluationLibrary(),
+        api.getAreas(),
         api.getPeople(),
         api.getIncidents(),
         api.getEvaluationCycles(),
@@ -99,6 +102,7 @@ export function useAppData({
         nextDashboard,
         nextTemplate,
         nextLibrary,
+        nextAreas,
         nextPeople,
         nextIncidents,
         nextCycles,
@@ -107,7 +111,7 @@ export function useAppData({
         nextApplause,
         nextDevelopment
       ] = result;
-      let resultIndex = 11;
+      let resultIndex = 13;
       const nextUsers = canViewUsersAdmin ? result[resultIndex++] : [];
       const nextResponses = canViewResponses ? result[resultIndex] : emptyResponsesBundle;
 
@@ -116,6 +120,7 @@ export function useAppData({
       setDashboard(nextDashboard);
       setTemplate(nextTemplate);
       setEvaluationLibrary(nextLibrary);
+      setAreas(nextAreas);
       setPeople(nextPeople);
       setUsers(nextUsers);
       setIncidents(nextIncidents);
@@ -155,6 +160,7 @@ export function useAppData({
   return {
     auditTrail,
     applauseEntries,
+    areas,
     assignments,
     cycles,
     dashboard,

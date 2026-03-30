@@ -1219,6 +1219,33 @@ export const evaluationLibrary = {
 export const questionTemplate = evaluationLibrary.templates.collaboration;
 
 export const seed = {
+  areas: [
+    {
+      id: "a1",
+      name: "Compliance",
+      managerPersonId: "p7"
+    },
+    {
+      id: "a2",
+      name: "Tecnologia",
+      managerPersonId: "p4"
+    },
+    {
+      id: "a3",
+      name: "Consultoria",
+      managerPersonId: "p4"
+    },
+    {
+      id: "a4",
+      name: "Administracao",
+      managerPersonId: "p5"
+    },
+    {
+      id: "a5",
+      name: "Gente e Gestao",
+      managerPersonId: "p6"
+    }
+  ],
   people: [
     {
       id: "p1",

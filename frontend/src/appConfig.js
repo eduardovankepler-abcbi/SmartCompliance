@@ -118,6 +118,11 @@ export const emptyPerson = {
   satisfactionScore: "4.0"
 };
 
+export const emptyArea = {
+  name: "",
+  managerPersonId: ""
+};
+
 export const emptyUser = {
   personId: "",
   email: "",

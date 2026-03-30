@@ -9,6 +9,13 @@ CREATE TABLE IF NOT EXISTS people (
   FOREIGN KEY (manager_person_id) REFERENCES people(id)
 );
 
+CREATE TABLE IF NOT EXISTS areas (
+  id VARCHAR(36) PRIMARY KEY,
+  name VARCHAR(120) NOT NULL UNIQUE,
+  manager_person_id VARCHAR(36) NULL,
+  FOREIGN KEY (manager_person_id) REFERENCES people(id)
+);
+
 CREATE TABLE IF NOT EXISTS users (
   id VARCHAR(36) PRIMARY KEY,
   person_id VARCHAR(36) NOT NULL,

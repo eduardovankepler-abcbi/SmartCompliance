@@ -218,12 +218,48 @@ function assertValidFeedbackRequestStatus(status) {
   }
 }
 
-function enrichPerson(people, person) {
+function normalizeAreaName(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase();
+}
+
+function enrichArea(people, area) {
+  const manager = people.find((item) => item.id === area.managerPersonId);
+  const members = people.filter((person) => person.area === area.name);
+  return {
+    ...area,
+    managerPersonId: area.managerPersonId || null,
+    managerName: manager?.name || "",
+    peopleCount: members.length
+  };
+}
+
+function filterAreasForUser(areas, people, user) {
+  const enrichedAreas = areas.map((area) => enrichArea(people, area));
+
+  if (isOrgWideUser(user) || isHrUser(user) || isAdminUser(user)) {
+    return enrichedAreas;
+  }
+
+  if (isManagerUser(user)) {
+    return enrichedAreas.filter(
+      (area) => area.managerPersonId === user.person.id || area.name === user.person.area
+    );
+  }
+
+  return enrichedAreas.filter((area) => area.name === user?.person?.area);
+}
+
+function enrichPerson(people, person, areas = []) {
   const manager = people.find((item) => item.id === person.managerPersonId);
+  const area = areas.find((item) => item.name === person.area);
   return {
     ...person,
     managerPersonId: person.managerPersonId || null,
-    managerName: manager?.name || ""
+    managerName: manager?.name || "",
+    areaManagerPersonId: area?.managerPersonId || null,
+    areaManagerName: area?.managerName || ""
   };
 }
 
@@ -268,8 +304,9 @@ function toAdminUserRow(db, user) {
   };
 }
 
-function filterPeopleForUser(people, user) {
-  const enrichedPeople = people.map((person) => enrichPerson(people, person));
+function filterPeopleForUser(people, user, areas = []) {
+  const enrichedAreas = areas.map((area) => enrichArea(people, area));
+  const enrichedPeople = people.map((person) => enrichPerson(people, person, enrichedAreas));
 
   if (isOrgWideUser(user)) {
     return enrichedPeople;
@@ -303,6 +340,23 @@ function assertValidManagerReference(people, managerPersonId, personId = null) {
 
   if (personId && managerPersonId === personId) {
     throw new Error("Uma pessoa nao pode ser gestora de si mesma.");
+  }
+}
+
+function assertValidAreaReference(areas, areaName) {
+  if (!areaName || !areas.some((area) => normalizeAreaName(area.name) === normalizeAreaName(areaName))) {
+    throw new Error("Area informada nao foi encontrada.");
+  }
+}
+
+function assertValidAreaManagerReference(people, managerPersonId) {
+  if (!managerPersonId) {
+    return;
+  }
+
+  const managerExists = people.some((person) => person.id === managerPersonId);
+  if (!managerExists) {
+    throw new Error("Responsavel da area nao foi encontrado.");
   }
 }
 
@@ -1729,6 +1783,15 @@ function mapMysqlPersonRow(row) {
   };
 }
 
+function mapMysqlAreaRow(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    managerPersonId: row.managerPersonId || null,
+    managerName: row.managerName || ""
+  };
+}
+
 async function fetchPeopleRows(pool) {
   const [rows] = await pool.query(
     `SELECT p.id, p.name, p.role_title AS roleTitle, p.area,
@@ -1739,6 +1802,16 @@ async function fetchPeopleRows(pool) {
      ORDER BY p.name`
   );
   return rows.map(mapMysqlPersonRow);
+}
+
+async function fetchAreaRows(pool) {
+  const [rows] = await pool.query(
+    `SELECT a.id, a.name, a.manager_person_id AS managerPersonId, manager.name AS managerName
+     FROM areas a
+     LEFT JOIN people manager ON manager.id = a.manager_person_id
+     ORDER BY a.name`
+  );
+  return rows.map(mapMysqlAreaRow);
 }
 
 async function fetchUserRows(pool) {
@@ -1828,8 +1901,75 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
       }
       return toPublicUser(db, user);
     },
+    async getAreas(actorUser) {
+      return filterAreasForUser(db.areas, db.people, actorUser);
+    },
+    async createArea(payload, actorUser) {
+      if (!canManagePeople(actorUser)) {
+        throw new Error("Perfil sem permissao para cadastrar areas.");
+      }
+
+      const normalizedName = payload.name?.trim();
+      if (!normalizedName) {
+        throw new Error("Nome da area nao informado.");
+      }
+
+      if (db.areas.some((area) => normalizeAreaName(area.name) === normalizeAreaName(normalizedName))) {
+        throw new Error("Ja existe uma area com este nome.");
+      }
+
+      assertValidAreaManagerReference(db.people, payload.managerPersonId);
+
+      const area = {
+        id: createId("area"),
+        name: normalizedName,
+        managerPersonId: payload.managerPersonId || null
+      };
+      db.areas.unshift(area);
+      return enrichArea(db.people, area);
+    },
+    async updateArea(areaId, payload, actorUser) {
+      if (!canManagePeople(actorUser)) {
+        throw new Error("Perfil sem permissao para atualizar areas.");
+      }
+
+      const area = db.areas.find((item) => item.id === areaId);
+      if (!area) {
+        throw new Error("Area nao encontrada.");
+      }
+
+      const normalizedName = payload.name?.trim();
+      if (!normalizedName) {
+        throw new Error("Nome da area nao informado.");
+      }
+
+      if (
+        db.areas.some(
+          (item) =>
+            item.id !== areaId && normalizeAreaName(item.name) === normalizeAreaName(normalizedName)
+        )
+      ) {
+        throw new Error("Ja existe uma area com este nome.");
+      }
+
+      assertValidAreaManagerReference(db.people, payload.managerPersonId);
+
+      const previousName = area.name;
+      area.name = normalizedName;
+      area.managerPersonId = payload.managerPersonId || null;
+
+      if (previousName !== area.name) {
+        db.people.forEach((person) => {
+          if (person.area === previousName) {
+            person.area = area.name;
+          }
+        });
+      }
+
+      return enrichArea(db.people, area);
+    },
     async getPeople(actorUser) {
-      return filterPeopleForUser(db.people, actorUser);
+      return filterPeopleForUser(db.people, actorUser, db.areas);
     },
     async createPerson(payload, actorUser) {
       if (!canManagePeople(actorUser)) {
@@ -1837,6 +1977,7 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
       }
 
       assertValidManagerReference(db.people, payload.managerPersonId);
+      assertValidAreaReference(db.areas, payload.area);
 
       const person = {
         id: createId("person"),
@@ -1848,7 +1989,29 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         satisfactionScore: Number(payload.satisfactionScore || 0)
       };
       db.people.unshift(person);
-      return enrichPerson(db.people, person);
+      return enrichPerson(db.people, person, db.areas.map((area) => enrichArea(db.people, area)));
+    },
+    async updatePerson(personId, payload, actorUser) {
+      if (!canManagePeople(actorUser)) {
+        throw new Error("Perfil sem permissao para atualizar pessoas.");
+      }
+
+      const person = db.people.find((item) => item.id === personId);
+      if (!person) {
+        throw new Error("Pessoa nao encontrada.");
+      }
+
+      assertValidManagerReference(db.people, payload.managerPersonId, personId);
+      assertValidAreaReference(db.areas, payload.area);
+
+      person.name = payload.name;
+      person.roleTitle = payload.roleTitle;
+      person.area = payload.area;
+      person.managerPersonId = payload.managerPersonId || null;
+      person.employmentType = payload.employmentType;
+      person.satisfactionScore = Number(payload.satisfactionScore || 0);
+
+      return enrichPerson(db.people, person, db.areas.map((area) => enrichArea(db.people, area)));
     },
     async getUsers(actorUser) {
       if (!canManageUsers(actorUser)) {
@@ -2554,17 +2717,100 @@ function buildMysqlStore(pool, customLibraryState, anonymousResponseState) {
       }
       return this.getUserById(user.id);
     },
+    async getAreas(actorUser) {
+      const [areas, people] = await Promise.all([fetchAreaRows(pool), fetchPeopleRows(pool)]);
+      return filterAreasForUser(areas, people, actorUser);
+    },
+    async createArea(payload, actorUser) {
+      if (!canManagePeople(actorUser)) {
+        throw new Error("Perfil sem permissao para cadastrar areas.");
+      }
+
+      const normalizedName = payload.name?.trim();
+      if (!normalizedName) {
+        throw new Error("Nome da area nao informado.");
+      }
+
+      const [areas, people] = await Promise.all([fetchAreaRows(pool), fetchPeopleRows(pool)]);
+      if (areas.some((area) => normalizeAreaName(area.name) === normalizeAreaName(normalizedName))) {
+        throw new Error("Ja existe uma area com este nome.");
+      }
+
+      assertValidAreaManagerReference(people, payload.managerPersonId);
+
+      const area = {
+        id: createId("area"),
+        name: normalizedName,
+        managerPersonId: payload.managerPersonId || null
+      };
+
+      await pool.query(
+        `INSERT INTO areas (id, name, manager_person_id)
+         VALUES (?, ?, ?)`,
+        [area.id, area.name, area.managerPersonId]
+      );
+
+      return enrichArea(people, area);
+    },
+    async updateArea(areaId, payload, actorUser) {
+      if (!canManagePeople(actorUser)) {
+        throw new Error("Perfil sem permissao para atualizar areas.");
+      }
+
+      const normalizedName = payload.name?.trim();
+      if (!normalizedName) {
+        throw new Error("Nome da area nao informado.");
+      }
+
+      const [areas, people] = await Promise.all([fetchAreaRows(pool), fetchPeopleRows(pool)]);
+      const area = areas.find((item) => item.id === areaId);
+      if (!area) {
+        throw new Error("Area nao encontrada.");
+      }
+
+      if (
+        areas.some(
+          (item) =>
+            item.id !== areaId && normalizeAreaName(item.name) === normalizeAreaName(normalizedName)
+        )
+      ) {
+        throw new Error("Ja existe uma area com este nome.");
+      }
+
+      assertValidAreaManagerReference(people, payload.managerPersonId);
+
+      await pool.query(
+        `UPDATE areas
+         SET name = ?, manager_person_id = ?
+         WHERE id = ?`,
+        [normalizedName, payload.managerPersonId || null, areaId]
+      );
+
+      if (area.name !== normalizedName) {
+        await pool.query(`UPDATE people SET area = ? WHERE area = ?`, [normalizedName, area.name]);
+      }
+
+      return enrichArea(people.map((person) => ({
+        ...person,
+        area: person.area === area.name ? normalizedName : person.area
+      })), {
+        ...area,
+        name: normalizedName,
+        managerPersonId: payload.managerPersonId || null
+      });
+    },
     async getPeople(actorUser) {
-      const people = await fetchPeopleRows(pool);
-      return filterPeopleForUser(people, actorUser);
+      const [people, areas] = await Promise.all([fetchPeopleRows(pool), fetchAreaRows(pool)]);
+      return filterPeopleForUser(people, actorUser, areas);
     },
     async createPerson(payload, actorUser) {
       if (!canManagePeople(actorUser)) {
         throw new Error("Perfil sem permissao para cadastrar pessoas.");
       }
 
-      const people = await fetchPeopleRows(pool);
+      const [people, areas] = await Promise.all([fetchPeopleRows(pool), fetchAreaRows(pool)]);
       assertValidManagerReference(people, payload.managerPersonId);
+      assertValidAreaReference(areas, payload.area);
 
       const person = {
         id: createId("person"),
@@ -2591,10 +2837,62 @@ function buildMysqlStore(pool, customLibraryState, anonymousResponseState) {
         ]
       );
 
-      return {
-        ...person,
-        managerName: people.find((item) => item.id === person.managerPersonId)?.name || ""
-      };
+      return enrichPerson(people, person, areas);
+    },
+    async updatePerson(personId, payload, actorUser) {
+      if (!canManagePeople(actorUser)) {
+        throw new Error("Perfil sem permissao para atualizar pessoas.");
+      }
+
+      const [people, areas] = await Promise.all([fetchPeopleRows(pool), fetchAreaRows(pool)]);
+      const person = people.find((item) => item.id === personId);
+      if (!person) {
+        throw new Error("Pessoa nao encontrada.");
+      }
+
+      assertValidManagerReference(people, payload.managerPersonId, personId);
+      assertValidAreaReference(areas, payload.area);
+
+      await pool.query(
+        `UPDATE people
+         SET name = ?, role_title = ?, area = ?, manager_person_id = ?, employment_type = ?, satisfaction_score = ?
+         WHERE id = ?`,
+        [
+          payload.name,
+          payload.roleTitle,
+          payload.area,
+          payload.managerPersonId || null,
+          payload.employmentType,
+          Number(payload.satisfactionScore || 0),
+          personId
+        ]
+      );
+
+      return enrichPerson(
+        people.map((item) =>
+          item.id === personId
+            ? {
+                ...item,
+                name: payload.name,
+                roleTitle: payload.roleTitle,
+                area: payload.area,
+                managerPersonId: payload.managerPersonId || null,
+                employmentType: payload.employmentType,
+                satisfactionScore: Number(payload.satisfactionScore || 0)
+              }
+            : item
+        ),
+        {
+          ...person,
+          name: payload.name,
+          roleTitle: payload.roleTitle,
+          area: payload.area,
+          managerPersonId: payload.managerPersonId || null,
+          employmentType: payload.employmentType,
+          satisfactionScore: Number(payload.satisfactionScore || 0)
+        },
+        areas
+      );
     },
     async getUsers(actorUser) {
       if (!canManageUsers(actorUser)) {
