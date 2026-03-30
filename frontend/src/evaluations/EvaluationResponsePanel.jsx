@@ -49,7 +49,7 @@ export function EvaluationResponsePanel({
         <h3>
           {workspaceCopy.heading} {"·"} {activeCycleModuleSummary?.title || "Ciclo ativo"}
         </h3>
-        <span>{workspaceCopy.description}</span>
+        {activeEvaluationWorkspace === "insights" ? <span>{workspaceCopy.description}</span> : null}
       </div>
       <div className="two-columns evaluation-response-layout">
         <div className="stack-list evaluation-assignment-list">
