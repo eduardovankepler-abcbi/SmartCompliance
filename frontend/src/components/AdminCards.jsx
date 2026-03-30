@@ -181,8 +181,7 @@ export function PersonStructureCard({ areaOptions, managerOptions, onSave, perso
     roleTitle: person.roleTitle,
     area: person.area,
     managerPersonId: person.managerPersonId || "",
-    employmentType: person.employmentType || "internal",
-    satisfactionScore: String(person.satisfactionScore ?? 0)
+    employmentType: person.employmentType || "internal"
   });
 
   useEffect(() => {
@@ -191,16 +190,14 @@ export function PersonStructureCard({ areaOptions, managerOptions, onSave, perso
       roleTitle: person.roleTitle,
       area: person.area,
       managerPersonId: person.managerPersonId || "",
-      employmentType: person.employmentType || "internal",
-      satisfactionScore: String(person.satisfactionScore ?? 0)
+      employmentType: person.employmentType || "internal"
     });
   }, [
     person.area,
     person.employmentType,
     person.managerPersonId,
     person.name,
-    person.roleTitle,
-    person.satisfactionScore
+    person.roleTitle
   ]);
 
   return (
@@ -254,17 +251,6 @@ export function PersonStructureCard({ areaOptions, managerOptions, onSave, perso
           options={["internal", "consultant"]}
           renderLabel={(value) => (value === "internal" ? "Interno" : "Consultor")}
           onChange={(value) => setDraft((current) => ({ ...current, employmentType: value }))}
-        />
-        <Input
-          label="Satisfacao"
-          type="number"
-          value={draft.satisfactionScore}
-          onChange={(value) =>
-            setDraft((current) => ({
-              ...current,
-              satisfactionScore: value
-            }))
-          }
         />
         <button type="button" className="primary-button" onClick={() => onSave(person.id, draft)}>
           Salvar vinculos

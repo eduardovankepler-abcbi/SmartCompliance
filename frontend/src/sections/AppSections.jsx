@@ -1110,11 +1110,6 @@ export function PeopleSection({
               renderLabel={(value) => (value === "internal" ? "Interno" : "Consultor")}
               onChange={(value) => setPersonForm({ ...personForm, employmentType: value })}
             />
-            <Input
-              label="Score inicial de satisfacao"
-              value={personForm.satisfactionScore}
-              onChange={(value) => setPersonForm({ ...personForm, satisfactionScore: value })}
-            />
             <button className="primary-button" type="submit">
               Cadastrar pessoa
             </button>
