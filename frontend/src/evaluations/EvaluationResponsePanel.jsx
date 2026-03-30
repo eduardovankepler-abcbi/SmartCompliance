@@ -24,6 +24,7 @@ export function EvaluationResponsePanel({
   getRelationshipLabel,
   getVisibilityLabel,
   handleAssignmentSubmit,
+  isIndividualJourney,
   selectedAssignment,
   setAnswerForm,
   setDevelopmentNote,
@@ -52,64 +53,66 @@ export function EvaluationResponsePanel({
         </h3>
         {activeEvaluationWorkspace === "insights" ? <span>{workspaceCopy.description}</span> : null}
       </div>
-      <div className="two-columns evaluation-response-layout">
-        <div className="stack-list evaluation-assignment-list">
-          <div
-            className={`list-card evaluation-workspace-spotlight ${moduleExperience.tone}`}
-          >
-            <p className="muted">{workspaceCopy.description}</p>
-            {activeEvaluationWorkspace === "insights" && moduleExperience.spotlightItems.length ? (
-              <div className="evaluation-context-grid">
-                {moduleExperience.spotlightItems.map((item) => (
-                  <div className="evaluation-context-pill" key={item.label}>
-                    <span>{item.label}</span>
-                    <strong>{item.value}</strong>
-                  </div>
-                ))}
-              </div>
-            ) : null}
-          </div>
-          {filteredAssignments.length ? (
-            filteredAssignments.map((assignment) => (
-              <button
-                type="button"
-                className={
-                  assignment.id === selectedAssignment
-                    ? "list-card button-reset evaluation-assignment-card active"
-                    : "list-card button-reset evaluation-assignment-card"
-                }
-                key={assignment.id}
-                onClick={() => setSelectedAssignment(assignment.id)}
-              >
-                <div className="row">
-                  <strong>
-                    {assignment.relationshipType === "company"
-                      ? getRelationshipLabel(assignment.relationshipType)
-                      : assignment.revieweeName}
-                  </strong>
-                  <span className="badge">{getAssignmentStatusBadgeLabel(assignment.status)}</span>
+      <div className={isIndividualJourney ? "stack-list" : "two-columns evaluation-response-layout"}>
+        {!isIndividualJourney ? (
+          <div className="stack-list evaluation-assignment-list">
+            <div
+              className={`list-card evaluation-workspace-spotlight ${moduleExperience.tone}`}
+            >
+              <p className="muted">{workspaceCopy.description}</p>
+              {activeEvaluationWorkspace === "insights" && moduleExperience.spotlightItems.length ? (
+                <div className="evaluation-context-grid">
+                  {moduleExperience.spotlightItems.map((item) => (
+                    <div className="evaluation-context-pill" key={item.label}>
+                      <span>{item.label}</span>
+                      <strong>{item.value}</strong>
+                    </div>
+                  ))}
                 </div>
-                {assignment.relationshipType !== "company" ? (
-                  <p>{getRelationshipLabel(assignment.relationshipType)}</p>
-                ) : null}
-                <div className="evaluation-assignment-meta">
-                  <span className="evaluation-assignment-meta-item">
-                    Ciclo: {assignment.cycleStatus}
-                  </span>
-                  <span className="evaluation-assignment-meta-item">
-                    Prazo: {formatDate(assignment.dueDate)}
-                  </span>
-                </div>
-                <p className="muted">{assignment.collaborationContext}</p>
-              </button>
-            ))
-          ) : (
-            <div className="list-card">
-              <strong>{workspaceCopy.emptyAssignmentsTitle}</strong>
-              <p className="muted">{workspaceCopy.emptyAssignmentsDescription}</p>
+              ) : null}
             </div>
-          )}
-        </div>
+            {filteredAssignments.length ? (
+              filteredAssignments.map((assignment) => (
+                <button
+                  type="button"
+                  className={
+                    assignment.id === selectedAssignment
+                      ? "list-card button-reset evaluation-assignment-card active"
+                      : "list-card button-reset evaluation-assignment-card"
+                  }
+                  key={assignment.id}
+                  onClick={() => setSelectedAssignment(assignment.id)}
+                >
+                  <div className="row">
+                    <strong>
+                      {assignment.relationshipType === "company"
+                        ? getRelationshipLabel(assignment.relationshipType)
+                        : assignment.revieweeName}
+                    </strong>
+                    <span className="badge">{getAssignmentStatusBadgeLabel(assignment.status)}</span>
+                  </div>
+                  {assignment.relationshipType !== "company" ? (
+                    <p>{getRelationshipLabel(assignment.relationshipType)}</p>
+                  ) : null}
+                  <div className="evaluation-assignment-meta">
+                    <span className="evaluation-assignment-meta-item">
+                      Ciclo: {assignment.cycleStatus}
+                    </span>
+                    <span className="evaluation-assignment-meta-item">
+                      Prazo: {formatDate(assignment.dueDate)}
+                    </span>
+                  </div>
+                  <p className="muted">{assignment.collaborationContext}</p>
+                </button>
+              ))
+            ) : (
+              <div className="list-card">
+                <strong>{workspaceCopy.emptyAssignmentsTitle}</strong>
+                <p className="muted">{workspaceCopy.emptyAssignmentsDescription}</p>
+              </div>
+            )}
+          </div>
+        ) : null}
 
         <div className="stack-list">
           {activeEvaluationWorkspace === "respond" ? (
@@ -119,16 +122,20 @@ export function EvaluationResponsePanel({
               answerForm={answerForm}
               assignmentDetail={assignmentDetail}
               developmentNote={developmentNote}
+              filteredAssignments={filteredAssignments}
+              formatDate={formatDate}
               getCycleStatusDescription={getCycleStatusDescription}
               getRelationshipDescription={getRelationshipDescription}
               getRelationshipLabel={getRelationshipLabel}
               getVisibilityLabel={getVisibilityLabel}
               handleAssignmentSubmit={handleAssignmentSubmit}
+              isIndividualJourney={isIndividualJourney}
               moduleExperience={moduleExperience}
               workspaceCopy={workspaceCopy}
               selectedAssignment={selectedAssignment}
               setAnswerForm={setAnswerForm}
               setDevelopmentNote={setDevelopmentNote}
+              setSelectedAssignment={setSelectedAssignment}
               setStrengthsNote={setStrengthsNote}
               strengthsNote={strengthsNote}
             />
@@ -159,16 +166,20 @@ function RespondView({
   answerForm,
   assignmentDetail,
   developmentNote,
+  filteredAssignments,
+  formatDate,
   getCycleStatusDescription,
   getRelationshipDescription,
   getRelationshipLabel,
   getVisibilityLabel,
   handleAssignmentSubmit,
+  isIndividualJourney,
   moduleExperience,
   workspaceCopy,
   selectedAssignment,
   setAnswerForm,
   setDevelopmentNote,
+  setSelectedAssignment,
   setStrengthsNote,
   strengthsNote
 }) {
@@ -213,16 +224,51 @@ function RespondView({
     <form className="card nested-card evaluation-response-form" onSubmit={handleAssignmentSubmit}>
       <div className="card-header">
         <h3>{workspaceCopy.responseTitle}</h3>
-        {assignmentDetail.assignment.relationshipType !== "company" ? (
+        {!isIndividualJourney && assignmentDetail.assignment.relationshipType !== "company" ? (
           <span>{assignmentDetail.assignment.revieweeName}</span>
         ) : null}
       </div>
-      <div className={`list-card evaluation-response-summary ${moduleExperience.tone}`}>
-        <strong>{getRelationshipLabel(assignmentDetail.assignment.relationshipType)}</strong>
-        <p className="muted">
-          {getRelationshipDescription(assignmentDetail.assignment.relationshipType)}
-        </p>
-      </div>
+      {isIndividualJourney && filteredAssignments.length > 1 ? (
+        <div className="evaluation-assignment-switcher">
+          {filteredAssignments.map((assignment) => (
+            <button
+              key={assignment.id}
+              type="button"
+              className={
+                assignment.id === selectedAssignment
+                  ? "button-reset module-tab active"
+                  : "button-reset module-tab"
+              }
+              onClick={() => setSelectedAssignment(assignment.id)}
+            >
+              <span className="module-tab-title">
+                {assignment.relationshipType === "company"
+                  ? getRelationshipLabel(assignment.relationshipType)
+                  : assignment.revieweeName}
+              </span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+      {isIndividualJourney ? (
+        <div className="list-card evaluation-response-essential">
+          <div className="evaluation-assignment-meta">
+            <span className="evaluation-assignment-meta-item">
+              Prazo: {formatDate(assignmentDetail.assignment.dueDate)}
+            </span>
+            <span className="evaluation-assignment-meta-item">
+              {getCycleStatusDescription(assignmentDetail.assignment.cycleStatus)}
+            </span>
+          </div>
+        </div>
+      ) : (
+        <div className={`list-card evaluation-response-summary ${moduleExperience.tone}`}>
+          <strong>{getRelationshipLabel(assignmentDetail.assignment.relationshipType)}</strong>
+          <p className="muted">
+            {getRelationshipDescription(assignmentDetail.assignment.relationshipType)}
+          </p>
+        </div>
+      )}
       {questionSections.map((section) => (
         <div className="stack-list" key={section.key}>
           <div className="list-card evaluation-section-block">

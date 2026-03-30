@@ -1215,6 +1215,16 @@ select {
   gap: 10px;
 }
 
+.evaluation-assignment-switcher {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.evaluation-response-essential {
+  padding: 12px 14px;
+}
+
 .evaluation-section-block {
   gap: 6px;
 }
@@ -1445,6 +1455,10 @@ select {
   .evaluation-question-controls,
   .evaluation-cycle-toolbar {
     grid-template-columns: 1fr;
+  }
+
+  .evaluation-assignment-switcher {
+    flex-direction: column;
   }
 
   .sidebar-topbar {

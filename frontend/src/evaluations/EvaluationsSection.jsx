@@ -146,17 +146,19 @@ export function EvaluationsSection(props) {
           ))}
         </div>
         <div className="evaluation-cycle-toolbar">
-          <Select
-            label="Ciclo ativo"
-            value={activeEvaluationCycleId}
-            options={evaluationCycleOptions.map((cycle) => cycle.id)}
-            renderLabel={(value) =>
-              evaluationCycleOptions.find((cycle) => cycle.id === value)?.title || value
-            }
-            onChange={setActiveEvaluationCycleId}
-          />
+          {evaluationCycleOptions.length > 1 ? (
+            <Select
+              label="Ciclo ativo"
+              value={activeEvaluationCycleId}
+              options={evaluationCycleOptions.map((cycle) => cycle.id)}
+              renderLabel={(value) =>
+                evaluationCycleOptions.find((cycle) => cycle.id === value)?.title || value
+              }
+              onChange={setActiveEvaluationCycleId}
+            />
+          ) : null}
         </div>
-        {activeEvaluationModuleMeta ? (
+        {!isIndividualJourney && activeEvaluationModuleMeta ? (
           <div className="list-card evaluation-module-spotlight">
             <div className="row">
               <div>
@@ -372,6 +374,7 @@ export function EvaluationsSection(props) {
         getRelationshipLabel={props.getRelationshipLabel}
         getVisibilityLabel={props.getVisibilityLabel}
         handleAssignmentSubmit={props.handleAssignmentSubmit}
+        isIndividualJourney={isIndividualJourney}
         selectedAssignment={props.selectedAssignment}
         setAnswerForm={props.setAnswerForm}
         setDevelopmentNote={props.setDevelopmentNote}
