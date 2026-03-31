@@ -111,6 +111,16 @@ export const emptyDevelopment = {
   notes: ""
 };
 
+export const emptyDevelopmentPlan = {
+  personId: "",
+  cycleId: "",
+  competencyId: "",
+  focusTitle: "",
+  actionText: "",
+  dueDate: "",
+  expectedEvidence: ""
+};
+
 export const emptyPerson = {
   name: "",
   roleTitle: "",
@@ -169,6 +179,7 @@ export const developmentRecordTypes = [
 ];
 
 export const academicDevelopmentTypes = new Set(["Graduacao", "Pos-graduacao", "MBA"]);
+export const developmentPlanStatusOptions = ["active", "completed", "archived"];
 
 export const developmentViewLabels = {
   personal: {
@@ -227,6 +238,20 @@ export const evaluationModules = [
     label: "Feedback Indireto",
     audience: "Colega sem convivencia direta",
     description: "Leitura de soft skills, relacionamento e interacao entre areas."
+  },
+  {
+    key: "client-internal",
+    relationshipType: "client-internal",
+    label: "Cliente Interno",
+    audience: "Area cliente avalia a experiencia da entrega",
+    description: "Percepcao de clientes internos sobre atendimento, parceria e valor entregue."
+  },
+  {
+    key: "client-external",
+    relationshipType: "client-external",
+    label: "Cliente Externo",
+    audience: "Consultoria ou parceiro avalia a experiencia",
+    description: "Leitura externa sobre confiabilidade, atendimento e resultado percebido."
   },
   {
     key: "self",

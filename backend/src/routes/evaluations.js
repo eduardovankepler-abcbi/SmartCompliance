@@ -88,6 +88,21 @@ export function createEvaluationsRouter(store) {
     }
   );
 
+  router.get(
+    "/cycles/:cycleId/participants",
+    requireRoles("admin", "hr"),
+    async (req, res) => {
+      try {
+        const structure = await store.getEvaluationCycleParticipants(req.params.cycleId);
+        res.json(structure);
+      } catch (error) {
+        res
+          .status(400)
+          .json({ error: error.message || "Falha ao carregar participantes do ciclo." });
+      }
+    }
+  );
+
   router.get("/assignments", async (req, res, next) => {
     try {
       res.json(await store.getEvaluationAssignmentsForUser(req.auth.user.id));

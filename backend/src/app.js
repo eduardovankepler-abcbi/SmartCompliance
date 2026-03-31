@@ -6,6 +6,7 @@ import { createAuthRouter } from "./routes/auth.js";
 import { createAuditRouter } from "./routes/audit.js";
 import { createApplauseRouter } from "./routes/applause.js";
 import { createAreasRouter } from "./routes/areas.js";
+import { createCompetenciesRouter } from "./routes/competencies.js";
 import { createDashboardsRouter } from "./routes/dashboards.js";
 import { createDevelopmentRouter } from "./routes/development.js";
 import { createEvaluationsRouter } from "./routes/evaluations.js";
@@ -45,6 +46,7 @@ export function createApp(store) {
   app.use("/api/summary", createSummaryRouter(store));
   app.use("/api/audit-trail", createAuditRouter(store));
   app.use("/api/areas", createAreasRouter(store));
+  app.use("/api/competencies", createCompetenciesRouter(store));
   app.use("/api/people", createPeopleRouter(store));
   app.use("/api/users", createUsersRouter(store));
   app.use("/api/incidents", createIncidentsRouter(store));

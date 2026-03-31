@@ -108,5 +108,94 @@ export function createDevelopmentRouter(store) {
     }
   });
 
+  router.get("/plans", async (req, res, next) => {
+    try {
+      res.json(await store.getDevelopmentPlans(req.auth.user));
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.post("/plans", async (req, res, next) => {
+    const {
+      personId,
+      cycleId,
+      competencyId,
+      focusTitle,
+      actionText,
+      dueDate,
+      expectedEvidence
+    } = req.body;
+
+    if (!personId || !focusTitle || !actionText || !dueDate || !expectedEvidence) {
+      return badRequest(res, "Campos obrigatorios do PDI nao informados.");
+    }
+
+    try {
+      const plan = await store.createDevelopmentPlan(
+        {
+          personId,
+          cycleId: cycleId || null,
+          competencyId: competencyId || null,
+          focusTitle,
+          actionText,
+          dueDate,
+          expectedEvidence
+        },
+        req.auth.user
+      );
+
+      res.status(201).json(plan);
+    } catch (error) {
+      res.status(400).json({ error: error.message || "Falha ao registrar PDI." });
+    }
+  });
+
+  router.patch("/plans/:planId", async (req, res, next) => {
+    const { planId } = req.params;
+    const {
+      personId,
+      cycleId,
+      competencyId,
+      focusTitle,
+      actionText,
+      dueDate,
+      expectedEvidence,
+      status
+    } = req.body;
+
+    if (
+      !personId ||
+      !focusTitle ||
+      !actionText ||
+      !dueDate ||
+      !expectedEvidence ||
+      !status
+    ) {
+      return badRequest(res, "Campos obrigatorios do PDI nao informados.");
+    }
+
+    try {
+      const plan = await store.updateDevelopmentPlan(
+        planId,
+        {
+          personId,
+          cycleId: cycleId || null,
+          competencyId: competencyId || null,
+          focusTitle,
+          actionText,
+          dueDate,
+          expectedEvidence,
+          status
+        },
+        req.auth.user
+      );
+
+      res.json(plan);
+    } catch (error) {
+      res.status(400).json({ error: error.message || "Falha ao atualizar PDI." });
+    }
+  });
+
   return router;
 }

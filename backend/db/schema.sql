@@ -16,6 +16,14 @@ CREATE TABLE IF NOT EXISTS areas (
   FOREIGN KEY (manager_person_id) REFERENCES people(id)
 );
 
+CREATE TABLE IF NOT EXISTS competencies (
+  id VARCHAR(36) PRIMARY KEY,
+  competency_key VARCHAR(80) NOT NULL UNIQUE,
+  name VARCHAR(160) NOT NULL UNIQUE,
+  description TEXT NOT NULL,
+  status VARCHAR(30) NOT NULL DEFAULT 'active'
+);
+
 CREATE TABLE IF NOT EXISTS users (
   id VARCHAR(36) PRIMARY KEY,
   person_id VARCHAR(36) NOT NULL,
@@ -98,6 +106,41 @@ CREATE TABLE IF NOT EXISTS evaluation_assignments (
   FOREIGN KEY (reviewee_person_id) REFERENCES people(id)
 );
 
+CREATE TABLE IF NOT EXISTS evaluation_cycle_participants (
+  id VARCHAR(36) PRIMARY KEY,
+  cycle_id VARCHAR(36) NOT NULL,
+  person_id VARCHAR(36) NOT NULL,
+  status VARCHAR(40) NOT NULL DEFAULT 'active',
+  UNIQUE KEY unique_cycle_participant (cycle_id, person_id),
+  FOREIGN KEY (cycle_id) REFERENCES evaluation_cycles(id),
+  FOREIGN KEY (person_id) REFERENCES people(id)
+);
+
+CREATE TABLE IF NOT EXISTS evaluation_cycle_raters (
+  id VARCHAR(36) PRIMARY KEY,
+  cycle_id VARCHAR(36) NOT NULL,
+  participant_person_id VARCHAR(36) NOT NULL,
+  rater_user_id VARCHAR(36) NOT NULL,
+  relationship_type VARCHAR(60) NOT NULL,
+  status VARCHAR(40) NOT NULL,
+  UNIQUE KEY unique_cycle_rater (cycle_id, participant_person_id, rater_user_id, relationship_type),
+  FOREIGN KEY (cycle_id) REFERENCES evaluation_cycles(id),
+  FOREIGN KEY (participant_person_id) REFERENCES people(id),
+  FOREIGN KEY (rater_user_id) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS evaluation_cycle_reports (
+  id VARCHAR(36) PRIMARY KEY,
+  cycle_id VARCHAR(36) NOT NULL,
+  relationship_type VARCHAR(60) NOT NULL,
+  total_responses INT NOT NULL,
+  average_score DECIMAL(4,2) NOT NULL,
+  question_averages_json JSON NOT NULL,
+  generated_at DATETIME NOT NULL,
+  UNIQUE KEY unique_cycle_report (cycle_id, relationship_type),
+  FOREIGN KEY (cycle_id) REFERENCES evaluation_cycles(id)
+);
+
 CREATE TABLE IF NOT EXISTS evaluation_feedback_requests (
   id VARCHAR(36) PRIMARY KEY,
   cycle_id VARCHAR(36) NOT NULL,
@@ -178,6 +221,25 @@ CREATE TABLE IF NOT EXISTS development_records (
   status VARCHAR(30) NOT NULL DEFAULT 'active',
   archived_at DATETIME NULL,
   FOREIGN KEY (person_id) REFERENCES people(id)
+);
+
+CREATE TABLE IF NOT EXISTS development_plans (
+  id VARCHAR(36) PRIMARY KEY,
+  person_id VARCHAR(36) NOT NULL,
+  cycle_id VARCHAR(36) NULL,
+  competency_id VARCHAR(36) NULL,
+  focus_title VARCHAR(160) NOT NULL,
+  action_text TEXT NOT NULL,
+  due_date DATE NOT NULL,
+  expected_evidence TEXT NOT NULL,
+  status VARCHAR(30) NOT NULL DEFAULT 'active',
+  created_by_user_id VARCHAR(36) NOT NULL,
+  created_at DATETIME NOT NULL,
+  archived_at DATETIME NULL,
+  FOREIGN KEY (person_id) REFERENCES people(id),
+  FOREIGN KEY (cycle_id) REFERENCES evaluation_cycles(id),
+  FOREIGN KEY (competency_id) REFERENCES competencies(id),
+  FOREIGN KEY (created_by_user_id) REFERENCES users(id)
 );
 
 CREATE TABLE IF NOT EXISTS audit_logs (

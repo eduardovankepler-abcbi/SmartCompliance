@@ -764,6 +764,7 @@ export function ComplianceSection({
 export function DevelopmentSection({
   auditEntries,
   canViewAuditTrail,
+  DevelopmentPlanAdminCard,
   DevelopmentRecordAdminCard,
   Input,
   MetricCard,
@@ -771,26 +772,37 @@ export function DevelopmentSection({
   Textarea,
   activeDevelopmentView,
   developmentForm,
+  developmentPlanForm,
+  developmentPlanCycleOptions,
+  developmentPlanCompetencyOptions,
+  developmentPlanPeopleOptions,
+  developmentPlanStatusOptions,
   developmentFormPeopleOptions,
   developmentHighlights,
   developmentMetrics,
+  developmentPlans,
   developmentRecordTypes,
+  developmentEditablePlanPeopleOptions,
   developmentEditablePeopleOptions,
   developmentViewLabels,
   developmentViewOptions,
   filteredDevelopmentRecords,
   formatDate,
   getDevelopmentTrackLabel,
+  handleDevelopmentPlanSubmit,
+  handleDevelopmentPlanUpdate,
   handleDevelopmentSubmit,
   handleDevelopmentUpdate,
   roleKey,
   setActiveDevelopmentView,
-  setDevelopmentForm
+  setDevelopmentForm,
+  setDevelopmentPlanForm
 }) {
   const isEmployeeJourney = roleKey === "employee";
   const showDevelopmentViews = developmentViewOptions.length > 1;
   const showDevelopmentMetrics = !isEmployeeJourney;
   const showDevelopmentPersonSelect = developmentFormPeopleOptions.length > 1;
+  const showDevelopmentPlanPersonSelect = developmentPlanPeopleOptions.length > 1;
 
   return (
     <section className="page-grid">
@@ -896,6 +908,78 @@ export function DevelopmentSection({
         </button>
       </form>
 
+      <form className="card compact-card admin-form-card" onSubmit={handleDevelopmentPlanSubmit}>
+        <div className="card-header">
+          <h3>{isEmployeeJourney ? "Meu PDI" : "Novo PDI"}</h3>
+          <span>
+            {activeDevelopmentView === "team"
+              ? "Plano de desenvolvimento para reportes diretos"
+              : activeDevelopmentView === "organization"
+                ? "Plano estruturado para pessoas da organizacao"
+                : "Plano de desenvolvimento individual com acao e evidencia"}
+          </span>
+        </div>
+        {showDevelopmentPlanPersonSelect ? (
+          <Select
+            label="Pessoa"
+            value={developmentPlanForm.personId}
+            options={developmentPlanPeopleOptions.map((item) => item.value)}
+            renderLabel={(value) =>
+              developmentPlanPeopleOptions.find((item) => item.value === value)?.label || value
+            }
+            onChange={(value) => setDevelopmentPlanForm({ ...developmentPlanForm, personId: value })}
+          />
+        ) : null}
+        <Select
+          label="Ciclo"
+          value={developmentPlanForm.cycleId}
+          options={developmentPlanCycleOptions.map((item) => item.value)}
+          renderLabel={(value) =>
+            developmentPlanCycleOptions.find((item) => item.value === value)?.label || value
+          }
+          onChange={(value) => setDevelopmentPlanForm({ ...developmentPlanForm, cycleId: value })}
+        />
+        <Select
+          label="Competencia"
+          value={developmentPlanForm.competencyId}
+          options={developmentPlanCompetencyOptions.map((item) => item.value)}
+          renderLabel={(value) =>
+            developmentPlanCompetencyOptions.find((item) => item.value === value)?.label || value
+          }
+          onChange={(value) =>
+            setDevelopmentPlanForm({ ...developmentPlanForm, competencyId: value })
+          }
+        />
+        <Input
+          label="Foco prioritario"
+          value={developmentPlanForm.focusTitle}
+          onChange={(value) => setDevelopmentPlanForm({ ...developmentPlanForm, focusTitle: value })}
+        />
+        <Textarea
+          label="Acao sugerida"
+          rows={3}
+          value={developmentPlanForm.actionText}
+          onChange={(value) => setDevelopmentPlanForm({ ...developmentPlanForm, actionText: value })}
+        />
+        <Input
+          label="Prazo"
+          type="date"
+          value={developmentPlanForm.dueDate}
+          onChange={(value) => setDevelopmentPlanForm({ ...developmentPlanForm, dueDate: value })}
+        />
+        <Textarea
+          label="Evidencia esperada"
+          rows={3}
+          value={developmentPlanForm.expectedEvidence}
+          onChange={(value) =>
+            setDevelopmentPlanForm({ ...developmentPlanForm, expectedEvidence: value })
+          }
+        />
+        <button className="primary-button" type="submit">
+          Registrar PDI
+        </button>
+      </form>
+
       {!isEmployeeJourney ? (
         <div className="card compact-card">
           <div className="card-header">
@@ -927,6 +1011,42 @@ export function DevelopmentSection({
           </div>
         </div>
       ) : null}
+
+      <div className="card card-span compact-card">
+        <div className="card-header">
+          <h3>{isEmployeeJourney ? "Meu PDI ativo" : "Planos de desenvolvimento"}</h3>
+          <span>
+            {isEmployeeJourney
+              ? "Acoes combinadas a partir do seu ciclo"
+              : "Acompanhamento estruturado de foco, acao e evidencia"}
+          </span>
+        </div>
+        <div className="stack-list">
+          {developmentPlans.length ? (
+            developmentPlans.map((plan) => (
+              <DevelopmentPlanAdminCard
+                key={plan.id}
+                competencyOptions={developmentPlanCompetencyOptions}
+                cycleOptions={developmentPlanCycleOptions}
+                onSave={handleDevelopmentPlanUpdate}
+                personOptions={developmentEditablePlanPeopleOptions}
+                plan={{
+                  ...plan,
+                  dueDate: plan.dueDate?.slice?.(0, 10) || plan.dueDate
+                }}
+                statusOptions={developmentPlanStatusOptions}
+              />
+            ))
+          ) : (
+            <div className="list-card">
+              <strong>Nenhum PDI encontrado</strong>
+              <p className="muted">
+                Registre um plano com foco, acao e evidencia para acompanhar a evolucao.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
 
       <div className="card card-span compact-card">
         <div className="card-header">

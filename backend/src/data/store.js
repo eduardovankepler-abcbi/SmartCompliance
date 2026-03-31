@@ -28,11 +28,14 @@ const INCIDENT_CLASSIFICATION = [
 const CYCLE_STATUS = {
   planning: "Planejamento",
   released: "Liberado",
-  closed: "Encerrado"
+  closed: "Encerrado",
+  processed: "Processado"
 };
 const USER_ROLE_OPTIONS = ["admin", "hr", "manager", "employee", "compliance"];
 const USER_STATUS_OPTIONS = ["active", "inactive"];
+const COMPETENCY_STATUS_OPTIONS = ["active", "inactive"];
 const DEVELOPMENT_RECORD_STATUS_OPTIONS = ["active", "archived"];
+const DEVELOPMENT_PLAN_STATUS_OPTIONS = ["active", "completed", "archived"];
 const APPLAUSE_STATUS_OPTIONS = ["Validado", "Em revisao", "Arquivado"];
 const FEEDBACK_REQUEST_STATUS = {
   pending: "pending",
@@ -41,6 +44,7 @@ const FEEDBACK_REQUEST_STATUS = {
 };
 const AUDIT_CATEGORIES = {
   user: "user",
+  competency: "competency",
   incident: "incident",
   cycle: "cycle",
   feedbackRequest: "feedback_request",
@@ -130,6 +134,10 @@ function canManagePeople(user) {
   return ["admin", "hr"].includes(user?.roleKey || "");
 }
 
+function canManageCompetencies(user) {
+  return ["admin", "hr"].includes(user?.roleKey || "");
+}
+
 function canManageUsers(user) {
   return ["admin", "hr"].includes(user?.roleKey || "");
 }
@@ -152,6 +160,7 @@ function getAuditCategoriesForUser(user) {
     case "hr":
       return [
         AUDIT_CATEGORIES.user,
+        AUDIT_CATEGORIES.competency,
         AUDIT_CATEGORIES.incident,
         AUDIT_CATEGORIES.cycle,
         AUDIT_CATEGORIES.feedbackRequest,
@@ -173,7 +182,9 @@ function getAuditCategoriesForUser(user) {
 }
 
 function isAnonymousRelationship(relationshipType) {
-  return ["leader", "company"].includes(relationshipType);
+  return ["leader", "company", "client-internal", "client-external"].includes(
+    relationshipType
+  );
 }
 
 function isReleasedCycle(status) {
@@ -196,12 +207,32 @@ function assertCycleStatusTransition(currentStatus, nextStatus) {
   const allowedTransitions = {
     [CYCLE_STATUS.planning]: [CYCLE_STATUS.released, CYCLE_STATUS.closed],
     [CYCLE_STATUS.released]: [CYCLE_STATUS.closed],
-    [CYCLE_STATUS.closed]: []
+    [CYCLE_STATUS.closed]: [CYCLE_STATUS.processed],
+    [CYCLE_STATUS.processed]: []
   };
 
   if (!(allowedTransitions[currentStatus] || []).includes(nextStatus)) {
     throw new Error("Transicao de status do ciclo nao permitida.");
   }
+}
+
+function presentCycleReportSnapshot(row) {
+  const questionAverages =
+    typeof row.questionAveragesJson === "string"
+      ? JSON.parse(row.questionAveragesJson)
+      : Array.isArray(row.questionAverages)
+        ? row.questionAverages
+        : row.questionAveragesJson || [];
+
+  return {
+    id: row.id,
+    cycleId: row.cycleId,
+    relationshipType: row.relationshipType,
+    totalResponses: Number(row.totalResponses || 0),
+    averageScore: Number(row.averageScore || 0),
+    questionAverages,
+    generatedAt: row.generatedAt
+  };
 }
 
 function assertValidIncidentClassification(classification) {
@@ -234,6 +265,12 @@ function assertValidDevelopmentRecordStatus(status) {
   }
 }
 
+function assertValidDevelopmentPlanStatus(status) {
+  if (!DEVELOPMENT_PLAN_STATUS_OPTIONS.includes(status)) {
+    throw new Error("Status do PDI invalido.");
+  }
+}
+
 function assertValidApplauseStatus(status) {
   if (!APPLAUSE_STATUS_OPTIONS.includes(status)) {
     throw new Error("Status do Aplause invalido.");
@@ -250,6 +287,34 @@ function normalizeAreaName(value) {
   return String(value || "")
     .trim()
     .toLowerCase();
+}
+
+function normalizeCompetencyName(value) {
+  return String(value || "").trim();
+}
+
+function normalizeCompetencyKey(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function assertValidCompetencyStatus(status) {
+  if (!COMPETENCY_STATUS_OPTIONS.includes(status)) {
+    throw new Error("Status da competencia invalido.");
+  }
+}
+
+function presentCompetency(competency) {
+  return {
+    id: competency.id,
+    key: competency.key,
+    name: competency.name,
+    description: competency.description || "",
+    status: competency.status || "active"
+  };
 }
 
 function enrichArea(people, area) {
@@ -780,9 +845,27 @@ function getTemplateDefinitionForCycle({
   relationshipType,
   customLibraries = []
 }) {
+  const baseTemplate = getTemplateForRelationship(relationshipType);
   const customLibrary = findPublishedLibrary(customLibraries, cycle?.libraryId);
   const customTemplate = findTemplateInPublishedLibrary(customLibrary, relationshipType);
-  return customTemplate || getTemplateForRelationship(relationshipType);
+
+  if (!customTemplate) {
+    return baseTemplate;
+  }
+
+  if (!Array.isArray(customTemplate.questions) || !customTemplate.questions.length) {
+    return baseTemplate;
+  }
+
+  return {
+    ...baseTemplate,
+    ...customTemplate,
+    policy: {
+      ...(baseTemplate?.policy || {}),
+      ...(customTemplate.policy || {})
+    },
+    questions: customTemplate.questions
+  };
 }
 
 function resolveTemplateKey(relationshipType) {
@@ -1015,10 +1098,30 @@ function generateAssignments({ users, people, cycleId, dueDate }) {
     const crossFunctionalCandidates = eligibleActors.filter(
       (candidate) => candidate.id !== actor.id && candidate.person.area !== actor.person.area
     );
+    const internalClientCandidates = eligibleActors.filter(
+      (candidate) =>
+        candidate.id !== actor.id &&
+        candidate.person.employmentType !== "consultant" &&
+        candidate.person.area !== actor.person.area
+    );
+    const consultantCandidates = eligibleActors.filter(
+      (candidate) =>
+        candidate.id !== actor.id && candidate.person.employmentType === "consultant"
+    );
+    const internalCandidates = eligibleActors.filter(
+      (candidate) =>
+        candidate.id !== actor.id && candidate.person.employmentType !== "consultant"
+    );
     const managerPerson = getManagerPerson(people, actor.person);
     const managerUser = managerPerson ? getUserByPersonId(users, managerPerson.id) : null;
     const peerCandidate = sameAreaCandidates[0] || anyPeerCandidates[0] || null;
     const crossFunctionalCandidate = crossFunctionalCandidates[0] || null;
+    const clientInternalCandidate =
+      internalClientCandidates[0] || crossFunctionalCandidate || peerCandidate || null;
+    const clientExternalCandidate =
+      actor.person.employmentType === "consultant"
+        ? internalCandidates[0] || null
+        : consultantCandidates[0] || null;
 
     pushAssignment(assignments, {
       id: createId("assignment"),
@@ -1086,13 +1189,233 @@ function generateAssignments({ users, people, cycleId, dueDate }) {
         dueDate
       });
     }
+
+    if (clientInternalCandidate) {
+      pushAssignment(assignments, {
+        id: createId("assignment"),
+        cycleId,
+        reviewerUserId: actor.id,
+        revieweePersonId: clientInternalCandidate.person.id,
+        relationshipType: "client-internal",
+        projectContext: "Consumo interno entre areas",
+        collaborationContext:
+          "Leitura da area cliente sobre atendimento, parceria e valor percebido na entrega.",
+        status: "pending",
+        dueDate
+      });
+    }
+
+    if (clientExternalCandidate) {
+      pushAssignment(assignments, {
+        id: createId("assignment"),
+        cycleId,
+        reviewerUserId: actor.id,
+        revieweePersonId: clientExternalCandidate.person.id,
+        relationshipType: "client-external",
+        projectContext:
+          actor.person.employmentType === "consultant"
+            ? "Percepcao da consultoria sobre a operacao"
+            : "Relacao com consultoria ou parceiro",
+        collaborationContext:
+          actor.person.employmentType === "consultant"
+            ? "Leitura externa sobre confiabilidade, atendimento e resultado percebido pelo cliente."
+            : "Leitura da experiencia com consultoria, parceiro ou cliente externo no ciclo.",
+        status: "pending",
+        dueDate
+      });
+    }
   }
 
   return assignments;
 }
 
+function mapAssignmentStatusToRaterStatus(status) {
+  if (status === "submitted") {
+    return "completed";
+  }
+
+  if (status === "expired") {
+    return "expired";
+  }
+
+  return "pending";
+}
+
+function buildCycleParticipantsAndRaters({ assignments, users, people, cycleId }) {
+  const participantMap = new Map();
+  const raterMap = new Map();
+
+  assignments
+    .filter((assignment) => assignment.cycleId === cycleId)
+    .forEach((assignment) => {
+      const reviewee = people.find((person) => person.id === assignment.revieweePersonId);
+      const reviewer = users.find((user) => user.id === assignment.reviewerUserId);
+
+      if (!reviewee || !reviewer) {
+        return;
+      }
+
+      const participantKey = `${cycleId}:${reviewee.id}`;
+      if (!participantMap.has(participantKey)) {
+        participantMap.set(participantKey, {
+          id: createId("cycle_participant"),
+          cycleId,
+          personId: reviewee.id,
+          status: "active"
+        });
+      }
+
+      const raterKey = [
+        cycleId,
+        reviewee.id,
+        reviewer.id,
+        assignment.relationshipType
+      ].join(":");
+
+      if (!raterMap.has(raterKey)) {
+        raterMap.set(raterKey, {
+          id: createId("cycle_rater"),
+          cycleId,
+          participantPersonId: reviewee.id,
+          raterUserId: reviewer.id,
+          relationshipType: assignment.relationshipType,
+          status: mapAssignmentStatusToRaterStatus(assignment.status)
+        });
+      }
+    });
+
+  return {
+    participants: Array.from(participantMap.values()),
+    raters: Array.from(raterMap.values())
+  };
+}
+
+function hydrateCycleStructure(db, cycleId) {
+  const scopedAssignments = db.assignments.filter((assignment) => assignment.cycleId === cycleId);
+  if (!scopedAssignments.length) {
+    return;
+  }
+
+  const existingParticipantKeys = new Set(
+    (db.cycleParticipants || []).map((participant) => `${participant.cycleId}:${participant.personId}`)
+  );
+  const existingRaterKeys = new Set(
+    (db.cycleRaters || []).map(
+      (rater) =>
+        `${rater.cycleId}:${rater.participantPersonId}:${rater.raterUserId}:${rater.relationshipType}`
+    )
+  );
+  const generatedStructure = buildCycleParticipantsAndRaters({
+    assignments: scopedAssignments,
+    users: db.users,
+    people: db.people,
+    cycleId
+  });
+
+  generatedStructure.participants.forEach((participant) => {
+    const key = `${participant.cycleId}:${participant.personId}`;
+    if (!existingParticipantKeys.has(key)) {
+      db.cycleParticipants.push(participant);
+      existingParticipantKeys.add(key);
+    }
+  });
+
+  generatedStructure.raters.forEach((rater) => {
+    const key = `${rater.cycleId}:${rater.participantPersonId}:${rater.raterUserId}:${rater.relationshipType}`;
+    const existingRater = db.cycleRaters.find(
+      (item) =>
+        item.cycleId === rater.cycleId &&
+        item.participantPersonId === rater.participantPersonId &&
+        item.raterUserId === rater.raterUserId &&
+        item.relationshipType === rater.relationshipType
+    );
+
+    if (existingRater) {
+      existingRater.status = rater.status;
+      return;
+    }
+
+    if (!existingRaterKeys.has(key)) {
+      db.cycleRaters.push(rater);
+      existingRaterKeys.add(key);
+    }
+  });
+}
+
+function presentCycleParticipantStructure(db, cycleId, customLibraries = []) {
+  const cycle = presentCycle(db.cycles.find((item) => item.id === cycleId) || {});
+  const participantRows = (db.cycleParticipants || []).filter(
+    (participant) => participant.cycleId === cycleId
+  );
+  const raterRows = (db.cycleRaters || []).filter((rater) => rater.cycleId === cycleId);
+
+  const participants = participantRows
+    .map((participant) => {
+      const person = db.people.find((item) => item.id === participant.personId);
+      const manager = person?.managerPersonId
+        ? db.people.find((item) => item.id === person.managerPersonId)
+        : null;
+      const raters = raterRows
+        .filter((rater) => rater.participantPersonId === participant.personId)
+        .map((rater) => {
+          const user = db.users.find((item) => item.id === rater.raterUserId);
+          const raterPerson = user
+            ? db.people.find((item) => item.id === user.personId)
+            : null;
+          const template = getTemplateDefinitionForCycle({
+            cycle,
+            relationshipType: rater.relationshipType,
+            customLibraries
+          });
+
+          return {
+            ...rater,
+            raterPersonId: raterPerson?.id || null,
+            raterName: raterPerson?.name || "",
+            raterArea: raterPerson?.area || "",
+            templateId: template?.id || null,
+            templateName: template?.modelName || "",
+            statusLabel: rater.status
+          };
+        })
+        .sort((left, right) => left.raterName.localeCompare(right.raterName, "pt-BR"));
+
+      return {
+        ...participant,
+        personName: person?.name || "",
+        personArea: person?.area || "",
+        personRoleTitle: person?.roleTitle || "",
+        managerName: manager?.name || "",
+        totalRaters: raters.length,
+        completedRaters: raters.filter((rater) => rater.status === "completed").length,
+        pendingRaters: raters.filter((rater) => rater.status === "pending").length,
+        raters
+      };
+    })
+    .sort((left, right) => left.personName.localeCompare(right.personName, "pt-BR"));
+
+  return {
+    cycle: {
+      id: cycle.id,
+      title: cycle.title,
+      semesterLabel: cycle.semesterLabel,
+      status: cycle.status,
+      dueDate: cycle.dueDate,
+      participantCount: participants.length,
+      raterCount: raterRows.length
+    },
+    participants,
+    relationshipSummary: Object.entries(
+      raterRows.reduce((summary, rater) => {
+        summary[rater.relationshipType] = (summary[rater.relationshipType] || 0) + 1;
+        return summary;
+      }, {})
+    ).map(([relationshipType, total]) => ({ relationshipType, total }))
+  };
+}
+
 function buildAggregateResponses(responses) {
-  const aggregateTypes = ["leader", "company"];
+  const aggregateTypes = ["leader", "company", "client-internal", "client-external"];
 
   return aggregateTypes
     .map((relationshipType) => {
@@ -1152,6 +1475,20 @@ function buildAggregateResponsesByCycle(responses) {
       cycleId
     }))
   );
+}
+
+function buildCycleReportSnapshots(cycleId, responses) {
+  return buildAggregateResponses(responses)
+    .filter((entry) => entry.totalResponses > 0)
+    .map((entry) => ({
+      id: createId("cycle_report"),
+      cycleId,
+      relationshipType: entry.relationshipType,
+      totalResponses: entry.totalResponses,
+      averageScore: entry.averageScore,
+      questionAverages: entry.questionAverages,
+      generatedAt: new Date().toISOString()
+    }));
 }
 
 function buildQuestionDistributions(responses) {
@@ -1551,22 +1888,37 @@ function filterIndividualResponses(responses, actorUser) {
   });
 }
 
-function buildResponsesBundle(responses, actorUser) {
+function buildResponsesBundle(responses, actorUser, options = {}) {
+  const { cycles = [], cycleReports = [] } = options;
   const aggregateSource = isOrgWideUser(actorUser)
     ? responses
     : isManagerUser(actorUser)
       ? responses.filter((response) => response.revieweeManagerPersonId === actorUser.person.id)
       : [];
 
+  const processedCycleIds = new Set(
+    cycles
+      .filter((cycle) => cycle.status === CYCLE_STATUS.processed)
+      .map((cycle) => cycle.id)
+  );
+  const dynamicAggregateSource = aggregateSource.filter(
+    (response) => !processedCycleIds.has(response.cycleId)
+  );
+  const scopedSnapshots = isOrgWideUser(actorUser)
+    ? cycleReports.filter((snapshot) => processedCycleIds.has(snapshot.cycleId))
+    : [];
+  const liveAggregateResponses = buildAggregateResponses(dynamicAggregateSource);
+  const liveCycleAggregateResponses = buildAggregateResponsesByCycle(dynamicAggregateSource);
+
   return {
     individualResponses: filterIndividualResponses(responses, actorUser),
-    aggregateResponses: buildAggregateResponses(aggregateSource),
-    cycleAggregateResponses: buildAggregateResponsesByCycle(aggregateSource)
+    aggregateResponses: [...liveAggregateResponses, ...scopedSnapshots],
+    cycleAggregateResponses: [...liveCycleAggregateResponses, ...scopedSnapshots],
+    reportSnapshots: scopedSnapshots
   };
 }
 
-function createAnonymousSubmissionPayload(assignment, payload) {
-  const templateDefinition = getTemplateForRelationship(assignment.relationshipType);
+function createAnonymousSubmissionPayload(assignment, payload, templateDefinition) {
   const scaleScores = getAnsweredScaleScores(payload.answers);
 
   return {
@@ -1830,6 +2182,10 @@ function assertCanCreateDevelopmentRecord(actorUser, people, personId) {
   }
 }
 
+function assertCanCreateDevelopmentPlan(actorUser, people, personId) {
+  assertCanCreateDevelopmentRecord(actorUser, people, personId);
+}
+
 function isSameMonth(firstDate, secondDate) {
   const first = new Date(firstDate);
   const second = new Date(secondDate);
@@ -2002,10 +2358,106 @@ async function fetchAreaRows(pool) {
   return rows.map(mapMysqlAreaRow);
 }
 
+async function fetchCompetencyRows(pool) {
+  const [rows] = await pool.query(
+    `SELECT id, competency_key AS \`key\`, name, description, status
+     FROM competencies
+     ORDER BY name`
+  );
+  return rows.map(presentCompetency);
+}
+
 async function fetchUserRows(pool) {
   const [rows] = await pool.query(
     `SELECT id, person_id AS personId, email, password_hash AS passwordHash, role_key AS roleKey, status
      FROM users`
+  );
+  return rows;
+}
+
+function enrichDevelopmentPlan(plan, people, cycles, competencies) {
+  const person = people.find((item) => item.id === plan.personId);
+  const cycle = plan.cycleId ? cycles.find((item) => item.id === plan.cycleId) : null;
+  const competency = plan.competencyId
+    ? competencies.find((item) => item.id === plan.competencyId)
+    : null;
+
+  return {
+    ...plan,
+    personName: person?.name || "",
+    cycleTitle: cycle?.title || "",
+    cycleSemesterLabel: cycle?.semesterLabel || "",
+    competencyName: competency?.name || "",
+    status: plan.status || "active",
+    archivedAt: plan.archivedAt || null
+  };
+}
+
+async function fetchCycleParticipantRows(pool, cycleId = null) {
+  const [rows] = cycleId
+    ? await pool.query(
+        `SELECT id, cycle_id AS cycleId, person_id AS personId, status
+         FROM evaluation_cycle_participants
+         WHERE cycle_id = ?
+         ORDER BY person_id`,
+        [cycleId]
+      )
+    : await pool.query(
+        `SELECT id, cycle_id AS cycleId, person_id AS personId, status
+         FROM evaluation_cycle_participants
+         ORDER BY cycle_id, person_id`
+      );
+  return rows;
+}
+
+async function fetchCycleRaterRows(pool, cycleId = null) {
+  const [rows] = cycleId
+    ? await pool.query(
+        `SELECT id, cycle_id AS cycleId, participant_person_id AS participantPersonId,
+                rater_user_id AS raterUserId, relationship_type AS relationshipType, status
+         FROM evaluation_cycle_raters
+         WHERE cycle_id = ?
+         ORDER BY participant_person_id, relationship_type`,
+        [cycleId]
+      )
+    : await pool.query(
+        `SELECT id, cycle_id AS cycleId, participant_person_id AS participantPersonId,
+                rater_user_id AS raterUserId, relationship_type AS relationshipType, status
+         FROM evaluation_cycle_raters
+         ORDER BY cycle_id, participant_person_id, relationship_type`
+      );
+  return rows;
+}
+
+async function fetchCycleReportRows(pool, cycleId = null) {
+  const [rows] = cycleId
+    ? await pool.query(
+        `SELECT id, cycle_id AS cycleId, relationship_type AS relationshipType,
+                total_responses AS totalResponses, average_score AS averageScore,
+                question_averages_json AS questionAveragesJson, generated_at AS generatedAt
+         FROM evaluation_cycle_reports
+         WHERE cycle_id = ?
+         ORDER BY relationship_type`,
+        [cycleId]
+      )
+    : await pool.query(
+        `SELECT id, cycle_id AS cycleId, relationship_type AS relationshipType,
+                total_responses AS totalResponses, average_score AS averageScore,
+                question_averages_json AS questionAveragesJson, generated_at AS generatedAt
+         FROM evaluation_cycle_reports
+         ORDER BY cycle_id, relationship_type`
+      );
+  return rows.map((row) => presentCycleReportSnapshot(row));
+}
+
+async function fetchDevelopmentPlanRows(pool) {
+  const [rows] = await pool.query(
+    `SELECT id, person_id AS personId, cycle_id AS cycleId, competency_id AS competencyId,
+            focus_title AS focusTitle, action_text AS actionText, due_date AS dueDate,
+            expected_evidence AS expectedEvidence, status, created_by_user_id AS createdByUserId,
+            created_at AS createdAt, archived_at AS archivedAt
+     FROM development_plans
+     ORDER BY due_date ASC, created_at DESC`
   );
   return rows;
 }
@@ -2081,6 +2533,22 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
   if (!Array.isArray(db.auditLogs)) {
     db.auditLogs = [];
   }
+  if (!Array.isArray(db.competencies)) {
+    db.competencies = [];
+  }
+  if (!Array.isArray(db.cycleParticipants)) {
+    db.cycleParticipants = [];
+  }
+  if (!Array.isArray(db.cycleRaters)) {
+    db.cycleRaters = [];
+  }
+  if (!Array.isArray(db.cycleReports)) {
+    db.cycleReports = [];
+  }
+  if (!Array.isArray(db.developmentPlans)) {
+    db.developmentPlans = [];
+  }
+  db.cycles.forEach((cycle) => hydrateCycleStructure(db, cycle.id));
 
   return {
     async findUserByEmail(email) {
@@ -2099,6 +2567,105 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
     },
     async getAreas(actorUser) {
       return filterAreasForUser(db.areas, db.people, actorUser);
+    },
+    async getCompetencies() {
+      return db.competencies
+        .map((item) => presentCompetency(item))
+        .sort((left, right) => left.name.localeCompare(right.name));
+    },
+    async createCompetency(payload, actorUser) {
+      if (!canManageCompetencies(actorUser)) {
+        throw new Error("Perfil sem permissao para cadastrar competencias.");
+      }
+
+      const normalizedName = normalizeCompetencyName(payload.name);
+      const normalizedKey = normalizeCompetencyKey(payload.key || payload.name);
+      if (!normalizedName) {
+        throw new Error("Nome da competencia nao informado.");
+      }
+      if (!normalizedKey) {
+        throw new Error("Chave da competencia invalida.");
+      }
+
+      assertValidCompetencyStatus(payload.status || "active");
+
+      if (
+        db.competencies.some(
+          (item) =>
+            normalizeCompetencyName(item.name).toLowerCase() === normalizedName.toLowerCase() ||
+            normalizeCompetencyKey(item.key) === normalizedKey
+        )
+      ) {
+        throw new Error("Ja existe uma competencia com este nome ou chave.");
+      }
+
+      const competency = {
+        id: createId("competency"),
+        key: normalizedKey,
+        name: normalizedName,
+        description: String(payload.description || "").trim(),
+        status: payload.status || "active"
+      };
+      db.competencies.unshift(competency);
+      pushAuditLog(db.auditLogs, {
+        category: AUDIT_CATEGORIES.competency,
+        action: "created",
+        entityType: "competency",
+        entityId: competency.id,
+        entityLabel: competency.name,
+        actorUser,
+        summary: `Competencia criada: ${competency.name}`,
+        detail: `${competency.key} · ${competency.status}`
+      });
+      return presentCompetency(competency);
+    },
+    async updateCompetency(competencyId, payload, actorUser) {
+      if (!canManageCompetencies(actorUser)) {
+        throw new Error("Perfil sem permissao para atualizar competencias.");
+      }
+
+      const competency = db.competencies.find((item) => item.id === competencyId);
+      if (!competency) {
+        throw new Error("Competencia nao encontrada.");
+      }
+
+      const normalizedName = normalizeCompetencyName(payload.name);
+      const normalizedKey = normalizeCompetencyKey(payload.key || payload.name);
+      if (!normalizedName) {
+        throw new Error("Nome da competencia nao informado.");
+      }
+      if (!normalizedKey) {
+        throw new Error("Chave da competencia invalida.");
+      }
+
+      assertValidCompetencyStatus(payload.status || "active");
+
+      if (
+        db.competencies.some(
+          (item) =>
+            item.id !== competencyId &&
+            (normalizeCompetencyName(item.name).toLowerCase() === normalizedName.toLowerCase() ||
+              normalizeCompetencyKey(item.key) === normalizedKey)
+        )
+      ) {
+        throw new Error("Ja existe uma competencia com este nome ou chave.");
+      }
+
+      competency.name = normalizedName;
+      competency.key = normalizedKey;
+      competency.description = String(payload.description || "").trim();
+      competency.status = payload.status || "active";
+      pushAuditLog(db.auditLogs, {
+        category: AUDIT_CATEGORIES.competency,
+        action: "updated",
+        entityType: "competency",
+        entityId: competency.id,
+        entityLabel: competency.name,
+        actorUser,
+        summary: `Competencia atualizada: ${competency.name}`,
+        detail: `${competency.key} · ${competency.status}`
+      });
+      return presentCompetency(competency);
     },
     async createArea(payload, actorUser) {
       if (!canManagePeople(actorUser)) {
@@ -2440,7 +3007,20 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
       );
     },
     async getEvaluationCycles() {
-      return db.cycles.map((cycle) => presentCycle(cycle));
+      return db.cycles.map((cycle) => {
+        const cycleStructure = presentCycleParticipantStructure(
+          db,
+          cycle.id,
+          customLibraryState.published
+        );
+
+        return {
+          ...presentCycle(cycle),
+          participantCount: cycleStructure.cycle.participantCount,
+          raterCount: cycleStructure.cycle.raterCount,
+          reportSnapshotCount: db.cycleReports.filter((item) => item.cycleId === cycle.id).length
+        };
+      });
     },
     async createEvaluationCycle(payload, actorUser) {
       const selectedLibrary =
@@ -2469,6 +3049,7 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         dueDate: cycle.dueDate
       });
       db.assignments.unshift(...generatedAssignments);
+      hydrateCycleStructure(db, cycle.id);
       pushAuditLog(db.auditLogs, {
         category: AUDIT_CATEGORIES.cycle,
         action: "created",
@@ -2482,8 +3063,20 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
 
       return {
         ...presentCycle(cycle),
+        participantCount: db.cycleParticipants.filter((item) => item.cycleId === cycle.id).length,
+        raterCount: db.cycleRaters.filter((item) => item.cycleId === cycle.id).length,
+        reportSnapshotCount: 0,
         generatedAssignmentsCount: generatedAssignments.length
       };
+    },
+    async getEvaluationCycleParticipants(cycleId) {
+      const cycle = db.cycles.find((item) => item.id === cycleId);
+      if (!cycle) {
+        throw new Error("Ciclo de avaliacao nao encontrado.");
+      }
+
+      hydrateCycleStructure(db, cycleId);
+      return presentCycleParticipantStructure(db, cycleId, customLibraryState.published);
     },
     async updateEvaluationCycleStatus(cycleId, nextStatus, actorUser) {
       const cycle = db.cycles.find((item) => item.id === cycleId);
@@ -2494,9 +3087,20 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
       const previousStatus = cycle.status;
       assertCycleStatusTransition(cycle.status, nextStatus);
       cycle.status = nextStatus;
+      if (nextStatus === CYCLE_STATUS.processed) {
+        const responses = [
+          ...db.submissions
+            .filter((submission) => submission.cycleId === cycleId)
+            .map((item) => enrichSubmission(db, item, customLibraryState.published)),
+          ...anonymousResponseState.responses.filter((response) => response.cycleId === cycleId)
+        ];
+        const snapshots = buildCycleReportSnapshots(cycleId, responses);
+        db.cycleReports = db.cycleReports.filter((item) => item.cycleId !== cycleId);
+        db.cycleReports.unshift(...snapshots);
+      }
       pushAuditLog(db.auditLogs, {
         category: AUDIT_CATEGORIES.cycle,
-        action: "status_changed",
+        action: nextStatus === CYCLE_STATUS.processed ? "processed" : "status_changed",
         entityType: "cycle",
         entityId: cycle.id,
         entityLabel: cycle.title,
@@ -2525,7 +3129,10 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         ...db.submissions.map((item) => enrichSubmission(db, item, customLibraryState.published)),
         ...anonymousResponseState.responses
       ];
-      return buildResponsesBundle(responses, actorUser);
+      return buildResponsesBundle(responses, actorUser, {
+        cycles: db.cycles,
+        cycleReports: db.cycleReports.map((item) => presentCycleReportSnapshot(item))
+      });
     },
     async getFeedbackRequests(actorUser) {
       return filterFeedbackRequestsForUser(db, actorUser);
@@ -2658,17 +3265,22 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
       }
 
       const templateDefinition = getTemplateDefinitionForCycle({
-        cycle: assignment,
+        cycle,
         relationshipType: assignment.relationshipType,
         customLibraries: customLibraryState.published
       });
       validateEvaluationAnswers(payload.answers, templateDefinition);
 
       if (isAnonymousRelationship(assignment.relationshipType)) {
-        const anonymousSubmission = createAnonymousSubmissionPayload(assignment, payload);
+        const anonymousSubmission = createAnonymousSubmissionPayload(
+          assignment,
+          payload,
+          templateDefinition
+        );
         anonymousResponseState.responses.unshift(anonymousSubmission);
         await saveAnonymousResponseState(anonymousResponseState);
         assignment.status = "submitted";
+        hydrateCycleStructure(db, assignment.cycleId);
         return anonymousSubmission;
       }
 
@@ -2706,6 +3318,7 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
       db.submissions.unshift(submission);
       db.answers.unshift(...answerRows);
       assignment.status = "submitted";
+      hydrateCycleStructure(db, assignment.cycleId);
 
       return enrichSubmission(db, submission);
     },
@@ -2808,6 +3421,7 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
       };
     },
     async getDevelopmentRecords(actorUser) {
+      const actorPersonId = actorUser.person?.id || actorUser.personId;
       const records = db.developmentRecords.map((item) => {
         const person = db.people.find((person) => person.id === item.personId);
         return {
@@ -2824,13 +3438,13 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
 
       if (isManagerUser(actorUser)) {
         const visiblePersonIds = new Set([
-          actorUser.person.id,
-          ...getTeamPeople(db.people, actorUser.person.id).map((item) => item.id)
+          actorPersonId,
+          ...getTeamPeople(db.people, actorPersonId).map((item) => item.id)
         ]);
         return records.filter((item) => visiblePersonIds.has(item.personId));
       }
 
-      return records.filter((item) => item.personId === actorUser.person.id);
+      return records.filter((item) => item.personId === actorPersonId);
     },
     async createDevelopmentRecord(payload, actorUser) {
       assertCanCreateDevelopmentRecord(actorUser, db.people, payload.personId);
@@ -2893,6 +3507,111 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         ...record,
         personName: person?.name || ""
       };
+    },
+    async getDevelopmentPlans(actorUser) {
+      const actorPersonId = actorUser.person?.id || actorUser.personId;
+      const plans = db.developmentPlans.map((item) =>
+        enrichDevelopmentPlan(item, db.people, db.cycles, db.competencies)
+      );
+
+      if (isOrgWideUser(actorUser)) {
+        return plans;
+      }
+
+      if (isManagerUser(actorUser)) {
+        const visiblePersonIds = new Set([
+          actorPersonId,
+          ...getTeamPeople(db.people, actorPersonId).map((item) => item.id)
+        ]);
+        return plans.filter((item) => visiblePersonIds.has(item.personId));
+      }
+
+      return plans.filter((item) => item.personId === actorPersonId);
+    },
+    async createDevelopmentPlan(payload, actorUser) {
+      assertCanCreateDevelopmentPlan(actorUser, db.people, payload.personId);
+      if (payload.cycleId && !db.cycles.some((item) => item.id === payload.cycleId)) {
+        throw new Error("Ciclo do PDI nao encontrado.");
+      }
+      if (
+        payload.competencyId &&
+        !db.competencies.some((item) => item.id === payload.competencyId)
+      ) {
+        throw new Error("Competencia do PDI nao encontrada.");
+      }
+
+      const plan = {
+        id: createId("development_plan"),
+        personId: payload.personId,
+        cycleId: payload.cycleId || null,
+        competencyId: payload.competencyId || null,
+        focusTitle: payload.focusTitle,
+        actionText: payload.actionText,
+        dueDate: payload.dueDate,
+        expectedEvidence: payload.expectedEvidence,
+        status: "active",
+        createdByUserId: actorUser.id,
+        createdAt: new Date().toISOString(),
+        archivedAt: null
+      };
+      db.developmentPlans.unshift(plan);
+      const person = db.people.find((item) => item.id === plan.personId);
+      pushAuditLog(db.auditLogs, {
+        category: AUDIT_CATEGORIES.development,
+        action: "plan_created",
+        entityType: "development_plan",
+        entityId: plan.id,
+        entityLabel: plan.focusTitle,
+        actorUser,
+        summary: `PDI criado para ${person?.name || "pessoa"}`,
+        detail: `${plan.focusTitle} · Prazo ${plan.dueDate}`
+      });
+      return enrichDevelopmentPlan(plan, db.people, db.cycles, db.competencies);
+    },
+    async updateDevelopmentPlan(planId, payload, actorUser) {
+      const plan = db.developmentPlans.find((item) => item.id === planId);
+      if (!plan) {
+        throw new Error("PDI nao encontrado.");
+      }
+
+      assertCanCreateDevelopmentPlan(actorUser, db.people, payload.personId);
+      assertValidDevelopmentPlanStatus(payload.status);
+      if (payload.cycleId && !db.cycles.some((item) => item.id === payload.cycleId)) {
+        throw new Error("Ciclo do PDI nao encontrado.");
+      }
+      if (
+        payload.competencyId &&
+        !db.competencies.some((item) => item.id === payload.competencyId)
+      ) {
+        throw new Error("Competencia do PDI nao encontrada.");
+      }
+
+      plan.personId = payload.personId;
+      plan.cycleId = payload.cycleId || null;
+      plan.competencyId = payload.competencyId || null;
+      plan.focusTitle = payload.focusTitle;
+      plan.actionText = payload.actionText;
+      plan.dueDate = payload.dueDate;
+      plan.expectedEvidence = payload.expectedEvidence;
+      plan.status = payload.status;
+      plan.archivedAt = payload.status === "archived" ? new Date().toISOString() : null;
+
+      const person = db.people.find((item) => item.id === plan.personId);
+      pushAuditLog(db.auditLogs, {
+        category: AUDIT_CATEGORIES.development,
+        action: payload.status === "archived" ? "plan_archived" : "plan_updated",
+        entityType: "development_plan",
+        entityId: plan.id,
+        entityLabel: plan.focusTitle,
+        actorUser,
+        summary:
+          payload.status === "archived"
+            ? `PDI arquivado para ${person?.name || "pessoa"}`
+            : `PDI atualizado para ${person?.name || "pessoa"}`,
+        detail: `${plan.focusTitle} · Prazo ${plan.dueDate}`
+      });
+
+      return enrichDevelopmentPlan(plan, db.people, db.cycles, db.competencies);
     },
     async getDashboardOverview(actorUser, options = {}) {
       const allResponses = [
@@ -3073,6 +3792,122 @@ function buildMysqlStore(pool, customLibraryState, anonymousResponseState) {
     async getAreas(actorUser) {
       const [areas, people] = await Promise.all([fetchAreaRows(pool), fetchPeopleRows(pool)]);
       return filterAreasForUser(areas, people, actorUser);
+    },
+    async getCompetencies() {
+      return fetchCompetencyRows(pool);
+    },
+    async createCompetency(payload, actorUser) {
+      if (!canManageCompetencies(actorUser)) {
+        throw new Error("Perfil sem permissao para cadastrar competencias.");
+      }
+
+      const normalizedName = normalizeCompetencyName(payload.name);
+      const normalizedKey = normalizeCompetencyKey(payload.key || payload.name);
+      if (!normalizedName) {
+        throw new Error("Nome da competencia nao informado.");
+      }
+      if (!normalizedKey) {
+        throw new Error("Chave da competencia invalida.");
+      }
+
+      assertValidCompetencyStatus(payload.status || "active");
+
+      const existing = await fetchCompetencyRows(pool);
+      if (
+        existing.some(
+          (item) =>
+            normalizeCompetencyName(item.name).toLowerCase() === normalizedName.toLowerCase() ||
+            normalizeCompetencyKey(item.key) === normalizedKey
+        )
+      ) {
+        throw new Error("Ja existe uma competencia com este nome ou chave.");
+      }
+
+      const competency = {
+        id: createId("competency"),
+        key: normalizedKey,
+        name: normalizedName,
+        description: String(payload.description || "").trim(),
+        status: payload.status || "active"
+      };
+
+      await pool.query(
+        `INSERT INTO competencies (id, competency_key, name, description, status)
+         VALUES (?, ?, ?, ?, ?)`,
+        [competency.id, competency.key, competency.name, competency.description, competency.status]
+      );
+
+      await persistAuditLog(pool, {
+        category: AUDIT_CATEGORIES.competency,
+        action: "created",
+        entityType: "competency",
+        entityId: competency.id,
+        entityLabel: competency.name,
+        actorUser,
+        summary: `Competencia criada: ${competency.name}`,
+        detail: `${competency.key} · ${competency.status}`
+      });
+
+      return presentCompetency(competency);
+    },
+    async updateCompetency(competencyId, payload, actorUser) {
+      if (!canManageCompetencies(actorUser)) {
+        throw new Error("Perfil sem permissao para atualizar competencias.");
+      }
+
+      const normalizedName = normalizeCompetencyName(payload.name);
+      const normalizedKey = normalizeCompetencyKey(payload.key || payload.name);
+      if (!normalizedName) {
+        throw new Error("Nome da competencia nao informado.");
+      }
+      if (!normalizedKey) {
+        throw new Error("Chave da competencia invalida.");
+      }
+
+      assertValidCompetencyStatus(payload.status || "active");
+
+      const existing = await fetchCompetencyRows(pool);
+      const competency = existing.find((item) => item.id === competencyId);
+      if (!competency) {
+        throw new Error("Competencia nao encontrada.");
+      }
+
+      if (
+        existing.some(
+          (item) =>
+            item.id !== competencyId &&
+            (normalizeCompetencyName(item.name).toLowerCase() === normalizedName.toLowerCase() ||
+              normalizeCompetencyKey(item.key) === normalizedKey)
+        )
+      ) {
+        throw new Error("Ja existe uma competencia com este nome ou chave.");
+      }
+
+      await pool.query(
+        `UPDATE competencies
+         SET competency_key = ?, name = ?, description = ?, status = ?
+         WHERE id = ?`,
+        [normalizedKey, normalizedName, String(payload.description || "").trim(), payload.status || "active", competencyId]
+      );
+
+      await persistAuditLog(pool, {
+        category: AUDIT_CATEGORIES.competency,
+        action: "updated",
+        entityType: "competency",
+        entityId: competencyId,
+        entityLabel: normalizedName,
+        actorUser,
+        summary: `Competencia atualizada: ${normalizedName}`,
+        detail: `${normalizedKey} · ${payload.status || "active"}`
+      });
+
+      return presentCompetency({
+        ...competency,
+        key: normalizedKey,
+        name: normalizedName,
+        description: String(payload.description || "").trim(),
+        status: payload.status || "active"
+      });
     },
     async createArea(payload, actorUser) {
       if (!canManagePeople(actorUser)) {
@@ -3717,9 +4552,17 @@ function buildMysqlStore(pool, customLibraryState, anonymousResponseState) {
         `SELECT c.id, c.template_id AS templateId, c.title, c.semester_label AS semesterLabel,
                 c.status, c.due_date AS dueDate, c.target_group AS targetGroup,
                 c.library_id AS libraryId, c.library_name AS libraryName,
-                COALESCE(c.library_name, t.name) AS modelName, c.created_by_user_id AS createdByUserId
+                COALESCE(c.library_name, t.name) AS modelName, c.created_by_user_id AS createdByUserId,
+                COUNT(DISTINCT cp.person_id) AS participantCount,
+                COUNT(DISTINCT CONCAT(cr.participant_person_id, ':', cr.rater_user_id, ':', cr.relationship_type)) AS raterCount,
+                COUNT(DISTINCT er.id) AS reportSnapshotCount
          FROM evaluation_cycles c
          JOIN evaluation_templates t ON t.id = c.template_id
+         LEFT JOIN evaluation_cycle_participants cp ON cp.cycle_id = c.id
+         LEFT JOIN evaluation_cycle_raters cr ON cr.cycle_id = c.id
+         LEFT JOIN evaluation_cycle_reports er ON er.cycle_id = c.id
+         GROUP BY c.id, c.template_id, c.title, c.semester_label, c.status, c.due_date, c.target_group,
+                  c.library_id, c.library_name, t.name, c.created_by_user_id
          ORDER BY c.due_date DESC`
       );
       return rows.map((row) => presentCycle(row));
@@ -3749,6 +4592,12 @@ function buildMysqlStore(pool, customLibraryState, anonymousResponseState) {
         people,
         cycleId: cycle.id,
         dueDate: cycle.dueDate
+      });
+      const generatedStructure = buildCycleParticipantsAndRaters({
+        assignments: generatedAssignments,
+        users,
+        people,
+        cycleId: cycle.id
       });
 
       const connection = await pool.getConnection();
@@ -3793,6 +4642,31 @@ function buildMysqlStore(pool, customLibraryState, anonymousResponseState) {
           );
         }
 
+        for (const participant of generatedStructure.participants) {
+          await connection.query(
+            `INSERT INTO evaluation_cycle_participants
+             (id, cycle_id, person_id, status)
+             VALUES (?, ?, ?, ?)`,
+            [participant.id, participant.cycleId, participant.personId, participant.status]
+          );
+        }
+
+        for (const rater of generatedStructure.raters) {
+          await connection.query(
+            `INSERT INTO evaluation_cycle_raters
+             (id, cycle_id, participant_person_id, rater_user_id, relationship_type, status)
+             VALUES (?, ?, ?, ?, ?, ?)`,
+            [
+              rater.id,
+              rater.cycleId,
+              rater.participantPersonId,
+              rater.raterUserId,
+              rater.relationshipType,
+              rater.status
+            ]
+          );
+        }
+
         await insertAuditLog(connection, {
           category: AUDIT_CATEGORIES.cycle,
           action: "created",
@@ -3814,8 +4688,44 @@ function buildMysqlStore(pool, customLibraryState, anonymousResponseState) {
 
       return {
         ...presentCycle(cycle),
+        participantCount: generatedStructure.participants.length,
+        raterCount: generatedStructure.raters.length,
         generatedAssignmentsCount: generatedAssignments.length
       };
+    },
+    async getEvaluationCycleParticipants(cycleId) {
+      const [cycleRows] = await pool.query(
+        `SELECT id, template_id AS templateId, title, semester_label AS semesterLabel,
+                status, due_date AS dueDate, target_group AS targetGroup,
+                library_id AS libraryId, library_name AS libraryName
+         FROM evaluation_cycles
+         WHERE id = ?
+         LIMIT 1`,
+        [cycleId]
+      );
+
+      if (!cycleRows[0]) {
+        throw new Error("Ciclo de avaliacao nao encontrado.");
+      }
+
+      const [people, users, participantRows, raterRows] = await Promise.all([
+        fetchPeopleRows(pool),
+        fetchUserRows(pool),
+        fetchCycleParticipantRows(pool, cycleId),
+        fetchCycleRaterRows(pool, cycleId)
+      ]);
+
+      return presentCycleParticipantStructure(
+        {
+          cycles: [cycleRows[0]],
+          people,
+          users,
+          cycleParticipants: participantRows,
+          cycleRaters: raterRows
+        },
+        cycleId,
+        customLibraryState.published
+      );
     },
     async updateEvaluationCycleStatus(cycleId, nextStatus, actorUser) {
       const [rows] = await pool.query(
@@ -3833,37 +4743,85 @@ function buildMysqlStore(pool, customLibraryState, anonymousResponseState) {
       const previousStatus = rows[0].status;
       assertCycleStatusTransition(rows[0].status, nextStatus);
 
-      await pool.query(
-        `UPDATE evaluation_cycles
-         SET status = ?
-         WHERE id = ?`,
-        [nextStatus, cycleId]
-      );
+      const connection = await pool.getConnection();
+      try {
+        await connection.beginTransaction();
 
-      const [updatedRows] = await pool.query(
-        `SELECT c.id, c.template_id AS templateId, c.title, c.semester_label AS semesterLabel,
-                c.status, c.due_date AS dueDate, c.target_group AS targetGroup,
-                c.library_id AS libraryId, c.library_name AS libraryName,
-                COALESCE(c.library_name, t.name) AS modelName, c.created_by_user_id AS createdByUserId
-         FROM evaluation_cycles c
-         JOIN evaluation_templates t ON t.id = c.template_id
-         WHERE c.id = ?
-         LIMIT 1`,
-        [cycleId]
-      );
+        await connection.query(
+          `UPDATE evaluation_cycles
+           SET status = ?
+           WHERE id = ?`,
+          [nextStatus, cycleId]
+        );
 
-      await insertAuditLog(pool, {
-        category: AUDIT_CATEGORIES.cycle,
-        action: "status_changed",
-        entityType: "cycle",
-        entityId: cycleId,
-        entityLabel: updatedRows[0].title,
-        actorUser,
-        summary: `Status do ciclo atualizado: ${updatedRows[0].title}`,
-        detail: `${previousStatus} -> ${nextStatus}`
-      });
+        if (nextStatus === CYCLE_STATUS.processed) {
+          const responses = [
+            ...(await fetchMysqlResponses(pool, customLibraryState.published)).filter(
+              (response) => response.cycleId === cycleId
+            ),
+            ...anonymousResponseState.responses.filter((response) => response.cycleId === cycleId)
+          ];
+          const snapshots = buildCycleReportSnapshots(cycleId, responses);
 
-      return presentCycle(updatedRows[0]);
+          await connection.query(`DELETE FROM evaluation_cycle_reports WHERE cycle_id = ?`, [
+            cycleId
+          ]);
+
+          for (const snapshot of snapshots) {
+            await connection.query(
+              `INSERT INTO evaluation_cycle_reports
+               (id, cycle_id, relationship_type, total_responses, average_score, question_averages_json, generated_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?)`,
+              [
+                snapshot.id,
+                snapshot.cycleId,
+                snapshot.relationshipType,
+                snapshot.totalResponses,
+                snapshot.averageScore,
+                JSON.stringify(snapshot.questionAverages),
+                snapshot.generatedAt
+              ]
+            );
+          }
+        }
+
+        const [updatedRows] = await connection.query(
+          `SELECT c.id, c.template_id AS templateId, c.title, c.semester_label AS semesterLabel,
+                  c.status, c.due_date AS dueDate, c.target_group AS targetGroup,
+                  c.library_id AS libraryId, c.library_name AS libraryName,
+                  COALESCE(c.library_name, t.name) AS modelName, c.created_by_user_id AS createdByUserId,
+                  COUNT(DISTINCT er.id) AS reportSnapshotCount
+           FROM evaluation_cycles c
+           JOIN evaluation_templates t ON t.id = c.template_id
+           LEFT JOIN evaluation_cycle_reports er ON er.cycle_id = c.id
+           WHERE c.id = ?
+           GROUP BY c.id, c.template_id, c.title, c.semester_label, c.status, c.due_date, c.target_group,
+                    c.library_id, c.library_name, t.name, c.created_by_user_id`,
+          [cycleId]
+        );
+
+        await insertAuditLog(connection, {
+          category: AUDIT_CATEGORIES.cycle,
+          action: nextStatus === CYCLE_STATUS.processed ? "processed" : "status_changed",
+          entityType: "cycle",
+          entityId: cycleId,
+          entityLabel: updatedRows[0].title,
+          actorUser,
+          summary:
+            nextStatus === CYCLE_STATUS.processed
+              ? `Ciclo processado: ${updatedRows[0].title}`
+              : `Status do ciclo atualizado: ${updatedRows[0].title}`,
+          detail: `${previousStatus} -> ${nextStatus}`
+        });
+
+        await connection.commit();
+        return presentCycle(updatedRows[0]);
+      } catch (error) {
+        await connection.rollback();
+        throw error;
+      } finally {
+        connection.release();
+      }
     },
     async getEvaluationAssignmentsForUser(userId) {
       const [rows] = await pool.query(
@@ -3909,7 +4867,14 @@ function buildMysqlStore(pool, customLibraryState, anonymousResponseState) {
         ...(await fetchMysqlResponses(pool, customLibraryState.published)),
         ...anonymousResponseState.responses
       ];
-      return buildResponsesBundle(responses, actorUser);
+      const [cycles, cycleReports] = await Promise.all([
+        this.getEvaluationCycles(),
+        fetchCycleReportRows(pool)
+      ]);
+      return buildResponsesBundle(responses, actorUser, {
+        cycles,
+        cycleReports
+      });
     },
     async getFeedbackRequests(actorUser) {
       const [requestRows] = await pool.query(
@@ -4160,12 +5125,27 @@ function buildMysqlStore(pool, customLibraryState, anonymousResponseState) {
       validateEvaluationAnswers(payload.answers, templateDefinition);
 
       if (isAnonymousRelationship(assignment.relationshipType)) {
-        const anonymousSubmission = createAnonymousSubmissionPayload(assignment, payload);
+        const anonymousSubmission = createAnonymousSubmissionPayload(
+          assignment,
+          payload,
+          templateDefinition
+        );
         anonymousResponseState.responses.unshift(anonymousSubmission);
         await saveAnonymousResponseState(anonymousResponseState);
         await pool.query(
           `UPDATE evaluation_assignments SET status = 'submitted' WHERE id = ?`,
           [assignment.id]
+        );
+        await pool.query(
+          `UPDATE evaluation_cycle_raters
+           SET status = 'completed'
+           WHERE cycle_id = ? AND participant_person_id = ? AND rater_user_id = ? AND relationship_type = ?`,
+          [
+            assignment.cycleId,
+            assignment.revieweePersonId,
+            assignment.reviewerUserId,
+            assignment.relationshipType
+          ]
         );
         return anonymousSubmission;
       }
@@ -4221,6 +5201,18 @@ function buildMysqlStore(pool, customLibraryState, anonymousResponseState) {
         await connection.query(
           `UPDATE evaluation_assignments SET status = 'submitted' WHERE id = ?`,
           [assignment.id]
+        );
+
+        await connection.query(
+          `UPDATE evaluation_cycle_raters
+           SET status = 'completed'
+           WHERE cycle_id = ? AND participant_person_id = ? AND rater_user_id = ? AND relationship_type = ?`,
+          [
+            assignment.cycleId,
+            assignment.revieweePersonId,
+            assignment.reviewerUserId,
+            assignment.relationshipType
+          ]
         );
 
         await connection.commit();
@@ -4387,6 +5379,7 @@ function buildMysqlStore(pool, customLibraryState, anonymousResponseState) {
       };
     },
     async getDevelopmentRecords(actorUser) {
+      const actorPersonId = actorUser.person?.id || actorUser.personId;
       const [rows] = await pool.query(
         `SELECT d.id, d.person_id AS personId, p.name AS personName, d.record_type AS recordType,
                 d.title, d.provider_name AS providerName, d.completed_at AS completedAt,
@@ -4403,13 +5396,13 @@ function buildMysqlStore(pool, customLibraryState, anonymousResponseState) {
       if (isManagerUser(actorUser)) {
         const people = await fetchPeopleRows(pool);
         const visiblePersonIds = new Set([
-          actorUser.person.id,
-          ...getTeamPeople(people, actorUser.person.id).map((item) => item.id)
+          actorPersonId,
+          ...getTeamPeople(people, actorPersonId).map((item) => item.id)
         ]);
         return rows.filter((item) => visiblePersonIds.has(item.personId));
       }
 
-      return rows.filter((item) => item.personId === actorUser.person.id);
+      return rows.filter((item) => item.personId === actorPersonId);
     },
     async createDevelopmentRecord(payload, actorUser) {
       const people = await fetchPeopleRows(pool);
@@ -4508,6 +5501,201 @@ function buildMysqlStore(pool, customLibraryState, anonymousResponseState) {
         archivedAt,
         personName: person?.name || ""
       };
+    },
+    async getDevelopmentPlans(actorUser) {
+      const actorPersonId = actorUser.person?.id || actorUser.personId;
+      const [plans, people, cycles, competencies] = await Promise.all([
+        fetchDevelopmentPlanRows(pool),
+        fetchPeopleRows(pool),
+        pool
+          .query(
+            `SELECT id, title, semester_label AS semesterLabel, due_date AS dueDate
+             FROM evaluation_cycles`
+          )
+          .then(([rows]) => rows),
+        fetchCompetencyRows(pool)
+      ]);
+
+      const enrichedPlans = plans.map((item) =>
+        enrichDevelopmentPlan(item, people, cycles, competencies)
+      );
+
+      if (isOrgWideUser(actorUser)) {
+        return enrichedPlans;
+      }
+
+      if (isManagerUser(actorUser)) {
+        const visiblePersonIds = new Set([
+          actorPersonId,
+          ...getTeamPeople(people, actorPersonId).map((item) => item.id)
+        ]);
+        return enrichedPlans.filter((item) => visiblePersonIds.has(item.personId));
+      }
+
+      return enrichedPlans.filter((item) => item.personId === actorPersonId);
+    },
+    async createDevelopmentPlan(payload, actorUser) {
+      const [people, competencies] = await Promise.all([
+        fetchPeopleRows(pool),
+        fetchCompetencyRows(pool)
+      ]);
+      assertCanCreateDevelopmentPlan(actorUser, people, payload.personId);
+
+      if (payload.cycleId) {
+        const [[cycle]] = await pool.query(
+          `SELECT id FROM evaluation_cycles WHERE id = ? LIMIT 1`,
+          [payload.cycleId]
+        );
+        if (!cycle) {
+          throw new Error("Ciclo do PDI nao encontrado.");
+        }
+      }
+
+      if (payload.competencyId && !competencies.some((item) => item.id === payload.competencyId)) {
+        throw new Error("Competencia do PDI nao encontrada.");
+      }
+
+      const plan = {
+        id: createId("development_plan"),
+        personId: payload.personId,
+        cycleId: payload.cycleId || null,
+        competencyId: payload.competencyId || null,
+        focusTitle: payload.focusTitle,
+        actionText: payload.actionText,
+        dueDate: payload.dueDate,
+        expectedEvidence: payload.expectedEvidence,
+        status: "active",
+        createdByUserId: actorUser.id,
+        createdAt: new Date().toISOString(),
+        archivedAt: null
+      };
+
+      await pool.query(
+        `INSERT INTO development_plans
+         (id, person_id, cycle_id, competency_id, focus_title, action_text, due_date,
+          expected_evidence, status, created_by_user_id, created_at, archived_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          plan.id,
+          plan.personId,
+          plan.cycleId,
+          plan.competencyId,
+          plan.focusTitle,
+          plan.actionText,
+          plan.dueDate,
+          plan.expectedEvidence,
+          plan.status,
+          plan.createdByUserId,
+          plan.createdAt,
+          plan.archivedAt
+        ]
+      );
+
+      const person = people.find((item) => item.id === plan.personId);
+      await insertAuditLog(pool, {
+        category: AUDIT_CATEGORIES.development,
+        action: "plan_created",
+        entityType: "development_plan",
+        entityId: plan.id,
+        entityLabel: plan.focusTitle,
+        actorUser,
+        summary: `PDI criado para ${person?.name || "pessoa"}`,
+        detail: `${plan.focusTitle} · Prazo ${plan.dueDate}`
+      });
+
+      const [cycles] = await pool.query(
+        `SELECT id, title, semester_label AS semesterLabel, due_date AS dueDate
+         FROM evaluation_cycles`
+      );
+      return enrichDevelopmentPlan(plan, people, cycles, competencies);
+    },
+    async updateDevelopmentPlan(planId, payload, actorUser) {
+      const [people, competencies] = await Promise.all([
+        fetchPeopleRows(pool),
+        fetchCompetencyRows(pool)
+      ]);
+      const [[existingPlan]] = await pool.query(
+        `SELECT id, person_id AS personId, created_by_user_id AS createdByUserId,
+                created_at AS createdAt
+         FROM development_plans
+         WHERE id = ?`,
+        [planId]
+      );
+
+      if (!existingPlan) {
+        throw new Error("PDI nao encontrado.");
+      }
+
+      assertCanCreateDevelopmentPlan(actorUser, people, payload.personId || existingPlan.personId);
+      assertValidDevelopmentPlanStatus(payload.status);
+
+      if (payload.cycleId) {
+        const [[cycle]] = await pool.query(
+          `SELECT id FROM evaluation_cycles WHERE id = ? LIMIT 1`,
+          [payload.cycleId]
+        );
+        if (!cycle) {
+          throw new Error("Ciclo do PDI nao encontrado.");
+        }
+      }
+
+      if (payload.competencyId && !competencies.some((item) => item.id === payload.competencyId)) {
+        throw new Error("Competencia do PDI nao encontrada.");
+      }
+
+      const archivedAt = payload.status === "archived" ? new Date().toISOString() : null;
+      await pool.query(
+        `UPDATE development_plans
+         SET person_id = ?, cycle_id = ?, competency_id = ?, focus_title = ?, action_text = ?,
+             due_date = ?, expected_evidence = ?, status = ?, archived_at = ?
+         WHERE id = ?`,
+        [
+          payload.personId,
+          payload.cycleId || null,
+          payload.competencyId || null,
+          payload.focusTitle,
+          payload.actionText,
+          payload.dueDate,
+          payload.expectedEvidence,
+          payload.status,
+          archivedAt,
+          planId
+        ]
+      );
+
+      const person = people.find((item) => item.id === payload.personId);
+      await insertAuditLog(pool, {
+        category: AUDIT_CATEGORIES.development,
+        action: payload.status === "archived" ? "plan_archived" : "plan_updated",
+        entityType: "development_plan",
+        entityId: planId,
+        entityLabel: payload.focusTitle,
+        actorUser,
+        summary:
+          payload.status === "archived"
+            ? `PDI arquivado para ${person?.name || "pessoa"}`
+            : `PDI atualizado para ${person?.name || "pessoa"}`,
+        detail: `${payload.focusTitle} · Prazo ${payload.dueDate}`
+      });
+
+      const [cycles] = await pool.query(
+        `SELECT id, title, semester_label AS semesterLabel, due_date AS dueDate
+         FROM evaluation_cycles`
+      );
+      return enrichDevelopmentPlan(
+        {
+          id: planId,
+          ...payload,
+          cycleId: payload.cycleId || null,
+          competencyId: payload.competencyId || null,
+          createdByUserId: existingPlan.createdByUserId,
+          createdAt: existingPlan.createdAt,
+          archivedAt
+        },
+        people,
+        cycles,
+        competencies
+      );
     },
     async getDashboardOverview(actorUser, options = {}) {
       const timeGrouping = options.timeGrouping || "semester";

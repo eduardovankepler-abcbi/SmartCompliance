@@ -11,6 +11,8 @@ const VALID_RELATIONSHIPS = [
   "peer",
   "manager",
   "cross-functional",
+  "client-internal",
+  "client-external",
   "self",
   "leader",
   "company"
@@ -20,6 +22,8 @@ const DEFAULT_CONFIDENTIALITY = {
   peer: "mixed",
   manager: "mixed",
   "cross-functional": "mixed",
+  "client-internal": "anonymous-aggregate",
+  "client-external": "anonymous-aggregate",
   self: "private-to-employee-and-manager",
   leader: "anonymous-aggregate",
   company: "manager-confidential"
@@ -84,7 +88,9 @@ function normalizeScaleProfile(value, relationshipType) {
   }
   return relationshipType === "peer" ||
     relationshipType === "manager" ||
-    relationshipType === "cross-functional"
+    relationshipType === "cross-functional" ||
+    relationshipType === "client-internal" ||
+    relationshipType === "client-external"
     ? "satisfaction"
     : "agreement";
 }

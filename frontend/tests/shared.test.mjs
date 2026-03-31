@@ -16,7 +16,7 @@ import {
   getVisibilityLabel
 } from "../src/appLabels.js";
 
-assert.equal(evaluationModules.length, 7, "Configuracao de modulos de avaliacao deve permanecer completa");
+assert.equal(evaluationModules.length, 9, "Configuracao de modulos de avaliacao deve permanecer completa");
 assert.equal(
   getEvaluationModule("peer")?.key,
   "peer",
@@ -31,6 +31,16 @@ assert.equal(
   getRelationshipDescription("manager"),
   "Feedback formal do gestor sobre entrega, colaboracao e evolucao.",
   "Descricao do relacionamento deve ser compartilhada pelo app"
+);
+assert.equal(
+  getRelationshipLabel("client-internal"),
+  "Cliente Interno",
+  "Novo grupo de cliente interno deve estar disponivel na taxonomia"
+);
+assert.equal(
+  getRelationshipLabel("client-external"),
+  "Cliente Externo",
+  "Novo grupo de cliente externo deve estar disponivel na taxonomia"
 );
 assert.equal(getVisibilityLabel("confidential"), "Confidencial");
 assert.equal(getVisibilityLabel("private"), "Privada");
@@ -56,6 +66,10 @@ assert.equal(
 assert.equal(
   getEvaluationWorkspaceCopy("company", "respond").developmentLabel,
   "O que a empresa pode evoluir"
+);
+assert.equal(
+  getEvaluationWorkspaceCopy("client-external", "respond").submitLabel,
+  "Enviar leitura do cliente externo"
 );
 assert.equal(getEvaluationModuleExperience("peer", "respond").tone, "peer");
 assert.equal(

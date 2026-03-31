@@ -31,14 +31,14 @@
   --surface-strong: rgba(255, 255, 255, 0.99);
   --surface-soft: rgba(244, 246, 250, 0.94);
   --text: #0d1117;
-  --muted: #66707f;
-  --line: rgba(15, 23, 35, 0.12);
+  --muted: #556174;
+  --line: rgba(24, 34, 48, 0.16);
   --accent-primary: #ffffff;
   --accent-primary-strong: #eef2f8;
   --accent-red: #cb223d;
   --accent-red-soft: rgba(203, 34, 61, 0.1);
-  --accent-grey: #7c8797;
-  --shadow: 0 18px 45px rgba(24, 32, 45, 0.08);
+  --accent-grey: #6f7c8d;
+  --shadow: 0 18px 45px rgba(24, 32, 45, 0.1);
   --hero-glow:
     radial-gradient(circle at top right, rgba(203, 34, 61, 0.12), transparent 30%),
     radial-gradient(circle at top left, rgba(124, 135, 151, 0.1), transparent 22%);
@@ -536,6 +536,51 @@ select {
   display: block;
 }
 
+:root[data-theme="light"] .muted,
+:root[data-theme="light"] .topbar-context,
+:root[data-theme="light"] .topbar-product,
+:root[data-theme="light"] .card-header span,
+:root[data-theme="light"] .profile-chip span,
+:root[data-theme="light"] .sidebar-footer {
+  color: #566275;
+}
+
+:root[data-theme="light"] .topbar-product {
+  color: #8a95a6;
+}
+
+:root[data-theme="light"] .theme-icon-button,
+:root[data-theme="light"] .utility-icon-button {
+  background: rgba(251, 252, 254, 0.98);
+  color: #34445a;
+  border-color: rgba(24, 34, 48, 0.12);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.86),
+    0 10px 20px rgba(62, 83, 114, 0.08);
+}
+
+:root[data-theme="light"] .theme-icon-button svg,
+:root[data-theme="light"] .utility-icon-button svg {
+  color: #34445a;
+}
+
+:root[data-theme="light"] .theme-icon-button:hover,
+:root[data-theme="light"] .utility-icon-button:hover {
+  background: rgba(239, 243, 249, 1);
+  border-color: rgba(77, 136, 255, 0.24);
+}
+
+:root[data-theme="light"] .utility-button,
+:root[data-theme="light"] .profile-chip,
+:root[data-theme="light"] .status-chip {
+  background: rgba(247, 249, 252, 0.96);
+  border-color: rgba(24, 34, 48, 0.12);
+}
+
+:root[data-theme="light"] .topbar-divider {
+  background: rgba(24, 34, 48, 0.12);
+}
+
 .topbar-divider {
   width: 1px;
   height: 28px;
@@ -895,6 +940,7 @@ select {
   display: flex;
   justify-content: space-between;
   gap: 12px;
+  align-items: center;
 }
 
 .metric-row {
@@ -907,11 +953,18 @@ select {
 }
 
 .badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: var(--accent-red-soft);
   color: var(--accent-red);
   border-radius: 999px;
-  padding: 4px 10px;
+  padding: 6px 12px;
+  min-height: 32px;
+  width: fit-content;
   font-size: 0.82rem;
+  line-height: 1;
+  white-space: nowrap;
   border: 1px solid rgba(229, 55, 34, 0.2);
 }
 

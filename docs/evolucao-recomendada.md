@@ -174,3 +174,69 @@ Entregas:
 - remocao do acoplamento invisivel do score no cadastro de pessoas
 - trilha operacional conectada tambem a Desenvolvimento e Aplause
 - regressao adicional para garantir cadastro de pessoa sem score manual
+
+## Trilha 360 recomendada
+
+### Passo 1. Formalizar competencias
+Status: concluido.
+
+Entregas:
+- cadastro formal de competencias no backend
+- governanca de competencias dentro da operacao de biblioteca
+- capacidade de criar e atualizar competencias por RH/Admin
+- regressao automatizada para o ciclo basico da entidade
+
+### Passo 2. Formalizar participantes e avaliadores
+Status: concluido.
+
+Entregas:
+- separar `participante do ciclo` de `assignment`
+- explicitar quem e avaliado em cada ciclo
+- explicitar quem avalia quem, por papel
+- exibir a estrutura do ciclo na operacao de avaliacoes
+- manter o status do avaliador sincronizado com a submissao
+
+### Passo 3. Fechar status processado e snapshot de relatorio
+Status: concluido.
+
+Entregas:
+- novo status `Processado`
+- congelamento do relatorio final do ciclo
+- leitura historica sem depender so do dado transacional
+- processamento operacional direto na tela de avaliacoes
+
+### Passo 4. Criar PDI estruturado
+Status: concluido.
+
+Entregas:
+- plano de desenvolvimento individual com foco, acao, prazo e evidencia
+- manutencao completa do PDI no backend e no frontend
+- vinculo opcional com ciclo e competencia
+- trilha operacional de criacao, atualizacao e arquivamento do plano
+
+### Passo 5. Adicionar clientes internos e externos como grupos reais
+Status: concluido.
+
+Entregas:
+- novos grupos reais de relacionamento no ciclo: `client-internal` e `client-external`
+- materializacao automatica desses grupos ao criar ciclo e distribuicao de assignments
+- consolidacao anonima por grupo no bundle de respostas e snapshots processados
+- suporte de importacao/exportacao de biblioteca para os novos tipos
+- navegacao e leitura operacional dos novos submodulos no frontend
+
+### Passo 6. Homologar 360 publicado ponta a ponta
+Status: concluido.
+
+Entregas:
+- roteiro de homologacao publicado por perfil em `docs/homologacao-360-publicado.md`
+- criterios de aceite para ciclo, grupos do 360, consolidacao e PDI
+- checklist operacional para execucao da equipe no ambiente publicado
+- novos relationship types no motor do 360
+- regras proprias de visibilidade e consolidacao
+
+### Passo 6. Homologar 360 publicado ponta a ponta
+Status: pendente.
+
+Entregas esperadas:
+- checklist funcional completo no ambiente publicado
+- validacao final por perfil e por grupo de avaliador

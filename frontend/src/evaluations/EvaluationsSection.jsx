@@ -3,6 +3,7 @@ import { EvaluationLibraryPanel } from "./EvaluationLibraryPanel";
 import { EvaluationResponsePanel } from "./EvaluationResponsePanel";
 import { FeedbackRequestPanel } from "./FeedbackRequestPanel";
 import { AuditTrailPanel } from "../components/AuditTrailPanel";
+import { getRelationshipLabel } from "../appLabels.js";
 
 export function EvaluationsSection(props) {
   const {
@@ -11,6 +12,7 @@ export function EvaluationsSection(props) {
     Textarea,
     activeCycleModuleSummary,
     activeEvaluationCycleId,
+    evaluationCycleStructure,
     activeEvaluationModule,
     activeEvaluationModuleMeta,
     activeEvaluationWorkspace,
@@ -24,6 +26,7 @@ export function EvaluationsSection(props) {
     cycleComparisonHighlights,
     comparisonCycleOptions,
     comparisonEvaluationCycleId,
+    competencies,
     cycleForm,
     cycles,
     evaluationCycleHistory,
@@ -37,6 +40,8 @@ export function EvaluationsSection(props) {
     formatDate,
     getCycleStatusDescription,
     getFeedbackRequestStatusLabel,
+    handleCompetencyCreate,
+    handleCompetencyUpdate,
     handleCustomLibraryImport,
     handleCustomLibraryTemplateDownload,
     handleCustomLibraryPublish,
@@ -208,9 +213,12 @@ export function EvaluationsSection(props) {
         Input={Input}
         Textarea={Textarea}
         canViewEvaluationLibrary={canViewEvaluationLibrary}
+        competencies={competencies}
         customLibraryDraft={props.customLibraryDraft}
         customLibraryPublishForm={props.customLibraryPublishForm}
         evaluationLibrary={evaluationLibrary}
+        handleCompetencyCreate={handleCompetencyCreate}
+        handleCompetencyUpdate={handleCompetencyUpdate}
         handleCustomLibraryImport={handleCustomLibraryImport}
         handleCustomLibraryTemplateDownload={handleCustomLibraryTemplateDownload}
         handleCustomLibraryPublish={handleCustomLibraryPublish}
@@ -276,6 +284,9 @@ export function EvaluationsSection(props) {
                 <p className="muted">{cycle.libraryName || cycle.modelName}</p>
                 <p className="muted">{getCycleStatusDescription(cycle.status)}</p>
                 <p className="muted">Prazo: {formatDate(cycle.dueDate)}</p>
+                {cycle.reportSnapshotCount ? (
+                  <p className="muted">Snapshots finais: {cycle.reportSnapshotCount}</p>
+                ) : null}
               </div>
             ))}
           </div>
@@ -300,6 +311,9 @@ export function EvaluationsSection(props) {
                 <p className="muted">{cycle.targetGroup}</p>
                 <p className="muted">{getCycleStatusDescription(cycle.status)}</p>
                 <p className="muted">Prazo: {formatDate(cycle.dueDate)}</p>
+                {cycle.reportSnapshotCount ? (
+                  <p className="muted">Snapshots finais: {cycle.reportSnapshotCount}</p>
+                ) : null}
                 <div className="row">
                   {cycle.status === "Planejamento" ? (
                     <button
@@ -317,6 +331,15 @@ export function EvaluationsSection(props) {
                       onClick={() => handleCycleStatusChange(cycle.id, "Encerrado")}
                     >
                       Encerrar ciclo
+                    </button>
+                  ) : null}
+                  {cycle.status === "Encerrado" ? (
+                    <button
+                      type="button"
+                      className="refresh"
+                      onClick={() => handleCycleStatusChange(cycle.id, "Processado")}
+                    >
+                      Processar ciclo
                     </button>
                   ) : null}
                 </div>
@@ -386,27 +409,62 @@ export function EvaluationsSection(props) {
       {isOperationsWorkspace ? (
         <div className="card card-span compact-card evaluation-operations-summary">
           <div className="card-header">
-            <h3>Operacao do submodulo</h3>
-            <span>Governanca, biblioteca e tratamento reunidos em uma area separada</span>
+            <h3>Participantes e avaliadores do ciclo</h3>
+            <span>Estrutura formal do 360 para o ciclo em foco</span>
           </div>
           <div className="metrics-grid">
+            <div className="mini-card">
+              <p className="mini-label">Ciclo</p>
+              <strong>{evaluationCycleStructure?.cycle?.title || "Sem ciclo ativo"}</strong>
+            </div>
+            <div className="mini-card">
+              <p className="mini-label">Participantes</p>
+              <strong>{evaluationCycleStructure?.cycle?.participantCount ?? 0}</strong>
+            </div>
+            <div className="mini-card">
+              <p className="mini-label">Avaliadores</p>
+              <strong>{evaluationCycleStructure?.cycle?.raterCount ?? 0}</strong>
+            </div>
             <div className="mini-card">
               <p className="mini-label">Submodulo</p>
               <strong>{activeEvaluationModuleMeta?.label || "Fluxo ativo"}</strong>
             </div>
-            <div className="mini-card">
-              <p className="mini-label">Ciclo em foco</p>
-              <strong>{activeCycleModuleSummary?.title || "Sem ciclo ativo"}</strong>
-            </div>
-            <div className="mini-card">
-              <p className="mini-label">Assignments</p>
-              <strong>{activeCycleModuleSummary?.totalAssignments ?? 0}</strong>
-            </div>
-            <div className="mini-card">
-              <p className="mini-label">Pendentes</p>
-              <strong>{activeCycleModuleSummary?.pendingAssignments ?? 0}</strong>
-            </div>
           </div>
+          {evaluationCycleStructure?.relationshipSummary?.length ? (
+            <div className="metrics-grid">
+              {evaluationCycleStructure.relationshipSummary.map((item) => (
+                <div className="mini-card" key={item.relationshipType}>
+                  <p className="mini-label">{getRelationshipLabel(item.relationshipType)}</p>
+                  <strong>{item.total}</strong>
+                </div>
+              ))}
+            </div>
+          ) : null}
+          {evaluationCycleStructure?.participants?.length ? (
+            <div className="metrics-grid">
+              {evaluationCycleStructure.participants.map((participant) => (
+                <div className="mini-card" key={participant.id}>
+                  <div className="row">
+                    <strong>{participant.personName}</strong>
+                    <span className="badge">
+                      {participant.completedRaters}/{participant.totalRaters}
+                    </span>
+                  </div>
+                  <p className="muted">
+                    {participant.personArea}
+                    {participant.managerName ? ` · Gestor: ${participant.managerName}` : ""}
+                  </p>
+                  <p className="muted">
+                    {participant.raters
+                      .map((rater) => `${rater.raterName} (${getRelationshipLabel(rater.relationshipType)})`)
+                      .join(" · ")}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="muted">Abra um ciclo para materializar participantes e avaliadores.</p>
+          )}
         </div>
       ) : null}
     </section>

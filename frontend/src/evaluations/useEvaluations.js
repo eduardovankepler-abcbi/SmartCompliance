@@ -183,6 +183,7 @@ export function useEvaluations({
   const [activeEvaluationWorkspace, setActiveEvaluationWorkspace] = useState(
     initialRoute.evaluationWorkspace || "respond"
   );
+  const [evaluationCycleStructure, setEvaluationCycleStructure] = useState(null);
   const [showEvaluationLibrary, setShowEvaluationLibrary] = useState(false);
   const [selectedAssignment, setSelectedAssignment] = useState(null);
   const [assignmentDetail, setAssignmentDetail] = useState(null);
@@ -199,7 +200,7 @@ export function useEvaluations({
   const cycleAggregateResponses = responsesBundle?.cycleAggregateResponses || [];
 
   const feedbackRequestCycleOptions = useMemo(
-    () => cycles.filter((cycle) => cycle.status !== "Encerrado"),
+    () => cycles.filter((cycle) => !["Encerrado", "Processado"].includes(cycle.status)),
     [cycles]
   );
 
@@ -379,6 +380,36 @@ export function useEvaluations({
   );
 
   useEffect(() => {
+    async function loadCycleStructure() {
+      if (!canViewEvaluationOperations || activeEvaluationWorkspace !== "operations") {
+        setEvaluationCycleStructure(null);
+        return;
+      }
+
+      if (!activeEvaluationCycleId) {
+        setEvaluationCycleStructure(null);
+        return;
+      }
+
+      try {
+        const structure = await api.getEvaluationCycleParticipants(activeEvaluationCycleId);
+        setEvaluationCycleStructure(structure);
+      } catch (err) {
+        setEvaluationCycleStructure(null);
+        setError(err.message);
+      }
+    }
+
+    loadCycleStructure();
+  }, [
+    activeEvaluationCycleId,
+    activeEvaluationWorkspace,
+    assignments,
+    canViewEvaluationOperations,
+    setError
+  ]);
+
+  useEffect(() => {
     async function loadAssignment() {
       if (!selectedAssignment) {
         setAssignmentDetail(null);
@@ -495,6 +526,7 @@ export function useEvaluations({
     setActiveEvaluationCycleId("");
     setComparisonEvaluationCycleId("");
     setActiveEvaluationWorkspace(route.evaluationWorkspace || "respond");
+    setEvaluationCycleStructure(null);
     setShowEvaluationLibrary(false);
     setSelectedAssignment(null);
     setAssignmentDetail(null);
@@ -666,6 +698,7 @@ export function useEvaluations({
   return {
     activeCycleModuleSummary,
     activeEvaluationCycleId,
+    evaluationCycleStructure,
     activeEvaluationModule,
     activeEvaluationModuleMeta,
     activeEvaluationWorkspace,

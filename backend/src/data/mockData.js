@@ -118,11 +118,13 @@ export const evaluationLibrary = {
   scale: satisfactionScale,
   weights: {
     self: 0.15,
-    peer: 0.2,
-    manager: 0.35,
-    "cross-functional": 0.15,
-    leader: 0.075,
-    company: 0.075
+    peer: 0.15,
+    manager: 0.25,
+    "cross-functional": 0.1,
+    "client-internal": 0.1,
+    "client-external": 0.1,
+    leader: 0.1,
+    company: 0.05
   },
   templates: {
     collaboration: {
@@ -1218,7 +1220,33 @@ export const evaluationLibrary = {
 
 export const questionTemplate = evaluationLibrary.templates.collaboration;
 
+function buildSeedCompetenciesFromLibrary() {
+  const seen = new Map();
+
+  Object.values(evaluationLibrary.templates).forEach((template) => {
+    (template.questions || []).forEach((question) => {
+      if (!question.dimensionKey || seen.has(question.dimensionKey)) {
+        return;
+      }
+
+      seen.set(question.dimensionKey, {
+        id: `cmp_${question.dimensionKey.replace(/[^a-z0-9]+/gi, "_").toLowerCase()}`,
+        key: question.dimensionKey,
+        name: question.dimensionTitle || question.dimensionKey,
+        description:
+          question.sectionDescription ||
+          question.helperText ||
+          `Competencia derivada da biblioteca oficial: ${question.dimensionTitle || question.dimensionKey}.`,
+        status: "active"
+      });
+    });
+  });
+
+  return [...seen.values()];
+}
+
 export const seed = {
+  competencies: buildSeedCompetenciesFromLibrary(),
   areas: [
     {
       id: "a1",
@@ -1384,6 +1412,99 @@ export const seed = {
       createdByUserId: "u6"
     }
   ],
+  cycleParticipants: [
+    {
+      id: "ecp1",
+      cycleId: "c1",
+      personId: "p1",
+      status: "active"
+    },
+    {
+      id: "ecp2",
+      cycleId: "c1",
+      personId: "p2",
+      status: "active"
+    },
+    {
+      id: "ecp3",
+      cycleId: "c1",
+      personId: "p4",
+      status: "active"
+    },
+    {
+      id: "ecp4",
+      cycleId: "c1",
+      personId: "p3",
+      status: "active"
+    }
+  ],
+  cycleRaters: [
+    {
+      id: "ecr1",
+      cycleId: "c1",
+      participantPersonId: "p2",
+      raterUserId: "u1",
+      relationshipType: "peer",
+      status: "completed"
+    },
+    {
+      id: "ecr2",
+      cycleId: "c1",
+      participantPersonId: "p2",
+      raterUserId: "u4",
+      relationshipType: "manager",
+      status: "pending"
+    },
+    {
+      id: "ecr3",
+      cycleId: "c1",
+      participantPersonId: "p1",
+      raterUserId: "u2",
+      relationshipType: "cross-functional",
+      status: "pending"
+    },
+    {
+      id: "ecr4",
+      cycleId: "c1",
+      participantPersonId: "p1",
+      raterUserId: "u1",
+      relationshipType: "self",
+      status: "pending"
+    },
+    {
+      id: "ecr5",
+      cycleId: "c1",
+      participantPersonId: "p4",
+      raterUserId: "u1",
+      relationshipType: "leader",
+      status: "pending"
+    },
+    {
+      id: "ecr6",
+      cycleId: "c1",
+      participantPersonId: "p1",
+      raterUserId: "u1",
+      relationshipType: "company",
+      status: "pending"
+    },
+    {
+      id: "ecr7",
+      cycleId: "c1",
+      participantPersonId: "p2",
+      raterUserId: "u1",
+      relationshipType: "client-internal",
+      status: "pending"
+    },
+    {
+      id: "ecr8",
+      cycleId: "c1",
+      participantPersonId: "p3",
+      raterUserId: "u1",
+      relationshipType: "client-external",
+      status: "pending"
+    }
+  ],
+  cycleReports: [],
   assignments: [
     {
       id: "ea1",
@@ -1450,6 +1571,30 @@ export const seed = {
       relationshipType: "company",
       projectContext: "Experiencia institucional",
       collaborationContext: "Avaliacao da empresa e da experiencia geral do colaborador.",
+      status: "pending",
+      dueDate: "2026-04-15"
+    },
+    {
+      id: "ea7",
+      cycleId: "c1",
+      reviewerUserId: "u1",
+      revieweePersonId: "p2",
+      relationshipType: "client-internal",
+      projectContext: "Consumo interno entre areas",
+      collaborationContext:
+        "Leitura da area cliente sobre qualidade de atendimento, parceria e entrega.",
+      status: "pending",
+      dueDate: "2026-04-15"
+    },
+    {
+      id: "ea8",
+      cycleId: "c1",
+      reviewerUserId: "u1",
+      revieweePersonId: "p3",
+      relationshipType: "client-external",
+      projectContext: "Interacao com consultoria",
+      collaborationContext:
+        "Percepcao de parceria, confiabilidade e resultado na relacao com consultoria.",
       status: "pending",
       dueDate: "2026-04-15"
     }
@@ -1629,6 +1774,24 @@ export const seed = {
       skillSignal: "Etica, controles internos e investigacao",
       notes: "Evolucao academica diretamente conectada ao papel atual no time de compliance.",
       status: "active",
+      archivedAt: null
+    }
+  ],
+  developmentPlans: [
+    {
+      id: "dp1",
+      personId: "p1",
+      cycleId: "c1",
+      competencyId: "cmp_communication",
+      focusTitle: "Fortalecer comunicacao executiva",
+      actionText:
+        "Conduzir checkpoint quinzenal com a area e formalizar riscos-chave em ate 24h.",
+      dueDate: "2026-06-30",
+      expectedEvidence:
+        "Ata dos checkpoints e melhoria percebida nas avaliacoes do proximo ciclo.",
+      status: "active",
+      createdByUserId: "u6",
+      createdAt: "2026-03-20T09:00:00.000Z",
       archivedAt: null
     }
   ],

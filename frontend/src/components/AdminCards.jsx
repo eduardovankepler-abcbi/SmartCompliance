@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Input, Select } from "./FormControls";
+import { Input, Select, Textarea } from "./FormControls";
 
 export function IncidentQueueCard({
   areaOptions,
@@ -413,6 +413,131 @@ export function DevelopmentRecordAdminCard({
         />
         <button type="button" className="primary-button" onClick={() => onSave(record.id, draft)}>
           Salvar registro
+        </button>
+      </div>
+    </article>
+  );
+}
+
+export function DevelopmentPlanAdminCard({
+  competencyOptions,
+  cycleOptions,
+  onSave,
+  personOptions,
+  plan,
+  statusOptions
+}) {
+  const [draft, setDraft] = useState({
+    personId: plan.personId,
+    cycleId: plan.cycleId || "",
+    competencyId: plan.competencyId || "",
+    focusTitle: plan.focusTitle,
+    actionText: plan.actionText,
+    dueDate: plan.dueDate,
+    expectedEvidence: plan.expectedEvidence,
+    status: plan.status || "active"
+  });
+
+  useEffect(() => {
+    setDraft({
+      personId: plan.personId,
+      cycleId: plan.cycleId || "",
+      competencyId: plan.competencyId || "",
+      focusTitle: plan.focusTitle,
+      actionText: plan.actionText,
+      dueDate: plan.dueDate,
+      expectedEvidence: plan.expectedEvidence,
+      status: plan.status || "active"
+    });
+  }, [
+    plan.actionText,
+    plan.competencyId,
+    plan.cycleId,
+    plan.dueDate,
+    plan.expectedEvidence,
+    plan.focusTitle,
+    plan.personId,
+    plan.status
+  ]);
+
+  return (
+    <article className="list-card compact-list-card">
+      <div className="row">
+        <strong>{plan.focusTitle}</strong>
+        <span className="badge">
+          {draft.status === "completed"
+            ? "Concluido"
+            : draft.status === "archived"
+              ? "Arquivado"
+              : "Ativo"}
+        </span>
+      </div>
+      <p>{plan.personName}</p>
+      <p className="muted">
+        {plan.competencyName || "Competencia livre"}
+        {plan.cycleTitle ? ` | ${plan.cycleTitle}` : ""}
+      </p>
+      <p className="muted">Prazo: {plan.dueDate}</p>
+      <div className="incident-actions compact-actions structure-actions">
+        <Select
+          label="Pessoa"
+          value={draft.personId}
+          options={personOptions.map((item) => item.value)}
+          renderLabel={(value) => personOptions.find((item) => item.value === value)?.label || value}
+          onChange={(value) => setDraft((current) => ({ ...current, personId: value }))}
+        />
+        <Select
+          label="Ciclo"
+          value={draft.cycleId}
+          options={cycleOptions.map((item) => item.value)}
+          renderLabel={(value) => cycleOptions.find((item) => item.value === value)?.label || value}
+          onChange={(value) => setDraft((current) => ({ ...current, cycleId: value }))}
+        />
+        <Select
+          label="Competencia"
+          value={draft.competencyId}
+          options={competencyOptions.map((item) => item.value)}
+          renderLabel={(value) =>
+            competencyOptions.find((item) => item.value === value)?.label || value
+          }
+          onChange={(value) => setDraft((current) => ({ ...current, competencyId: value }))}
+        />
+        <Input
+          label="Foco"
+          value={draft.focusTitle}
+          onChange={(value) => setDraft((current) => ({ ...current, focusTitle: value }))}
+        />
+        <Textarea
+          label="Acao"
+          rows={3}
+          value={draft.actionText}
+          onChange={(value) => setDraft((current) => ({ ...current, actionText: value }))}
+        />
+        <Input
+          label="Prazo"
+          type="date"
+          value={draft.dueDate}
+          onChange={(value) => setDraft((current) => ({ ...current, dueDate: value }))}
+        />
+        <Textarea
+          label="Evidencia esperada"
+          rows={3}
+          value={draft.expectedEvidence}
+          onChange={(value) =>
+            setDraft((current) => ({ ...current, expectedEvidence: value }))
+          }
+        />
+        <Select
+          label="Status"
+          value={draft.status}
+          options={statusOptions}
+          renderLabel={(value) =>
+            value === "completed" ? "Concluido" : value === "archived" ? "Arquivado" : "Ativo"
+          }
+          onChange={(value) => setDraft((current) => ({ ...current, status: value }))}
+        />
+        <button type="button" className="primary-button" onClick={() => onSave(plan.id, draft)}>
+          Salvar PDI
         </button>
       </div>
     </article>

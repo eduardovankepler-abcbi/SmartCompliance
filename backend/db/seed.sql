@@ -18,6 +18,29 @@ ON DUPLICATE KEY UPDATE
   name = VALUES(name),
   manager_person_id = VALUES(manager_person_id);
 
+INSERT INTO competencies (id, competency_key, name, description, status) VALUES
+('cmp_delivery', 'delivery', 'Entrega e qualidade', 'Competencia ligada a cumprimento de prazos, qualidade das entregas e consistencia no periodo.', 'active'),
+('cmp_collaboration', 'collaboration', 'Colaboracao', 'Competencia ligada a trabalho em equipe, compartilhamento e parceria entre areas.', 'active'),
+('cmp_communication', 'communication', 'Comunicacao', 'Competencia ligada a clareza, transparencia e qualidade das interacoes profissionais.', 'active'),
+('cmp_interpersonal', 'interpersonal', 'Relacionamento interpessoal', 'Competencia ligada a postura profissional, respeito e convivencia saudavel.', 'active'),
+('cmp_development', 'development', 'Desenvolvimento', 'Competencia ligada a aprendizado continuo, feedback e crescimento profissional.', 'active'),
+('cmp_strategy', 'strategy', 'Alinhamento estrategico', 'Competencia ligada a entendimento de metas, objetivos e conexao com o trabalho diario.', 'active'),
+('cmp_career', 'career', 'Carreira', 'Competencia ligada a visibilidade de trilha, interesses de crescimento e mobilidade interna.', 'active'),
+('cmp_resources', 'resources', 'Recursos e estrutura', 'Competencia ligada a acessos, ferramentas e condicoes para execucao do trabalho.', 'active'),
+('cmp_recognition', 'recognition', 'Reconhecimento', 'Competencia ligada a valorizacao do trabalho por colegas e lideranca.', 'active'),
+('cmp_results', 'results', 'Gestao de resultados', 'Competencia ligada a metas claras, acompanhamento e qualidade de entrega da equipe.', 'active'),
+('cmp_engagement', 'engagement', 'Engajamento', 'Competencia ligada a motivacao, comprometimento e energia mobilizadora da lideranca.', 'active'),
+('cmp_trust', 'trust', 'Confianca e ambiente', 'Competencia ligada a seguranca psicologica, respeito e construcao de confianca.', 'active'),
+('cmp_growth', 'growth', 'Crescimento', 'Competencia ligada a potencial, iniciativa e disposicao para novos desafios.', 'active'),
+('cmp_commitment', 'commitment', 'Comprometimento', 'Competencia ligada a responsabilidade com objetivos, regras e resultados.', 'active'),
+('cmp_knowledge', 'knowledge', 'Conhecimento tecnico', 'Competencia ligada a dominio tecnico, aplicacao pratica e atualizacao profissional.', 'active'),
+('cmp_wellbeing', 'wellbeing', 'Experiencia de trabalho', 'Competencia ligada a bem-estar e percepcao geral da experiencia no trabalho.', 'active')
+ON DUPLICATE KEY UPDATE
+  competency_key = VALUES(competency_key),
+  name = VALUES(name),
+  description = VALUES(description),
+  status = VALUES(status);
+
 INSERT INTO users (id, person_id, email, password_hash, role_key, status) VALUES
 ('u1', 'p1', 'colaborador1@demo.local', SHA2('demo123', 256), 'employee', 'active'),
 ('u2', 'p2', 'colaborador2@demo.local', SHA2('demo123', 256), 'employee', 'active'),
@@ -158,8 +181,28 @@ INSERT INTO evaluation_assignments (id, cycle_id, reviewer_user_id, reviewee_per
 ('ea3', 'c1', 'u2', 'p1', 'cross-functional', 'Politica de acessos', 'Solicitacao de feedback de colaboracao em atividade compartilhada.', 'pending', '2026-04-15'),
 ('ea4', 'c1', 'u1', 'p1', 'self', 'Reflexao individual', 'Autoavaliacao semestral do colaborador.', 'pending', '2026-04-15'),
 ('ea5', 'c1', 'u1', 'p4', 'leader', 'Avaliacao da lideranca imediata', 'Leitura da lideranca no semestre.', 'pending', '2026-04-15'),
-('ea6', 'c1', 'u1', 'p1', 'company', 'Experiencia institucional', 'Avaliacao da empresa e da experiencia geral do colaborador.', 'pending', '2026-04-15')
+('ea6', 'c1', 'u1', 'p1', 'company', 'Experiencia institucional', 'Avaliacao da empresa e da experiencia geral do colaborador.', 'pending', '2026-04-15'),
+('ea7', 'c1', 'u1', 'p2', 'client-internal', 'Consumo interno entre areas', 'Leitura da area cliente sobre qualidade de atendimento, parceria e entrega.', 'pending', '2026-04-15'),
+('ea8', 'c1', 'u1', 'p3', 'client-external', 'Interacao com consultoria', 'Percepcao de parceria, confiabilidade e resultado na relacao com consultoria.', 'pending', '2026-04-15')
 ON DUPLICATE KEY UPDATE relationship_type = VALUES(relationship_type), status = VALUES(status);
+
+INSERT INTO evaluation_cycle_participants (id, cycle_id, person_id, status) VALUES
+('ecp1', 'c1', 'p1', 'active'),
+('ecp2', 'c1', 'p2', 'active'),
+('ecp3', 'c1', 'p4', 'active'),
+('ecp4', 'c1', 'p3', 'active')
+ON DUPLICATE KEY UPDATE status = VALUES(status);
+
+INSERT INTO evaluation_cycle_raters (id, cycle_id, participant_person_id, rater_user_id, relationship_type, status) VALUES
+('ecr1', 'c1', 'p2', 'u1', 'peer', 'completed'),
+('ecr2', 'c1', 'p2', 'u4', 'manager', 'pending'),
+('ecr3', 'c1', 'p1', 'u2', 'cross-functional', 'pending'),
+('ecr4', 'c1', 'p1', 'u1', 'self', 'pending'),
+('ecr5', 'c1', 'p4', 'u1', 'leader', 'pending'),
+('ecr6', 'c1', 'p1', 'u1', 'company', 'pending'),
+('ecr7', 'c1', 'p2', 'u1', 'client-internal', 'pending'),
+('ecr8', 'c1', 'p3', 'u1', 'client-external', 'pending')
+ON DUPLICATE KEY UPDATE status = VALUES(status);
 
 INSERT INTO evaluation_feedback_requests (id, cycle_id, requester_user_id, reviewee_person_id, status, context_note, requested_at, decided_at, decided_by_user_id) VALUES
 ('fr1', 'c1', 'u1', 'p1', 'pending', 'Colaborei diretamente com tecnologia e consultoria na revisao de politicas e gostaria de receber feedback mais aderente ao ciclo.', '2026-03-16 11:00:00', NULL, NULL)
@@ -198,6 +241,10 @@ INSERT INTO development_records (id, person_id, record_type, title, provider_nam
 ('d3', 'p2', 'Graduacao', 'Sistemas de Informacao', 'Universidade Presbiteriana Mackenzie', '2024-12-18', 'Arquitetura, produto e analise de requisitos', 'Base academica aplicada nas frentes de tecnologia e integracao.'),
 ('d4', 'p1', 'Pos-graduacao', 'Compliance e Integridade Corporativa', 'FGV', '2025-08-22', 'Etica, controles internos e investigacao', 'Evolucao academica diretamente conectada ao papel atual no time de compliance.')
 ON DUPLICATE KEY UPDATE title = VALUES(title);
+
+INSERT INTO development_plans (id, person_id, cycle_id, competency_id, focus_title, action_text, due_date, expected_evidence, status, created_by_user_id, created_at, archived_at) VALUES
+('dp1', 'p1', 'c1', 'cmp_communication', 'Fortalecer comunicacao executiva', 'Conduzir checkpoint quinzenal com a area e formalizar riscos-chave em ate 24h.', '2026-06-30', 'Ata dos checkpoints e melhoria percebida nas avaliacoes do proximo ciclo.', 'active', 'u6', '2026-03-20 09:00:00', NULL)
+ON DUPLICATE KEY UPDATE focus_title = VALUES(focus_title);
 
 INSERT INTO audit_logs (id, category, action_key, entity_type, entity_id, entity_label, actor_user_id, actor_name, actor_role_key, summary_text, detail_text, created_at) VALUES
 ('al1', 'cycle', 'created', 'cycle', 'c1', 'Ciclo Semestral 2026.1', 'u6', 'RH Demo Corporativo', 'hr', 'Ciclo criado: Ciclo Semestral 2026.1', '2026.1 · 6 assignments distribuidos', '2026-03-08 09:00:00'),

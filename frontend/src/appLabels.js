@@ -99,6 +99,32 @@ export function getEvaluationWorkspaceCopy(moduleKey, workspace = "respond") {
       strengthsLabel: "Fortes sinais de relacionamento",
       developmentLabel: "Oportunidades de interacao"
     },
+    "client-internal": {
+      heading:
+        workspace === "insights" ? "Leitura de cliente interno" : "Cliente interno",
+      description:
+        workspace === "insights"
+          ? "Leitura agregada da experiencia das areas clientes com as entregas recebidas."
+          : "Avalie atendimento, parceria e valor percebido por quem consome a entrega internamente.",
+      responseTitle: "Responder cliente interno",
+      submitLabel: "Enviar leitura do cliente interno",
+      evidenceLabel: "Contexto da entrega",
+      strengthsLabel: "Pontos fortes percebidos",
+      developmentLabel: "Oportunidades de melhoria na experiencia"
+    },
+    "client-external": {
+      heading:
+        workspace === "insights" ? "Leitura de cliente externo" : "Cliente externo",
+      description:
+        workspace === "insights"
+          ? "Leitura agregada da experiencia de consultorias, parceiros e clientes externos."
+          : "Avalie confiabilidade, atendimento e valor entregue na relacao com parceiros ou consultorias.",
+      responseTitle: "Responder cliente externo",
+      submitLabel: "Enviar leitura do cliente externo",
+      evidenceLabel: "Contexto da parceria",
+      strengthsLabel: "Pontos fortes percebidos",
+      developmentLabel: "Oportunidades na relacao externa"
+    },
     self: {
       heading: workspace === "insights" ? "Leitura da autoavaliacao" : "Autoavaliacao",
       description:
@@ -190,6 +216,26 @@ export function getEvaluationModuleExperience(moduleKey, workspace = "respond") 
         { label: "Base", value: "Entregas, aprendizados e contexto" },
         { label: "Saida", value: "Prioridades de desenvolvimento" }
       ]
+    },
+    "client-internal": {
+      tone: "peer",
+      spotlightTitle:
+        workspace === "insights" ? "Experiencia do cliente interno" : "Entrega percebida por outras areas",
+      spotlightItems: [
+        { label: "Foco", value: "Atendimento, parceria e valor entregue" },
+        { label: "Origem", value: "Areas clientes do mesmo ciclo" },
+        { label: "Uso", value: "Ajustar experiencia entre areas" }
+      ]
+    },
+    "client-external": {
+      tone: "leader",
+      spotlightTitle:
+        workspace === "insights" ? "Experiencia externa consolidada" : "Percepcao de consultoria e parceiros",
+      spotlightItems: [
+        { label: "Foco", value: "Confiabilidade, atendimento e resultado" },
+        { label: "Origem", value: "Consultoria, parceiro ou cliente externo" },
+        { label: "Leitura", value: "Apenas consolidada quando houver massa critica" }
+      ]
     }
   };
 
@@ -218,6 +264,9 @@ export function getCycleStatusDescription(status) {
   }
   if (status === "Encerrado") {
     return "Ciclo fechado para novas interacoes.";
+  }
+  if (status === "Processado") {
+    return "Ciclo consolidado com snapshot final das leituras do periodo.";
   }
   return "Status do ciclo nao identificado.";
 }

@@ -3,12 +3,14 @@ import { api } from "./api";
 import {
   academicDevelopmentTypes,
   demoAccounts,
+  developmentPlanStatusOptions,
   developmentRecordTypes,
   developmentViewLabels,
   emptyApplause,
   emptyArea,
   emptyCycle,
   emptyDevelopment,
+  emptyDevelopmentPlan,
   emptyFeedbackRequest,
   emptyIncident,
   emptyLibraryPublish,
@@ -40,6 +42,7 @@ import { buildAppHash, parseAppHash } from "./appRoute";
 import {
   ApplauseAdminCard,
   AreaAdminCard,
+  DevelopmentPlanAdminCard,
   DevelopmentRecordAdminCard,
   IncidentQueueCard,
   PersonStructureCard,
@@ -96,6 +99,7 @@ export default function App() {
   const [userForm, setUserForm] = useState(emptyUser);
   const [applauseForm, setApplauseForm] = useState(emptyApplause);
   const [developmentForm, setDevelopmentForm] = useState(emptyDevelopment);
+  const [developmentPlanForm, setDevelopmentPlanForm] = useState(emptyDevelopmentPlan);
 
   const toggleTheme = () => {
     setTheme((current) => (current === "dark" ? "light" : "dark"));
@@ -139,8 +143,10 @@ export default function App() {
     applauseEntries,
     areas,
     assignments,
+    competencies,
     cycles,
     dashboard,
+    developmentPlans,
     developmentRecords,
     evaluationLibrary,
     feedbackRequests,
@@ -167,6 +173,7 @@ export default function App() {
   const {
     activeCycleModuleSummary,
     activeEvaluationCycleId,
+    evaluationCycleStructure,
     activeEvaluationModule,
     activeEvaluationModuleMeta,
     activeEvaluationWorkspace,
@@ -433,6 +440,23 @@ export default function App() {
     user
   ]);
 
+  const filteredDevelopmentPlans = useMemo(() => {
+    if (!user) {
+      return [];
+    }
+
+    if (activeDevelopmentView === "organization") {
+      return developmentPlans;
+    }
+
+    if (activeDevelopmentView === "team") {
+      const visibleIds = new Set(teamDevelopmentPeopleOptions.map((person) => person.value));
+      return developmentPlans.filter((plan) => visibleIds.has(plan.personId));
+    }
+
+    return developmentPlans.filter((plan) => plan.personId === user.person.id);
+  }, [activeDevelopmentView, developmentPlans, teamDevelopmentPeopleOptions, user]);
+
   const activeDevelopmentRecords = useMemo(
     () => filteredDevelopmentRecords.filter((record) => (record.status || "active") !== "archived"),
     [filteredDevelopmentRecords]
@@ -478,6 +502,64 @@ export default function App() {
 
     return Array.from(visiblePeople.values());
   }, [developmentFormPeopleOptions, filteredDevelopmentRecords]);
+
+  const developmentPlanPeopleOptions = useMemo(() => {
+    if (!user) {
+      return [];
+    }
+
+    if (activeDevelopmentView === "organization") {
+      return developmentPeopleOptions;
+    }
+
+    if (activeDevelopmentView === "team") {
+      return teamDevelopmentPeopleOptions;
+    }
+
+    return developmentPeopleOptions.filter((person) => person.value === user.person.id);
+  }, [activeDevelopmentView, developmentPeopleOptions, teamDevelopmentPeopleOptions, user]);
+
+  const developmentEditablePlanPeopleOptions = useMemo(() => {
+    const visiblePeople = new Map();
+    filteredDevelopmentPlans.forEach((plan) => {
+      if (!visiblePeople.has(plan.personId)) {
+        visiblePeople.set(plan.personId, {
+          value: plan.personId,
+          label: plan.personName
+        });
+      }
+    });
+
+    developmentPlanPeopleOptions.forEach((person) => {
+      if (!visiblePeople.has(person.value)) {
+        visiblePeople.set(person.value, person);
+      }
+    });
+
+    return Array.from(visiblePeople.values());
+  }, [developmentPlanPeopleOptions, filteredDevelopmentPlans]);
+
+  const developmentPlanCycleOptions = useMemo(
+    () => [
+      { value: "", label: "Sem ciclo vinculado" },
+      ...cycles.map((cycle) => ({
+        value: cycle.id,
+        label: `${cycle.title} · ${cycle.semesterLabel}`
+      }))
+    ],
+    [cycles]
+  );
+
+  const developmentPlanCompetencyOptions = useMemo(
+    () => [
+      { value: "", label: "Competencia livre" },
+      ...competencies.map((competency) => ({
+        value: competency.id,
+        label: competency.name
+      }))
+    ],
+    [competencies]
+  );
 
   const developmentMetrics = useMemo(() => {
     const peopleInScope = new Set(activeDevelopmentRecords.map((record) => record.personId)).size;
@@ -727,6 +809,25 @@ export default function App() {
     }
   }, [developmentForm.personId, developmentFormPeopleOptions, user]);
 
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+
+    const nextPersonId =
+      developmentPlanPeopleOptions.find((person) => person.value === developmentPlanForm.personId)
+        ?.value ||
+      developmentPlanPeopleOptions[0]?.value ||
+      user.person.id;
+
+    if (nextPersonId !== developmentPlanForm.personId) {
+      setDevelopmentPlanForm((current) => ({
+        ...current,
+        personId: nextPersonId
+      }));
+    }
+  }, [developmentPlanForm.personId, developmentPlanPeopleOptions, user]);
+
   function handleLogout() {
     logoutSession();
     resetEvaluations();
@@ -734,6 +835,7 @@ export default function App() {
     setAreaForm(emptyArea);
     setPersonForm(emptyPerson);
     setUserForm(emptyUser);
+    setDevelopmentPlanForm(emptyDevelopmentPlan);
   }
 
   async function handleIncidentSubmit(event) {
@@ -885,6 +987,61 @@ export default function App() {
     }
   }
 
+  async function handleDevelopmentPlanSubmit(event) {
+    event.preventDefault();
+    try {
+      setError("");
+      await api.createDevelopmentPlan({
+        ...developmentPlanForm,
+        cycleId: developmentPlanForm.cycleId || null,
+        competencyId: developmentPlanForm.competencyId || null
+      });
+      setDevelopmentPlanForm((current) => ({
+        ...emptyDevelopmentPlan,
+        personId: current.personId
+      }));
+      await reloadData();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function handleDevelopmentPlanUpdate(planId, payload) {
+    try {
+      setError("");
+      await api.updateDevelopmentPlan(planId, {
+        ...payload,
+        cycleId: payload.cycleId || null,
+        competencyId: payload.competencyId || null
+      });
+      await reloadData();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function handleCompetencyCreate(payload) {
+    try {
+      setError("");
+      await api.createCompetency(payload);
+      await reloadData();
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    }
+  }
+
+  async function handleCompetencyUpdate(competencyId, payload) {
+    try {
+      setError("");
+      await api.updateCompetency(competencyId, payload);
+      await reloadData();
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    }
+  }
+
   if (authLoading) {
     return <div className="center-screen">Validando sessao...</div>;
   }
@@ -1012,6 +1169,7 @@ export default function App() {
             Textarea={Textarea}
             activeCycleModuleSummary={activeCycleModuleSummary}
             activeEvaluationCycleId={activeEvaluationCycleId}
+            evaluationCycleStructure={evaluationCycleStructure}
             activeEvaluationModule={activeEvaluationModule}
             activeEvaluationModuleMeta={activeEvaluationModuleMeta}
             activeEvaluationWorkspace={activeEvaluationWorkspace}
@@ -1031,6 +1189,7 @@ export default function App() {
             cycleComparisonHighlights={cycleComparisonHighlights}
             comparisonCycleOptions={comparisonCycleOptions}
             comparisonEvaluationCycleId={comparisonEvaluationCycleId}
+            competencies={competencies}
             customLibraryDraft={customLibraryDraft}
             customLibraryPublishForm={customLibraryPublishForm}
             cycleForm={cycleForm}
@@ -1054,7 +1213,10 @@ export default function App() {
             getRelationshipLabel={getRelationshipLabel}
             getVisibilityLabel={getVisibilityLabel}
             handleAssignmentSubmit={handleAssignmentSubmit}
+            handleCompetencyCreate={handleCompetencyCreate}
+            handleCompetencyUpdate={handleCompetencyUpdate}
             handleCustomLibraryImport={handleCustomLibraryImport}
+            handleCustomLibraryTemplateDownload={api.downloadCustomLibraryTemplate}
             handleCustomLibraryPublish={handleCustomLibraryPublish}
             handleCycleStatusChange={handleCycleStatusChange}
             handleCycleSubmit={handleCycleSubmit}
@@ -1084,6 +1246,7 @@ export default function App() {
           <DevelopmentSection
             auditEntries={developmentAuditEntries}
             canViewAuditTrail={canViewAuditTrail}
+            DevelopmentPlanAdminCard={DevelopmentPlanAdminCard}
             DevelopmentRecordAdminCard={DevelopmentRecordAdminCard}
             Input={Input}
             MetricCard={MetricCard}
@@ -1091,21 +1254,31 @@ export default function App() {
             Textarea={Textarea}
             activeDevelopmentView={activeDevelopmentView}
             developmentForm={developmentForm}
+            developmentPlanForm={developmentPlanForm}
+            developmentPlanCycleOptions={developmentPlanCycleOptions}
+            developmentPlanCompetencyOptions={developmentPlanCompetencyOptions}
+            developmentPlanPeopleOptions={developmentPlanPeopleOptions}
+            developmentPlanStatusOptions={developmentPlanStatusOptions}
             developmentFormPeopleOptions={developmentFormPeopleOptions}
             developmentHighlights={developmentHighlights}
             developmentMetrics={developmentMetrics}
+            developmentPlans={filteredDevelopmentPlans}
             developmentRecordTypes={developmentRecordTypes}
+            developmentEditablePlanPeopleOptions={developmentEditablePlanPeopleOptions}
             developmentEditablePeopleOptions={developmentEditablePeopleOptions}
             developmentViewLabels={developmentViewLabels}
             developmentViewOptions={developmentViewOptions}
             filteredDevelopmentRecords={filteredDevelopmentRecords}
             formatDate={formatDate}
             getDevelopmentTrackLabel={getDevelopmentTrackLabel}
+            handleDevelopmentPlanSubmit={handleDevelopmentPlanSubmit}
+            handleDevelopmentPlanUpdate={handleDevelopmentPlanUpdate}
             handleDevelopmentSubmit={handleDevelopmentSubmit}
             handleDevelopmentUpdate={handleDevelopmentUpdate}
             roleKey={user.roleKey}
             setActiveDevelopmentView={setActiveDevelopmentView}
             setDevelopmentForm={setDevelopmentForm}
+            setDevelopmentPlanForm={setDevelopmentPlanForm}
           />
         ) : null}
 

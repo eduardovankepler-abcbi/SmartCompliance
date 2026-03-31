@@ -94,13 +94,24 @@ export const auth = {
 export const api = {
   getSummary: () => request("/api/summary"),
   getAreas: () => request("/api/areas"),
+  getCompetencies: () => request("/api/competencies"),
   createArea: (payload) =>
     request("/api/areas", {
       method: "POST",
       body: JSON.stringify(payload)
     }),
+  createCompetency: (payload) =>
+    request("/api/competencies", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    }),
   updateArea: (areaId, payload) =>
     request(`/api/areas/${areaId}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload)
+    }),
+  updateCompetency: (competencyId, payload) =>
+    request(`/api/competencies/${competencyId}`, {
       method: "PATCH",
       body: JSON.stringify(payload)
     }),
@@ -155,6 +166,8 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload)
     }),
+  getEvaluationCycleParticipants: (cycleId) =>
+    request(`/api/evaluations/cycles/${cycleId}/participants`),
   updateEvaluationCycleStatus: (cycleId, status) =>
     request(`/api/evaluations/cycles/${cycleId}/status`, {
       method: "PATCH",
@@ -203,13 +216,24 @@ export const api = {
       body: JSON.stringify(payload)
     }),
   getDevelopmentRecords: () => request("/api/development/records"),
+  getDevelopmentPlans: () => request("/api/development/plans"),
   createDevelopmentRecord: (payload) =>
     request("/api/development/records", {
       method: "POST",
       body: JSON.stringify(payload)
     }),
+  createDevelopmentPlan: (payload) =>
+    request("/api/development/plans", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    }),
   updateDevelopmentRecord: (recordId, payload) =>
     request(`/api/development/records/${recordId}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload)
+    }),
+  updateDevelopmentPlan: (planId, payload) =>
+    request(`/api/development/plans/${planId}`, {
       method: "PATCH",
       body: JSON.stringify(payload)
     }),

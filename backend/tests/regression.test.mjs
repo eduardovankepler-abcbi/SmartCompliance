@@ -201,6 +201,100 @@ try {
     "Ciclo deve carregar o template da biblioteca publicada"
   );
 
+  const selfTemplateFallback = await store.getEvaluationTemplateForCycleRelationship(
+    createdCycle.id,
+    "self"
+  );
+  assert.ok(
+    Array.isArray(selfTemplateFallback.questions) && selfTemplateFallback.questions.length > 0,
+    "Ciclo com biblioteca customizada deve manter fallback da autoavaliacao padrao"
+  );
+
+  const createdCycleStructure = await store.getEvaluationCycleParticipants(createdCycle.id);
+  assert.ok(
+    createdCycleStructure.participants.length > 0,
+    "Novo ciclo deve materializar participantes formais"
+  );
+  assert.ok(
+    createdCycleStructure.participants.some((participant) => participant.totalRaters > 0),
+    "Participantes do ciclo devem trazer avaliadores relacionados"
+  );
+  assert.ok(
+    createdCycleStructure.relationshipSummary.some(
+      (entry) => entry.relationshipType === "client-internal"
+    ),
+    "Novo ciclo deve materializar grupo de cliente interno"
+  );
+  assert.ok(
+    createdCycleStructure.relationshipSummary.some(
+      (entry) => entry.relationshipType === "client-external"
+    ),
+    "Novo ciclo deve materializar grupo de cliente externo"
+  );
+
+  const cycleParticipantsResponse = await fetchJson(
+    baseUrl,
+    `/api/evaluations/cycles/${createdCycle.id}/participants`,
+    getAuthHeader(hr.id)
+  );
+  assert.equal(
+    cycleParticipantsResponse.response.status,
+    200,
+    "RH deve acessar a estrutura de participantes do ciclo"
+  );
+  assert.equal(
+    cycleParticipantsResponse.payload.cycle.id,
+    createdCycle.id,
+    "API de participantes deve retornar o ciclo solicitado"
+  );
+
+  await store.updateEvaluationCycleStatus(createdCycle.id, "Liberado", admin);
+  const processedCompanyTemplate = await store.getEvaluationTemplateForCycleRelationship(
+    createdCycle.id,
+    "company"
+  );
+
+  for (const reviewer of [employee, await store.findUserByEmail("colaborador2@demo.local"), await store.findUserByEmail("consultor1@demo.local")]) {
+    const reviewerAssignments = await store.getEvaluationAssignmentsForUser(reviewer.id);
+    const companyAssignment = reviewerAssignments.find(
+      (assignment) => assignment.cycleId === createdCycle.id && assignment.relationshipType === "company"
+    );
+
+    assert.ok(companyAssignment, "Cada avaliador de teste precisa receber assignment institucional");
+
+    await store.submitEvaluationAssignment({
+      assignmentId: companyAssignment.id,
+      reviewerUserId: reviewer.id,
+      answers: processedCompanyTemplate.questions.map((question) => ({
+        questionId: question.id,
+        score: question.inputType === "scale" ? 4 : null,
+        evidenceNote: "",
+        textValue: question.inputType === "text" ? "Resposta automatizada de regressao." : "",
+        selectedOptions:
+          question.inputType === "multi-select" ? [question.options?.[0]?.value].filter(Boolean) : []
+      })),
+      strengthsNote: "",
+      developmentNote: ""
+    });
+  }
+
+  await store.updateEvaluationCycleStatus(createdCycle.id, "Encerrado", admin);
+  await store.updateEvaluationCycleStatus(createdCycle.id, "Processado", admin);
+
+  const processedCycles = await store.getEvaluationCycles();
+  const processedCycle = processedCycles.find((cycle) => cycle.id === createdCycle.id);
+  assert.equal(processedCycle.status, "Processado", "Ciclo deve aceitar status processado");
+  assert.ok(
+    processedCycle.reportSnapshotCount > 0,
+    "Ciclo processado deve registrar snapshots de relatorio"
+  );
+
+  const processedResponses = await store.getEvaluationResponses(admin);
+  assert.ok(
+    processedResponses.reportSnapshots.some((snapshot) => snapshot.cycleId === createdCycle.id),
+    "Bundle de respostas deve expor snapshots do ciclo processado"
+  );
+
   const createdIncident = await store.createIncident(
     {
       title: "Teste estruturado de compliance",
@@ -263,6 +357,46 @@ try {
     "Registro arquivado deve expor data de arquivamento"
   );
 
+  const createdDevelopmentPlan = await store.createDevelopmentPlan(
+    {
+      personId: employee.personId,
+      cycleId: createdCycle.id,
+      competencyId: "cmp_communication",
+      focusTitle: "Evoluir comunicacao com stakeholders",
+      actionText: "Conduzir checkpoints quinzenais com pauta e resumo de riscos.",
+      dueDate: "2026-08-15",
+      expectedEvidence: "Atas publicadas e feedback do gestor sobre clareza."
+    },
+    employee
+  );
+
+  const completedDevelopmentPlan = await store.updateDevelopmentPlan(
+    createdDevelopmentPlan.id,
+    {
+      personId: employee.personId,
+      cycleId: createdCycle.id,
+      competencyId: "cmp_communication",
+      focusTitle: "Evoluir comunicacao com stakeholders",
+      actionText: "Conduzir checkpoints quinzenais com pauta e resumo de riscos.",
+      dueDate: "2026-08-15",
+      expectedEvidence: "Atas publicadas e feedback do gestor sobre clareza.",
+      status: "completed"
+    },
+    employee
+  );
+
+  assert.equal(
+    completedDevelopmentPlan.status,
+    "completed",
+    "PDI deve permitir conclusao controlada"
+  );
+
+  const employeeDevelopmentPlans = await store.getDevelopmentPlans(employee);
+  assert.ok(
+    employeeDevelopmentPlans.some((plan) => plan.id === createdDevelopmentPlan.id),
+    "Colaborador deve visualizar o proprio PDI"
+  );
+
   const createdApplause = await store.createApplauseEntry({
     senderPersonId: employee.personId,
     receiverPersonId: manager.personId,
@@ -309,6 +443,38 @@ try {
     createdPerson.satisfactionScore,
     4,
     "Cadastro de pessoa sem score manual deve assumir valor padrao"
+  );
+
+  const createdCompetency = await store.createCompetency(
+    {
+      name: "Pensamento sistemico",
+      key: "systemic-thinking",
+      description: "Capacidade de conectar causas, efeitos e dependencias do processo.",
+      status: "active"
+    },
+    admin
+  );
+
+  const updatedCompetency = await store.updateCompetency(
+    createdCompetency.id,
+    {
+      name: "Pensamento sistemico e analitico",
+      key: "systemic-thinking",
+      description: "Leitura estruturada de cenarios, riscos e interdependencias.",
+      status: "active"
+    },
+    admin
+  );
+
+  const competencies = await store.getCompetencies(admin);
+  assert.equal(
+    updatedCompetency.name,
+    "Pensamento sistemico e analitico",
+    "Competencia deve permitir manutencao de nome e descricao"
+  );
+  assert.ok(
+    competencies.some((item) => item.id === createdCompetency.id),
+    "Cadastro de competencias deve ficar disponivel para governanca do 360"
   );
 
   console.log("Backend regression tests passed.");
