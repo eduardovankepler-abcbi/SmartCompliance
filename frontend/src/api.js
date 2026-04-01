@@ -173,6 +173,11 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify({ status })
     }),
+  updateEvaluationCycleConfig: (cycleId, payload) =>
+    request(`/api/evaluations/cycles/${cycleId}/config`, {
+      method: "PATCH",
+      body: JSON.stringify(payload)
+    }),
   getEvaluationAssignments: () => request("/api/evaluations/assignments"),
   getEvaluationAssignment: (assignmentId) =>
     request(`/api/evaluations/assignments/${assignmentId}`),

@@ -201,6 +201,8 @@ export default function App() {
     handleCustomLibraryImport,
     handleCustomLibraryPublish,
     handleCycleStatusChange,
+    handleCycleEnabledToggle,
+    handleCycleModuleToggle,
     handleCycleSubmit,
     handleFeedbackProviderToggle,
     handleFeedbackRequestReview,
@@ -1219,6 +1221,8 @@ export default function App() {
             handleCustomLibraryTemplateDownload={api.downloadCustomLibraryTemplate}
             handleCustomLibraryPublish={handleCustomLibraryPublish}
             handleCycleStatusChange={handleCycleStatusChange}
+            handleCycleEnabledToggle={handleCycleEnabledToggle}
+            handleCycleModuleToggle={handleCycleModuleToggle}
             handleCycleSubmit={handleCycleSubmit}
             handleFeedbackProviderToggle={handleFeedbackProviderToggle}
             handleFeedbackRequestReview={handleFeedbackRequestReview}

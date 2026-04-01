@@ -84,6 +84,8 @@ CREATE TABLE IF NOT EXISTS evaluation_cycles (
   title VARCHAR(160) NOT NULL,
   semester_label VARCHAR(60) NOT NULL,
   status VARCHAR(40) NOT NULL,
+  is_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+  enabled_relationships_json JSON NULL,
   due_date DATE NOT NULL,
   target_group VARCHAR(80) NOT NULL,
   created_by_user_id VARCHAR(36) NOT NULL,

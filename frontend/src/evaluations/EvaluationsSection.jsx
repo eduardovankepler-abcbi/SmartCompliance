@@ -46,6 +46,8 @@ export function EvaluationsSection(props) {
     handleCustomLibraryTemplateDownload,
     handleCustomLibraryPublish,
     handleCycleStatusChange,
+    handleCycleEnabledToggle,
+    handleCycleModuleToggle,
     handleCycleSubmit,
     handleFeedbackProviderToggle,
     handleFeedbackRequestReview,
@@ -67,6 +69,16 @@ export function EvaluationsSection(props) {
   const isRespondWorkspace = activeEvaluationWorkspace === "respond";
   const isInsightsWorkspace = activeEvaluationWorkspace === "insights";
   const isOperationsWorkspace = activeEvaluationWorkspace === "operations";
+  const cycleRelationshipTypes = [
+    "self",
+    "company",
+    "leader",
+    "manager",
+    "peer",
+    "cross-functional",
+    "client-internal",
+    "client-external"
+  ];
 
   return (
     <section className="page-grid">
@@ -343,6 +355,46 @@ export function EvaluationsSection(props) {
                     </button>
                   ) : null}
                 </div>
+                {cycle.supportsConfig === false ? (
+                  <p className="muted">
+                    Este ambiente ainda nao suporta switches de ciclo. Atualize o schema do MySQL
+                    para habilitar ativacao e controle por questionario.
+                  </p>
+                ) : (
+                  <div className="checkbox-stack">
+                    <label className="checkbox-option">
+                      <input
+                        checked={cycle.isEnabled !== false}
+                        type="checkbox"
+                        onChange={(event) =>
+                          handleCycleEnabledToggle(cycle.id, event.target.checked)
+                        }
+                      />
+                      <span>Ciclo ativo (visivel para colaboradores)</span>
+                    </label>
+                    {cycleRelationshipTypes.map((relationshipType) => {
+                      const enabled = cycle.moduleAvailability?.[relationshipType] !== false;
+
+                      return (
+                        <label className="checkbox-option" key={relationshipType}>
+                          <input
+                            checked={enabled}
+                            disabled={cycle.isEnabled === false}
+                            type="checkbox"
+                            onChange={(event) =>
+                              handleCycleModuleToggle(
+                                cycle.id,
+                                relationshipType,
+                                event.target.checked
+                              )
+                            }
+                          />
+                          <span>{getRelationshipLabel(relationshipType)}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             ))}
           </div>

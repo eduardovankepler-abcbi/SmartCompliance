@@ -31,6 +31,16 @@ const CYCLE_STATUS = {
   closed: "Encerrado",
   processed: "Processado"
 };
+const DEFAULT_CYCLE_MODULE_AVAILABILITY = Object.freeze({
+  self: true,
+  company: true,
+  leader: true,
+  manager: true,
+  peer: true,
+  "cross-functional": true,
+  "client-internal": true,
+  "client-external": true
+});
 const USER_ROLE_OPTIONS = ["admin", "hr", "manager", "employee", "compliance"];
 const USER_STATUS_OPTIONS = ["active", "inactive"];
 const COMPETENCY_STATUS_OPTIONS = ["active", "inactive"];
@@ -819,6 +829,59 @@ function buildEvaluationLibraryPayload(customLibraries = []) {
   };
 }
 
+function normalizeCycleModuleAvailability(value) {
+  if (!value) {
+    return { ...DEFAULT_CYCLE_MODULE_AVAILABILITY };
+  }
+
+  if (typeof value === "string") {
+    try {
+      return normalizeCycleModuleAvailability(JSON.parse(value));
+    } catch (_error) {
+      return { ...DEFAULT_CYCLE_MODULE_AVAILABILITY };
+    }
+  }
+
+  if (typeof value !== "object") {
+    return { ...DEFAULT_CYCLE_MODULE_AVAILABILITY };
+  }
+
+  return {
+    ...DEFAULT_CYCLE_MODULE_AVAILABILITY,
+    ...Object.fromEntries(
+      Object.entries(value).map(([key, enabled]) => [key, Boolean(enabled)])
+    )
+  };
+}
+
+function normalizeCycleIsEnabled(value) {
+  if (value === undefined || value === null) {
+    return true;
+  }
+  if (typeof value === "boolean") {
+    return value;
+  }
+  if (typeof value === "number") {
+    return value !== 0;
+  }
+  const normalized = String(value).trim().toLowerCase();
+  if (!normalized) {
+    return true;
+  }
+  if (["0", "false", "no", "off"].includes(normalized)) {
+    return false;
+  }
+  return true;
+}
+
+function isCycleRelationshipEnabled(cycle, relationshipType) {
+  const resolvedCycle = presentCycle(cycle || {});
+  if (!resolvedCycle.isEnabled) {
+    return false;
+  }
+  return resolvedCycle.moduleAvailability?.[relationshipType] !== false;
+}
+
 function presentCycle(row) {
   return {
     ...row,
@@ -826,7 +889,11 @@ function presentCycle(row) {
     libraryId: row.libraryId || DEFAULT_EVALUATION_LIBRARY_ID,
     libraryName: row.libraryName || DEFAULT_EVALUATION_LIBRARY_NAME,
     modelName:
-      row.modelName || row.libraryName || DEFAULT_EVALUATION_LIBRARY_NAME
+      row.modelName || row.libraryName || DEFAULT_EVALUATION_LIBRARY_NAME,
+    isEnabled: normalizeCycleIsEnabled(row.isEnabled),
+    moduleAvailability: normalizeCycleModuleAvailability(
+      row.moduleAvailability ?? row.enabledRelationshipsJson ?? row.enabledRelationships
+    )
   };
 }
 
@@ -916,6 +983,20 @@ function presentAssignment(row, customLibraries = []) {
     revieweeName: row.relationshipType === "company" ? "Empresa" : row.revieweeName,
     revieweeArea: row.relationshipType === "company" ? "Institucional" : row.revieweeArea
   };
+}
+
+async function detectMysqlCycleConfigSupport(pool) {
+  try {
+    const [enabledRows] = await pool.query(
+      "SHOW COLUMNS FROM evaluation_cycles LIKE 'is_enabled'"
+    );
+    const [relationshipsRows] = await pool.query(
+      "SHOW COLUMNS FROM evaluation_cycles LIKE 'enabled_relationships_json'"
+    );
+    return Boolean(enabledRows?.length) && Boolean(relationshipsRows?.length);
+  } catch (_error) {
+    return false;
+  }
 }
 
 function enrichAssignment(db, assignment, customLibraries = []) {
@@ -3012,8 +3093,8 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         })
       );
     },
-    async getEvaluationCycles() {
-      return db.cycles.map((cycle) => {
+    async getEvaluationCycles(actorUser = null) {
+      const cycles = db.cycles.map((cycle) => {
         const cycleStructure = presentCycleParticipantStructure(
           db,
           cycle.id,
@@ -3022,11 +3103,18 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
 
         return {
           ...presentCycle(cycle),
+          supportsConfig: true,
           participantCount: cycleStructure.cycle.participantCount,
           raterCount: cycleStructure.cycle.raterCount,
           reportSnapshotCount: db.cycleReports.filter((item) => item.cycleId === cycle.id).length
         };
       });
+
+      if (actorUser && !isOrgWideUser(actorUser)) {
+        return cycles.filter((cycle) => cycle.isEnabled);
+      }
+
+      return cycles;
     },
     async createEvaluationCycle(payload, actorUser) {
       const selectedLibrary =
@@ -3044,6 +3132,8 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         templateId: questionTemplate.id,
         libraryId: selectedLibrary?.id || DEFAULT_EVALUATION_LIBRARY_ID,
         libraryName: selectedLibrary?.name || DEFAULT_EVALUATION_LIBRARY_NAME,
+        isEnabled: true,
+        moduleAvailability: { ...DEFAULT_CYCLE_MODULE_AVAILABILITY },
         status: CYCLE_STATUS.planning
       };
       db.cycles.unshift(cycle);
@@ -3069,6 +3159,7 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
 
       return {
         ...presentCycle(cycle),
+        supportsConfig: true,
         participantCount: db.cycleParticipants.filter((item) => item.cycleId === cycle.id).length,
         raterCount: db.cycleRaters.filter((item) => item.cycleId === cycle.id).length,
         reportSnapshotCount: 0,
@@ -3114,11 +3205,60 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         summary: `Status do ciclo atualizado: ${cycle.title}`,
         detail: `${previousStatus} -> ${nextStatus}`
       });
+      return { ...presentCycle(cycle), supportsConfig: true };
+    },
+    async updateEvaluationCycleConfig(cycleId, payload, actorUser) {
+      if (!["admin", "hr"].includes(actorUser?.roleKey || "")) {
+        throw new Error("Perfil sem permissao para configurar ciclos.");
+      }
+
+      const cycle = db.cycles.find((item) => item.id === cycleId);
+      if (!cycle) {
+        throw new Error("Ciclo de avaliacao nao encontrado.");
+      }
+
+      if (payload?.isEnabled !== undefined) {
+        cycle.isEnabled = Boolean(payload.isEnabled);
+      }
+
+      if (payload?.moduleAvailability) {
+        if (typeof payload.moduleAvailability !== "object") {
+          throw new Error("moduleAvailability precisa ser um objeto.");
+        }
+
+        const allowedKeys = Object.keys(DEFAULT_CYCLE_MODULE_AVAILABILITY);
+        const current = normalizeCycleModuleAvailability(cycle.moduleAvailability);
+        for (const [relationshipType, enabled] of Object.entries(payload.moduleAvailability)) {
+          if (!allowedKeys.includes(relationshipType)) {
+            throw new Error("Relacionamento de questionario invalido.");
+          }
+          current[relationshipType] = Boolean(enabled);
+        }
+        cycle.moduleAvailability = current;
+      }
+
+      pushAuditLog(db.auditLogs, {
+        category: AUDIT_CATEGORIES.cycle,
+        action: "config_changed",
+        entityType: "cycle",
+        entityId: cycle.id,
+        entityLabel: cycle.title,
+        actorUser,
+        summary: `Configuracao do ciclo atualizada: ${cycle.title}`,
+        detail: `Ativo: ${cycle.isEnabled ? "sim" : "nao"} · Questionarios configurados`
+      });
+
       return presentCycle(cycle);
     },
     async getEvaluationAssignmentsForUser(userId) {
       return db.assignments
         .filter((item) => item.reviewerUserId === userId)
+        .filter((item) =>
+          isCycleRelationshipEnabled(
+            db.cycles.find((cycle) => cycle.id === item.cycleId),
+            item.relationshipType
+          )
+        )
         .map((item) => enrichAssignment(db, item, customLibraryState.published));
     },
     async getEvaluationAssignmentById(assignmentId, userId) {
@@ -3126,6 +3266,14 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         (item) => item.id === assignmentId && item.reviewerUserId === userId
       );
       if (!assignment) {
+        return null;
+      }
+      if (
+        !isCycleRelationshipEnabled(
+          db.cycles.find((cycle) => cycle.id === assignment.cycleId),
+          assignment.relationshipType
+        )
+      ) {
         return null;
       }
       return enrichAssignment(db, assignment, customLibraryState.published);
@@ -3200,6 +3348,12 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
 
       if (payload.status === FEEDBACK_REQUEST_STATUS.approved) {
         const cycle = db.cycles.find((item) => item.id === request.cycleId);
+        if (!cycle) {
+          throw new Error("Ciclo de avaliacao nao encontrado.");
+        }
+        if (!isCycleRelationshipEnabled(cycle, "peer")) {
+          throw new Error("Feedback direto esta desativado neste ciclo.");
+        }
         const items = getFeedbackRequestItems(db, request.id);
 
         for (const item of items) {
@@ -3219,7 +3373,7 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
             projectContext: "Feedback direto solicitado",
             collaborationContext: request.contextNote,
             status: "pending",
-            dueDate: cycle?.dueDate || ""
+            dueDate: cycle.dueDate || ""
           };
           pushAssignment(db.assignments, assignment);
           const createdAssignment = db.assignments.find(
@@ -3268,6 +3422,9 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
       }
       if (!isReleasedCycle(cycle.status)) {
         throw new Error("As avaliacoes deste ciclo ainda nao foram liberadas pelo RH.");
+      }
+      if (!isCycleRelationshipEnabled(cycle, assignment.relationshipType)) {
+        throw new Error("Este questionario nao esta ativo neste ciclo.");
       }
 
       const templateDefinition = getTemplateDefinitionForCycle({
@@ -3741,7 +3898,12 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
   };
 }
 
-function buildMysqlStore(pool, customLibraryState, anonymousResponseState) {
+function buildMysqlStore(
+  pool,
+  customLibraryState,
+  anonymousResponseState,
+  { supportsCycleConfig } = {}
+) {
   return {
     async findUserByEmail(email) {
       const [rows] = await pool.query(
@@ -4553,25 +4715,51 @@ function buildMysqlStore(pool, customLibraryState, anonymousResponseState) {
         })
       );
     },
-    async getEvaluationCycles() {
+    async getEvaluationCycles(actorUser = null) {
       const [rows] = await pool.query(
-        `SELECT c.id, c.template_id AS templateId, c.title, c.semester_label AS semesterLabel,
-                c.status, c.due_date AS dueDate, c.target_group AS targetGroup,
-                c.library_id AS libraryId, c.library_name AS libraryName,
-                COALESCE(c.library_name, t.name) AS modelName, c.created_by_user_id AS createdByUserId,
-                COUNT(DISTINCT cp.person_id) AS participantCount,
-                COUNT(DISTINCT CONCAT(cr.participant_person_id, ':', cr.rater_user_id, ':', cr.relationship_type)) AS raterCount,
-                COUNT(DISTINCT er.id) AS reportSnapshotCount
-         FROM evaluation_cycles c
-         JOIN evaluation_templates t ON t.id = c.template_id
-         LEFT JOIN evaluation_cycle_participants cp ON cp.cycle_id = c.id
-         LEFT JOIN evaluation_cycle_raters cr ON cr.cycle_id = c.id
-         LEFT JOIN evaluation_cycle_reports er ON er.cycle_id = c.id
-         GROUP BY c.id, c.template_id, c.title, c.semester_label, c.status, c.due_date, c.target_group,
-                  c.library_id, c.library_name, t.name, c.created_by_user_id
-         ORDER BY c.due_date DESC`
+        supportsCycleConfig
+          ? `SELECT c.id, c.template_id AS templateId, c.title, c.semester_label AS semesterLabel,
+                    c.status, c.is_enabled AS isEnabled, c.enabled_relationships_json AS enabledRelationshipsJson,
+                    c.due_date AS dueDate, c.target_group AS targetGroup,
+                    c.library_id AS libraryId, c.library_name AS libraryName,
+                    COALESCE(c.library_name, t.name) AS modelName, c.created_by_user_id AS createdByUserId,
+                    COUNT(DISTINCT cp.person_id) AS participantCount,
+                    COUNT(DISTINCT CONCAT(cr.participant_person_id, ':', cr.rater_user_id, ':', cr.relationship_type)) AS raterCount,
+                    COUNT(DISTINCT er.id) AS reportSnapshotCount
+             FROM evaluation_cycles c
+             JOIN evaluation_templates t ON t.id = c.template_id
+             LEFT JOIN evaluation_cycle_participants cp ON cp.cycle_id = c.id
+             LEFT JOIN evaluation_cycle_raters cr ON cr.cycle_id = c.id
+             LEFT JOIN evaluation_cycle_reports er ON er.cycle_id = c.id
+             GROUP BY c.id, c.template_id, c.title, c.semester_label, c.status, c.is_enabled, c.enabled_relationships_json,
+                      c.due_date, c.target_group, c.library_id, c.library_name, t.name, c.created_by_user_id
+             ORDER BY c.due_date DESC`
+          : `SELECT c.id, c.template_id AS templateId, c.title, c.semester_label AS semesterLabel,
+                    c.status, c.due_date AS dueDate, c.target_group AS targetGroup,
+                    c.library_id AS libraryId, c.library_name AS libraryName,
+                    COALESCE(c.library_name, t.name) AS modelName, c.created_by_user_id AS createdByUserId,
+                    COUNT(DISTINCT cp.person_id) AS participantCount,
+                    COUNT(DISTINCT CONCAT(cr.participant_person_id, ':', cr.rater_user_id, ':', cr.relationship_type)) AS raterCount,
+                    COUNT(DISTINCT er.id) AS reportSnapshotCount
+             FROM evaluation_cycles c
+             JOIN evaluation_templates t ON t.id = c.template_id
+             LEFT JOIN evaluation_cycle_participants cp ON cp.cycle_id = c.id
+             LEFT JOIN evaluation_cycle_raters cr ON cr.cycle_id = c.id
+             LEFT JOIN evaluation_cycle_reports er ON er.cycle_id = c.id
+             GROUP BY c.id, c.template_id, c.title, c.semester_label, c.status, c.due_date, c.target_group,
+                      c.library_id, c.library_name, t.name, c.created_by_user_id
+             ORDER BY c.due_date DESC`
       );
-      return rows.map((row) => presentCycle(row));
+      const cycles = rows.map((row) => ({
+        ...presentCycle(row),
+        supportsConfig: Boolean(supportsCycleConfig)
+      }));
+
+      if (actorUser && !isOrgWideUser(actorUser)) {
+        return cycles.filter((cycle) => cycle.isEnabled);
+      }
+
+      return cycles;
     },
     async createEvaluationCycle(payload, actorUser) {
       const selectedLibrary =
@@ -4589,6 +4777,8 @@ function buildMysqlStore(pool, customLibraryState, anonymousResponseState) {
         templateId: questionTemplate.id,
         libraryId: selectedLibrary?.id || DEFAULT_EVALUATION_LIBRARY_ID,
         libraryName: selectedLibrary?.name || DEFAULT_EVALUATION_LIBRARY_NAME,
+        isEnabled: true,
+        moduleAvailability: { ...DEFAULT_CYCLE_MODULE_AVAILABILITY },
         status: CYCLE_STATUS.planning
       };
       const users = await fetchUserRows(pool);
@@ -4610,23 +4800,45 @@ function buildMysqlStore(pool, customLibraryState, anonymousResponseState) {
       try {
         await connection.beginTransaction();
 
-        await connection.query(
-          `INSERT INTO evaluation_cycles
-           (id, template_id, title, semester_label, status, due_date, target_group, created_by_user_id, library_id, library_name)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
-            cycle.id,
-            cycle.templateId,
-            cycle.title,
-            cycle.semesterLabel,
-            cycle.status,
-            cycle.dueDate,
-            cycle.targetGroup,
-            cycle.createdByUserId,
-            cycle.libraryId,
-            cycle.libraryName
-          ]
-        );
+        if (supportsCycleConfig) {
+          await connection.query(
+            `INSERT INTO evaluation_cycles
+             (id, template_id, title, semester_label, status, is_enabled, enabled_relationships_json, due_date, target_group, created_by_user_id, library_id, library_name)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              cycle.id,
+              cycle.templateId,
+              cycle.title,
+              cycle.semesterLabel,
+              cycle.status,
+              1,
+              null,
+              cycle.dueDate,
+              cycle.targetGroup,
+              cycle.createdByUserId,
+              cycle.libraryId,
+              cycle.libraryName
+            ]
+          );
+        } else {
+          await connection.query(
+            `INSERT INTO evaluation_cycles
+             (id, template_id, title, semester_label, status, due_date, target_group, created_by_user_id, library_id, library_name)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              cycle.id,
+              cycle.templateId,
+              cycle.title,
+              cycle.semesterLabel,
+              cycle.status,
+              cycle.dueDate,
+              cycle.targetGroup,
+              cycle.createdByUserId,
+              cycle.libraryId,
+              cycle.libraryName
+            ]
+          );
+        }
 
         for (const assignment of generatedAssignments) {
           await connection.query(
@@ -4694,6 +4906,7 @@ function buildMysqlStore(pool, customLibraryState, anonymousResponseState) {
 
       return {
         ...presentCycle(cycle),
+        supportsConfig: Boolean(supportsCycleConfig),
         participantCount: generatedStructure.participants.length,
         raterCount: generatedStructure.raters.length,
         generatedAssignmentsCount: generatedAssignments.length
@@ -4829,44 +5042,169 @@ function buildMysqlStore(pool, customLibraryState, anonymousResponseState) {
         connection.release();
       }
     },
+    async updateEvaluationCycleConfig(cycleId, payload, actorUser) {
+      if (!["admin", "hr"].includes(actorUser?.roleKey || "")) {
+        throw new Error("Perfil sem permissao para configurar ciclos.");
+      }
+
+      const [rows] = await pool.query(
+        `SELECT id, title, is_enabled AS isEnabled, enabled_relationships_json AS enabledRelationshipsJson
+         FROM evaluation_cycles
+         WHERE id = ?
+         LIMIT 1`,
+        [cycleId]
+      );
+
+      if (!rows[0]) {
+        throw new Error("Ciclo de avaliacao nao encontrado.");
+      }
+
+      const current = presentCycle(rows[0]);
+      const nextIsEnabled =
+        payload?.isEnabled === undefined ? current.isEnabled : Boolean(payload.isEnabled);
+
+      let nextModuleAvailability = normalizeCycleModuleAvailability(current.moduleAvailability);
+      if (payload?.moduleAvailability) {
+        if (typeof payload.moduleAvailability !== "object") {
+          throw new Error("moduleAvailability precisa ser um objeto.");
+        }
+
+        const allowedKeys = Object.keys(DEFAULT_CYCLE_MODULE_AVAILABILITY);
+        for (const [relationshipType, enabled] of Object.entries(payload.moduleAvailability)) {
+          if (!allowedKeys.includes(relationshipType)) {
+            throw new Error("Relacionamento de questionario invalido.");
+          }
+          nextModuleAvailability[relationshipType] = Boolean(enabled);
+        }
+      }
+
+      const connection = await pool.getConnection();
+      try {
+        await connection.beginTransaction();
+
+        await connection.query(
+          `UPDATE evaluation_cycles
+           SET is_enabled = ?, enabled_relationships_json = ?
+           WHERE id = ?`,
+          [nextIsEnabled ? 1 : 0, JSON.stringify(nextModuleAvailability), cycleId]
+        );
+
+        await insertAuditLog(connection, {
+          category: AUDIT_CATEGORIES.cycle,
+          action: "config_changed",
+          entityType: "cycle",
+          entityId: cycleId,
+          entityLabel: rows[0].title,
+          actorUser,
+          summary: `Configuracao do ciclo atualizada: ${rows[0].title}`,
+          detail: `Ativo: ${nextIsEnabled ? "sim" : "nao"} · Questionarios configurados`
+        });
+
+        await connection.commit();
+      } catch (error) {
+        await connection.rollback();
+        throw error;
+      } finally {
+        connection.release();
+      }
+
+      const [updatedRows] = await pool.query(
+        `SELECT c.id, c.template_id AS templateId, c.title, c.semester_label AS semesterLabel,
+                c.status, c.is_enabled AS isEnabled, c.enabled_relationships_json AS enabledRelationshipsJson,
+                c.due_date AS dueDate, c.target_group AS targetGroup,
+                c.library_id AS libraryId, c.library_name AS libraryName,
+                COALESCE(c.library_name, t.name) AS modelName, c.created_by_user_id AS createdByUserId
+         FROM evaluation_cycles c
+         JOIN evaluation_templates t ON t.id = c.template_id
+         WHERE c.id = ?
+         LIMIT 1`,
+        [cycleId]
+      );
+
+      return updatedRows[0]
+        ? { ...presentCycle(updatedRows[0]), supportsConfig: true }
+        : { ...presentCycle(rows[0]), supportsConfig: true };
+    },
     async getEvaluationAssignmentsForUser(userId) {
       const [rows] = await pool.query(
-        `SELECT a.id, a.cycle_id AS cycleId, a.reviewer_user_id AS reviewerUserId,
-                a.reviewee_person_id AS revieweePersonId, a.relationship_type AS relationshipType,
-                a.project_context AS projectContext, a.collaboration_context AS collaborationContext,
-                a.status, a.due_date AS dueDate, c.title AS cycleTitle, c.semester_label AS semesterLabel,
-                c.template_id AS templateId, c.status AS cycleStatus, c.library_id AS libraryId, c.library_name AS libraryName,
-                p.name AS revieweeName, p.area AS revieweeArea,
-                reviewer_person.name AS reviewerName, s.overall_score AS overallScore,
-                s.submitted_at AS submittedAt
-         FROM evaluation_assignments a
-         JOIN evaluation_cycles c ON c.id = a.cycle_id
-         JOIN people p ON p.id = a.reviewee_person_id
-         JOIN users reviewer_user ON reviewer_user.id = a.reviewer_user_id
-         JOIN people reviewer_person ON reviewer_person.id = reviewer_user.person_id
-         LEFT JOIN evaluation_submissions s ON s.assignment_id = a.id
-         WHERE a.reviewer_user_id = ?
-         ORDER BY a.due_date ASC`,
+        supportsCycleConfig
+          ? `SELECT a.id, a.cycle_id AS cycleId, a.reviewer_user_id AS reviewerUserId,
+                    a.reviewee_person_id AS revieweePersonId, a.relationship_type AS relationshipType,
+                    a.project_context AS projectContext, a.collaboration_context AS collaborationContext,
+                    a.status, a.due_date AS dueDate, c.title AS cycleTitle, c.semester_label AS semesterLabel,
+                    c.template_id AS templateId, c.status AS cycleStatus, c.is_enabled AS isEnabled, c.enabled_relationships_json AS enabledRelationshipsJson,
+                    c.library_id AS libraryId, c.library_name AS libraryName,
+                    p.name AS revieweeName, p.area AS revieweeArea,
+                    reviewer_person.name AS reviewerName, s.overall_score AS overallScore,
+                    s.submitted_at AS submittedAt
+             FROM evaluation_assignments a
+             JOIN evaluation_cycles c ON c.id = a.cycle_id
+             JOIN people p ON p.id = a.reviewee_person_id
+             JOIN users reviewer_user ON reviewer_user.id = a.reviewer_user_id
+             JOIN people reviewer_person ON reviewer_person.id = reviewer_user.person_id
+             LEFT JOIN evaluation_submissions s ON s.assignment_id = a.id
+             WHERE a.reviewer_user_id = ?
+             ORDER BY a.due_date ASC`
+          : `SELECT a.id, a.cycle_id AS cycleId, a.reviewer_user_id AS reviewerUserId,
+                    a.reviewee_person_id AS revieweePersonId, a.relationship_type AS relationshipType,
+                    a.project_context AS projectContext, a.collaboration_context AS collaborationContext,
+                    a.status, a.due_date AS dueDate, c.title AS cycleTitle, c.semester_label AS semesterLabel,
+                    c.template_id AS templateId, c.status AS cycleStatus,
+                    c.library_id AS libraryId, c.library_name AS libraryName,
+                    p.name AS revieweeName, p.area AS revieweeArea,
+                    reviewer_person.name AS reviewerName, s.overall_score AS overallScore,
+                    s.submitted_at AS submittedAt
+             FROM evaluation_assignments a
+             JOIN evaluation_cycles c ON c.id = a.cycle_id
+             JOIN people p ON p.id = a.reviewee_person_id
+             JOIN users reviewer_user ON reviewer_user.id = a.reviewer_user_id
+             JOIN people reviewer_person ON reviewer_person.id = reviewer_user.person_id
+             LEFT JOIN evaluation_submissions s ON s.assignment_id = a.id
+             WHERE a.reviewer_user_id = ?
+             ORDER BY a.due_date ASC`,
         [userId]
       );
-      return rows.map((row) => presentAssignment(row, customLibraryState.published));
+      return rows
+        .map((row) => presentAssignment(row, customLibraryState.published))
+        .filter((assignment) => isCycleRelationshipEnabled(assignment, assignment.relationshipType));
     },
     async getEvaluationAssignmentById(assignmentId, userId) {
       const [rows] = await pool.query(
-        `SELECT a.id, a.cycle_id AS cycleId, a.reviewer_user_id AS reviewerUserId,
-                a.reviewee_person_id AS revieweePersonId, a.relationship_type AS relationshipType,
-                a.project_context AS projectContext, a.collaboration_context AS collaborationContext,
-                a.status, a.due_date AS dueDate, c.title AS cycleTitle, c.semester_label AS semesterLabel,
-                c.template_id AS templateId, c.status AS cycleStatus, c.library_id AS libraryId, c.library_name AS libraryName,
-                p.name AS revieweeName, p.area AS revieweeArea
-         FROM evaluation_assignments a
-         JOIN evaluation_cycles c ON c.id = a.cycle_id
-         JOIN people p ON p.id = a.reviewee_person_id
-         WHERE a.id = ? AND a.reviewer_user_id = ?
-         LIMIT 1`,
+        supportsCycleConfig
+          ? `SELECT a.id, a.cycle_id AS cycleId, a.reviewer_user_id AS reviewerUserId,
+                    a.reviewee_person_id AS revieweePersonId, a.relationship_type AS relationshipType,
+                    a.project_context AS projectContext, a.collaboration_context AS collaborationContext,
+                    a.status, a.due_date AS dueDate, c.title AS cycleTitle, c.semester_label AS semesterLabel,
+                    c.template_id AS templateId, c.status AS cycleStatus, c.is_enabled AS isEnabled, c.enabled_relationships_json AS enabledRelationshipsJson,
+                    c.library_id AS libraryId, c.library_name AS libraryName,
+                    p.name AS revieweeName, p.area AS revieweeArea
+             FROM evaluation_assignments a
+             JOIN evaluation_cycles c ON c.id = a.cycle_id
+             JOIN people p ON p.id = a.reviewee_person_id
+             WHERE a.id = ? AND a.reviewer_user_id = ?
+             LIMIT 1`
+          : `SELECT a.id, a.cycle_id AS cycleId, a.reviewer_user_id AS reviewerUserId,
+                    a.reviewee_person_id AS revieweePersonId, a.relationship_type AS relationshipType,
+                    a.project_context AS projectContext, a.collaboration_context AS collaborationContext,
+                    a.status, a.due_date AS dueDate, c.title AS cycleTitle, c.semester_label AS semesterLabel,
+                    c.template_id AS templateId, c.status AS cycleStatus,
+                    c.library_id AS libraryId, c.library_name AS libraryName,
+                    p.name AS revieweeName, p.area AS revieweeArea
+             FROM evaluation_assignments a
+             JOIN evaluation_cycles c ON c.id = a.cycle_id
+             JOIN people p ON p.id = a.reviewee_person_id
+             WHERE a.id = ? AND a.reviewer_user_id = ?
+             LIMIT 1`,
         [assignmentId, userId]
       );
-      return rows[0] ? presentAssignment(rows[0], customLibraryState.published) : null;
+      const assignment = rows[0] ? presentAssignment(rows[0], customLibraryState.published) : null;
+      if (!assignment) {
+        return null;
+      }
+      if (!isCycleRelationshipEnabled(assignment, assignment.relationshipType)) {
+        return null;
+      }
+      return assignment;
     },
     async getEvaluationResponses(actorUser) {
       const responses = [
@@ -5049,6 +5387,22 @@ function buildMysqlStore(pool, customLibraryState, anonymousResponseState) {
         );
 
         if (payload.status === FEEDBACK_REQUEST_STATUS.approved) {
+          if (supportsCycleConfig) {
+            const [cycleConfigRows] = await connection.query(
+              `SELECT is_enabled AS isEnabled, enabled_relationships_json AS enabledRelationshipsJson
+               FROM evaluation_cycles
+               WHERE id = ?
+               LIMIT 1`,
+              [requestRows[0].cycleId]
+            );
+            if (!cycleConfigRows[0]) {
+              throw new Error("Ciclo de avaliacao nao encontrado.");
+            }
+            if (!isCycleRelationshipEnabled(cycleConfigRows[0], "peer")) {
+              throw new Error("Feedback direto esta desativado neste ciclo.");
+            }
+          }
+
           const users = await fetchUserRows(pool);
           for (const item of itemRows) {
             const reviewerUser = users.find(
@@ -5121,6 +5475,9 @@ function buildMysqlStore(pool, customLibraryState, anonymousResponseState) {
       }
       if (!isReleasedCycle(assignment.cycleStatus)) {
         throw new Error("As avaliacoes deste ciclo ainda nao foram liberadas pelo RH.");
+      }
+      if (!isCycleRelationshipEnabled(assignment, assignment.relationshipType)) {
+        throw new Error("Este questionario nao esta ativo neste ciclo.");
       }
 
       const templateDefinition = getTemplateDefinitionForCycle({
@@ -5851,5 +6208,8 @@ export async function createStore() {
     connectionLimit: 10
   });
 
-  return buildMysqlStore(pool, customLibraryState, anonymousResponseState);
+  const supportsCycleConfig = await detectMysqlCycleConfigSupport(pool);
+  return buildMysqlStore(pool, customLibraryState, anonymousResponseState, {
+    supportsCycleConfig
+  });
 }

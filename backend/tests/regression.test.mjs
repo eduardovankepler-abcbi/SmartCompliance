@@ -315,6 +315,47 @@ try {
   });
   assert.ok(managerSubmission.id, "Envio de feedback do lider deve gerar submission");
 
+  const toggleCycle = await store.createEvaluationCycle(
+    {
+      title: "Ciclo toggle",
+      semesterLabel: "2026.99",
+      dueDate: "2026-12-31",
+      targetGroup: "Todos os colaboradores",
+      createdByUserId: admin.id
+    },
+    admin
+  );
+  await store.updateEvaluationCycleStatus(toggleCycle.id, "Liberado", admin);
+
+  const employeeAssignmentsForToggle = await store.getEvaluationAssignmentsForUser(employee.id);
+  const selfAssignmentForToggle = employeeAssignmentsForToggle.find(
+    (assignment) => assignment.cycleId === toggleCycle.id && assignment.relationshipType === "self"
+  );
+  assert.ok(selfAssignmentForToggle, "Novo ciclo precisa gerar assignment de autoavaliacao");
+
+  await store.updateEvaluationCycleConfig(
+    toggleCycle.id,
+    { moduleAvailability: { self: false } },
+    admin
+  );
+
+  const employeeAssignmentsAfterToggle = await store.getEvaluationAssignmentsForUser(employee.id);
+  assert.equal(
+    employeeAssignmentsAfterToggle.some((assignment) => assignment.id === selfAssignmentForToggle.id),
+    false,
+    "Assignment desativado nao pode aparecer para o colaborador"
+  );
+
+  const selfDetailAfterToggle = await store.getEvaluationAssignmentById(
+    selfAssignmentForToggle.id,
+    employee.id
+  );
+  assert.equal(
+    selfDetailAfterToggle,
+    null,
+    "Assignment desativado nao deve carregar detalhe"
+  );
+
   const createdCycleStructure = await store.getEvaluationCycleParticipants(createdCycle.id);
   assert.ok(
     createdCycleStructure.participants.length > 0,

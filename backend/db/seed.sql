@@ -243,8 +243,8 @@ INSERT INTO evaluation_questions (
 ('q_company_23', 't1', 'final', 'Consideracoes Finais', 'Espaco final para autoavaliacao do periodo e sugestoes de melhoria para a empresa.', 'final-comments', 'Sugestoes gerais', 'Deixe aqui sua sugestao! Pode ser sobre cursos do seu interesse, melhorias nos processos das suas atividades, melhoria na comunicacao da empresa, etc.', 'Use este espaco para compartilhar ideias, opinioes ou propostas que possam contribuir para seu desenvolvimento, para a eficiencia do trabalho ou para melhorar o ambiente e a comunicacao na empresa.', 'text', NULL, 323, TRUE, FALSE)
 ON DUPLICATE KEY UPDATE prompt_text = VALUES(prompt_text), question_type = VALUES(question_type), options_json = VALUES(options_json);
 
-INSERT INTO evaluation_cycles (id, template_id, library_id, library_name, title, semester_label, status, due_date, target_group, created_by_user_id) VALUES
-('c1', 't1', 'library_standard_02_2026', 'Biblioteca padrao 02/2026', 'Ciclo Semestral 2026.1', '2026.1', 'Liberado', '2026-04-15', 'Todos os colaboradores', 'u6')
+INSERT INTO evaluation_cycles (id, template_id, library_id, library_name, title, semester_label, status, is_enabled, enabled_relationships_json, due_date, target_group, created_by_user_id) VALUES
+('c1', 't1', 'library_standard_02_2026', 'Biblioteca padrao 02/2026', 'Ciclo Semestral 2026.1', '2026.1', 'Liberado', TRUE, NULL, '2026-04-15', 'Todos os colaboradores', 'u6')
 ON DUPLICATE KEY UPDATE title = VALUES(title);
 
 INSERT INTO evaluation_assignments (id, cycle_id, reviewer_user_id, reviewee_person_id, relationship_type, project_context, collaboration_context, status, due_date) VALUES

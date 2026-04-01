@@ -33,9 +33,9 @@ export function createEvaluationsRouter(store) {
     }
   });
 
-  router.get("/cycles", async (_req, res, next) => {
+  router.get("/cycles", async (req, res, next) => {
     try {
-      res.json(await store.getEvaluationCycles());
+      res.json(await store.getEvaluationCycles(req.auth.user));
     } catch (error) {
       next(error);
     }
@@ -84,6 +84,31 @@ export function createEvaluationsRouter(store) {
         res
           .status(400)
           .json({ error: error.message || "Falha ao atualizar status do ciclo." });
+      }
+    }
+  );
+
+  router.patch(
+    "/cycles/:cycleId/config",
+    requireRoles("admin", "hr"),
+    async (req, res) => {
+      const { isEnabled, moduleAvailability } = req.body || {};
+
+      if (isEnabled === undefined && moduleAvailability === undefined) {
+        return badRequest(res, "Informe isEnabled e/ou moduleAvailability.");
+      }
+
+      try {
+        const cycle = await store.updateEvaluationCycleConfig(
+          req.params.cycleId,
+          { isEnabled, moduleAvailability },
+          req.auth.user
+        );
+        res.json(cycle);
+      } catch (error) {
+        res
+          .status(400)
+          .json({ error: error.message || "Falha ao configurar ciclo." });
       }
     }
   );

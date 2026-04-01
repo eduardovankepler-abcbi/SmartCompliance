@@ -4,6 +4,28 @@ import { parseAppHash } from "../appRoute";
 import { evaluationModules } from "../appConfig.js";
 import { validateEvaluationAnswerForm } from "./validation.js";
 
+const DEFAULT_CYCLE_MODULE_AVAILABILITY = Object.freeze({
+  self: true,
+  company: true,
+  leader: true,
+  manager: true,
+  peer: true,
+  "cross-functional": true,
+  "client-internal": true,
+  "client-external": true
+});
+
+function normalizeCycleModuleAvailability(value) {
+  if (!value || typeof value !== "object") {
+    return { ...DEFAULT_CYCLE_MODULE_AVAILABILITY };
+  }
+
+  return {
+    ...DEFAULT_CYCLE_MODULE_AVAILABILITY,
+    ...Object.fromEntries(Object.entries(value).map(([key, enabled]) => [key, Boolean(enabled)]))
+  };
+}
+
 function getInitialEvaluationRoute() {
   if (typeof window === "undefined") {
     return {
@@ -199,6 +221,14 @@ export function useEvaluations({
   );
   const individualResponses = responsesBundle?.individualResponses || [];
   const cycleAggregateResponses = responsesBundle?.cycleAggregateResponses || [];
+  const activeCycle = useMemo(
+    () => cycles.find((cycle) => cycle.id === activeEvaluationCycleId) || null,
+    [activeEvaluationCycleId, cycles]
+  );
+  const activeCycleModuleAvailability = useMemo(
+    () => normalizeCycleModuleAvailability(activeCycle?.moduleAvailability),
+    [activeCycle?.moduleAvailability]
+  );
 
   const feedbackRequestCycleOptions = useMemo(
     () => cycles.filter((cycle) => !["Encerrado", "Processado"].includes(cycle.status)),
@@ -219,13 +249,35 @@ export function useEvaluations({
     [people, user]
   );
 
-  const visibleEvaluationModules = useMemo(
-    () =>
-      canViewEvaluationInsights
-        ? evaluationModules
-        : evaluationModules.filter((module) => module.relationshipType),
-    [canViewEvaluationInsights]
-  );
+  const visibleEvaluationModules = useMemo(() => {
+    const base = canViewEvaluationInsights
+      ? evaluationModules
+      : evaluationModules.filter((module) => module.relationshipType);
+
+    if (activeEvaluationWorkspace === "operations" && canViewEvaluationOperations) {
+      return base;
+    }
+
+    if (!activeCycle) {
+      return base;
+    }
+
+    if (activeCycle.isEnabled === false) {
+      return [];
+    }
+
+    return base.filter(
+      (module) =>
+        !module.relationshipType ||
+        activeCycleModuleAvailability[module.relationshipType] !== false
+    );
+  }, [
+    activeCycle,
+    activeCycleModuleAvailability,
+    activeEvaluationWorkspace,
+    canViewEvaluationInsights,
+    canViewEvaluationOperations
+  ]);
 
   const evaluationModuleOptions = useMemo(
     () =>
@@ -611,6 +663,26 @@ export function useEvaluations({
     }
   }
 
+  async function handleCycleConfigUpdate(cycleId, payload) {
+    try {
+      setError("");
+      await api.updateEvaluationCycleConfig(cycleId, payload);
+      await reloadData();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function handleCycleEnabledToggle(cycleId, isEnabled) {
+    await handleCycleConfigUpdate(cycleId, { isEnabled });
+  }
+
+  async function handleCycleModuleToggle(cycleId, relationshipType, enabled) {
+    await handleCycleConfigUpdate(cycleId, {
+      moduleAvailability: { [relationshipType]: enabled }
+    });
+  }
+
   async function handleAssignmentSubmit(event) {
     event.preventDefault();
 
@@ -737,6 +809,8 @@ export function useEvaluations({
     handleCustomLibraryTemplateDownload,
     handleCustomLibraryPublish,
     handleCycleStatusChange,
+    handleCycleEnabledToggle,
+    handleCycleModuleToggle,
     handleCycleSubmit,
     handleFeedbackProviderToggle,
     handleFeedbackRequestReview,

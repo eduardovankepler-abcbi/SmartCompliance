@@ -69,6 +69,10 @@ Antes de usar o backend publicado com `mysql`, execute:
 1. `backend/db/schema.sql`
 2. `backend/db/seed.sql`
 
+Se voce ja tem um banco existente (tabelas ja criadas) e atualizou o codigo, aplique tambem:
+
+- `backend/db/migrations/2026-04-01-evaluation-cycle-config.sql` (switches de ciclo + questionarios)
+
 Voce pode fazer isso:
 
 - por um cliente MySQL local
