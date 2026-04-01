@@ -86,6 +86,9 @@ function normalizeScaleProfile(value, relationshipType) {
   if (VALID_SCALE_PROFILES.includes(normalized)) {
     return normalized;
   }
+  if (relationshipType === "manager") {
+    return "performance";
+  }
   return relationshipType === "peer" ||
     relationshipType === "manager" ||
     relationshipType === "cross-functional" ||

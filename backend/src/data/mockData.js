@@ -19,9 +19,18 @@ export const agreementScale = [
   { value: 1, label: "Discordo totalmente" }
 ];
 
+export const performanceScale = [
+  { value: 1, label: "Muito abaixo do esperado" },
+  { value: 2, label: "Abaixo do esperado" },
+  { value: 3, label: "Dentro do esperado" },
+  { value: 4, label: "Acima do esperado" },
+  { value: 5, label: "Muito acima do esperado" }
+];
+
 export const evaluationScaleProfiles = {
   satisfaction: satisfactionScale,
-  agreement: agreementScale
+  agreement: agreementScale,
+  performance: performanceScale
 };
 
 function createScaleQuestion({
@@ -537,8 +546,477 @@ export const evaluationLibrary = {
         })
       ]
     },
-    leader: {
+    manager: {
       id: "t3",
+      key: "manager",
+      modelName: "Feedback do lider sobre o colaborador",
+      description:
+        "Questionario padrao para avaliacao gerencial do colaborador, com foco em desempenho, potencial e desenvolvimento.",
+      policy: {
+        strategy: "standard-library",
+        managerCustomQuestionsLimit: 0,
+        scale: performanceScale,
+        confidentiality: "private-to-employee-and-manager",
+        showStrengthsNote: false,
+        showDevelopmentNote: false
+      },
+      questions: [
+        createScaleQuestion({
+          id: "q_manager_01",
+          sectionKey: "results",
+          sectionTitle: "Resultados",
+          sectionDescription:
+            "Avalie consistencia de entrega, qualidade e responsabilizacao pelos resultados.",
+          dimensionKey: "results",
+          dimensionTitle: "Cumprimento de prazos",
+          prompt: "Cumpre prazos e entregas com consistencia",
+          sortOrder: 1,
+          visibility: "private",
+          scaleProfile: "performance"
+        }),
+        createScaleQuestion({
+          id: "q_manager_02",
+          sectionKey: "results",
+          sectionTitle: "Resultados",
+          sectionDescription:
+            "Avalie consistencia de entrega, qualidade e responsabilizacao pelos resultados.",
+          dimensionKey: "results",
+          dimensionTitle: "Qualidade das entregas",
+          prompt: "Entrega trabalho com qualidade adequada",
+          sortOrder: 2,
+          visibility: "private",
+          scaleProfile: "performance"
+        }),
+        createScaleQuestion({
+          id: "q_manager_03",
+          sectionKey: "results",
+          sectionTitle: "Resultados",
+          sectionDescription:
+            "Avalie consistencia de entrega, qualidade e responsabilizacao pelos resultados.",
+          dimensionKey: "results",
+          dimensionTitle: "Responsabilidade pelos resultados",
+          prompt: "Assume responsabilidade pelos resultados",
+          sortOrder: 3,
+          visibility: "private",
+          scaleProfile: "performance"
+        }),
+        createScaleQuestion({
+          id: "q_manager_04",
+          sectionKey: "teamwork",
+          sectionTitle: "Trabalho em equipe",
+          sectionDescription:
+            "Considere colaboracao, convivencia profissional e contribuicao para o ambiente da equipe.",
+          dimensionKey: "teamwork",
+          dimensionTitle: "Colaboracao com a equipe",
+          prompt: "Colabora de forma efetiva com a equipe",
+          sortOrder: 4,
+          visibility: "private",
+          scaleProfile: "performance"
+        }),
+        createScaleQuestion({
+          id: "q_manager_05",
+          sectionKey: "teamwork",
+          sectionTitle: "Trabalho em equipe",
+          sectionDescription:
+            "Considere colaboracao, convivencia profissional e contribuicao para o ambiente da equipe.",
+          dimensionKey: "teamwork",
+          dimensionTitle: "Respeito e ambiente positivo",
+          prompt: "Demonstra respeito e contribui para um ambiente positivo",
+          sortOrder: 5,
+          visibility: "private",
+          scaleProfile: "performance"
+        }),
+        createScaleQuestion({
+          id: "q_manager_06",
+          sectionKey: "communication",
+          sectionTitle: "Comunicacao",
+          sectionDescription:
+            "Avalie clareza, objetividade e transparencia do colaborador na comunicacao do trabalho.",
+          dimensionKey: "communication",
+          dimensionTitle: "Comunicacao clara",
+          prompt: "Comunica-se de forma clara e objetiva",
+          sortOrder: 6,
+          visibility: "private",
+          scaleProfile: "performance"
+        }),
+        createScaleQuestion({
+          id: "q_manager_07",
+          sectionKey: "communication",
+          sectionTitle: "Comunicacao",
+          sectionDescription:
+            "Avalie clareza, objetividade e transparencia do colaborador na comunicacao do trabalho.",
+          dimensionKey: "communication",
+          dimensionTitle: "Alinhamento com o gestor",
+          prompt: "Mantem o gestor informado sobre o andamento das atividades",
+          sortOrder: 7,
+          visibility: "private",
+          scaleProfile: "performance"
+        }),
+        createScaleQuestion({
+          id: "q_manager_08",
+          sectionKey: "proactivity",
+          sectionTitle: "Proatividade",
+          sectionDescription:
+            "Considere iniciativa, autonomia e contribuicao do colaborador diante de desafios.",
+          dimensionKey: "proactivity",
+          dimensionTitle: "Resolucao de problemas",
+          prompt: "Demonstra iniciativa na resolucao de problemas",
+          sortOrder: 8,
+          visibility: "private",
+          scaleProfile: "performance"
+        }),
+        createScaleQuestion({
+          id: "q_manager_09",
+          sectionKey: "proactivity",
+          sectionTitle: "Proatividade",
+          sectionDescription:
+            "Considere iniciativa, autonomia e contribuicao do colaborador diante de desafios.",
+          dimensionKey: "proactivity",
+          dimensionTitle: "Melhorias e novas ideias",
+          prompt: "Propoe melhorias e novas ideias",
+          sortOrder: 9,
+          visibility: "private",
+          scaleProfile: "performance"
+        }),
+        createScaleQuestion({
+          id: "q_manager_10",
+          sectionKey: "organization",
+          sectionTitle: "Organizacao",
+          sectionDescription:
+            "Avalie capacidade de planejamento, priorizacao e tratamento de volume de trabalho.",
+          dimensionKey: "organization",
+          dimensionTitle: "Organizacao de tarefas",
+          prompt: "Organiza bem suas tarefas e prioridades",
+          sortOrder: 10,
+          visibility: "private",
+          scaleProfile: "performance"
+        }),
+        createScaleQuestion({
+          id: "q_manager_11",
+          sectionKey: "organization",
+          sectionTitle: "Organizacao",
+          sectionDescription:
+            "Avalie capacidade de planejamento, priorizacao e tratamento de volume de trabalho.",
+          dimensionKey: "organization",
+          dimensionTitle: "Multiplas demandas",
+          prompt: "Consegue lidar com multiplas demandas",
+          sortOrder: 11,
+          visibility: "private",
+          scaleProfile: "performance"
+        }),
+        createScaleQuestion({
+          id: "q_manager_12",
+          sectionKey: "technical-capability",
+          sectionTitle: "Capacidade tecnica",
+          sectionDescription:
+            "Considere dominio tecnico, autonomia e resolucao de problemas na funcao atual.",
+          dimensionKey: "technical-capability",
+          dimensionTitle: "Conhecimento tecnico",
+          prompt: "Possui conhecimento tecnico adequado para a funcao",
+          sortOrder: 12,
+          visibility: "private",
+          scaleProfile: "performance"
+        }),
+        createScaleQuestion({
+          id: "q_manager_13",
+          sectionKey: "technical-capability",
+          sectionTitle: "Capacidade tecnica",
+          sectionDescription:
+            "Considere dominio tecnico, autonomia e resolucao de problemas na funcao atual.",
+          dimensionKey: "technical-capability",
+          dimensionTitle: "Autonomia tecnica",
+          prompt: "Resolve problemas com autonomia",
+          sortOrder: 13,
+          visibility: "private",
+          scaleProfile: "performance"
+        }),
+        createScaleQuestion({
+          id: "q_manager_14",
+          sectionKey: "business-focus",
+          sectionTitle: "Foco no negocio",
+          sectionDescription:
+            "Avalie entendimento do contexto de negocio e priorizacao do que gera mais valor.",
+          dimensionKey: "business-focus",
+          dimensionTitle: "Impacto no negocio",
+          prompt: "Entende o impacto do seu trabalho no negocio",
+          sortOrder: 14,
+          visibility: "private",
+          scaleProfile: "performance"
+        }),
+        createScaleQuestion({
+          id: "q_manager_15",
+          sectionKey: "business-focus",
+          sectionTitle: "Foco no negocio",
+          sectionDescription:
+            "Avalie entendimento do contexto de negocio e priorizacao do que gera mais valor.",
+          dimensionKey: "business-focus",
+          dimensionTitle: "Prioridade de valor",
+          prompt: "Prioriza atividades de maior valor",
+          sortOrder: 15,
+          visibility: "private",
+          scaleProfile: "performance"
+        }),
+        createScaleQuestion({
+          id: "q_manager_16",
+          sectionKey: "overall",
+          sectionTitle: "Avaliacao geral",
+          sectionDescription:
+            "Registre a leitura geral do desempenho atual e do potencial de crescimento do colaborador.",
+          dimensionKey: "overall",
+          dimensionTitle: "Desempenho geral",
+          prompt: "Desempenho geral do colaborador",
+          sortOrder: 16,
+          visibility: "private",
+          scaleProfile: "performance"
+        }),
+        createScaleQuestion({
+          id: "q_manager_17",
+          sectionKey: "overall",
+          sectionTitle: "Avaliacao geral",
+          sectionDescription:
+            "Registre a leitura geral do desempenho atual e do potencial de crescimento do colaborador.",
+          dimensionKey: "overall",
+          dimensionTitle: "Potencial de crescimento",
+          prompt: "Potencial de crescimento",
+          sortOrder: 17,
+          visibility: "private",
+          scaleProfile: "performance"
+        }),
+        createTextQuestion({
+          id: "q_manager_18",
+          sectionKey: "open-feedback",
+          sectionTitle: "Perguntas abertas",
+          sectionDescription:
+            "Registre uma leitura qualitativa para orientar a devolutiva e o desenvolvimento do colaborador.",
+          dimensionKey: "open-feedback",
+          dimensionTitle: "Pontos fortes",
+          prompt: "Quais sao os principais pontos fortes do colaborador?",
+          sortOrder: 18,
+          visibility: "private"
+        }),
+        createTextQuestion({
+          id: "q_manager_19",
+          sectionKey: "open-feedback",
+          sectionTitle: "Perguntas abertas",
+          sectionDescription:
+            "Registre uma leitura qualitativa para orientar a devolutiva e o desenvolvimento do colaborador.",
+          dimensionKey: "open-feedback",
+          dimensionTitle: "Pontos de melhoria",
+          prompt: "Quais sao os principais pontos de melhoria?",
+          sortOrder: 19,
+          visibility: "private"
+        }),
+        createTextQuestion({
+          id: "q_manager_20",
+          sectionKey: "open-feedback",
+          sectionTitle: "Perguntas abertas",
+          sectionDescription:
+            "Registre uma leitura qualitativa para orientar a devolutiva e o desenvolvimento do colaborador.",
+          dimensionKey: "open-feedback",
+          dimensionTitle: "Recomendacao de desenvolvimento",
+          prompt: "Que tipo de desenvolvimento voce recomenda?",
+          sortOrder: 20,
+          visibility: "private"
+        })
+      ]
+    },
+    "cross-functional": {
+      id: "t3b",
+      key: "cross-functional",
+      modelName: "Feedback indireto organizacional",
+      description:
+        "Questionario enxuto para percepcao indireta entre areas, com foco em colaboracao, postura, cultura e sinais observaveis no ambiente organizacional.",
+      policy: {
+        strategy: "standard-library",
+        managerCustomQuestionsLimit: 0,
+        scale: satisfactionScale,
+        confidentiality: "anonymous-aggregate",
+        showStrengthsNote: false,
+        showDevelopmentNote: false
+      },
+      questions: [
+        createScaleQuestion({
+          id: "q_cross_01",
+          sectionKey: "organizational-collaboration",
+          sectionTitle: "Colaboracao organizacional",
+          sectionDescription:
+            "Considere apenas o que e perceptivel na convivencia organizacional e nas interacoes entre times.",
+          dimensionKey: "organizational-collaboration",
+          dimensionTitle: "Disposicao para colaborar",
+          prompt: "Demonstra disposicao para colaborar quando necessario",
+          sortOrder: 1,
+          visibility: "confidential",
+          scaleProfile: "satisfaction"
+        }),
+        createScaleQuestion({
+          id: "q_cross_02",
+          sectionKey: "organizational-collaboration",
+          sectionTitle: "Colaboracao organizacional",
+          sectionDescription:
+            "Considere apenas o que e perceptivel na convivencia organizacional e nas interacoes entre times.",
+          dimensionKey: "organizational-collaboration",
+          dimensionTitle: "Acessibilidade entre times",
+          prompt: "E acessivel e aberto a interacoes com outros times",
+          sortOrder: 2,
+          visibility: "confidential",
+          scaleProfile: "satisfaction"
+        }),
+        createScaleQuestion({
+          id: "q_cross_03",
+          sectionKey: "communication",
+          sectionTitle: "Comunicacao",
+          sectionDescription:
+            "Avalie apenas sinais observaveis em reunioes, chats e interacoes compartilhadas.",
+          dimensionKey: "communication",
+          dimensionTitle: "Clareza em ambientes compartilhados",
+          prompt: "Comunica-se de forma clara em ambientes compartilhados (reunioes, chats, etc.)",
+          sortOrder: 3,
+          visibility: "confidential",
+          scaleProfile: "satisfaction"
+        }),
+        createScaleQuestion({
+          id: "q_cross_04",
+          sectionKey: "communication",
+          sectionTitle: "Comunicacao",
+          sectionDescription:
+            "Avalie apenas sinais observaveis em reunioes, chats e interacoes compartilhadas.",
+          dimensionKey: "communication",
+          dimensionTitle: "Respeito na comunicacao",
+          prompt: "Demonstra respeito na comunicacao com outros",
+          sortOrder: 4,
+          visibility: "confidential",
+          scaleProfile: "satisfaction"
+        }),
+        createScaleQuestion({
+          id: "q_cross_05",
+          sectionKey: "professional-posture",
+          sectionTitle: "Postura profissional",
+          sectionDescription:
+            "Considere o comportamento percebido no ambiente profissional e institucional.",
+          dimensionKey: "professional-posture",
+          dimensionTitle: "Comportamento profissional",
+          prompt: "Demonstra comportamento profissional adequado",
+          sortOrder: 5,
+          visibility: "confidential",
+          scaleProfile: "satisfaction"
+        }),
+        createScaleQuestion({
+          id: "q_cross_06",
+          sectionKey: "professional-posture",
+          sectionTitle: "Postura profissional",
+          sectionDescription:
+            "Considere o comportamento percebido no ambiente profissional e institucional.",
+          dimensionKey: "professional-posture",
+          dimensionTitle: "Etica e respeito",
+          prompt: "Age com etica e respeito no ambiente de trabalho",
+          sortOrder: 6,
+          visibility: "confidential",
+          scaleProfile: "satisfaction"
+        }),
+        createScaleQuestion({
+          id: "q_cross_07",
+          sectionKey: "culture",
+          sectionTitle: "Atitude e cultura",
+          sectionDescription:
+            "Observe a contribuicao geral para o clima e para a cultura da organizacao.",
+          dimensionKey: "culture",
+          dimensionTitle: "Ambiente positivo",
+          prompt: "Contribui para um ambiente de trabalho positivo",
+          sortOrder: 7,
+          visibility: "confidential",
+          scaleProfile: "satisfaction"
+        }),
+        createScaleQuestion({
+          id: "q_cross_08",
+          sectionKey: "culture",
+          sectionTitle: "Atitude e cultura",
+          sectionDescription:
+            "Observe a contribuicao geral para o clima e para a cultura da organizacao.",
+          dimensionKey: "culture",
+          dimensionTitle: "Atitude colaborativa organizacional",
+          prompt: "Demonstra atitude colaborativa com a organizacao como um todo",
+          sortOrder: 8,
+          visibility: "confidential",
+          scaleProfile: "satisfaction"
+        }),
+        createScaleQuestion({
+          id: "q_cross_09",
+          sectionKey: "visible-proactivity",
+          sectionTitle: "Proatividade perceptivel",
+          sectionDescription:
+            "Considere apenas iniciativas observaveis em interacoes institucionais ou entre areas.",
+          dimensionKey: "visible-proactivity",
+          dimensionTitle: "Iniciativa observavel",
+          prompt: "Demonstra iniciativa em interacoes organizacionais (reunioes, discussoes, etc.)",
+          sortOrder: 9,
+          visibility: "confidential",
+          scaleProfile: "satisfaction"
+        }),
+        createScaleQuestion({
+          id: "q_cross_10",
+          sectionKey: "visible-proactivity",
+          sectionTitle: "Proatividade perceptivel",
+          sectionDescription:
+            "Considere apenas iniciativas observaveis em interacoes institucionais ou entre areas.",
+          dimensionKey: "visible-proactivity",
+          dimensionTitle: "Engajamento perceptivel",
+          prompt: "Parece engajado com o trabalho e com a empresa",
+          sortOrder: 10,
+          visibility: "confidential",
+          scaleProfile: "satisfaction"
+        }),
+        createTextQuestion({
+          id: "q_cross_11",
+          sectionKey: "open-feedback",
+          sectionTitle: "Perguntas abertas",
+          sectionDescription:
+            "Use este espaco com base apenas na sua percepcao geral e em sinais observados no contexto organizacional.",
+          dimensionKey: "open-feedback",
+          dimensionTitle: "Pontos fortes percebidos",
+          prompt: "Com base na sua percepcao geral, quais sao os principais pontos fortes deste colaborador?",
+          sortOrder: 11,
+          visibility: "confidential"
+        }),
+        createTextQuestion({
+          id: "q_cross_12",
+          sectionKey: "open-feedback",
+          sectionTitle: "Perguntas abertas",
+          sectionDescription:
+            "Use este espaco com base apenas na sua percepcao geral e em sinais observados no contexto organizacional.",
+          dimensionKey: "open-feedback",
+          dimensionTitle: "Comportamentos a melhorar",
+          prompt: "Ha algum comportamento que poderia ser melhorado?",
+          sortOrder: 12,
+          visibility: "confidential"
+        }),
+        createTextQuestion({
+          id: "q_cross_13",
+          sectionKey: "open-feedback",
+          sectionTitle: "Perguntas abertas",
+          sectionDescription:
+            "Use este espaco com base apenas na sua percepcao geral e em sinais observados no contexto organizacional.",
+          dimensionKey: "open-feedback",
+          dimensionTitle: "Conforto de trabalho direto",
+          prompt: "Voce se sentiria confortavel trabalhando diretamente com essa pessoa? Por que?",
+          sortOrder: 13,
+          visibility: "confidential"
+        }),
+        createTextQuestion({
+          id: "q_cross_14",
+          sectionKey: "open-feedback",
+          sectionTitle: "Perguntas abertas",
+          sectionDescription:
+            "Use este espaco com base apenas na sua percepcao geral e em sinais observados no contexto organizacional.",
+          dimensionKey: "open-feedback",
+          dimensionTitle: "Destaque positivo",
+          prompt: "Existe algo positivo que voce observou e que merece destaque?",
+          sortOrder: 14,
+          visibility: "confidential"
+        })
+      ]
+    },
+    leader: {
+      id: "t4",
       key: "leader",
       modelName: "Avaliacao de lideres 02/2026",
       description:
@@ -860,7 +1338,7 @@ export const evaluationLibrary = {
       ]
     },
     company: {
-      id: "t4",
+      id: "t5",
       key: "company",
       modelName: "Avaliacao de satisfacao 02/2026",
       description:

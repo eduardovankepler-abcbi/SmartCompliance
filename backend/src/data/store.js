@@ -872,6 +872,12 @@ function resolveTemplateKey(relationshipType) {
   if (relationshipType === "self") {
     return "self";
   }
+  if (relationshipType === "manager") {
+    return "manager";
+  }
+  if (relationshipType === "cross-functional") {
+    return "cross-functional";
+  }
   if (relationshipType === "leader") {
     return "leader";
   }

@@ -64,6 +64,32 @@ INSERT INTO evaluation_templates (id, name, description, manager_custom_question
     JSON_OBJECT('value', 4, 'label', 'Satisfeito'),
     JSON_OBJECT('value', 5, 'label', 'Muito satisfeito')
   )
+),
+(
+  't_manager',
+  'Feedback do lider sobre o colaborador',
+  'Questionario padrao para avaliacao gerencial do colaborador, com foco em desempenho, potencial e desenvolvimento.',
+  0,
+  JSON_ARRAY(
+    JSON_OBJECT('value', 1, 'label', 'Muito abaixo do esperado'),
+    JSON_OBJECT('value', 2, 'label', 'Abaixo do esperado'),
+    JSON_OBJECT('value', 3, 'label', 'Dentro do esperado'),
+    JSON_OBJECT('value', 4, 'label', 'Acima do esperado'),
+    JSON_OBJECT('value', 5, 'label', 'Muito acima do esperado')
+  )
+),
+(
+  't_cross',
+  'Feedback indireto organizacional',
+  'Questionario enxuto para percepcao indireta entre areas, com foco em colaboracao, postura, cultura e sinais observaveis no ambiente organizacional.',
+  0,
+  JSON_ARRAY(
+    JSON_OBJECT('value', 1, 'label', 'Muito insatisfeito'),
+    JSON_OBJECT('value', 2, 'label', 'Insatisfeito'),
+    JSON_OBJECT('value', 3, 'label', 'Parcialmente satisfeito'),
+    JSON_OBJECT('value', 4, 'label', 'Satisfeito'),
+    JSON_OBJECT('value', 5, 'label', 'Muito satisfeito')
+  )
 )
 ON DUPLICATE KEY UPDATE name = VALUES(name);
 
@@ -113,6 +139,52 @@ INSERT INTO evaluation_questions (
 ('q_self_19', 't1', 'growth', 'Potencial e Crescimento', 'Considere sua iniciativa, interesse em assumir novas responsabilidades, oportunidades de desenvolvimento e autonomia no trabalho.', 'initiative', 'Iniciativa para melhorias', '19) Demonstro iniciativa para propor melhorias ou solucoes inovadoras em meu trabalho.', 'Avalie se voce sugere ideias ou melhorias para processos ou resultados.', 'scale', NULL, 119, TRUE, FALSE),
 ('q_self_20', 't1', 'growth', 'Potencial e Crescimento', 'Considere sua iniciativa, interesse em assumir novas responsabilidades, oportunidades de desenvolvimento e autonomia no trabalho.', 'autonomy', 'Autonomia no dia a dia', '20) Sinto-me capaz de lidar de forma autonoma com minhas atividades e decisoes diarias.', 'Reflita sobre sua capacidade de atuar de forma independente, mantendo resultados satisfatorios.', 'scale', NULL, 120, TRUE, FALSE),
 ('q_self_21', 't1', 'final', 'Consideracoes Finais', 'Espaco para voce registrar comentarios, feedbacks ou sugestoes adicionais que considere importantes.', 'final-comments', 'Sugestoes e observacoes', 'Escreva aqui suas sugestoes, ideias de melhoria, observacoes sobre processos, comunicacao, recursos, desenvolvimento da equipe, lideranca ou qualquer outro ponto relevante para aprimorar seu trabalho, sua equipe ou a empresa.', '', 'text', NULL, 121, TRUE, FALSE)
+ON DUPLICATE KEY UPDATE prompt_text = VALUES(prompt_text), question_type = VALUES(question_type);
+
+INSERT INTO evaluation_questions (
+  id, template_id, section_key, section_title, section_description, dimension_key, dimension_title,
+  prompt_text, helper_text, question_type, options_json, sort_order, is_required, collect_evidence_on_extreme
+) VALUES
+('q_manager_01', 't_manager', 'results', 'Resultados', 'Avalie consistencia de entrega, qualidade e responsabilizacao pelos resultados.', 'results', 'Cumprimento de prazos', 'Cumpre prazos e entregas com consistencia', '', 'scale', NULL, 181, TRUE, FALSE),
+('q_manager_02', 't_manager', 'results', 'Resultados', 'Avalie consistencia de entrega, qualidade e responsabilizacao pelos resultados.', 'results', 'Qualidade das entregas', 'Entrega trabalho com qualidade adequada', '', 'scale', NULL, 182, TRUE, FALSE),
+('q_manager_03', 't_manager', 'results', 'Resultados', 'Avalie consistencia de entrega, qualidade e responsabilizacao pelos resultados.', 'results', 'Responsabilidade pelos resultados', 'Assume responsabilidade pelos resultados', '', 'scale', NULL, 183, TRUE, FALSE),
+('q_manager_04', 't_manager', 'teamwork', 'Trabalho em equipe', 'Considere colaboracao, convivencia profissional e contribuicao para o ambiente da equipe.', 'teamwork', 'Colaboracao com a equipe', 'Colabora de forma efetiva com a equipe', '', 'scale', NULL, 184, TRUE, FALSE),
+('q_manager_05', 't_manager', 'teamwork', 'Trabalho em equipe', 'Considere colaboracao, convivencia profissional e contribuicao para o ambiente da equipe.', 'teamwork', 'Respeito e ambiente positivo', 'Demonstra respeito e contribui para um ambiente positivo', '', 'scale', NULL, 185, TRUE, FALSE),
+('q_manager_06', 't_manager', 'communication', 'Comunicacao', 'Avalie clareza, objetividade e transparencia do colaborador na comunicacao do trabalho.', 'communication', 'Comunicacao clara', 'Comunica-se de forma clara e objetiva', '', 'scale', NULL, 186, TRUE, FALSE),
+('q_manager_07', 't_manager', 'communication', 'Comunicacao', 'Avalie clareza, objetividade e transparencia do colaborador na comunicacao do trabalho.', 'communication', 'Alinhamento com o gestor', 'Mantem o gestor informado sobre o andamento das atividades', '', 'scale', NULL, 187, TRUE, FALSE),
+('q_manager_08', 't_manager', 'proactivity', 'Proatividade', 'Considere iniciativa, autonomia e contribuicao do colaborador diante de desafios.', 'proactivity', 'Resolucao de problemas', 'Demonstra iniciativa na resolucao de problemas', '', 'scale', NULL, 188, TRUE, FALSE),
+('q_manager_09', 't_manager', 'proactivity', 'Proatividade', 'Considere iniciativa, autonomia e contribuicao do colaborador diante de desafios.', 'proactivity', 'Melhorias e novas ideias', 'Propoe melhorias e novas ideias', '', 'scale', NULL, 189, TRUE, FALSE),
+('q_manager_10', 't_manager', 'organization', 'Organizacao', 'Avalie capacidade de planejamento, priorizacao e tratamento de volume de trabalho.', 'organization', 'Organizacao de tarefas', 'Organiza bem suas tarefas e prioridades', '', 'scale', NULL, 190, TRUE, FALSE),
+('q_manager_11', 't_manager', 'organization', 'Organizacao', 'Avalie capacidade de planejamento, priorizacao e tratamento de volume de trabalho.', 'organization', 'Multiplas demandas', 'Consegue lidar com multiplas demandas', '', 'scale', NULL, 191, TRUE, FALSE),
+('q_manager_12', 't_manager', 'technical-capability', 'Capacidade tecnica', 'Considere dominio tecnico, autonomia e resolucao de problemas na funcao atual.', 'technical-capability', 'Conhecimento tecnico', 'Possui conhecimento tecnico adequado para a funcao', '', 'scale', NULL, 192, TRUE, FALSE),
+('q_manager_13', 't_manager', 'technical-capability', 'Capacidade tecnica', 'Considere dominio tecnico, autonomia e resolucao de problemas na funcao atual.', 'technical-capability', 'Autonomia tecnica', 'Resolve problemas com autonomia', '', 'scale', NULL, 193, TRUE, FALSE),
+('q_manager_14', 't_manager', 'business-focus', 'Foco no negocio', 'Avalie entendimento do contexto de negocio e priorizacao do que gera mais valor.', 'business-focus', 'Impacto no negocio', 'Entende o impacto do seu trabalho no negocio', '', 'scale', NULL, 194, TRUE, FALSE),
+('q_manager_15', 't_manager', 'business-focus', 'Foco no negocio', 'Avalie entendimento do contexto de negocio e priorizacao do que gera mais valor.', 'business-focus', 'Prioridade de valor', 'Prioriza atividades de maior valor', '', 'scale', NULL, 195, TRUE, FALSE),
+('q_manager_16', 't_manager', 'overall', 'Avaliacao geral', 'Registre a leitura geral do desempenho atual e do potencial de crescimento do colaborador.', 'overall', 'Desempenho geral', 'Desempenho geral do colaborador', '', 'scale', NULL, 196, TRUE, FALSE),
+('q_manager_17', 't_manager', 'overall', 'Avaliacao geral', 'Registre a leitura geral do desempenho atual e do potencial de crescimento do colaborador.', 'overall', 'Potencial de crescimento', 'Potencial de crescimento', '', 'scale', NULL, 197, TRUE, FALSE),
+('q_manager_18', 't_manager', 'open-feedback', 'Perguntas abertas', 'Registre uma leitura qualitativa para orientar a devolutiva e o desenvolvimento do colaborador.', 'open-feedback', 'Pontos fortes', 'Quais sao os principais pontos fortes do colaborador?', '', 'text', NULL, 198, TRUE, FALSE),
+('q_manager_19', 't_manager', 'open-feedback', 'Perguntas abertas', 'Registre uma leitura qualitativa para orientar a devolutiva e o desenvolvimento do colaborador.', 'open-feedback', 'Pontos de melhoria', 'Quais sao os principais pontos de melhoria?', '', 'text', NULL, 199, TRUE, FALSE),
+('q_manager_20', 't_manager', 'open-feedback', 'Perguntas abertas', 'Registre uma leitura qualitativa para orientar a devolutiva e o desenvolvimento do colaborador.', 'open-feedback', 'Recomendacao de desenvolvimento', 'Que tipo de desenvolvimento voce recomenda?', '', 'text', NULL, 200, TRUE, FALSE)
+ON DUPLICATE KEY UPDATE prompt_text = VALUES(prompt_text), question_type = VALUES(question_type);
+
+INSERT INTO evaluation_questions (
+  id, template_id, section_key, section_title, section_description, dimension_key, dimension_title,
+  prompt_text, helper_text, question_type, options_json, sort_order, is_required, collect_evidence_on_extreme
+) VALUES
+('q_cross_01', 't_cross', 'organizational-collaboration', 'Colaboracao organizacional', 'Considere apenas o que e perceptivel na convivencia organizacional e nas interacoes entre times.', 'organizational-collaboration', 'Disposicao para colaborar', 'Demonstra disposicao para colaborar quando necessario', '', 'scale', NULL, 231, TRUE, FALSE),
+('q_cross_02', 't_cross', 'organizational-collaboration', 'Colaboracao organizacional', 'Considere apenas o que e perceptivel na convivencia organizacional e nas interacoes entre times.', 'organizational-collaboration', 'Acessibilidade entre times', 'E acessivel e aberto a interacoes com outros times', '', 'scale', NULL, 232, TRUE, FALSE),
+('q_cross_03', 't_cross', 'communication', 'Comunicacao', 'Avalie apenas sinais observaveis em reunioes, chats e interacoes compartilhadas.', 'communication', 'Clareza em ambientes compartilhados', 'Comunica-se de forma clara em ambientes compartilhados (reunioes, chats, etc.)', '', 'scale', NULL, 233, TRUE, FALSE),
+('q_cross_04', 't_cross', 'communication', 'Comunicacao', 'Avalie apenas sinais observaveis em reunioes, chats e interacoes compartilhadas.', 'communication', 'Respeito na comunicacao', 'Demonstra respeito na comunicacao com outros', '', 'scale', NULL, 234, TRUE, FALSE),
+('q_cross_05', 't_cross', 'professional-posture', 'Postura profissional', 'Considere o comportamento percebido no ambiente profissional e institucional.', 'professional-posture', 'Comportamento profissional', 'Demonstra comportamento profissional adequado', '', 'scale', NULL, 235, TRUE, FALSE),
+('q_cross_06', 't_cross', 'professional-posture', 'Postura profissional', 'Considere o comportamento percebido no ambiente profissional e institucional.', 'professional-posture', 'Etica e respeito', 'Age com etica e respeito no ambiente de trabalho', '', 'scale', NULL, 236, TRUE, FALSE),
+('q_cross_07', 't_cross', 'culture', 'Atitude e cultura', 'Observe a contribuicao geral para o clima e para a cultura da organizacao.', 'culture', 'Ambiente positivo', 'Contribui para um ambiente de trabalho positivo', '', 'scale', NULL, 237, TRUE, FALSE),
+('q_cross_08', 't_cross', 'culture', 'Atitude e cultura', 'Observe a contribuicao geral para o clima e para a cultura da organizacao.', 'culture', 'Atitude colaborativa organizacional', 'Demonstra atitude colaborativa com a organizacao como um todo', '', 'scale', NULL, 238, TRUE, FALSE),
+('q_cross_09', 't_cross', 'visible-proactivity', 'Proatividade perceptivel', 'Considere apenas iniciativas observaveis em interacoes institucionais ou entre areas.', 'visible-proactivity', 'Iniciativa observavel', 'Demonstra iniciativa em interacoes organizacionais (reunioes, discussoes, etc.)', '', 'scale', NULL, 239, TRUE, FALSE),
+('q_cross_10', 't_cross', 'visible-proactivity', 'Proatividade perceptivel', 'Considere apenas iniciativas observaveis em interacoes institucionais ou entre areas.', 'visible-proactivity', 'Engajamento perceptivel', 'Parece engajado com o trabalho e com a empresa', '', 'scale', NULL, 240, TRUE, FALSE),
+('q_cross_11', 't_cross', 'open-feedback', 'Perguntas abertas', 'Use este espaco com base apenas na sua percepcao geral e em sinais observados no contexto organizacional.', 'open-feedback', 'Pontos fortes percebidos', 'Com base na sua percepcao geral, quais sao os principais pontos fortes deste colaborador?', '', 'text', NULL, 241, TRUE, FALSE),
+('q_cross_12', 't_cross', 'open-feedback', 'Perguntas abertas', 'Use este espaco com base apenas na sua percepcao geral e em sinais observados no contexto organizacional.', 'open-feedback', 'Comportamentos a melhorar', 'Ha algum comportamento que poderia ser melhorado?', '', 'text', NULL, 242, TRUE, FALSE),
+('q_cross_13', 't_cross', 'open-feedback', 'Perguntas abertas', 'Use este espaco com base apenas na sua percepcao geral e em sinais observados no contexto organizacional.', 'open-feedback', 'Conforto de trabalho direto', 'Voce se sentiria confortavel trabalhando diretamente com essa pessoa? Por que?', '', 'text', NULL, 243, TRUE, FALSE),
+('q_cross_14', 't_cross', 'open-feedback', 'Perguntas abertas', 'Use este espaco com base apenas na sua percepcao geral e em sinais observados no contexto organizacional.', 'open-feedback', 'Destaque positivo', 'Existe algo positivo que voce observou e que merece destaque?', '', 'text', NULL, 244, TRUE, FALSE)
 ON DUPLICATE KEY UPDATE prompt_text = VALUES(prompt_text), question_type = VALUES(question_type);
 
 INSERT INTO evaluation_questions (

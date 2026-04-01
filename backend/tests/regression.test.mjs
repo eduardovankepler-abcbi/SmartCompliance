@@ -210,6 +210,46 @@ try {
     "Ciclo com biblioteca customizada deve manter fallback da autoavaliacao padrao"
   );
 
+  const managerTemplateFallback = await store.getEvaluationTemplateForCycleRelationship(
+    createdCycle.id,
+    "manager"
+  );
+  assert.equal(
+    managerTemplateFallback.modelName,
+    "Feedback do lider sobre o colaborador",
+    "Feedback do lider deve usar template gerencial proprio"
+  );
+  assert.equal(
+    managerTemplateFallback.questions.length,
+    20,
+    "Template gerencial deve expor o conjunto completo de perguntas padrao"
+  );
+  assert.equal(
+    managerTemplateFallback.policy.scale[0].label,
+    "Muito abaixo do esperado",
+    "Template gerencial deve usar escala de desempenho"
+  );
+
+  const crossFunctionalTemplateFallback = await store.getEvaluationTemplateForCycleRelationship(
+    createdCycle.id,
+    "cross-functional"
+  );
+  assert.equal(
+    crossFunctionalTemplateFallback.modelName,
+    "Feedback indireto organizacional",
+    "Feedback indireto deve usar template proprio"
+  );
+  assert.equal(
+    crossFunctionalTemplateFallback.questions.length,
+    14,
+    "Template indireto deve expor o conjunto enxuto de perguntas"
+  );
+  assert.equal(
+    crossFunctionalTemplateFallback.policy.scale[0].label,
+    "Muito insatisfeito",
+    "Template indireto deve usar escala de percepcao organizacional"
+  );
+
   const createdCycleStructure = await store.getEvaluationCycleParticipants(createdCycle.id);
   assert.ok(
     createdCycleStructure.participants.length > 0,
