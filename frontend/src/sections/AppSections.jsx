@@ -1233,114 +1233,120 @@ export function PeopleSection({
   return (
     <section className="page-grid">
       {canManagePeopleRegistry ? (
-        <>
-          <form className="card compact-card admin-form-card" onSubmit={handleAreaSubmit}>
-            <div className="card-header">
-              <h3>Nova area</h3>
-              <span>Defina a area e o gestor responsavel pelo recorte</span>
-            </div>
-            <Input
-              label="Nome da area"
-              value={areaForm.name}
-              onChange={(value) => setAreaForm({ ...areaForm, name: value })}
-            />
-            <Select
-              label="Gestor responsavel"
-              value={areaForm.managerPersonId}
-              options={managerOptions.map((item) => item.value)}
-              renderLabel={(value) =>
-                managerOptions.find((item) => item.value === value)?.label || value
-              }
-              onChange={(value) => setAreaForm({ ...areaForm, managerPersonId: value })}
-            />
-            <button className="primary-button" type="submit">
-              Cadastrar area
-            </button>
-          </form>
+        <div className="card card-span compact-card">
+          <div className="card-header">
+            <h3>Cadastros base</h3>
+            <span>Organize area, lideranca e pessoas sem quebrar o fluxo operacional</span>
+          </div>
+          <div className="registry-form-grid">
+            <form className="list-card compact-list-card admin-form-card" onSubmit={handleAreaSubmit}>
+              <div className="card-header">
+                <h3>Nova area</h3>
+                <span>Defina a area e o gestor responsavel pelo recorte</span>
+              </div>
+              <Input
+                label="Nome da area"
+                value={areaForm.name}
+                onChange={(value) => setAreaForm({ ...areaForm, name: value })}
+              />
+              <Select
+                label="Gestor responsavel"
+                value={areaForm.managerPersonId}
+                options={managerOptions.map((item) => item.value)}
+                renderLabel={(value) =>
+                  managerOptions.find((item) => item.value === value)?.label || value
+                }
+                onChange={(value) => setAreaForm({ ...areaForm, managerPersonId: value })}
+              />
+              <button className="primary-button" type="submit">
+                Cadastrar area
+              </button>
+            </form>
 
-          <form className="card compact-card admin-form-card" onSubmit={handlePersonSubmit}>
-            <div className="card-header">
-              <h3>Nova pessoa</h3>
-              <span>Conecte colaborador, gestor e area no cadastro base</span>
-            </div>
-            <Input
-              label="Nome"
-              placeholder="Ex.: Maria Clara Souza"
-              value={personForm.name}
-              onChange={(value) => setPersonForm({ ...personForm, name: value })}
-            />
-            <Input
-              label="Cargo"
-              placeholder="Ex.: Analista de Compliance"
-              value={personForm.roleTitle}
-              onChange={(value) => setPersonForm({ ...personForm, roleTitle: value })}
-            />
-            <Select
-              label="Area"
-              value={personForm.area}
-              options={areaOptions.map((item) => item.value)}
-              renderLabel={(value) => areaOptions.find((item) => item.value === value)?.label || value}
-              onChange={(value) => setPersonForm({ ...personForm, area: value })}
-            />
-            <Select
-              label="Gestor"
-              value={personForm.managerPersonId}
-              options={managerOptions.map((item) => item.value)}
-              renderLabel={(value) =>
-                managerOptions.find((item) => item.value === value)?.label || value
-              }
-              onChange={(value) => setPersonForm({ ...personForm, managerPersonId: value })}
-            />
-            <Select
-              label="Lider da area"
-              value={personForm.isAreaManager}
-              options={["no", "yes"]}
-              renderLabel={(value) => (value === "yes" ? "Sim" : "Nao")}
-              helper="Se marcar Sim, esta pessoa ja entra como responsavel da area escolhida."
-              onChange={(value) => setPersonForm({ ...personForm, isAreaManager: value })}
-            />
-            <Input
-              label="Unidade de trabalho"
-              helper="Use o nome da base/unidade para organizar as avaliacoes entre pares."
-              placeholder="Ex.: Sao Paulo"
-              value={personForm.workUnit}
-              onChange={(value) => setPersonForm({ ...personForm, workUnit: value })}
-            />
-            <Select
-              label="Modalidade"
-              value={personForm.workMode}
-              options={workModeOptions}
-              renderLabel={(value) =>
-                value === "onsite"
-                  ? "Presencial"
-                  : value === "remote"
-                    ? "100% Home Office"
-                    : "Hibrido"
-              }
-              onChange={(value) => setPersonForm({ ...personForm, workMode: value })}
-            />
-            <Select
-              label="Vinculo"
-              value={personForm.employmentType}
-              options={["internal", "consultant"]}
-              renderLabel={(value) => (value === "internal" ? "Interno" : "Consultor")}
-              onChange={(value) => setPersonForm({ ...personForm, employmentType: value })}
-            />
-            <Input
-              label="Score de satisfacao"
-              type="number"
-              min="1"
-              max="5"
-              step="0.1"
-              helper="Opcional. Se nao informar, o sistema assume 4."
-              value={personForm.satisfactionScore}
-              onChange={(value) => setPersonForm({ ...personForm, satisfactionScore: value })}
-            />
-            <button className="primary-button" type="submit">
-              Cadastrar pessoa
-            </button>
-          </form>
-        </>
+            <form className="list-card compact-list-card admin-form-card" onSubmit={handlePersonSubmit}>
+              <div className="card-header">
+                <h3>Nova pessoa</h3>
+                <span>Conecte colaborador, gestor e area no cadastro base</span>
+              </div>
+              <Input
+                label="Nome"
+                placeholder="Ex.: Maria Clara Souza"
+                value={personForm.name}
+                onChange={(value) => setPersonForm({ ...personForm, name: value })}
+              />
+              <Input
+                label="Cargo"
+                placeholder="Ex.: Analista de Compliance"
+                value={personForm.roleTitle}
+                onChange={(value) => setPersonForm({ ...personForm, roleTitle: value })}
+              />
+              <Select
+                label="Area"
+                value={personForm.area}
+                options={areaOptions.map((item) => item.value)}
+                renderLabel={(value) => areaOptions.find((item) => item.value === value)?.label || value}
+                onChange={(value) => setPersonForm({ ...personForm, area: value })}
+              />
+              <Select
+                label="Gestor"
+                value={personForm.managerPersonId}
+                options={managerOptions.map((item) => item.value)}
+                renderLabel={(value) =>
+                  managerOptions.find((item) => item.value === value)?.label || value
+                }
+                onChange={(value) => setPersonForm({ ...personForm, managerPersonId: value })}
+              />
+              <Select
+                label="Lider da area"
+                value={personForm.isAreaManager}
+                options={["no", "yes"]}
+                renderLabel={(value) => (value === "yes" ? "Sim" : "Nao")}
+                helper="Se marcar Sim, esta pessoa ja entra como responsavel da area escolhida."
+                onChange={(value) => setPersonForm({ ...personForm, isAreaManager: value })}
+              />
+              <Input
+                label="Unidade de trabalho"
+                helper="Use o nome da base/unidade para organizar as avaliacoes entre pares."
+                placeholder="Ex.: Sao Paulo"
+                value={personForm.workUnit}
+                onChange={(value) => setPersonForm({ ...personForm, workUnit: value })}
+              />
+              <Select
+                label="Modalidade"
+                value={personForm.workMode}
+                options={workModeOptions}
+                renderLabel={(value) =>
+                  value === "onsite"
+                    ? "Presencial"
+                    : value === "remote"
+                      ? "100% Home Office"
+                      : "Hibrido"
+                }
+                onChange={(value) => setPersonForm({ ...personForm, workMode: value })}
+              />
+              <Select
+                label="Vinculo"
+                value={personForm.employmentType}
+                options={["internal", "consultant"]}
+                renderLabel={(value) => (value === "internal" ? "Interno" : "Consultor")}
+                onChange={(value) => setPersonForm({ ...personForm, employmentType: value })}
+              />
+              <Input
+                label="Score de satisfacao"
+                type="number"
+                min="1"
+                max="5"
+                step="0.1"
+                helper="Opcional. Se nao informar, o sistema assume 4."
+                value={personForm.satisfactionScore}
+                onChange={(value) => setPersonForm({ ...personForm, satisfactionScore: value })}
+              />
+              <button className="primary-button" type="submit">
+                Cadastrar pessoa
+              </button>
+            </form>
+          </div>
+        </div>
       ) : null}
 
       <div className="card compact-card">

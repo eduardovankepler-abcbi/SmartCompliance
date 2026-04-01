@@ -661,6 +661,13 @@ select {
   gap: 12px;
 }
 
+.registry-form-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
 .nested-card {
   padding: 0;
   border: none;
@@ -1520,6 +1527,10 @@ select {
   }
 
   .module-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .registry-form-grid {
     grid-template-columns: 1fr;
   }
 
