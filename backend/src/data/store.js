@@ -999,6 +999,48 @@ async function detectMysqlCycleConfigSupport(pool) {
   }
 }
 
+async function ensureMysqlCycleConfigSupport(pool) {
+  const supportsBefore = await detectMysqlCycleConfigSupport(pool);
+  if (supportsBefore) {
+    return true;
+  }
+
+  const autoMigrateRaw = String(process.env.AUTO_MIGRATE_DB || "").trim().toLowerCase();
+  const autoMigrateDisabled = ["0", "false", "no", "off"].includes(autoMigrateRaw);
+  if (autoMigrateDisabled) {
+    return false;
+  }
+
+  try {
+    const [tables] = await pool.query("SHOW TABLES LIKE 'evaluation_cycles'");
+    if (!tables?.length) {
+      return false;
+    }
+  } catch (error) {
+    console.warn("Could not verify evaluation_cycles table existence", error);
+    return false;
+  }
+
+  const statements = [
+    "ALTER TABLE evaluation_cycles ADD COLUMN is_enabled BOOLEAN NOT NULL DEFAULT TRUE",
+    "ALTER TABLE evaluation_cycles ADD COLUMN enabled_relationships_json JSON NULL"
+  ];
+
+  for (const statement of statements) {
+    try {
+      await pool.query(statement);
+    } catch (error) {
+      if (error?.code === "ER_DUP_FIELDNAME" || error?.errno === 1060) {
+        continue;
+      }
+      console.warn("Database auto-migration failed", error);
+      break;
+    }
+  }
+
+  return detectMysqlCycleConfigSupport(pool);
+}
+
 function enrichAssignment(db, assignment, customLibraries = []) {
   const cycle = db.cycles.find((item) => item.id === assignment.cycleId);
   const presentedCycle = presentCycle(cycle || {});
@@ -6208,7 +6250,7 @@ export async function createStore() {
     connectionLimit: 10
   });
 
-  const supportsCycleConfig = await detectMysqlCycleConfigSupport(pool);
+  const supportsCycleConfig = await ensureMysqlCycleConfigSupport(pool);
   return buildMysqlStore(pool, customLibraryState, anonymousResponseState, {
     supportsCycleConfig
   });

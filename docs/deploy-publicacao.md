@@ -73,6 +73,10 @@ Se voce ja tem um banco existente (tabelas ja criadas) e atualizou o codigo, apl
 
 - `backend/db/migrations/2026-04-01-evaluation-cycle-config.sql` (switches de ciclo + questionarios)
 
+Opcional:
+
+- o backend tenta aplicar automaticamente essa migracao quando `AUTO_MIGRATE_DB` nao esta desativado
+
 Voce pode fazer isso:
 
 - por um cliente MySQL local
