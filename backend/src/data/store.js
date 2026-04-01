@@ -43,6 +43,7 @@ const DEFAULT_CYCLE_MODULE_AVAILABILITY = Object.freeze({
 });
 const USER_ROLE_OPTIONS = ["admin", "hr", "manager", "employee", "compliance"];
 const USER_STATUS_OPTIONS = ["active", "inactive"];
+const EMPLOYMENT_TYPE_OPTIONS = ["internal", "consultant"];
 const COMPETENCY_STATUS_OPTIONS = ["active", "inactive"];
 const DEVELOPMENT_RECORD_STATUS_OPTIONS = ["active", "archived"];
 const DEVELOPMENT_PLAN_STATUS_OPTIONS = ["active", "completed", "archived"];
@@ -276,6 +277,12 @@ function assertValidUserStatus(status) {
   }
 }
 
+function assertValidEmploymentType(employmentType) {
+  if (!EMPLOYMENT_TYPE_OPTIONS.includes(employmentType)) {
+    throw new Error("Vinculo da pessoa invalido.");
+  }
+}
+
 function assertValidDevelopmentRecordStatus(status) {
   if (!DEVELOPMENT_RECORD_STATUS_OPTIONS.includes(status)) {
     throw new Error("Status de desenvolvimento invalido.");
@@ -462,6 +469,73 @@ function normalizeWorkContextPayload(payload) {
     workUnit: normalizeWorkUnit(payload.workUnit),
     workMode: normalizeWorkMode(payload.workMode)
   };
+}
+
+function normalizeRequiredText(value, fieldLabel) {
+  const normalized = String(value || "").trim();
+  if (!normalized) {
+    throw new Error(`${fieldLabel} obrigatorio(a).`);
+  }
+  return normalized;
+}
+
+function normalizeOptionalText(value) {
+  return String(value || "").trim();
+}
+
+function normalizeSatisfactionScore(value, fallback = DEFAULT_PERSON_SATISFACTION_SCORE) {
+  if (value === undefined || value === null || value === "") {
+    return Number(fallback);
+  }
+
+  const score = Number(value);
+  if (!Number.isFinite(score) || score < 1 || score > 5) {
+    throw new Error("Score de satisfacao deve ficar entre 1 e 5.");
+  }
+
+  return score;
+}
+
+function normalizePersonPayload(payload) {
+  const workContext = normalizeWorkContextPayload(payload);
+  const employmentType = normalizeRequiredText(payload.employmentType, "Vinculo");
+  assertValidEmploymentType(employmentType);
+
+  return {
+    name: normalizeRequiredText(payload.name, "Nome"),
+    roleTitle: normalizeRequiredText(payload.roleTitle, "Cargo"),
+    area: normalizeRequiredText(payload.area, "Area"),
+    workUnit: workContext.workUnit,
+    workMode: workContext.workMode,
+    managerPersonId: payload.managerPersonId || null,
+    employmentType,
+    satisfactionScore: normalizeSatisfactionScore(payload.satisfactionScore)
+  };
+}
+
+function normalizeUserEmail(value) {
+  const normalized = normalizeOptionalText(value).toLowerCase();
+  if (!normalized) {
+    throw new Error("Email do usuario obrigatorio.");
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) {
+    throw new Error("Email do usuario invalido.");
+  }
+  return normalized;
+}
+
+function normalizeUserPassword(value, { required = false } = {}) {
+  const normalized = String(value || "").trim();
+  if (!normalized) {
+    if (required) {
+      throw new Error("Senha do usuario obrigatoria.");
+    }
+    return "";
+  }
+  if (normalized.length < 6) {
+    throw new Error("Senha do usuario deve ter pelo menos 6 caracteres.");
+  }
+  return normalized;
 }
 
 function isSameWorkUnit(leftPerson, rightPerson) {
@@ -3236,20 +3310,13 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         throw new Error("Perfil sem permissao para cadastrar pessoas.");
       }
 
-      assertValidManagerReference(db.people, payload.managerPersonId);
-      assertValidAreaReference(db.areas, payload.area);
-      const workContext = normalizeWorkContextPayload(payload);
+      const personPayload = normalizePersonPayload(payload);
+      assertValidManagerReference(db.people, personPayload.managerPersonId);
+      assertValidAreaReference(db.areas, personPayload.area);
 
       const person = {
         id: createId("person"),
-        name: payload.name,
-        roleTitle: payload.roleTitle,
-        area: payload.area,
-        workUnit: workContext.workUnit,
-        workMode: workContext.workMode,
-        managerPersonId: payload.managerPersonId || null,
-        employmentType: payload.employmentType,
-        satisfactionScore: Number(payload.satisfactionScore ?? DEFAULT_PERSON_SATISFACTION_SCORE)
+        ...personPayload
       };
       db.people.unshift(person);
       return enrichPerson(db.people, person, db.areas.map((area) => enrichArea(db.people, area)));
@@ -3264,20 +3331,17 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         throw new Error("Pessoa nao encontrada.");
       }
 
-      assertValidManagerReference(db.people, payload.managerPersonId, personId);
-      assertValidAreaReference(db.areas, payload.area);
-      const workContext = normalizeWorkContextPayload(payload);
+      const personPayload = normalizePersonPayload({
+        ...payload,
+        satisfactionScore:
+          payload.satisfactionScore === undefined || payload.satisfactionScore === null
+            ? person.satisfactionScore
+            : payload.satisfactionScore
+      });
+      assertValidManagerReference(db.people, personPayload.managerPersonId, personId);
+      assertValidAreaReference(db.areas, personPayload.area);
 
-      person.name = payload.name;
-      person.roleTitle = payload.roleTitle;
-      person.area = payload.area;
-      person.workUnit = workContext.workUnit;
-      person.workMode = workContext.workMode;
-      person.managerPersonId = payload.managerPersonId || null;
-      person.employmentType = payload.employmentType;
-      if (payload.satisfactionScore !== undefined && payload.satisfactionScore !== null) {
-        person.satisfactionScore = Number(payload.satisfactionScore);
-      }
+      Object.assign(person, personPayload);
 
       return enrichPerson(db.people, person, db.areas.map((area) => enrichArea(db.people, area)));
     },
@@ -3296,6 +3360,8 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         throw new Error("Perfil sem permissao para cadastrar usuarios.");
       }
 
+      const email = normalizeUserEmail(payload.email);
+      const password = normalizeUserPassword(payload.password, { required: true });
       assertValidUserRole(payload.roleKey);
       assertValidUserStatus(payload.status);
 
@@ -3308,15 +3374,15 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         throw new Error("Ja existe um usuario vinculado a esta pessoa.");
       }
 
-      if (db.users.some((item) => item.email.toLowerCase() === payload.email.toLowerCase())) {
+      if (db.users.some((item) => item.email.toLowerCase() === email)) {
         throw new Error("Ja existe um usuario com este email.");
       }
 
       const user = {
         id: createId("user"),
         personId: payload.personId,
-        email: payload.email,
-        passwordHash: hashPassword(payload.password),
+        email,
+        passwordHash: hashPassword(password),
         roleKey: payload.roleKey,
         status: payload.status
       };
@@ -3329,7 +3395,7 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         entityLabel: person.name,
         actorUser,
         summary: `Usuario criado para ${person.name}`,
-        detail: `${payload.roleKey} · ${payload.status} · ${payload.email}`
+        detail: `${payload.roleKey} · ${payload.status} · ${email}`
       });
       return toAdminUserRow(db, user);
     },
@@ -3346,10 +3412,17 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         throw new Error("Usuario nao encontrado.");
       }
 
+      const email = normalizeUserEmail(payload.email);
+      const password = normalizeUserPassword(payload.password);
+      if (db.users.some((item) => item.id !== userId && item.email.toLowerCase() === email)) {
+        throw new Error("Ja existe um usuario com este email.");
+      }
+
+      user.email = email;
       user.roleKey = payload.roleKey;
       user.status = payload.status;
-      if (payload.password?.trim()) {
-        user.passwordHash = hashPassword(payload.password);
+      if (password) {
+        user.passwordHash = hashPassword(password);
       }
 
       const person = db.people.find((item) => item.id === user.personId);
@@ -3361,7 +3434,7 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         entityLabel: person?.name || user.email,
         actorUser,
         summary: `Acesso atualizado para ${person?.name || user.email}`,
-        detail: `${payload.roleKey} · ${payload.status}${payload.password?.trim() ? " · senha redefinida" : ""}`
+        detail: `${payload.roleKey} · ${payload.status} · ${email}${password ? " · senha redefinida" : ""}`
       });
 
       return toAdminUserRow(db, user);
@@ -4678,21 +4751,14 @@ function buildMysqlStore(
         throw new Error("Perfil sem permissao para cadastrar pessoas.");
       }
 
+      const personPayload = normalizePersonPayload(payload);
       const [people, areas] = await Promise.all([fetchPeopleRows(pool), fetchAreaRows(pool)]);
-      assertValidManagerReference(people, payload.managerPersonId);
-      assertValidAreaReference(areas, payload.area);
-      const workContext = normalizeWorkContextPayload(payload);
+      assertValidManagerReference(people, personPayload.managerPersonId);
+      assertValidAreaReference(areas, personPayload.area);
 
       const person = {
         id: createId("person"),
-        name: payload.name,
-        roleTitle: payload.roleTitle,
-        area: payload.area,
-        workUnit: workContext.workUnit,
-        workMode: workContext.workMode,
-        managerPersonId: payload.managerPersonId || null,
-        employmentType: payload.employmentType,
-        satisfactionScore: Number(payload.satisfactionScore ?? DEFAULT_PERSON_SATISFACTION_SCORE)
+        ...personPayload
       };
 
       try {
@@ -4746,14 +4812,15 @@ function buildMysqlStore(
         throw new Error("Pessoa nao encontrada.");
       }
 
-      assertValidManagerReference(people, payload.managerPersonId, personId);
-      assertValidAreaReference(areas, payload.area);
-      const workContext = normalizeWorkContextPayload(payload);
-      const nextSatisfactionScore = Number(
-        payload.satisfactionScore === undefined || payload.satisfactionScore === null
-          ? person.satisfactionScore
-          : payload.satisfactionScore
-      );
+      const personPayload = normalizePersonPayload({
+        ...payload,
+        satisfactionScore:
+          payload.satisfactionScore === undefined || payload.satisfactionScore === null
+            ? person.satisfactionScore
+            : payload.satisfactionScore
+      });
+      assertValidManagerReference(people, personPayload.managerPersonId, personId);
+      assertValidAreaReference(areas, personPayload.area);
 
       try {
         await pool.query(
@@ -4761,14 +4828,14 @@ function buildMysqlStore(
            SET name = ?, role_title = ?, area = ?, work_unit = ?, work_mode = ?, manager_person_id = ?, employment_type = ?, satisfaction_score = ?
            WHERE id = ?`,
           [
-            payload.name,
-            payload.roleTitle,
-            payload.area,
-            workContext.workUnit,
-            workContext.workMode,
-            payload.managerPersonId || null,
-            payload.employmentType,
-            nextSatisfactionScore,
+            personPayload.name,
+            personPayload.roleTitle,
+            personPayload.area,
+            personPayload.workUnit,
+            personPayload.workMode,
+            personPayload.managerPersonId,
+            personPayload.employmentType,
+            personPayload.satisfactionScore,
             personId
           ]
         );
@@ -4782,12 +4849,12 @@ function buildMysqlStore(
            SET name = ?, role_title = ?, area = ?, manager_person_id = ?, employment_type = ?, satisfaction_score = ?
            WHERE id = ?`,
           [
-            payload.name,
-            payload.roleTitle,
-            payload.area,
-            payload.managerPersonId || null,
-            payload.employmentType,
-            nextSatisfactionScore,
+            personPayload.name,
+            personPayload.roleTitle,
+            personPayload.area,
+            personPayload.managerPersonId,
+            personPayload.employmentType,
+            personPayload.satisfactionScore,
             personId
           ]
         );
@@ -4798,27 +4865,13 @@ function buildMysqlStore(
           item.id === personId
             ? {
                 ...item,
-                name: payload.name,
-                roleTitle: payload.roleTitle,
-                area: payload.area,
-                workUnit: workContext.workUnit,
-                workMode: workContext.workMode,
-                managerPersonId: payload.managerPersonId || null,
-                employmentType: payload.employmentType,
-                satisfactionScore: nextSatisfactionScore
+                ...personPayload
               }
             : item
         ),
         {
           ...person,
-          name: payload.name,
-          roleTitle: payload.roleTitle,
-          area: payload.area,
-          workUnit: workContext.workUnit,
-          workMode: workContext.workMode,
-          managerPersonId: payload.managerPersonId || null,
-          employmentType: payload.employmentType,
-          satisfactionScore: nextSatisfactionScore
+          ...personPayload
         },
         areas
       );
@@ -4845,6 +4898,8 @@ function buildMysqlStore(
         throw new Error("Perfil sem permissao para cadastrar usuarios.");
       }
 
+      const email = normalizeUserEmail(payload.email);
+      const password = normalizeUserPassword(payload.password, { required: true });
       assertValidUserRole(payload.roleKey);
       assertValidUserStatus(payload.status);
 
@@ -4875,7 +4930,7 @@ function buildMysqlStore(
          FROM users
          WHERE email = ?
          LIMIT 1`,
-        [payload.email]
+        [email]
       );
       if (emailRows[0]) {
         throw new Error("Ja existe um usuario com este email.");
@@ -4884,7 +4939,7 @@ function buildMysqlStore(
       const user = {
         id: createId("user"),
         personId: payload.personId,
-        email: payload.email,
+        email,
         roleKey: payload.roleKey,
         status: payload.status
       };
@@ -4893,7 +4948,7 @@ function buildMysqlStore(
         `INSERT INTO users
          (id, person_id, email, password_hash, role_key, status)
          VALUES (?, ?, ?, ?, ?, ?)`,
-        [user.id, user.personId, user.email, hashPassword(payload.password), user.roleKey, user.status]
+        [user.id, user.personId, user.email, hashPassword(password), user.roleKey, user.status]
       );
 
       await insertAuditLog(pool, {
@@ -4904,7 +4959,7 @@ function buildMysqlStore(
         entityLabel: personRows[0].name,
         actorUser,
         summary: `Usuario criado para ${personRows[0].name}`,
-        detail: `${payload.roleKey} · ${payload.status} · ${payload.email}`
+        detail: `${payload.roleKey} · ${payload.status} · ${email}`
       });
 
       return {
@@ -4921,6 +4976,9 @@ function buildMysqlStore(
       assertValidUserRole(payload.roleKey);
       assertValidUserStatus(payload.status);
 
+      const email = normalizeUserEmail(payload.email);
+      const password = normalizeUserPassword(payload.password);
+
       const [rows] = await pool.query(
         `SELECT u.id, u.person_id AS personId, p.name AS personName, p.area AS personArea,
                 u.email
@@ -4934,19 +4992,30 @@ function buildMysqlStore(
         throw new Error("Usuario nao encontrado.");
       }
 
-      if (payload.password?.trim()) {
+      const [emailRows] = await pool.query(
+        `SELECT id
+         FROM users
+         WHERE email = ? AND id <> ?
+         LIMIT 1`,
+        [email, userId]
+      );
+      if (emailRows[0]) {
+        throw new Error("Ja existe um usuario com este email.");
+      }
+
+      if (password) {
         await pool.query(
           `UPDATE users
-           SET role_key = ?, status = ?, password_hash = ?
+           SET email = ?, role_key = ?, status = ?, password_hash = ?
            WHERE id = ?`,
-          [payload.roleKey, payload.status, hashPassword(payload.password), userId]
+          [email, payload.roleKey, payload.status, hashPassword(password), userId]
         );
       } else {
         await pool.query(
           `UPDATE users
-           SET role_key = ?, status = ?
+           SET email = ?, role_key = ?, status = ?
            WHERE id = ?`,
-          [payload.roleKey, payload.status, userId]
+          [email, payload.roleKey, payload.status, userId]
         );
       }
 
@@ -4958,7 +5027,7 @@ function buildMysqlStore(
         entityLabel: rows[0].personName,
         actorUser,
         summary: `Acesso atualizado para ${rows[0].personName}`,
-        detail: `${payload.roleKey} · ${payload.status}${payload.password?.trim() ? " · senha redefinida" : ""}`
+        detail: `${payload.roleKey} · ${payload.status} · ${email}${password ? " · senha redefinida" : ""}`
       });
 
       return {
@@ -4966,7 +5035,7 @@ function buildMysqlStore(
         personId: rows[0].personId,
         personName: rows[0].personName,
         personArea: rows[0].personArea,
-        email: rows[0].email,
+        email,
         roleKey: payload.roleKey,
         status: payload.status
       };

@@ -128,7 +128,8 @@ export const emptyPerson = {
   workUnit: "",
   workMode: "hybrid",
   managerPersonId: "",
-  employmentType: "internal"
+  employmentType: "internal",
+  satisfactionScore: ""
 };
 
 export const workModeOptions = ["onsite", "hybrid", "remote"];
@@ -141,7 +142,7 @@ export const emptyArea = {
 export const emptyUser = {
   personId: "",
   email: "",
-  password: "demo123",
+  password: "",
   roleKey: "employee",
   status: "active"
 };

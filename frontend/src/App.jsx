@@ -67,6 +67,11 @@ import {
   getVisibleSections
 } from "./navigation";
 import {
+  buildSuggestedUserEmail,
+  validatePersonPayload,
+  validateUserPayload
+} from "./registry.js";
+import {
   ApplauseSection,
   ComplianceSection,
   DashboardSection,
@@ -372,6 +377,11 @@ export default function App() {
     [people]
   );
 
+  const peopleById = useMemo(
+    () => Object.fromEntries(people.map((person) => [person.id, person])),
+    [people]
+  );
+
   const areaOptions = useMemo(
     () => areas.map((area) => ({ value: area.name, label: area.name })),
     [areas]
@@ -402,8 +412,23 @@ export default function App() {
 
   const availableUserPeopleOptions = useMemo(() => {
     const linkedPersonIds = new Set(users.map((item) => item.personId));
-    return peopleOptions.filter((person) => !linkedPersonIds.has(person.value));
-  }, [peopleOptions, users]);
+    return people
+      .filter((person) => !linkedPersonIds.has(person.id))
+      .map((person) => ({
+        value: person.id,
+        label: `${person.name} · ${person.area} · ${person.workUnit || "Unidade principal"}`
+      }));
+  }, [people, users]);
+
+  const selectedUserPerson = useMemo(
+    () => peopleById[userForm.personId] || null,
+    [peopleById, userForm.personId]
+  );
+
+  const suggestedUserEmail = useMemo(
+    () => buildSuggestedUserEmail(selectedUserPerson?.name || ""),
+    [selectedUserPerson]
+  );
 
   const developmentPeopleOptions = useMemo(() => {
     if (canManageDevelopmentScope) {
@@ -738,6 +763,27 @@ export default function App() {
   }, [areaOptions, areas.length, personForm.area]);
 
   useEffect(() => {
+    if (!personForm.area) {
+      return;
+    }
+
+    const selectedArea = areas.find((area) => area.name === personForm.area);
+    if (!selectedArea) {
+      return;
+    }
+
+    if (
+      !personForm.managerPersonId ||
+      !people.some((person) => person.id === personForm.managerPersonId)
+    ) {
+      setPersonForm((current) => ({
+        ...current,
+        managerPersonId: current.managerPersonId || selectedArea.managerPersonId || ""
+      }));
+    }
+  }, [areas, people, personForm.area, personForm.managerPersonId]);
+
+  useEffect(() => {
     if (!incidentAreaOptions.length) {
       return;
     }
@@ -774,6 +820,30 @@ export default function App() {
       }));
     }
   }, [availableUserPeopleOptions, userForm.personId]);
+
+  useEffect(() => {
+    if (!userForm.personId || !suggestedUserEmail) {
+      return;
+    }
+
+    setUserForm((current) => {
+      const currentEmail = String(current.email || "").trim().toLowerCase();
+      const previousSuggestedEmail = buildSuggestedUserEmail(peopleById[current.personId]?.name || "");
+
+      if (currentEmail && currentEmail !== previousSuggestedEmail) {
+        return current;
+      }
+
+      if (currentEmail === suggestedUserEmail) {
+        return current;
+      }
+
+      return {
+        ...current,
+        email: suggestedUserEmail
+      };
+    });
+  }, [peopleById, suggestedUserEmail, userForm.personId]);
 
   useEffect(() => {
     if (!canFilterDashboardByArea && dashboardAreaFilter !== "all") {
@@ -873,10 +943,18 @@ export default function App() {
   async function handlePersonSubmit(event) {
     event.preventDefault();
     try {
+      const validationError = validatePersonPayload(personForm);
+      if (validationError) {
+        setError(validationError);
+        return;
+      }
+
       setError("");
       await api.createPerson({
         ...personForm,
-        managerPersonId: personForm.managerPersonId || null
+        managerPersonId: personForm.managerPersonId || null,
+        satisfactionScore:
+          personForm.satisfactionScore === "" ? undefined : Number(personForm.satisfactionScore)
       });
       setPersonForm(emptyPerson);
       await reloadData();
@@ -912,8 +990,18 @@ export default function App() {
 
   async function handlePersonUpdate(personId, payload) {
     try {
+      const validationError = validatePersonPayload(payload);
+      if (validationError) {
+        setError(validationError);
+        return;
+      }
+
       setError("");
-      await api.updatePerson(personId, payload);
+      await api.updatePerson(personId, {
+        ...payload,
+        satisfactionScore:
+          payload.satisfactionScore === "" ? undefined : Number(payload.satisfactionScore)
+      });
       await reloadData();
     } catch (err) {
       setError(err.message);
@@ -923,12 +1011,17 @@ export default function App() {
   async function handleUserSubmit(event) {
     event.preventDefault();
     try {
+      const validationError = validateUserPayload(userForm);
+      if (validationError) {
+        setError(validationError);
+        return;
+      }
+
       setError("");
       await api.createUser(userForm);
       setUserForm((current) => ({
         ...emptyUser,
-        personId: current.personId,
-        password: "demo123"
+        personId: current.personId
       }));
       await reloadData();
     } catch (err) {
@@ -938,6 +1031,12 @@ export default function App() {
 
   async function handleUserUpdate(userId, payload) {
     try {
+      const validationError = validateUserPayload(payload, { requirePassword: false });
+      if (validationError) {
+        setError(validationError);
+        return;
+      }
+
       setError("");
       await api.updateUser(userId, payload);
       await reloadData();
@@ -1368,7 +1467,9 @@ export default function App() {
             formatDate={formatDate}
             handleUserSubmit={handleUserSubmit}
             handleUserUpdate={handleUserUpdate}
+            selectedUserPerson={selectedUserPerson}
             setUserForm={setUserForm}
+            suggestedUserEmail={suggestedUserEmail}
             userForm={userForm}
             userRoleOptions={userRoleOptions}
             userStatusOptions={userStatusOptions}

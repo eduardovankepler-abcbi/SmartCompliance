@@ -859,6 +859,12 @@ select {
   font-size: 0.84rem;
 }
 
+.field-helper {
+  font-size: 0.75rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
 .field input,
 .field textarea,
 .field select {

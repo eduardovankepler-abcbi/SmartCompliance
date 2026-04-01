@@ -653,21 +653,28 @@ try {
 
   const createdPerson = await store.createPerson(
     {
-      name: "Pessoa Homologacao",
-      roleTitle: "Analista de Testes",
+      name: "  Pessoa Homologacao  ",
+      roleTitle: "  Analista de Testes  ",
       area: "Tecnologia",
       workUnit: "Sao Paulo",
       workMode: "hybrid",
       managerPersonId: manager.personId,
-      employmentType: "internal"
+      employmentType: "internal",
+      satisfactionScore: "4.5"
     },
     admin
   );
 
   assert.equal(
     createdPerson.satisfactionScore,
-    4,
-    "Cadastro de pessoa sem score manual deve assumir valor padrao"
+    4.5,
+    "Cadastro de pessoa deve aceitar score manual valido"
+  );
+  assert.equal(createdPerson.name, "Pessoa Homologacao", "Cadastro deve normalizar o nome");
+  assert.equal(
+    createdPerson.roleTitle,
+    "Analista de Testes",
+    "Cadastro deve normalizar o cargo"
   );
   assert.equal(createdPerson.workUnit, "Sao Paulo", "Pessoa deve manter unidade de trabalho");
   assert.equal(createdPerson.workMode, "hybrid", "Pessoa deve manter modalidade de trabalho");
@@ -687,13 +694,31 @@ try {
   const remoteUser = await store.createUser(
     {
       personId: remotePerson.id,
-      email: "remoto.teste@demo.local",
+      email: "  REMOTO.TESTE@DEMO.LOCAL  ",
       password: "demo123",
       roleKey: "employee",
       status: "active"
     },
     admin
   );
+  assert.equal(
+    remoteUser.email,
+    "remoto.teste@demo.local",
+    "Cadastro de usuario deve normalizar email"
+  );
+  const updatedRemoteUser = await store.updateUser(
+    remoteUser.id,
+    {
+      email: "remoto.lider@demo.local",
+      roleKey: "manager",
+      status: "active",
+      password: "nova123"
+    },
+    admin
+  );
+  assert.equal(updatedRemoteUser.email, "remoto.lider@demo.local");
+  assert.equal(updatedRemoteUser.roleKey, "manager");
+  assert.equal(updatedRemoteUser.status, "active");
 
   const rioPerson = await store.createPerson(
     {

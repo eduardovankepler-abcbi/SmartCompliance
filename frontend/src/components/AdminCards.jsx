@@ -123,6 +123,7 @@ export function IncidentQueueCard({
 
 export function UserAdminCard({ onSave, user, userRoleOptions, userStatusOptions }) {
   const [draft, setDraft] = useState({
+    email: user.email,
     roleKey: user.roleKey,
     status: user.status,
     password: ""
@@ -130,11 +131,12 @@ export function UserAdminCard({ onSave, user, userRoleOptions, userStatusOptions
 
   useEffect(() => {
     setDraft({
+      email: user.email,
       roleKey: user.roleKey,
       status: user.status,
       password: ""
     });
-  }, [user.roleKey, user.status]);
+  }, [user.email, user.roleKey, user.status]);
 
   return (
     <article className="list-card compact-list-card">
@@ -147,6 +149,12 @@ export function UserAdminCard({ onSave, user, userRoleOptions, userStatusOptions
         {user.personArea} | Perfil atual: {user.roleKey}
       </p>
       <div className="incident-actions compact-actions">
+        <Input
+          label="Email"
+          type="email"
+          value={draft.email}
+          onChange={(value) => setDraft((current) => ({ ...current, email: value }))}
+        />
         <Select
           label="Nivel de acesso"
           value={draft.roleKey}
@@ -162,6 +170,7 @@ export function UserAdminCard({ onSave, user, userRoleOptions, userStatusOptions
         <Input
           label="Nova senha"
           type="password"
+          helper="Opcional. Preencha apenas para redefinir a senha."
           value={draft.password}
           onChange={(value) => setDraft((current) => ({ ...current, password: value }))}
         />
@@ -233,7 +242,8 @@ export function PersonStructureCard({ areaOptions, managerOptions, onSave, perso
     workUnit: person.workUnit || "",
     workMode: person.workMode || "hybrid",
     managerPersonId: person.managerPersonId || "",
-    employmentType: person.employmentType || "internal"
+    employmentType: person.employmentType || "internal",
+    satisfactionScore: person.satisfactionScore ?? 4
   });
 
   useEffect(() => {
@@ -244,7 +254,8 @@ export function PersonStructureCard({ areaOptions, managerOptions, onSave, perso
       workUnit: person.workUnit || "",
       workMode: person.workMode || "hybrid",
       managerPersonId: person.managerPersonId || "",
-      employmentType: person.employmentType || "internal"
+      employmentType: person.employmentType || "internal",
+      satisfactionScore: person.satisfactionScore ?? 4
     });
   }, [
     person.area,
@@ -252,6 +263,7 @@ export function PersonStructureCard({ areaOptions, managerOptions, onSave, perso
     person.managerPersonId,
     person.name,
     person.roleTitle,
+    person.satisfactionScore,
     person.workMode,
     person.workUnit
   ]);
@@ -333,6 +345,16 @@ export function PersonStructureCard({ areaOptions, managerOptions, onSave, perso
           options={["internal", "consultant"]}
           renderLabel={(value) => (value === "internal" ? "Interno" : "Consultor")}
           onChange={(value) => setDraft((current) => ({ ...current, employmentType: value }))}
+        />
+        <Input
+          label="Score de satisfacao"
+          type="number"
+          min="1"
+          max="5"
+          step="0.1"
+          helper="Escala operacional de 1 a 5."
+          value={draft.satisfactionScore}
+          onChange={(value) => setDraft((current) => ({ ...current, satisfactionScore: value }))}
         />
         <button type="button" className="primary-button" onClick={() => onSave(person.id, draft)}>
           Salvar vinculos

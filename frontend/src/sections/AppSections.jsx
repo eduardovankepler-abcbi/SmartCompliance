@@ -1265,11 +1265,13 @@ export function PeopleSection({
             </div>
             <Input
               label="Nome"
+              placeholder="Ex.: Maria Clara Souza"
               value={personForm.name}
               onChange={(value) => setPersonForm({ ...personForm, name: value })}
             />
             <Input
               label="Cargo"
+              placeholder="Ex.: Analista de Compliance"
               value={personForm.roleTitle}
               onChange={(value) => setPersonForm({ ...personForm, roleTitle: value })}
             />
@@ -1291,6 +1293,8 @@ export function PeopleSection({
             />
             <Input
               label="Unidade de trabalho"
+              helper="Use o nome da base/unidade para organizar as avaliacoes entre pares."
+              placeholder="Ex.: Sao Paulo"
               value={personForm.workUnit}
               onChange={(value) => setPersonForm({ ...personForm, workUnit: value })}
             />
@@ -1313,6 +1317,16 @@ export function PeopleSection({
               options={["internal", "consultant"]}
               renderLabel={(value) => (value === "internal" ? "Interno" : "Consultor")}
               onChange={(value) => setPersonForm({ ...personForm, employmentType: value })}
+            />
+            <Input
+              label="Score de satisfacao"
+              type="number"
+              min="1"
+              max="5"
+              step="0.1"
+              helper="Opcional. Se nao informar, o sistema assume 4."
+              value={personForm.satisfactionScore}
+              onChange={(value) => setPersonForm({ ...personForm, satisfactionScore: value })}
             />
             <button className="primary-button" type="submit">
               Cadastrar pessoa
@@ -1407,7 +1421,9 @@ export function UsersSection({
   formatDate,
   handleUserSubmit,
   handleUserUpdate,
+  selectedUserPerson,
   setUserForm,
+  suggestedUserEmail,
   userForm,
   userRoleOptions,
   userStatusOptions,
@@ -1428,15 +1444,43 @@ export function UsersSection({
             availableUserPeopleOptions.find((item) => item.value === value)?.label || value
           }
           onChange={(value) => setUserForm({ ...userForm, personId: value })}
+          helper="Somente pessoas sem usuario vinculado aparecem aqui."
         />
+        {selectedUserPerson ? (
+          <article className="list-card compact-list-card">
+            <div className="row">
+              <strong>{selectedUserPerson.name}</strong>
+              <span className="badge">{selectedUserPerson.employmentType || "internal"}</span>
+            </div>
+            <p className="muted">
+              {selectedUserPerson.roleTitle} | {selectedUserPerson.area}
+            </p>
+            <p className="muted">
+              Unidade: {selectedUserPerson.workUnit || "-"} | Modalidade:{" "}
+              {selectedUserPerson.workMode === "onsite"
+                ? "Presencial"
+                : selectedUserPerson.workMode === "remote"
+                  ? "100% Home Office"
+                  : "Hibrido"}
+            </p>
+          </article>
+        ) : null}
         <Input
           label="Email"
+          type="email"
+          placeholder="nome.sobrenome@empresa.com"
+          helper={
+            suggestedUserEmail
+              ? `Sugestao automatica: ${suggestedUserEmail}`
+              : "Defina o email que sera usado no login."
+          }
           value={userForm.email}
           onChange={(value) => setUserForm({ ...userForm, email: value })}
         />
         <Input
           label="Senha inicial"
           type="password"
+          helper="Minimo de 6 caracteres. Use uma senha temporaria para o primeiro acesso."
           value={userForm.password}
           onChange={(value) => setUserForm({ ...userForm, password: value })}
         />

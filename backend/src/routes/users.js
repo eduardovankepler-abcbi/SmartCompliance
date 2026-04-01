@@ -32,16 +32,16 @@ export function createUsersRouter(store) {
   });
 
   router.patch("/:userId", requireRoles("admin", "hr"), async (req, res) => {
-    const { roleKey, status, password } = req.body;
+    const { email, roleKey, status, password } = req.body;
 
-    if (!roleKey || !status) {
-      return badRequest(res, "roleKey e status sao obrigatorios.");
+    if (!email || !roleKey || !status) {
+      return badRequest(res, "email, roleKey e status sao obrigatorios.");
     }
 
     try {
       const user = await store.updateUser(
         req.params.userId,
-        { roleKey, status, password: password || "" },
+        { email, roleKey, status, password: password || "" },
         req.auth.user
       );
       res.json(user);

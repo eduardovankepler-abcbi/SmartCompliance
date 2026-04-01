@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import { getCapabilities } from "../src/access.js";
 import { evaluationModules } from "../src/appConfig.js";
+import {
+  buildSuggestedUserEmail,
+  validatePersonPayload,
+  validateUserPayload
+} from "../src/registry.js";
 import { validateEvaluationAnswerForm } from "../src/evaluations/validation.js";
 import {
   formatDate,
@@ -80,6 +85,36 @@ assert.equal(
 assert.equal(formatDate("2026-03-25T12:00:00Z"), "25/03/2026");
 assert.equal(formatDate("nao-e-data"), "nao-e-data");
 assert.equal(formatDate(""), "-");
+assert.equal(
+  buildSuggestedUserEmail("Maria Clara Souza"),
+  "maria.clara.souza@empresa.local",
+  "Cadastro de usuario deve sugerir email a partir do nome"
+);
+assert.equal(
+  validatePersonPayload({
+    name: "Maria",
+    roleTitle: "Analista",
+    area: "Tecnologia",
+    employmentType: "internal",
+    satisfactionScore: "6"
+  }),
+  "A satisfacao deve ficar entre 1 e 5.",
+  "Cadastro de pessoa deve bloquear score invalido"
+);
+assert.equal(
+  validateUserPayload(
+    {
+      personId: "person_1",
+      email: "invalido",
+      password: "123456",
+      roleKey: "employee",
+      status: "active"
+    },
+    { requirePassword: true }
+  ),
+  "Informe um email valido.",
+  "Cadastro de usuario deve bloquear email invalido"
+);
 
 const employeeCapabilities = getCapabilities({ roleKey: "employee" });
 assert.equal(employeeCapabilities.canViewDashboard, false);
