@@ -513,6 +513,45 @@ function normalizePersonPayload(payload) {
   };
 }
 
+function normalizeAreaLeadershipFlag(value) {
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (["yes", "true", "1", "sim"].includes(normalized)) {
+      return true;
+    }
+    if (["no", "false", "0", ""].includes(normalized)) {
+      return false;
+    }
+  }
+
+  return Boolean(value);
+}
+
+function assignAreaLeadershipSnapshot(areas, personId, areaName, shouldLeadArea) {
+  const nextAreaKey = normalizeAreaName(areaName);
+
+  return areas.map((area) => {
+    const isTargetArea = normalizeAreaName(area.name) === nextAreaKey;
+    const isManagedByPerson = area.managerPersonId === personId;
+
+    if (isManagedByPerson && (!shouldLeadArea || !isTargetArea)) {
+      return {
+        ...area,
+        managerPersonId: null
+      };
+    }
+
+    if (shouldLeadArea && isTargetArea) {
+      return {
+        ...area,
+        managerPersonId: personId
+      };
+    }
+
+    return area;
+  });
+}
+
 function normalizeUserEmail(value) {
   const normalized = normalizeOptionalText(value).toLowerCase();
   if (!normalized) {
@@ -3311,6 +3350,7 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
       }
 
       const personPayload = normalizePersonPayload(payload);
+      const shouldLeadArea = normalizeAreaLeadershipFlag(payload.isAreaManager);
       assertValidManagerReference(db.people, personPayload.managerPersonId);
       assertValidAreaReference(db.areas, personPayload.area);
 
@@ -3319,6 +3359,12 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         ...personPayload
       };
       db.people.unshift(person);
+      db.areas = assignAreaLeadershipSnapshot(
+        db.areas,
+        person.id,
+        person.area,
+        shouldLeadArea
+      );
       return enrichPerson(db.people, person, db.areas.map((area) => enrichArea(db.people, area)));
     },
     async updatePerson(personId, payload, actorUser) {
@@ -3338,10 +3384,17 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
             ? person.satisfactionScore
             : payload.satisfactionScore
       });
+      const shouldLeadArea = normalizeAreaLeadershipFlag(payload.isAreaManager);
       assertValidManagerReference(db.people, personPayload.managerPersonId, personId);
       assertValidAreaReference(db.areas, personPayload.area);
 
       Object.assign(person, personPayload);
+      db.areas = assignAreaLeadershipSnapshot(
+        db.areas,
+        person.id,
+        person.area,
+        shouldLeadArea
+      );
 
       return enrichPerson(db.people, person, db.areas.map((area) => enrichArea(db.people, area)));
     },
@@ -4752,6 +4805,7 @@ function buildMysqlStore(
       }
 
       const personPayload = normalizePersonPayload(payload);
+      const shouldLeadArea = normalizeAreaLeadershipFlag(payload.isAreaManager);
       const [people, areas] = await Promise.all([fetchPeopleRows(pool), fetchAreaRows(pool)]);
       assertValidManagerReference(people, personPayload.managerPersonId);
       assertValidAreaReference(areas, personPayload.area);
@@ -4799,7 +4853,19 @@ function buildMysqlStore(
         );
       }
 
-      return enrichPerson(people, person, areas);
+      await pool.query(`UPDATE areas SET manager_person_id = NULL WHERE manager_person_id = ?`, [person.id]);
+      if (shouldLeadArea) {
+        await pool.query(
+          `UPDATE areas
+           SET manager_person_id = ?
+           WHERE LOWER(name) = LOWER(?)
+           LIMIT 1`,
+          [person.id, person.area]
+        );
+      }
+
+      const nextAreas = assignAreaLeadershipSnapshot(areas, person.id, person.area, shouldLeadArea);
+      return enrichPerson(people, person, nextAreas);
     },
     async updatePerson(personId, payload, actorUser) {
       if (!canManagePeople(actorUser)) {
@@ -4819,6 +4885,7 @@ function buildMysqlStore(
             ? person.satisfactionScore
             : payload.satisfactionScore
       });
+      const shouldLeadArea = normalizeAreaLeadershipFlag(payload.isAreaManager);
       assertValidManagerReference(people, personPayload.managerPersonId, personId);
       assertValidAreaReference(areas, personPayload.area);
 
@@ -4860,6 +4927,23 @@ function buildMysqlStore(
         );
       }
 
+      await pool.query(`UPDATE areas SET manager_person_id = NULL WHERE manager_person_id = ?`, [personId]);
+      if (shouldLeadArea) {
+        await pool.query(
+          `UPDATE areas
+           SET manager_person_id = ?
+           WHERE LOWER(name) = LOWER(?)
+           LIMIT 1`,
+          [personId, personPayload.area]
+        );
+      }
+
+      const nextAreas = assignAreaLeadershipSnapshot(
+        areas,
+        personId,
+        personPayload.area,
+        shouldLeadArea
+      );
       return enrichPerson(
         people.map((item) =>
           item.id === personId
@@ -4873,7 +4957,7 @@ function buildMysqlStore(
           ...person,
           ...personPayload
         },
-        areas
+        nextAreas
       );
     },
     async getUsers(actorUser) {

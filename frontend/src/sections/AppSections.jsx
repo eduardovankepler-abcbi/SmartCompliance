@@ -1291,6 +1291,14 @@ export function PeopleSection({
               }
               onChange={(value) => setPersonForm({ ...personForm, managerPersonId: value })}
             />
+            <Select
+              label="Lider da area"
+              value={personForm.isAreaManager}
+              options={["no", "yes"]}
+              renderLabel={(value) => (value === "yes" ? "Sim" : "Nao")}
+              helper="Se marcar Sim, esta pessoa ja entra como responsavel da area escolhida."
+              onChange={(value) => setPersonForm({ ...personForm, isAreaManager: value })}
+            />
             <Input
               label="Unidade de trabalho"
               helper="Use o nome da base/unidade para organizar as avaliacoes entre pares."
@@ -1389,7 +1397,9 @@ export function PeopleSection({
               <article className="list-card compact-list-card" key={person.id}>
                 <div className="row">
                   <strong>{person.name}</strong>
-                  <span className="badge">{person.employmentType || "-"}</span>
+                  <span className="badge">
+                    {person.areaManagerPersonId === person.id ? "Lider da area" : person.employmentType || "-"}
+                  </span>
                 </div>
                 <p className="muted">{person.roleTitle}</p>
                 <p className="muted">

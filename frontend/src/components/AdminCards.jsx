@@ -242,6 +242,7 @@ export function PersonStructureCard({ areaOptions, managerOptions, onSave, perso
     workUnit: person.workUnit || "",
     workMode: person.workMode || "hybrid",
     managerPersonId: person.managerPersonId || "",
+    isAreaManager: person.areaManagerPersonId === person.id ? "yes" : "no",
     employmentType: person.employmentType || "internal",
     satisfactionScore: person.satisfactionScore ?? 4
   });
@@ -254,11 +255,13 @@ export function PersonStructureCard({ areaOptions, managerOptions, onSave, perso
       workUnit: person.workUnit || "",
       workMode: person.workMode || "hybrid",
       managerPersonId: person.managerPersonId || "",
+      isAreaManager: person.areaManagerPersonId === person.id ? "yes" : "no",
       employmentType: person.employmentType || "internal",
       satisfactionScore: person.satisfactionScore ?? 4
     });
   }, [
     person.area,
+    person.areaManagerPersonId,
     person.employmentType,
     person.managerPersonId,
     person.name,
@@ -272,7 +275,9 @@ export function PersonStructureCard({ areaOptions, managerOptions, onSave, perso
     <article className="list-card compact-list-card">
       <div className="row">
         <strong>{person.name}</strong>
-        <span className="badge">{person.employmentType || "internal"}</span>
+        <span className="badge">
+          {person.areaManagerPersonId === person.id ? "Lider da area" : person.employmentType || "internal"}
+        </span>
       </div>
       <p className="muted">
         {person.roleTitle} | {person.area}
@@ -320,6 +325,14 @@ export function PersonStructureCard({ areaOptions, managerOptions, onSave, perso
               managerPersonId: value
             }))
           }
+        />
+        <Select
+          label="Lider da area"
+          value={draft.isAreaManager}
+          options={["no", "yes"]}
+          renderLabel={(value) => (value === "yes" ? "Sim" : "Nao")}
+          helper="Se marcado, esta pessoa passa a ser a responsavel atual pela area."
+          onChange={(value) => setDraft((current) => ({ ...current, isAreaManager: value }))}
         />
         <Input
           label="Unidade de trabalho"

@@ -21,6 +21,7 @@ export function createPeopleRouter(store) {
       workUnit,
       workMode,
       managerPersonId,
+      isAreaManager,
       employmentType,
       satisfactionScore
     } = req.body;
@@ -38,6 +39,7 @@ export function createPeopleRouter(store) {
           workUnit,
           workMode,
           managerPersonId: managerPersonId || null,
+          isAreaManager,
           employmentType,
           satisfactionScore:
             satisfactionScore === undefined || satisfactionScore === null
@@ -60,6 +62,7 @@ export function createPeopleRouter(store) {
       workUnit,
       workMode,
       managerPersonId,
+      isAreaManager,
       employmentType,
       satisfactionScore
     } = req.body;
@@ -78,6 +81,7 @@ export function createPeopleRouter(store) {
           workUnit,
           workMode,
           managerPersonId: managerPersonId || null,
+          isAreaManager,
           employmentType,
           satisfactionScore:
             satisfactionScore === undefined || satisfactionScore === null

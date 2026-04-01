@@ -651,16 +651,25 @@ try {
     "Aplause deve permitir atualizacao de categoria"
   );
 
+  const createdArea = await store.createArea(
+    {
+      name: "Area Lideranca Teste",
+      managerPersonId: null
+    },
+    admin
+  );
+
   const createdPerson = await store.createPerson(
     {
       name: "  Pessoa Homologacao  ",
       roleTitle: "  Analista de Testes  ",
-      area: "Tecnologia",
+      area: createdArea.name,
       workUnit: "Sao Paulo",
       workMode: "hybrid",
       managerPersonId: manager.personId,
       employmentType: "internal",
-      satisfactionScore: "4.5"
+      satisfactionScore: "4.5",
+      isAreaManager: true
     },
     admin
   );
@@ -678,6 +687,41 @@ try {
   );
   assert.equal(createdPerson.workUnit, "Sao Paulo", "Pessoa deve manter unidade de trabalho");
   assert.equal(createdPerson.workMode, "hybrid", "Pessoa deve manter modalidade de trabalho");
+  assert.equal(
+    createdPerson.areaManagerPersonId,
+    createdPerson.id,
+    "Cadastro de pessoa deve permitir marcar lider da area no mesmo fluxo"
+  );
+
+  const areaAfterLeaderAssignment = (await store.getAreas(admin)).find(
+    (area) => area.name === createdArea.name
+  );
+  assert.equal(
+    areaAfterLeaderAssignment?.managerPersonId,
+    createdPerson.id,
+    "Area deve passar a apontar para a pessoa criada como lider"
+  );
+
+  const updatedPersonWithoutLeadership = await store.updatePerson(
+    createdPerson.id,
+    {
+      name: createdPerson.name,
+      roleTitle: createdPerson.roleTitle,
+      area: createdPerson.area,
+      workUnit: createdPerson.workUnit,
+      workMode: createdPerson.workMode,
+      managerPersonId: createdPerson.managerPersonId,
+      employmentType: createdPerson.employmentType,
+      satisfactionScore: createdPerson.satisfactionScore,
+      isAreaManager: false
+    },
+    admin
+  );
+  assert.equal(
+    updatedPersonWithoutLeadership.areaManagerPersonId,
+    null,
+    "Edicao da pessoa deve permitir remover a lideranca da area"
+  );
 
   const remotePerson = await store.createPerson(
     {

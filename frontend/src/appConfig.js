@@ -128,6 +128,7 @@ export const emptyPerson = {
   workUnit: "",
   workMode: "hybrid",
   managerPersonId: "",
+  isAreaManager: "no",
   employmentType: "internal",
   satisfactionScore: ""
 };
