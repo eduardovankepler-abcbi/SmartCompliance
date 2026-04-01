@@ -38,12 +38,12 @@ Configurar no servico do Render:
 - `NODE_ENV=production`
 - `STORAGE_MODE=mysql`
 - `AUTH_SECRET=<gerar-um-valor-forte>`
-- `MYSQL_HOST=<host-do-banco>`
-- `MYSQL_PORT=<porta-do-banco>`
-- `MYSQL_USER=<usuario-do-banco>`
-- `MYSQL_PASSWORD=<senha-do-banco>`
-- `MYSQL_DATABASE=<nome-do-banco>`
-- `CORS_ORIGIN=<url-do-frontend-publicado>`
+- `MYSQL_HOST=<host-do-banco>` (ou `DB_HOST`)
+- `MYSQL_PORT=<porta-do-banco>` (ou `DB_PORT`)
+- `MYSQL_USER=<usuario-do-banco>` (ou `DB_USER`)
+- `MYSQL_PASSWORD=<senha-do-banco>` (ou `DB_PASSWORD`)
+- `MYSQL_DATABASE=<nome-do-banco>` (ou `DB_NAME`)
+- `CORS_ORIGIN=<url-do-frontend-publicado>` (ou `CORS_ORIGINS` em CSV)
 
 Observacao:
 
