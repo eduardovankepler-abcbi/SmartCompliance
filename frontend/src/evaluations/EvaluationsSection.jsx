@@ -5,6 +5,19 @@ import { FeedbackRequestPanel } from "./FeedbackRequestPanel";
 import { AuditTrailPanel } from "../components/AuditTrailPanel";
 import { getRelationshipLabel } from "../appLabels.js";
 
+function getWorkModeLabel(value) {
+  switch (value) {
+    case "onsite":
+      return "Presencial";
+    case "remote":
+      return "100% home office";
+    case "hybrid":
+      return "Hibrido";
+    default:
+      return value || "-";
+  }
+}
+
 export function EvaluationsSection(props) {
   const {
     Input,
@@ -32,12 +45,17 @@ export function EvaluationsSection(props) {
     evaluationCycleHistory,
     evaluationCycleOptions,
     evaluationOperationNotice,
+    evaluationOperationWorkModeFilter,
+    evaluationOperationWorkModeOptions,
+    evaluationOperationWorkUnitFilter,
+    evaluationOperationWorkUnitOptions,
     evaluationLibrary,
     evaluationModuleOptions,
     feedbackProviderOptions,
     feedbackRequestCycleOptions,
     feedbackRequestForm,
     filteredReceivedManagerFeedback,
+    filteredEvaluationCycleStructure,
     filteredFeedbackRequests,
     formatDate,
     getCycleStatusDescription,
@@ -64,6 +82,8 @@ export function EvaluationsSection(props) {
     setComparisonEvaluationCycleId,
     setCustomLibraryPublishForm,
     setCycleForm,
+    setEvaluationOperationWorkModeFilter,
+    setEvaluationOperationWorkUnitFilter,
     setFeedbackRequestForm,
     setReceivedManagerFeedbackDraft,
     setShowEvaluationLibrary,
@@ -75,6 +95,9 @@ export function EvaluationsSection(props) {
   const isRespondWorkspace = activeEvaluationWorkspace === "respond";
   const isInsightsWorkspace = activeEvaluationWorkspace === "insights";
   const isOperationsWorkspace = activeEvaluationWorkspace === "operations";
+  const operationsStructure = filteredEvaluationCycleStructure || evaluationCycleStructure;
+  const hasOperationFilters =
+    evaluationOperationWorkUnitFilter !== "all" || evaluationOperationWorkModeFilter !== "all";
   const cycleRelationshipTypes = [
     "self",
     "company",
@@ -474,18 +497,43 @@ export function EvaluationsSection(props) {
             <h3>Participantes e avaliadores do ciclo</h3>
             <span>Estrutura formal do 360 para o ciclo em foco</span>
           </div>
+          <div className="list-card">
+            <div className="dashboard-filter-grid">
+              <Select
+                label="Unidade"
+                value={evaluationOperationWorkUnitFilter}
+                options={evaluationOperationWorkUnitOptions}
+                renderLabel={(value) => (value === "all" ? "Todas as unidades" : value)}
+                onChange={setEvaluationOperationWorkUnitFilter}
+              />
+              <Select
+                label="Modalidade"
+                value={evaluationOperationWorkModeFilter}
+                options={evaluationOperationWorkModeOptions}
+                renderLabel={(value) =>
+                  value === "all" ? "Todas as modalidades" : getWorkModeLabel(value)
+                }
+                onChange={setEvaluationOperationWorkModeFilter}
+              />
+            </div>
+            <p className="muted">
+              {hasOperationFilters
+                ? "Recorte operacional aplicado sobre os avaliados do ciclo."
+                : "Use os filtros para recortar a operacao por unidade e modalidade."}
+            </p>
+          </div>
           <div className="metrics-grid">
             <div className="mini-card">
               <p className="mini-label">Ciclo</p>
-              <strong>{evaluationCycleStructure?.cycle?.title || "Sem ciclo ativo"}</strong>
+              <strong>{operationsStructure?.cycle?.title || "Sem ciclo ativo"}</strong>
             </div>
             <div className="mini-card">
               <p className="mini-label">Participantes</p>
-              <strong>{evaluationCycleStructure?.cycle?.participantCount ?? 0}</strong>
+              <strong>{operationsStructure?.cycle?.participantCount ?? 0}</strong>
             </div>
             <div className="mini-card">
               <p className="mini-label">Avaliadores</p>
-              <strong>{evaluationCycleStructure?.cycle?.raterCount ?? 0}</strong>
+              <strong>{operationsStructure?.cycle?.raterCount ?? 0}</strong>
             </div>
             <div className="mini-card">
               <p className="mini-label">Submodulo</p>
@@ -493,15 +541,15 @@ export function EvaluationsSection(props) {
             </div>
             <div className="mini-card">
               <p className="mini-label">Taxa de adesao</p>
-              <strong>{evaluationCycleStructure?.compliance?.adherenceRate ?? 0}%</strong>
+              <strong>{operationsStructure?.compliance?.adherenceRate ?? 0}%</strong>
             </div>
             <div className="mini-card">
               <p className="mini-label">Taxa de inadimplencia</p>
-              <strong>{evaluationCycleStructure?.compliance?.delinquencyRate ?? 0}%</strong>
+              <strong>{operationsStructure?.compliance?.delinquencyRate ?? 0}%</strong>
             </div>
             <div className="mini-card">
               <p className="mini-label">Inadimplentes</p>
-              <strong>{evaluationCycleStructure?.compliance?.delinquentAssignments ?? 0}</strong>
+              <strong>{operationsStructure?.compliance?.delinquentAssignments ?? 0}</strong>
             </div>
           </div>
           <div className="list-card">
@@ -524,9 +572,9 @@ export function EvaluationsSection(props) {
               <p className="muted">{evaluationOperationNotice}</p>
             ) : null}
           </div>
-          {evaluationCycleStructure?.relationshipSummary?.length ? (
+          {operationsStructure?.relationshipSummary?.length ? (
             <div className="metrics-grid">
-              {evaluationCycleStructure.relationshipSummary.map((item) => (
+              {operationsStructure.relationshipSummary.map((item) => (
                 <div className="mini-card" key={item.relationshipType}>
                   <p className="mini-label">{getRelationshipLabel(item.relationshipType)}</p>
                   <strong>{item.total}</strong>
@@ -534,7 +582,7 @@ export function EvaluationsSection(props) {
               ))}
             </div>
           ) : null}
-          {evaluationCycleStructure?.delinquents?.length ? (
+          {operationsStructure?.delinquents?.length ? (
             <div className="stack-list">
               <div className="list-card">
                 <strong>Lista de inadimplentes</strong>
@@ -543,7 +591,7 @@ export function EvaluationsSection(props) {
                 </p>
               </div>
               <div className="metrics-grid">
-                {evaluationCycleStructure.delinquents.map((assignment) => (
+                {operationsStructure.delinquents.map((assignment) => (
                   <article className="mini-card" key={assignment.id}>
                     <div className="row">
                       <strong>{assignment.reviewerName || "Avaliador"}</strong>
@@ -552,6 +600,10 @@ export function EvaluationsSection(props) {
                     <p className="muted">
                       {getRelationshipLabel(assignment.relationshipType)} ·{" "}
                       {assignment.revieweeName}
+                    </p>
+                    <p className="muted">
+                      Unidade: {assignment.revieweeWorkUnit || "-"} · Modalidade:{" "}
+                      {getWorkModeLabel(assignment.revieweeWorkMode)}
                     </p>
                     <p className="muted">
                       Prazo: {formatDate(assignment.dueDate)} · Lembretes:{" "}
@@ -572,9 +624,9 @@ export function EvaluationsSection(props) {
               </p>
             </div>
           )}
-          {evaluationCycleStructure?.participants?.length ? (
+          {operationsStructure?.participants?.length ? (
             <div className="metrics-grid">
-              {evaluationCycleStructure.participants.map((participant) => (
+              {operationsStructure.participants.map((participant) => (
                 <div className="mini-card" key={participant.id}>
                   <div className="row">
                     <strong>{participant.personName}</strong>
@@ -585,6 +637,10 @@ export function EvaluationsSection(props) {
                   <p className="muted">
                     {participant.personArea}
                     {participant.managerName ? ` · Gestor: ${participant.managerName}` : ""}
+                  </p>
+                  <p className="muted">
+                    Unidade: {participant.personWorkUnit || "-"} · Modalidade:{" "}
+                    {getWorkModeLabel(participant.personWorkMode)}
                   </p>
                   <p className="muted">
                     {participant.raters

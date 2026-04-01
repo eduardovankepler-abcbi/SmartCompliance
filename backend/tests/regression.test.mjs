@@ -734,6 +734,16 @@ try {
   );
   assert.ok(remoteParticipant, "Pessoa remota deve participar do ciclo");
   assert.equal(
+    remoteParticipant.personWorkUnit,
+    "Sao Paulo",
+    "Estrutura do ciclo deve expor a unidade do participante"
+  );
+  assert.equal(
+    remoteParticipant.personWorkMode,
+    "remote",
+    "Estrutura do ciclo deve expor a modalidade do participante"
+  );
+  assert.equal(
     remoteParticipant.raters.some((rater) => rater.relationshipType === "cross-functional"),
     false,
     "Pessoa 100% remota nao deve ser avaliada no feedback indireto"

@@ -193,12 +193,17 @@ export default function App() {
     evaluationCycleHistory,
     evaluationCycleOptions,
     evaluationOperationNotice,
+    evaluationOperationWorkModeFilter,
+    evaluationOperationWorkModeOptions,
+    evaluationOperationWorkUnitFilter,
+    evaluationOperationWorkUnitOptions,
     evaluationModuleOptions,
     feedbackProviderOptions,
     feedbackRequestCycleOptions,
     feedbackRequestForm,
     filteredAggregateResponses,
     filteredAssignments,
+    filteredEvaluationCycleStructure,
     filteredFeedbackRequests,
     filteredIndividualResponses,
     filteredReceivedManagerFeedback,
@@ -225,6 +230,8 @@ export default function App() {
     setCustomLibraryPublishForm,
     setCycleForm,
     setDevelopmentNote,
+    setEvaluationOperationWorkModeFilter,
+    setEvaluationOperationWorkUnitFilter,
     setFeedbackRequestForm,
     setReceivedManagerFeedbackDraft,
     setSelectedAssignment,
@@ -1210,6 +1217,10 @@ export default function App() {
             evaluationCycleHistory={evaluationCycleHistory}
             evaluationCycleOptions={evaluationCycleOptions}
             evaluationOperationNotice={evaluationOperationNotice}
+            evaluationOperationWorkModeFilter={evaluationOperationWorkModeFilter}
+            evaluationOperationWorkModeOptions={evaluationOperationWorkModeOptions}
+            evaluationOperationWorkUnitFilter={evaluationOperationWorkUnitFilter}
+            evaluationOperationWorkUnitOptions={evaluationOperationWorkUnitOptions}
             evaluationLibrary={evaluationLibrary}
             evaluationModuleOptions={evaluationModuleOptions}
             feedbackProviderOptions={feedbackProviderOptions}
@@ -1217,6 +1228,7 @@ export default function App() {
             feedbackRequestForm={feedbackRequestForm}
             filteredAggregateResponses={filteredAggregateResponses}
             filteredAssignments={filteredAssignments}
+            filteredEvaluationCycleStructure={filteredEvaluationCycleStructure}
             filteredFeedbackRequests={filteredFeedbackRequests}
             filteredIndividualResponses={filteredIndividualResponses}
             filteredReceivedManagerFeedback={filteredReceivedManagerFeedback}
@@ -1252,6 +1264,8 @@ export default function App() {
             setCustomLibraryPublishForm={setCustomLibraryPublishForm}
             setCycleForm={setCycleForm}
             setDevelopmentNote={setDevelopmentNote}
+            setEvaluationOperationWorkModeFilter={setEvaluationOperationWorkModeFilter}
+            setEvaluationOperationWorkUnitFilter={setEvaluationOperationWorkUnitFilter}
             setFeedbackRequestForm={setFeedbackRequestForm}
             setReceivedManagerFeedbackDraft={setReceivedManagerFeedbackDraft}
             setSelectedAssignment={setSelectedAssignment}

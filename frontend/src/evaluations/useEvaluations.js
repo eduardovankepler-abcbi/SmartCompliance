@@ -75,6 +75,84 @@ function averageScore(values) {
   );
 }
 
+function calculatePercentage(part, total) {
+  if (!total) {
+    return 0;
+  }
+
+  return Math.round((Number(part) / Number(total)) * 100);
+}
+
+function normalizeOperationFilterValue(value) {
+  return String(value || "").trim();
+}
+
+function matchesOperationFilter(value, filterValue) {
+  if (filterValue === "all") {
+    return true;
+  }
+
+  return normalizeOperationFilterValue(value).toLowerCase() ===
+    normalizeOperationFilterValue(filterValue).toLowerCase();
+}
+
+function buildFilteredCycleOperationsStructure(structure, filters) {
+  if (!structure) {
+    return null;
+  }
+
+  const participants = Array.isArray(structure.participants) ? structure.participants : [];
+  const delinquents = Array.isArray(structure.delinquents) ? structure.delinquents : [];
+  const filteredParticipants = participants.filter(
+    (participant) =>
+      matchesOperationFilter(participant.personWorkUnit, filters.workUnit) &&
+      matchesOperationFilter(participant.personWorkMode, filters.workMode)
+  );
+  const allowedPersonIds = new Set(filteredParticipants.map((participant) => participant.personId));
+  const filteredDelinquents = delinquents.filter((assignment) =>
+    allowedPersonIds.has(assignment.revieweePersonId)
+  );
+  const totalAssignments = filteredParticipants.reduce(
+    (total, participant) => total + Number(participant.totalRaters || 0),
+    0
+  );
+  const submittedAssignments = filteredParticipants.reduce(
+    (total, participant) => total + Number(participant.completedRaters || 0),
+    0
+  );
+  const pendingAssignments = filteredParticipants.reduce(
+    (total, participant) => total + Number(participant.pendingRaters || 0),
+    0
+  );
+  const filteredRaters = filteredParticipants.flatMap((participant) => participant.raters || []);
+  const relationshipSummary = Object.entries(
+    filteredRaters.reduce((summary, rater) => {
+      summary[rater.relationshipType] = (summary[rater.relationshipType] || 0) + 1;
+      return summary;
+    }, {})
+  ).map(([relationshipType, total]) => ({ relationshipType, total }));
+
+  return {
+    ...structure,
+    cycle: {
+      ...structure.cycle,
+      participantCount: filteredParticipants.length,
+      raterCount: filteredRaters.length
+    },
+    compliance: {
+      totalAssignments,
+      submittedAssignments,
+      pendingAssignments,
+      delinquentAssignments: filteredDelinquents.length,
+      adherenceRate: calculatePercentage(submittedAssignments, totalAssignments),
+      delinquencyRate: calculatePercentage(filteredDelinquents.length, totalAssignments)
+    },
+    participants: filteredParticipants,
+    delinquents: filteredDelinquents,
+    relationshipSummary
+  };
+}
+
 function summarizeEvaluationCycleModule({
   cycleId,
   cycles,
@@ -213,6 +291,8 @@ export function useEvaluations({
   );
   const [evaluationCycleStructure, setEvaluationCycleStructure] = useState(null);
   const [evaluationOperationNotice, setEvaluationOperationNotice] = useState("");
+  const [evaluationOperationWorkUnitFilter, setEvaluationOperationWorkUnitFilter] = useState("all");
+  const [evaluationOperationWorkModeFilter, setEvaluationOperationWorkModeFilter] = useState("all");
   const [showEvaluationLibrary, setShowEvaluationLibrary] = useState(false);
   const [selectedAssignment, setSelectedAssignment] = useState(null);
   const [assignmentDetail, setAssignmentDetail] = useState(null);
@@ -451,6 +531,43 @@ export function useEvaluations({
     [activeEvaluationModuleMeta, assignments, cycles, responsesBundle]
   );
 
+  const evaluationOperationWorkUnitOptions = useMemo(() => {
+    const options = Array.from(
+      new Set(
+        (evaluationCycleStructure?.participants || [])
+          .map((participant) => String(participant.personWorkUnit || "").trim())
+          .filter(Boolean)
+      )
+    ).sort((left, right) => left.localeCompare(right, "pt-BR"));
+
+    return ["all", ...options];
+  }, [evaluationCycleStructure]);
+
+  const evaluationOperationWorkModeOptions = useMemo(() => {
+    const options = Array.from(
+      new Set(
+        (evaluationCycleStructure?.participants || [])
+          .map((participant) => String(participant.personWorkMode || "").trim())
+          .filter(Boolean)
+      )
+    );
+
+    return ["all", ...options];
+  }, [evaluationCycleStructure]);
+
+  const filteredEvaluationCycleStructure = useMemo(
+    () =>
+      buildFilteredCycleOperationsStructure(evaluationCycleStructure, {
+        workUnit: evaluationOperationWorkUnitFilter,
+        workMode: evaluationOperationWorkModeFilter
+      }),
+    [
+      evaluationCycleStructure,
+      evaluationOperationWorkModeFilter,
+      evaluationOperationWorkUnitFilter
+    ]
+  );
+
   useEffect(() => {
     async function loadCycleStructure() {
       if (!canViewEvaluationOperations || activeEvaluationWorkspace !== "operations") {
@@ -480,6 +597,18 @@ export function useEvaluations({
     canViewEvaluationOperations,
     setError
   ]);
+
+  useEffect(() => {
+    if (!evaluationOperationWorkUnitOptions.includes(evaluationOperationWorkUnitFilter)) {
+      setEvaluationOperationWorkUnitFilter("all");
+    }
+  }, [evaluationOperationWorkUnitFilter, evaluationOperationWorkUnitOptions]);
+
+  useEffect(() => {
+    if (!evaluationOperationWorkModeOptions.includes(evaluationOperationWorkModeFilter)) {
+      setEvaluationOperationWorkModeFilter("all");
+    }
+  }, [evaluationOperationWorkModeFilter, evaluationOperationWorkModeOptions]);
 
   useEffect(() => {
     async function loadAssignment() {
@@ -620,6 +749,8 @@ export function useEvaluations({
     setActiveEvaluationWorkspace(route.evaluationWorkspace || "respond");
     setEvaluationCycleStructure(null);
     setEvaluationOperationNotice("");
+    setEvaluationOperationWorkUnitFilter("all");
+    setEvaluationOperationWorkModeFilter("all");
     setShowEvaluationLibrary(false);
     setSelectedAssignment(null);
     setAssignmentDetail(null);
@@ -893,12 +1024,17 @@ export function useEvaluations({
     evaluationCycleHistory,
     evaluationCycleOptions,
     evaluationOperationNotice,
+    evaluationOperationWorkModeFilter,
+    evaluationOperationWorkModeOptions,
+    evaluationOperationWorkUnitFilter,
+    evaluationOperationWorkUnitOptions,
     evaluationModuleOptions,
     feedbackProviderOptions,
     feedbackRequestCycleOptions,
     feedbackRequestForm,
     filteredAggregateResponses,
     filteredAssignments,
+    filteredEvaluationCycleStructure,
     filteredFeedbackRequests,
     filteredIndividualResponses,
     filteredReceivedManagerFeedback,
@@ -926,6 +1062,8 @@ export function useEvaluations({
     setCustomLibraryPublishForm,
     setCycleForm,
     setDevelopmentNote,
+    setEvaluationOperationWorkModeFilter,
+    setEvaluationOperationWorkUnitFilter,
     setFeedbackRequestForm,
     setReceivedManagerFeedbackDraft,
     setSelectedAssignment,
