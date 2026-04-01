@@ -181,6 +181,7 @@ export const api = {
   getEvaluationAssignments: () => request("/api/evaluations/assignments"),
   getEvaluationAssignment: (assignmentId) =>
     request(`/api/evaluations/assignments/${assignmentId}`),
+  getReceivedManagerFeedback: () => request("/api/evaluations/received-feedback"),
   getFeedbackRequests: () => request("/api/evaluations/feedback-requests"),
   createFeedbackRequest: (payload) =>
     request("/api/evaluations/feedback-requests", {
@@ -193,6 +194,11 @@ export const api = {
       body: JSON.stringify({ status })
     }),
   getEvaluationResponses: () => request("/api/evaluations/responses"),
+  acknowledgeReceivedManagerFeedback: (submissionId, payload) =>
+    request(`/api/evaluations/responses/${submissionId}/acknowledgement`, {
+      method: "PATCH",
+      body: JSON.stringify(payload)
+    }),
   downloadCustomLibraryTemplate: () =>
     download(
       "/api/evaluations/custom-libraries/template",

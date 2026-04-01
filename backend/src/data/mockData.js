@@ -2115,6 +2115,9 @@ export const seed = {
       overallScore: 4.17,
       strengthsNote: "Boa articulacao entre frentes e consistencia nas entregas.",
       developmentNote: "Pode registrar riscos com ainda mais antecedencia.",
+      revieweeAcknowledgementStatus: null,
+      revieweeAcknowledgementNote: "",
+      revieweeAcknowledgedAt: null,
       submittedAt: "2026-03-12T12:00:00.000Z"
     }
   ],

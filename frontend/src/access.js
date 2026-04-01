@@ -15,6 +15,7 @@ export function getCapabilities(userOrRoleKey) {
     canManageIncidentQueue:
       roleKey === "admin" || roleKey === "hr" || roleKey === "compliance",
     canViewResponses: roleKey === "admin" || roleKey === "manager",
+    canReceiveManagerFeedback: roleKey === "employee",
     canViewEvaluationInsights: roleKey === "admin" || roleKey === "manager",
     canViewEvaluationLibrary: roleKey === "admin" || roleKey === "hr",
     canManageApplause: roleKey === "admin" || roleKey === "hr" || roleKey === "manager",

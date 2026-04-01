@@ -14,6 +14,10 @@ const DEFAULT_CYCLE_MODULE_AVAILABILITY = Object.freeze({
   "client-internal": true,
   "client-external": true
 });
+const FEEDBACK_ACKNOWLEDGEMENT_STATUS = Object.freeze({
+  agreed: "agreed",
+  disagreed: "disagreed"
+});
 
 function normalizeCycleModuleAvailability(value) {
   if (!value || typeof value !== "object") {
@@ -185,6 +189,7 @@ export function useEvaluations({
   people,
   cycles,
   assignments,
+  receivedManagerFeedback,
   feedbackRequests,
   evaluationLibrary,
   responsesBundle,
@@ -215,6 +220,7 @@ export function useEvaluations({
   const [developmentNote, setDevelopmentNote] = useState("");
   const [cycleForm, setCycleForm] = useState(initialCycleForm);
   const [feedbackRequestForm, setFeedbackRequestForm] = useState(initialFeedbackRequestForm);
+  const [receivedManagerFeedbackDrafts, setReceivedManagerFeedbackDrafts] = useState({});
   const [customLibraryDraft, setCustomLibraryDraft] = useState(null);
   const [customLibraryPublishForm, setCustomLibraryPublishForm] = useState(
     initialLibraryPublishForm
@@ -372,6 +378,18 @@ export function useEvaluations({
     [activeEvaluationCycleId, activeEvaluationModuleMeta, feedbackRequests]
   );
 
+  const filteredReceivedManagerFeedback = useMemo(
+    () =>
+      activeEvaluationModuleMeta?.relationshipType === "manager"
+        ? receivedManagerFeedback.filter(
+            (response) =>
+              (!activeEvaluationCycleId || response.cycleId === activeEvaluationCycleId) &&
+              response.relationshipType === "manager"
+          )
+        : [],
+    [activeEvaluationCycleId, activeEvaluationModuleMeta, receivedManagerFeedback]
+  );
+
   const activeCycleModuleSummary = useMemo(
     () =>
       summarizeEvaluationCycleModule({
@@ -485,6 +503,26 @@ export function useEvaluations({
   }, [selectedAssignment, setError]);
 
   useEffect(() => {
+    setReceivedManagerFeedbackDrafts((current) =>
+      Object.fromEntries(
+        receivedManagerFeedback.map((feedback) => [
+          feedback.id,
+          {
+            status:
+              current[feedback.id]?.status ||
+              feedback.revieweeAcknowledgementStatus ||
+              FEEDBACK_ACKNOWLEDGEMENT_STATUS.agreed,
+            note:
+              current[feedback.id]?.note !== undefined
+                ? current[feedback.id].note
+                : feedback.revieweeAcknowledgementNote || ""
+          }
+        ])
+      )
+    );
+  }, [receivedManagerFeedback]);
+
+  useEffect(() => {
     const nextCycleId =
       feedbackRequestCycleOptions.find((cycle) => cycle.id === feedbackRequestForm.cycleId)?.id ||
       feedbackRequestCycleOptions[0]?.id ||
@@ -588,6 +626,7 @@ export function useEvaluations({
     setDevelopmentNote("");
     setCycleForm(initialCycleForm);
     setFeedbackRequestForm(initialFeedbackRequestForm);
+    setReceivedManagerFeedbackDrafts({});
     setCustomLibraryDraft(null);
     setCustomLibraryPublishForm(initialLibraryPublishForm);
   }
@@ -726,6 +765,44 @@ export function useEvaluations({
     }
   }
 
+  function setReceivedManagerFeedbackDraft(submissionId, patch) {
+    setReceivedManagerFeedbackDrafts((current) => ({
+      ...current,
+      [submissionId]: {
+        ...(current[submissionId] || {}),
+        ...patch
+      }
+    }));
+  }
+
+  async function handleReceivedManagerFeedbackSubmit(submissionId) {
+    const draft = receivedManagerFeedbackDrafts[submissionId];
+
+    if (!draft?.status) {
+      setError("Escolha Concordo ou Discordo antes de enviar.");
+      return;
+    }
+
+    if (
+      draft.status === FEEDBACK_ACKNOWLEDGEMENT_STATUS.disagreed &&
+      !String(draft.note || "").trim()
+    ) {
+      setError("Explique o motivo da discordancia antes de enviar.");
+      return;
+    }
+
+    try {
+      setError("");
+      await api.acknowledgeReceivedManagerFeedback(submissionId, {
+        status: draft.status,
+        note: draft.note || ""
+      });
+      await reloadData();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
   async function handleCustomLibraryImport(event) {
     const file = event.target.files?.[0];
     if (!file) {
@@ -804,6 +881,7 @@ export function useEvaluations({
     filteredAssignments,
     filteredFeedbackRequests,
     filteredIndividualResponses,
+    filteredReceivedManagerFeedback,
     handleAssignmentSubmit,
     handleCustomLibraryImport,
     handleCustomLibraryTemplateDownload,
@@ -815,6 +893,8 @@ export function useEvaluations({
     handleFeedbackProviderToggle,
     handleFeedbackRequestReview,
     handleFeedbackRequestSubmit,
+    handleReceivedManagerFeedbackSubmit,
+    receivedManagerFeedbackDrafts,
     resetEvaluations,
     selectedAssignment,
     setActiveEvaluationCycleId,
@@ -826,6 +906,7 @@ export function useEvaluations({
     setCycleForm,
     setDevelopmentNote,
     setFeedbackRequestForm,
+    setReceivedManagerFeedbackDraft,
     setSelectedAssignment,
     setShowEvaluationLibrary,
     setStrengthsNote,

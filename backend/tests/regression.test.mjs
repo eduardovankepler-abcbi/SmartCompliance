@@ -17,6 +17,19 @@ async function fetchJson(baseUrl, path, headers = {}) {
   return { response, payload };
 }
 
+async function sendJson(baseUrl, path, { method = "POST", headers = {}, body } = {}) {
+  const response = await fetch(`${baseUrl}${path}`, {
+    method,
+    headers: {
+      "Content-Type": "application/json",
+      ...headers
+    },
+    body: body ? JSON.stringify(body) : undefined
+  });
+  const payload = await response.json().catch(() => ({}));
+  return { response, payload };
+}
+
 const store = await createStore();
 const app = createApp(store);
 const server = app.listen(0);
@@ -33,8 +46,12 @@ try {
   const hr = await store.findUserByEmail("rh@demo.local");
   const compliance = await store.findUserByEmail("compliance@demo.local");
   const employee = await store.findUserByEmail("colaborador1@demo.local");
+  const managerRevieweeEmployee = await store.findUserByEmail("colaborador2@demo.local");
 
-  assert.ok(admin && manager && hr && compliance && employee, "Usuarios demo obrigatorios");
+  assert.ok(
+    admin && manager && hr && compliance && employee && managerRevieweeEmployee,
+    "Usuarios demo obrigatorios"
+  );
 
   const hrResponses = await fetchJson(
     baseUrl,
@@ -314,6 +331,66 @@ try {
     developmentNote: "ok"
   });
   assert.ok(managerSubmission.id, "Envio de feedback do lider deve gerar submission");
+
+  const employeeReceivedFeedback = await fetchJson(
+    baseUrl,
+    "/api/evaluations/received-feedback",
+    getAuthHeader(managerRevieweeEmployee.id)
+  );
+  assert.equal(
+    employeeReceivedFeedback.response.status,
+    200,
+    "Colaborador deve acessar o feedback recebido do lider"
+  );
+  assert.ok(
+    employeeReceivedFeedback.payload.some((item) => item.id === managerSubmission.id),
+    "Feedback do lider enviado deve aparecer para o colaborador"
+  );
+
+  const acknowledgementMissingNote = await sendJson(
+    baseUrl,
+    `/api/evaluations/responses/${managerSubmission.id}/acknowledgement`,
+    {
+      method: "PATCH",
+      headers: getAuthHeader(managerRevieweeEmployee.id),
+      body: {
+        status: "disagreed",
+        note: ""
+      }
+    }
+  );
+  assert.equal(
+    acknowledgementMissingNote.response.status,
+    400,
+    "Discordancia sem justificativa deve ser bloqueada"
+  );
+
+  const acknowledgementResponse = await sendJson(
+    baseUrl,
+    `/api/evaluations/responses/${managerSubmission.id}/acknowledgement`,
+    {
+      method: "PATCH",
+      headers: getAuthHeader(managerRevieweeEmployee.id),
+      body: {
+        status: "disagreed",
+        note: "Quero discutir alguns pontos do feedback em mais detalhe."
+      }
+    }
+  );
+  assert.equal(
+    acknowledgementResponse.response.status,
+    200,
+    "Colaborador deve conseguir registrar discordancia justificada"
+  );
+  assert.equal(
+    acknowledgementResponse.payload.revieweeAcknowledgementStatus,
+    "disagreed",
+    "API deve persistir o status de discordancia"
+  );
+  assert.ok(
+    acknowledgementResponse.payload.revieweeAcknowledgedAt,
+    "Registro de retorno do colaborador deve armazenar data"
+  );
 
   const toggleCycle = await store.createEvaluationCycle(
     {

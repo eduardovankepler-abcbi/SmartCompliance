@@ -1394,6 +1394,35 @@ select {
   grid-template-columns: minmax(220px, 1fr);
 }
 
+.feedback-receipt-list,
+.feedback-receipt-card,
+.feedback-receipt-highlight,
+.feedback-acknowledgement-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.feedback-answer-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.feedback-answer-item {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.feedback-acknowledgement-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
 .evaluation-operations-summary {
   background:
     linear-gradient(135deg, rgba(77, 136, 255, 0.08), transparent 45%),

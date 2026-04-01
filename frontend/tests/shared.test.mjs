@@ -86,6 +86,7 @@ assert.equal(employeeCapabilities.canViewDashboard, false);
 assert.equal(employeeCapabilities.canViewAuditTrail, false);
 assert.equal(employeeCapabilities.canViewEvaluationInsights, false);
 assert.equal(employeeCapabilities.canViewPeople, false);
+assert.equal(employeeCapabilities.canReceiveManagerFeedback, true);
 
 const managerCapabilities = getCapabilities("manager");
 assert.equal(managerCapabilities.canViewDashboard, true);

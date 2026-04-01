@@ -36,6 +36,7 @@ export function EvaluationsSection(props) {
     feedbackProviderOptions,
     feedbackRequestCycleOptions,
     feedbackRequestForm,
+    filteredReceivedManagerFeedback,
     filteredFeedbackRequests,
     formatDate,
     getCycleStatusDescription,
@@ -52,6 +53,8 @@ export function EvaluationsSection(props) {
     handleFeedbackProviderToggle,
     handleFeedbackRequestReview,
     handleFeedbackRequestSubmit,
+    handleReceivedManagerFeedbackSubmit,
+    receivedManagerFeedbackDrafts,
     roleKey,
     setActiveEvaluationCycleId,
     setActiveEvaluationModule,
@@ -60,6 +63,7 @@ export function EvaluationsSection(props) {
     setCustomLibraryPublishForm,
     setCycleForm,
     setFeedbackRequestForm,
+    setReceivedManagerFeedbackDraft,
     setShowEvaluationLibrary,
     showEvaluationLibrary
   } = props;
@@ -443,16 +447,20 @@ export function EvaluationsSection(props) {
         filteredAggregateResponses={props.filteredAggregateResponses}
         filteredAssignments={props.filteredAssignments}
         filteredIndividualResponses={props.filteredIndividualResponses}
+        filteredReceivedManagerFeedback={filteredReceivedManagerFeedback}
         formatDate={formatDate}
         getCycleStatusDescription={getCycleStatusDescription}
         getRelationshipDescription={props.getRelationshipDescription}
         getRelationshipLabel={props.getRelationshipLabel}
         getVisibilityLabel={props.getVisibilityLabel}
         handleAssignmentSubmit={props.handleAssignmentSubmit}
+        handleReceivedManagerFeedbackSubmit={handleReceivedManagerFeedbackSubmit}
         isIndividualJourney={isIndividualJourney}
+        receivedManagerFeedbackDrafts={receivedManagerFeedbackDrafts}
         selectedAssignment={props.selectedAssignment}
         setAnswerForm={props.setAnswerForm}
         setDevelopmentNote={props.setDevelopmentNote}
+        setReceivedManagerFeedbackDraft={setReceivedManagerFeedbackDraft}
         setSelectedAssignment={props.setSelectedAssignment}
         setStrengthsNote={props.setStrengthsNote}
         strengthsNote={props.strengthsNote}

@@ -127,6 +127,7 @@ export default function App() {
     canViewIncidents,
     canManageIncidentQueue,
     canViewResponses,
+    canReceiveManagerFeedback,
     canViewEvaluationInsights,
     canViewEvaluationLibrary,
     canManageApplause,
@@ -153,6 +154,7 @@ export default function App() {
     incidents,
     loading,
     people,
+    receivedManagerFeedback,
     reloadData,
     resetData,
     responsesBundle,
@@ -163,6 +165,7 @@ export default function App() {
     canViewAuditTrail,
     canFilterDashboardByArea,
     canViewDashboard,
+    canReceiveManagerFeedback,
     canViewResponses,
     canViewUsersAdmin,
     dashboardAreaFilter,
@@ -197,6 +200,7 @@ export default function App() {
     filteredAssignments,
     filteredFeedbackRequests,
     filteredIndividualResponses,
+    filteredReceivedManagerFeedback,
     handleAssignmentSubmit,
     handleCustomLibraryImport,
     handleCustomLibraryPublish,
@@ -207,6 +211,8 @@ export default function App() {
     handleFeedbackProviderToggle,
     handleFeedbackRequestReview,
     handleFeedbackRequestSubmit,
+    handleReceivedManagerFeedbackSubmit,
+    receivedManagerFeedbackDrafts,
     resetEvaluations,
     selectedAssignment,
     setActiveEvaluationCycleId,
@@ -218,6 +224,7 @@ export default function App() {
     setCycleForm,
     setDevelopmentNote,
     setFeedbackRequestForm,
+    setReceivedManagerFeedbackDraft,
     setSelectedAssignment,
     setShowEvaluationLibrary,
     setStrengthsNote,
@@ -228,6 +235,7 @@ export default function App() {
     people,
     cycles,
     assignments,
+    receivedManagerFeedback,
     feedbackRequests,
     evaluationLibrary,
     responsesBundle,
@@ -1208,6 +1216,7 @@ export default function App() {
             filteredAssignments={filteredAssignments}
             filteredFeedbackRequests={filteredFeedbackRequests}
             filteredIndividualResponses={filteredIndividualResponses}
+            filteredReceivedManagerFeedback={filteredReceivedManagerFeedback}
             formatDate={formatDate}
             getCycleStatusDescription={getCycleStatusDescription}
             getFeedbackRequestStatusLabel={getFeedbackRequestStatusLabel}
@@ -1227,6 +1236,8 @@ export default function App() {
             handleFeedbackProviderToggle={handleFeedbackProviderToggle}
             handleFeedbackRequestReview={handleFeedbackRequestReview}
             handleFeedbackRequestSubmit={handleFeedbackRequestSubmit}
+            handleReceivedManagerFeedbackSubmit={handleReceivedManagerFeedbackSubmit}
+            receivedManagerFeedbackDrafts={receivedManagerFeedbackDrafts}
             roleKey={user.roleKey}
             selectedAssignment={selectedAssignment}
             setActiveEvaluationCycleId={setActiveEvaluationCycleId}
@@ -1238,6 +1249,7 @@ export default function App() {
             setCycleForm={setCycleForm}
             setDevelopmentNote={setDevelopmentNote}
             setFeedbackRequestForm={setFeedbackRequestForm}
+            setReceivedManagerFeedbackDraft={setReceivedManagerFeedbackDraft}
             setSelectedAssignment={setSelectedAssignment}
             setShowEvaluationLibrary={setShowEvaluationLibrary}
             setStrengthsNote={setStrengthsNote}

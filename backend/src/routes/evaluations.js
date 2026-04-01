@@ -159,6 +159,14 @@ export function createEvaluationsRouter(store) {
     }
   });
 
+  router.get("/received-feedback", async (req, res, next) => {
+    try {
+      res.json(await store.getReceivedManagerFeedback(req.auth.user));
+    } catch (error) {
+      next(error);
+    }
+  });
+
   router.get(
     "/responses",
     requireRoles("admin", "manager"),
@@ -170,6 +178,26 @@ export function createEvaluationsRouter(store) {
       }
     }
   );
+
+  router.patch("/responses/:submissionId/acknowledgement", async (req, res) => {
+    const { status, note } = req.body || {};
+    if (!status) {
+      return badRequest(res, "Status de concordancia obrigatorio.");
+    }
+
+    try {
+      const response = await store.acknowledgeReceivedManagerFeedback(
+        req.params.submissionId,
+        { status, note },
+        req.auth.user
+      );
+      res.json(response);
+    } catch (error) {
+      res
+        .status(400)
+        .json({ error: error.message || "Falha ao registrar retorno do colaborador." });
+    }
+  });
 
   router.get("/feedback-requests", async (req, res, next) => {
     try {

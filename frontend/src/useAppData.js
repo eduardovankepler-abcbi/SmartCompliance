@@ -12,6 +12,7 @@ export function useAppData({
   canViewAuditTrail,
   canFilterDashboardByArea,
   canViewDashboard,
+  canReceiveManagerFeedback,
   canViewResponses,
   canViewUsersAdmin,
   dashboardAreaFilter,
@@ -30,6 +31,7 @@ export function useAppData({
   const [incidents, setIncidents] = useState([]);
   const [cycles, setCycles] = useState([]);
   const [assignments, setAssignments] = useState([]);
+  const [receivedManagerFeedback, setReceivedManagerFeedback] = useState([]);
   const [feedbackRequests, setFeedbackRequests] = useState([]);
   const [responsesBundle, setResponsesBundle] = useState(emptyResponsesBundle);
   const [applauseEntries, setApplauseEntries] = useState([]);
@@ -50,6 +52,7 @@ export function useAppData({
     setIncidents([]);
     setCycles([]);
     setAssignments([]);
+    setReceivedManagerFeedback([]);
     setFeedbackRequests([]);
     setResponsesBundle(emptyResponsesBundle);
     setApplauseEntries([]);
@@ -87,6 +90,7 @@ export function useAppData({
         api.getIncidents(),
         api.getEvaluationCycles(),
         api.getEvaluationAssignments(),
+        canReceiveManagerFeedback ? api.getReceivedManagerFeedback() : Promise.resolve([]),
         api.getFeedbackRequests(),
         api.getApplauseEntries(),
         api.getDevelopmentRecords(),
@@ -114,12 +118,13 @@ export function useAppData({
         nextIncidents,
         nextCycles,
         nextAssignments,
+        nextReceivedManagerFeedback,
         nextFeedbackRequests,
         nextApplause,
         nextDevelopment,
         nextDevelopmentPlans
       ] = result;
-      let resultIndex = 15;
+      let resultIndex = 16;
       const nextUsers = canViewUsersAdmin ? result[resultIndex++] : [];
       const nextResponses = canViewResponses ? result[resultIndex] : emptyResponsesBundle;
 
@@ -135,6 +140,7 @@ export function useAppData({
       setIncidents(nextIncidents);
       setCycles(nextCycles);
       setAssignments(nextAssignments);
+      setReceivedManagerFeedback(nextReceivedManagerFeedback);
       setFeedbackRequests(nextFeedbackRequests);
       setApplauseEntries(nextApplause);
       setDevelopmentRecords(nextDevelopment);
@@ -149,6 +155,7 @@ export function useAppData({
     canViewAuditTrail,
     canFilterDashboardByArea,
     canViewDashboard,
+    canReceiveManagerFeedback,
     canViewResponses,
     canViewUsersAdmin,
     dashboardAreaFilter,
@@ -182,6 +189,7 @@ export function useAppData({
     incidents,
     loading,
     people,
+    receivedManagerFeedback,
     reloadData,
     resetData,
     responsesBundle,

@@ -52,6 +52,10 @@ const FEEDBACK_REQUEST_STATUS = {
   approved: "approved",
   rejected: "rejected"
 };
+const FEEDBACK_ACKNOWLEDGEMENT_STATUS = {
+  agreed: "agreed",
+  disagreed: "disagreed"
+};
 const AUDIT_CATEGORIES = {
   user: "user",
   competency: "competency",
@@ -985,6 +989,10 @@ function presentAssignment(row, customLibraries = []) {
   };
 }
 
+function hasMysqlColumn(rows) {
+  return Boolean(rows?.length);
+}
+
 async function detectMysqlCycleConfigSupport(pool) {
   try {
     const [enabledRows] = await pool.query(
@@ -993,14 +1001,14 @@ async function detectMysqlCycleConfigSupport(pool) {
     const [relationshipsRows] = await pool.query(
       "SHOW COLUMNS FROM evaluation_cycles LIKE 'enabled_relationships_json'"
     );
-    return Boolean(enabledRows?.length) && Boolean(relationshipsRows?.length);
+    return hasMysqlColumn(enabledRows) && hasMysqlColumn(relationshipsRows);
   } catch (_error) {
     return false;
   }
 }
 
-async function ensureMysqlCycleConfigSupport(pool) {
-  const supportsBefore = await detectMysqlCycleConfigSupport(pool);
+async function ensureMysqlColumns(pool, tableName, statements, detector) {
+  const supportsBefore = await detector(pool);
   if (supportsBefore) {
     return true;
   }
@@ -1012,19 +1020,14 @@ async function ensureMysqlCycleConfigSupport(pool) {
   }
 
   try {
-    const [tables] = await pool.query("SHOW TABLES LIKE 'evaluation_cycles'");
+    const [tables] = await pool.query(`SHOW TABLES LIKE '${tableName}'`);
     if (!tables?.length) {
       return false;
     }
   } catch (error) {
-    console.warn("Could not verify evaluation_cycles table existence", error);
+    console.warn(`Could not verify ${tableName} table existence`, error);
     return false;
   }
-
-  const statements = [
-    "ALTER TABLE evaluation_cycles ADD COLUMN is_enabled BOOLEAN NOT NULL DEFAULT TRUE",
-    "ALTER TABLE evaluation_cycles ADD COLUMN enabled_relationships_json JSON NULL"
-  ];
 
   for (const statement of statements) {
     try {
@@ -1038,7 +1041,53 @@ async function ensureMysqlCycleConfigSupport(pool) {
     }
   }
 
-  return detectMysqlCycleConfigSupport(pool);
+  return detector(pool);
+}
+
+async function ensureMysqlCycleConfigSupport(pool) {
+  return ensureMysqlColumns(
+    pool,
+    "evaluation_cycles",
+    [
+      "ALTER TABLE evaluation_cycles ADD COLUMN is_enabled BOOLEAN NOT NULL DEFAULT TRUE",
+      "ALTER TABLE evaluation_cycles ADD COLUMN enabled_relationships_json JSON NULL"
+    ],
+    detectMysqlCycleConfigSupport
+  );
+}
+
+async function detectMysqlFeedbackAcknowledgementSupport(pool) {
+  try {
+    const [statusRows] = await pool.query(
+      "SHOW COLUMNS FROM evaluation_submissions LIKE 'reviewee_acknowledgement_status'"
+    );
+    const [noteRows] = await pool.query(
+      "SHOW COLUMNS FROM evaluation_submissions LIKE 'reviewee_acknowledgement_note'"
+    );
+    const [acknowledgedAtRows] = await pool.query(
+      "SHOW COLUMNS FROM evaluation_submissions LIKE 'reviewee_acknowledged_at'"
+    );
+    return (
+      hasMysqlColumn(statusRows) &&
+      hasMysqlColumn(noteRows) &&
+      hasMysqlColumn(acknowledgedAtRows)
+    );
+  } catch (_error) {
+    return false;
+  }
+}
+
+async function ensureMysqlFeedbackAcknowledgementSupport(pool) {
+  return ensureMysqlColumns(
+    pool,
+    "evaluation_submissions",
+    [
+      "ALTER TABLE evaluation_submissions ADD COLUMN reviewee_acknowledgement_status VARCHAR(30) NULL",
+      "ALTER TABLE evaluation_submissions ADD COLUMN reviewee_acknowledgement_note TEXT NULL",
+      "ALTER TABLE evaluation_submissions ADD COLUMN reviewee_acknowledged_at DATETIME NULL"
+    ],
+    detectMysqlFeedbackAcknowledgementSupport
+  );
 }
 
 function enrichAssignment(db, assignment, customLibraries = []) {
@@ -1126,7 +1175,34 @@ function enrichSubmission(db, submission, customLibraries = []) {
       assignment?.relationshipType === "company"
         ? "Institucional"
         : db.people.find((item) => item.id === reviewee?.managerPersonId)?.name || "",
+    revieweeAcknowledgementStatus: submission.revieweeAcknowledgementStatus || null,
+    revieweeAcknowledgementNote: submission.revieweeAcknowledgementNote || "",
+    revieweeAcknowledgedAt: submission.revieweeAcknowledgedAt || null,
     answers
+  };
+}
+
+function normalizeFeedbackAcknowledgementStatus(value) {
+  if (value === FEEDBACK_ACKNOWLEDGEMENT_STATUS.agreed) {
+    return FEEDBACK_ACKNOWLEDGEMENT_STATUS.agreed;
+  }
+  if (value === FEEDBACK_ACKNOWLEDGEMENT_STATUS.disagreed) {
+    return FEEDBACK_ACKNOWLEDGEMENT_STATUS.disagreed;
+  }
+  throw new Error("Escolha Concordo ou Discordo para registrar o retorno.");
+}
+
+function validateFeedbackAcknowledgementPayload(payload) {
+  const status = normalizeFeedbackAcknowledgementStatus(payload?.status);
+  const note = String(payload?.note || "").trim();
+
+  if (status === FEEDBACK_ACKNOWLEDGEMENT_STATUS.disagreed && !note) {
+    throw new Error("Explique o motivo da discordancia antes de enviar.");
+  }
+
+  return {
+    status,
+    note
   };
 }
 
@@ -2591,23 +2667,45 @@ async function fetchDevelopmentPlanRows(pool) {
   return rows;
 }
 
-async function fetchMysqlResponses(pool, customLibraries = []) {
+async function fetchMysqlResponses(
+  pool,
+  customLibraries = [],
+  { supportsFeedbackAcknowledgement = false } = {}
+) {
   const [submissions] = await pool.query(
-    `SELECT s.id, s.assignment_id AS assignmentId, s.cycle_id AS cycleId,
-            s.reviewer_user_id AS reviewerUserId, s.reviewee_person_id AS revieweePersonId,
-            s.overall_score AS overallScore, s.strengths_note AS strengthsNote,
-            s.development_note AS developmentNote, s.submitted_at AS submittedAt,
-            reviewer_person.name AS reviewerName, reviewee.name AS revieweeName,
-            reviewee.area AS revieweeArea, reviewee.manager_person_id AS revieweeManagerPersonId,
-            reviewee_manager.name AS revieweeManagerName,
-            a.relationship_type AS relationshipType
-     FROM evaluation_submissions s
-     JOIN evaluation_assignments a ON a.id = s.assignment_id
-     JOIN users reviewer_user ON reviewer_user.id = s.reviewer_user_id
-     JOIN people reviewer_person ON reviewer_person.id = reviewer_user.person_id
-     JOIN people reviewee ON reviewee.id = s.reviewee_person_id
-     LEFT JOIN people reviewee_manager ON reviewee_manager.id = reviewee.manager_person_id
-     ORDER BY s.submitted_at DESC`
+    supportsFeedbackAcknowledgement
+      ? `SELECT s.id, s.assignment_id AS assignmentId, s.cycle_id AS cycleId,
+              s.reviewer_user_id AS reviewerUserId, s.reviewee_person_id AS revieweePersonId,
+              s.overall_score AS overallScore, s.strengths_note AS strengthsNote,
+              s.development_note AS developmentNote, s.reviewee_acknowledgement_status AS revieweeAcknowledgementStatus,
+              s.reviewee_acknowledgement_note AS revieweeAcknowledgementNote,
+              s.reviewee_acknowledged_at AS revieweeAcknowledgedAt, s.submitted_at AS submittedAt,
+              reviewer_person.name AS reviewerName, reviewee.name AS revieweeName,
+              reviewee.area AS revieweeArea, reviewee.manager_person_id AS revieweeManagerPersonId,
+              reviewee_manager.name AS revieweeManagerName,
+              a.relationship_type AS relationshipType
+       FROM evaluation_submissions s
+       JOIN evaluation_assignments a ON a.id = s.assignment_id
+       JOIN users reviewer_user ON reviewer_user.id = s.reviewer_user_id
+       JOIN people reviewer_person ON reviewer_person.id = reviewer_user.person_id
+       JOIN people reviewee ON reviewee.id = s.reviewee_person_id
+       LEFT JOIN people reviewee_manager ON reviewee_manager.id = reviewee.manager_person_id
+       ORDER BY s.submitted_at DESC`
+      : `SELECT s.id, s.assignment_id AS assignmentId, s.cycle_id AS cycleId,
+              s.reviewer_user_id AS reviewerUserId, s.reviewee_person_id AS revieweePersonId,
+              s.overall_score AS overallScore, s.strengths_note AS strengthsNote,
+              s.development_note AS developmentNote, s.submitted_at AS submittedAt,
+              reviewer_person.name AS reviewerName, reviewee.name AS revieweeName,
+              reviewee.area AS revieweeArea, reviewee.manager_person_id AS revieweeManagerPersonId,
+              reviewee_manager.name AS revieweeManagerName,
+              a.relationship_type AS relationshipType
+       FROM evaluation_submissions s
+       JOIN evaluation_assignments a ON a.id = s.assignment_id
+       JOIN users reviewer_user ON reviewer_user.id = s.reviewer_user_id
+       JOIN people reviewer_person ON reviewer_person.id = reviewer_user.person_id
+       JOIN people reviewee ON reviewee.id = s.reviewee_person_id
+       LEFT JOIN people reviewee_manager ON reviewee_manager.id = reviewee.manager_person_id
+       ORDER BY s.submitted_at DESC`
   );
 
   const [answers] = await pool.query(
@@ -2630,6 +2728,9 @@ async function fetchMysqlResponses(pool, customLibraries = []) {
       submission.relationshipType === "company"
         ? "Institucional"
         : submission.revieweeManagerName,
+    revieweeAcknowledgementStatus: submission.revieweeAcknowledgementStatus || null,
+    revieweeAcknowledgementNote: submission.revieweeAcknowledgementNote || "",
+    revieweeAcknowledgedAt: submission.revieweeAcknowledgedAt || null,
     weight: evaluationLibrary.weights[submission.relationshipType] || 0,
     weightedScore: Number(
       (
@@ -3330,6 +3431,20 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         cycleReports: db.cycleReports.map((item) => presentCycleReportSnapshot(item))
       });
     },
+    async getReceivedManagerFeedback(actorUser) {
+      return db.submissions
+        .map((item) => enrichSubmission(db, item, customLibraryState.published))
+        .filter(
+          (submission) =>
+            submission.relationshipType === "manager" &&
+            submission.revieweePersonId === actorUser?.person?.id
+        )
+        .sort((left, right) => {
+          const rightDate = right?.submittedAt ? new Date(right.submittedAt).getTime() : 0;
+          const leftDate = left?.submittedAt ? new Date(left.submittedAt).getTime() : 0;
+          return rightDate - leftDate;
+        });
+    },
     async getFeedbackRequests(actorUser) {
       return filterFeedbackRequestsForUser(db, actorUser);
     },
@@ -3526,6 +3641,46 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
       hydrateCycleStructure(db, assignment.cycleId);
 
       return enrichSubmission(db, submission);
+    },
+    async acknowledgeReceivedManagerFeedback(submissionId, payload, actorUser) {
+      const submission = db.submissions.find((item) => item.id === submissionId);
+      if (!submission) {
+        throw new Error("Feedback do lider nao encontrado.");
+      }
+
+      const assignment = db.assignments.find((item) => item.id === submission.assignmentId);
+      if (assignment?.relationshipType !== "manager") {
+        throw new Error("Somente feedback do lider permite concordancia do colaborador.");
+      }
+
+      if (submission.revieweePersonId !== actorUser?.person?.id) {
+        throw new Error("Usuario nao autorizado a responder este feedback.");
+      }
+
+      const acknowledgement = validateFeedbackAcknowledgementPayload(payload);
+      submission.revieweeAcknowledgementStatus = acknowledgement.status;
+      submission.revieweeAcknowledgementNote = acknowledgement.note;
+      submission.revieweeAcknowledgedAt = new Date().toISOString();
+
+      pushAuditLog(db.auditLogs, {
+        category: AUDIT_CATEGORIES.cycle,
+        action:
+          acknowledgement.status === FEEDBACK_ACKNOWLEDGEMENT_STATUS.agreed
+            ? "manager_feedback_agreed"
+            : "manager_feedback_disagreed",
+        entityType: "evaluation_submission",
+        entityId: submission.id,
+        entityLabel:
+          db.people.find((item) => item.id === submission.revieweePersonId)?.name || submission.id,
+        actorUser,
+        summary:
+          acknowledgement.status === FEEDBACK_ACKNOWLEDGEMENT_STATUS.agreed
+            ? "Colaborador concordou com o feedback do lider"
+            : "Colaborador discordou do feedback do lider",
+        detail: acknowledgement.note || "Sem observacoes adicionais."
+      });
+
+      return enrichSubmission(db, submission, customLibraryState.published);
     },
     async getApplauseEntries(actorUser) {
       const entries = db.applauseEntries.map((item) => {
@@ -3944,7 +4099,7 @@ function buildMysqlStore(
   pool,
   customLibraryState,
   anonymousResponseState,
-  { supportsCycleConfig } = {}
+  { supportsCycleConfig, supportsFeedbackAcknowledgement } = {}
 ) {
   return {
     async findUserByEmail(email) {
@@ -5017,9 +5172,9 @@ function buildMysqlStore(
 
         if (nextStatus === CYCLE_STATUS.processed) {
           const responses = [
-            ...(await fetchMysqlResponses(pool, customLibraryState.published)).filter(
-              (response) => response.cycleId === cycleId
-            ),
+            ...(await fetchMysqlResponses(pool, customLibraryState.published, {
+              supportsFeedbackAcknowledgement
+            })).filter((response) => response.cycleId === cycleId),
             ...anonymousResponseState.responses.filter((response) => response.cycleId === cycleId)
           ];
           const snapshots = buildCycleReportSnapshots(cycleId, responses);
@@ -5250,7 +5405,9 @@ function buildMysqlStore(
     },
     async getEvaluationResponses(actorUser) {
       const responses = [
-        ...(await fetchMysqlResponses(pool, customLibraryState.published)),
+        ...(await fetchMysqlResponses(pool, customLibraryState.published, {
+          supportsFeedbackAcknowledgement
+        })),
         ...anonymousResponseState.responses
       ];
       const [cycles, cycleReports] = await Promise.all([
@@ -5261,6 +5418,16 @@ function buildMysqlStore(
         cycles,
         cycleReports
       });
+    },
+    async getReceivedManagerFeedback(actorUser) {
+      const responses = await fetchMysqlResponses(pool, customLibraryState.published, {
+        supportsFeedbackAcknowledgement
+      });
+      return responses.filter(
+        (submission) =>
+          submission.relationshipType === "manager" &&
+          submission.revieweePersonId === actorUser?.person?.id
+      );
     },
     async getFeedbackRequests(actorUser) {
       const [requestRows] = await pool.query(
@@ -5628,8 +5795,79 @@ function buildMysqlStore(
         connection.release();
       }
 
-      const responses = await fetchMysqlResponses(pool);
+      const responses = await fetchMysqlResponses(pool, customLibraryState.published, {
+        supportsFeedbackAcknowledgement
+      });
       return responses.find((item) => item.id === submissionId);
+    },
+    async acknowledgeReceivedManagerFeedback(submissionId, payload, actorUser) {
+      if (!supportsFeedbackAcknowledgement) {
+        throw new Error(
+          "Este ambiente ainda nao suporta o registro de concordancia do colaborador."
+        );
+      }
+
+      const acknowledgement = validateFeedbackAcknowledgementPayload(payload);
+      const [rows] = await pool.query(
+        `SELECT s.id, s.assignment_id AS assignmentId, s.reviewee_person_id AS revieweePersonId,
+                a.relationship_type AS relationshipType
+         FROM evaluation_submissions s
+         JOIN evaluation_assignments a ON a.id = s.assignment_id
+         WHERE s.id = ?
+         LIMIT 1`,
+        [submissionId]
+      );
+
+      if (!rows[0]) {
+        throw new Error("Feedback do lider nao encontrado.");
+      }
+      if (rows[0].relationshipType !== "manager") {
+        throw new Error("Somente feedback do lider permite concordancia do colaborador.");
+      }
+      if (rows[0].revieweePersonId !== actorUser?.person?.id) {
+        throw new Error("Usuario nao autorizado a responder este feedback.");
+      }
+
+      const acknowledgedAt = new Date().toISOString();
+      const connection = await pool.getConnection();
+      try {
+        await connection.beginTransaction();
+        await connection.query(
+          `UPDATE evaluation_submissions
+           SET reviewee_acknowledgement_status = ?, reviewee_acknowledgement_note = ?, reviewee_acknowledged_at = ?
+           WHERE id = ?`,
+          [acknowledgement.status, acknowledgement.note, acknowledgedAt, submissionId]
+        );
+
+        await insertAuditLog(connection, {
+          category: AUDIT_CATEGORIES.cycle,
+          action:
+            acknowledgement.status === FEEDBACK_ACKNOWLEDGEMENT_STATUS.agreed
+              ? "manager_feedback_agreed"
+              : "manager_feedback_disagreed",
+          entityType: "evaluation_submission",
+          entityId: submissionId,
+          entityLabel: actorUser.person?.name || actorUser.email,
+          actorUser,
+          summary:
+            acknowledgement.status === FEEDBACK_ACKNOWLEDGEMENT_STATUS.agreed
+              ? "Colaborador concordou com o feedback do lider"
+              : "Colaborador discordou do feedback do lider",
+          detail: acknowledgement.note || "Sem observacoes adicionais."
+        });
+
+        await connection.commit();
+      } catch (error) {
+        await connection.rollback();
+        throw error;
+      } finally {
+        connection.release();
+      }
+
+      const responses = await fetchMysqlResponses(pool, customLibraryState.published, {
+        supportsFeedbackAcknowledgement
+      });
+      return responses.find((item) => item.id === submissionId) || null;
     },
     async getApplauseEntries(actorUser) {
       const [rows] = await pool.query(
@@ -6112,7 +6350,9 @@ function buildMysqlStore(
              FROM evaluation_cycles`
           )
           .then(([rows]) => rows),
-        fetchMysqlResponses(pool).then((items) => [...items, ...anonymousResponseState.responses]),
+        fetchMysqlResponses(pool, customLibraryState.published, {
+          supportsFeedbackAcknowledgement
+        }).then((items) => [...items, ...anonymousResponseState.responses]),
         pool
           .query(
             `SELECT cycle_id AS cycleId, relationship_type AS relationshipType,
@@ -6250,8 +6490,12 @@ export async function createStore() {
     connectionLimit: 10
   });
 
-  const supportsCycleConfig = await ensureMysqlCycleConfigSupport(pool);
+  const [supportsCycleConfig, supportsFeedbackAcknowledgement] = await Promise.all([
+    ensureMysqlCycleConfigSupport(pool),
+    ensureMysqlFeedbackAcknowledgementSupport(pool)
+  ]);
   return buildMysqlStore(pool, customLibraryState, anonymousResponseState, {
-    supportsCycleConfig
+    supportsCycleConfig,
+    supportsFeedbackAcknowledgement
   });
 }

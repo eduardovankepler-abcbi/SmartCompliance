@@ -285,8 +285,8 @@ INSERT INTO evaluation_feedback_request_items (id, request_id, provider_person_i
 ('fri2', 'fr1', 'p3', NULL)
 ON DUPLICATE KEY UPDATE provider_person_id = VALUES(provider_person_id);
 
-INSERT INTO evaluation_submissions (id, assignment_id, cycle_id, reviewer_user_id, reviewee_person_id, overall_score, strengths_note, development_note, submitted_at) VALUES
-('es1', 'ea1', 'c1', 'u1', 'p2', 4.17, 'Boa articulacao entre frentes e consistencia nas entregas.', 'Pode registrar riscos com ainda mais antecedencia.', '2026-03-12 12:00:00')
+INSERT INTO evaluation_submissions (id, assignment_id, cycle_id, reviewer_user_id, reviewee_person_id, overall_score, strengths_note, development_note, reviewee_acknowledgement_status, reviewee_acknowledgement_note, reviewee_acknowledged_at, submitted_at) VALUES
+('es1', 'ea1', 'c1', 'u1', 'p2', 4.17, 'Boa articulacao entre frentes e consistencia nas entregas.', 'Pode registrar riscos com ainda mais antecedencia.', NULL, NULL, NULL, '2026-03-12 12:00:00')
 ON DUPLICATE KEY UPDATE overall_score = VALUES(overall_score);
 
 INSERT INTO evaluation_answers (id, submission_id, question_id, score, evidence_note) VALUES

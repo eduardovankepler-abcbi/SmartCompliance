@@ -18,16 +18,20 @@ export function EvaluationResponsePanel({
   filteredAggregateResponses,
   filteredAssignments,
   filteredIndividualResponses,
+  filteredReceivedManagerFeedback,
   formatDate,
   getCycleStatusDescription,
   getRelationshipDescription,
   getRelationshipLabel,
   getVisibilityLabel,
   handleAssignmentSubmit,
+  handleReceivedManagerFeedbackSubmit,
   isIndividualJourney,
+  receivedManagerFeedbackDrafts,
   selectedAssignment,
   setAnswerForm,
   setDevelopmentNote,
+  setReceivedManagerFeedbackDraft,
   setSelectedAssignment,
   setStrengthsNote,
   strengthsNote
@@ -119,22 +123,27 @@ export function EvaluationResponsePanel({
             <RespondView
               Select={Select}
               Textarea={Textarea}
+              activeEvaluationModuleMeta={activeEvaluationModuleMeta}
               answerForm={answerForm}
               assignmentDetail={assignmentDetail}
               developmentNote={developmentNote}
               filteredAssignments={filteredAssignments}
+              filteredReceivedManagerFeedback={filteredReceivedManagerFeedback}
               formatDate={formatDate}
               getCycleStatusDescription={getCycleStatusDescription}
               getRelationshipDescription={getRelationshipDescription}
               getRelationshipLabel={getRelationshipLabel}
               getVisibilityLabel={getVisibilityLabel}
               handleAssignmentSubmit={handleAssignmentSubmit}
+              handleReceivedManagerFeedbackSubmit={handleReceivedManagerFeedbackSubmit}
               isIndividualJourney={isIndividualJourney}
               moduleExperience={moduleExperience}
+              receivedManagerFeedbackDrafts={receivedManagerFeedbackDrafts}
               workspaceCopy={workspaceCopy}
               selectedAssignment={selectedAssignment}
               setAnswerForm={setAnswerForm}
               setDevelopmentNote={setDevelopmentNote}
+              setReceivedManagerFeedbackDraft={setReceivedManagerFeedbackDraft}
               setSelectedAssignment={setSelectedAssignment}
               setStrengthsNote={setStrengthsNote}
               strengthsNote={strengthsNote}
@@ -163,27 +172,45 @@ export function EvaluationResponsePanel({
 function RespondView({
   Select,
   Textarea,
+  activeEvaluationModuleMeta,
   answerForm,
   assignmentDetail,
   developmentNote,
   filteredAssignments,
+  filteredReceivedManagerFeedback,
   formatDate,
   getCycleStatusDescription,
   getRelationshipDescription,
   getRelationshipLabel,
   getVisibilityLabel,
   handleAssignmentSubmit,
+  handleReceivedManagerFeedbackSubmit,
   isIndividualJourney,
   moduleExperience,
+  receivedManagerFeedbackDrafts,
   workspaceCopy,
   selectedAssignment,
   setAnswerForm,
   setDevelopmentNote,
+  setReceivedManagerFeedbackDraft,
   setSelectedAssignment,
   setStrengthsNote,
   strengthsNote
 }) {
   const questionSections = groupQuestionsBySection(assignmentDetail?.template?.questions || []);
+
+  if (isIndividualJourney && activeEvaluationModuleMeta?.relationshipType === "manager") {
+    return (
+      <ReceivedManagerFeedbackView
+        Textarea={Textarea}
+        feedbackItems={filteredReceivedManagerFeedback}
+        formatDate={formatDate}
+        handleReceivedManagerFeedbackSubmit={handleReceivedManagerFeedbackSubmit}
+        receivedManagerFeedbackDrafts={receivedManagerFeedbackDrafts}
+        setReceivedManagerFeedbackDraft={setReceivedManagerFeedbackDraft}
+      />
+    );
+  }
 
   if (!selectedAssignment || !assignmentDetail) {
     return (
@@ -310,6 +337,136 @@ function RespondView({
         {workspaceCopy.submitLabel}
       </button>
     </form>
+  );
+}
+
+function ReceivedManagerFeedbackView({
+  Textarea,
+  feedbackItems,
+  formatDate,
+  handleReceivedManagerFeedbackSubmit,
+  receivedManagerFeedbackDrafts,
+  setReceivedManagerFeedbackDraft
+}) {
+  if (!feedbackItems.length) {
+    return (
+      <div className="list-card">
+        <strong>Feedback ainda nao recebido</strong>
+        <p className="muted">
+          Assim que seu gestor concluir o feedback do ciclo, ele aparecera aqui para leitura e
+          confirmacao.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="stack-list feedback-receipt-list">
+      <div className="list-card evaluation-response-summary manager">
+        <strong>Feedback do lider recebido</strong>
+        <p className="muted">
+          Leia o feedback formal do seu gestor e registre se concorda com a devolutiva.
+        </p>
+      </div>
+      {feedbackItems.map((feedback) => {
+        const draft = receivedManagerFeedbackDrafts?.[feedback.id] || {
+          status: feedback.revieweeAcknowledgementStatus || "agreed",
+          note: feedback.revieweeAcknowledgementNote || ""
+        };
+
+        return (
+          <article className="list-card feedback-receipt-card" key={feedback.id}>
+            <div className="row">
+              <div>
+                <strong>{feedback.reviewerName || "Seu gestor"}</strong>
+                <p className="muted">
+                  Recebido em {formatDate(feedback.submittedAt)} · Score geral:{" "}
+                  {feedback.overallScore ?? "-"}
+                </p>
+              </div>
+              <span className="badge">
+                {getAcknowledgementBadgeLabel(feedback.revieweeAcknowledgementStatus)}
+              </span>
+            </div>
+            {feedback.strengthsNote ? (
+              <div className="feedback-receipt-highlight">
+                <strong>Pontos fortes</strong>
+                <p className="muted">{feedback.strengthsNote}</p>
+              </div>
+            ) : null}
+            {feedback.developmentNote ? (
+              <div className="feedback-receipt-highlight">
+                <strong>Oportunidades de desenvolvimento</strong>
+                <p className="muted">{feedback.developmentNote}</p>
+              </div>
+            ) : null}
+            <div className="feedback-answer-grid">
+              {(feedback.answers || []).map((answer) => (
+                <div className="feedback-answer-item" key={answer.id}>
+                  <strong>{answer.dimensionTitle || answer.questionPrompt || "Pergunta"}</strong>
+                  {answer.questionPrompt ? <p className="muted">{answer.questionPrompt}</p> : null}
+                  <p>{formatFeedbackAnswer(answer)}</p>
+                </div>
+              ))}
+            </div>
+            <div className="feedback-acknowledgement-panel">
+              <strong>Voce concorda com esse feedback?</strong>
+              <div className="feedback-acknowledgement-actions">
+                <button
+                  type="button"
+                  className={
+                    draft.status === "agreed" ? "primary-button" : "refresh"
+                  }
+                  onClick={() =>
+                    setReceivedManagerFeedbackDraft(feedback.id, {
+                      status: "agreed",
+                      note: ""
+                    })
+                  }
+                >
+                  Concordo
+                </button>
+                <button
+                  type="button"
+                  className={
+                    draft.status === "disagreed" ? "primary-button" : "refresh"
+                  }
+                  onClick={() =>
+                    setReceivedManagerFeedbackDraft(feedback.id, {
+                      status: "disagreed"
+                    })
+                  }
+                >
+                  Discordo
+                </button>
+              </div>
+              {draft.status === "disagreed" ? (
+                <Textarea
+                  label="Explique por que voce discorda"
+                  value={draft.note || ""}
+                  rows={4}
+                  onChange={(value) =>
+                    setReceivedManagerFeedbackDraft(feedback.id, { note: value })
+                  }
+                />
+              ) : null}
+              {feedback.revieweeAcknowledgedAt ? (
+                <p className="muted">
+                  Ultimo retorno registrado em {formatDate(feedback.revieweeAcknowledgedAt)}.
+                </p>
+              ) : null}
+              <button
+                className="primary-button"
+                type="button"
+                onClick={() => handleReceivedManagerFeedbackSubmit(feedback.id)}
+              >
+                {feedback.revieweeAcknowledgementStatus ? "Atualizar retorno" : "Enviar retorno"}
+              </button>
+            </div>
+          </article>
+        );
+      })}
+    </div>
   );
 }
 
@@ -500,4 +657,29 @@ function InsightsResponseList({
       )}
     </>
   );
+}
+
+function formatFeedbackAnswer(answer) {
+  if (answer.answerType === "text") {
+    return answer.textValue || "Sem comentario registrado.";
+  }
+  if (answer.answerType === "multi-select") {
+    return answer.selectedOptions?.length
+      ? answer.selectedOptions.join(", ")
+      : "Nenhuma opcao selecionada.";
+  }
+  if (Number.isFinite(Number(answer.score))) {
+    return `Nota ${answer.score}${answer.evidenceNote ? ` · ${answer.evidenceNote}` : ""}`;
+  }
+  return answer.evidenceNote || "Sem resposta registrada.";
+}
+
+function getAcknowledgementBadgeLabel(status) {
+  if (status === "agreed") {
+    return "Concordou";
+  }
+  if (status === "disagreed") {
+    return "Discordou";
+  }
+  return "Aguardando retorno";
 }
