@@ -1758,6 +1758,8 @@ export const seed = {
       name: "Colaborador Demo 01",
       roleTitle: "Analista Demo",
       area: "Compliance",
+      workUnit: "Sao Paulo",
+      workMode: "hybrid",
       managerPersonId: "p6",
       employmentType: "internal",
       satisfactionScore: 4.4
@@ -1767,6 +1769,8 @@ export const seed = {
       name: "Colaborador Demo 02",
       roleTitle: "Lider Tecnico Demo",
       area: "Tecnologia",
+      workUnit: "Sao Paulo",
+      workMode: "onsite",
       managerPersonId: "p4",
       employmentType: "internal",
       satisfactionScore: 4.1
@@ -1776,6 +1780,8 @@ export const seed = {
       name: "Consultor Demo 01",
       roleTitle: "Consultor Demo",
       area: "Consultoria",
+      workUnit: "Sao Paulo",
+      workMode: "remote",
       managerPersonId: "p4",
       employmentType: "consultant",
       satisfactionScore: 4
@@ -1785,6 +1791,8 @@ export const seed = {
       name: "Gestor Demo Tecnologia",
       roleTitle: "Gerente Demo",
       area: "Tecnologia",
+      workUnit: "Sao Paulo",
+      workMode: "hybrid",
       managerPersonId: "p6",
       employmentType: "internal",
       satisfactionScore: 4.3
@@ -1794,6 +1802,8 @@ export const seed = {
       name: "Admin Plataforma Demo",
       roleTitle: "Administrador da Plataforma",
       area: "Administracao",
+      workUnit: "Sao Paulo",
+      workMode: "onsite",
       managerPersonId: null,
       employmentType: "internal",
       satisfactionScore: 4.5
@@ -1803,6 +1813,8 @@ export const seed = {
       name: "RH Demo Corporativo",
       roleTitle: "Business Partner RH",
       area: "Gente e Gestao",
+      workUnit: "Sao Paulo",
+      workMode: "hybrid",
       managerPersonId: "p5",
       employmentType: "internal",
       satisfactionScore: 4.6
@@ -1812,6 +1824,8 @@ export const seed = {
       name: "Compliance Demo",
       roleTitle: "Analista de Compliance",
       area: "Compliance",
+      workUnit: "Sao Paulo",
+      workMode: "onsite",
       managerPersonId: "p6",
       employmentType: "internal",
       satisfactionScore: 4.2
@@ -1994,6 +2008,8 @@ export const seed = {
       collaborationContext:
         "Atuaram juntos na priorizacao de melhorias e alinhamento de requisitos.",
       status: "submitted",
+      reminderCount: 0,
+      lastReminderSentAt: null,
       dueDate: "2026-04-15"
     },
     {
@@ -2005,6 +2021,8 @@ export const seed = {
       projectContext: "Rotina da area",
       collaborationContext: "Avaliacao gerencial semestral.",
       status: "pending",
+      reminderCount: 0,
+      lastReminderSentAt: null,
       dueDate: "2026-04-15"
     },
     {
@@ -2017,6 +2035,8 @@ export const seed = {
       collaborationContext:
         "Solicitacao de feedback de colaboracao em atividade compartilhada.",
       status: "pending",
+      reminderCount: 0,
+      lastReminderSentAt: null,
       dueDate: "2026-04-15"
     },
     {
@@ -2028,6 +2048,8 @@ export const seed = {
       projectContext: "Reflexao individual",
       collaborationContext: "Autoavaliacao semestral do colaborador.",
       status: "pending",
+      reminderCount: 0,
+      lastReminderSentAt: null,
       dueDate: "2026-04-15"
     },
     {
@@ -2039,6 +2061,8 @@ export const seed = {
       projectContext: "Avaliacao da lideranca imediata",
       collaborationContext: "Leitura da lideranca no semestre.",
       status: "pending",
+      reminderCount: 0,
+      lastReminderSentAt: null,
       dueDate: "2026-04-15"
     },
     {
@@ -2050,6 +2074,8 @@ export const seed = {
       projectContext: "Experiencia institucional",
       collaborationContext: "Avaliacao da empresa e da experiencia geral do colaborador.",
       status: "pending",
+      reminderCount: 0,
+      lastReminderSentAt: null,
       dueDate: "2026-04-15"
     },
     {
@@ -2062,6 +2088,8 @@ export const seed = {
       collaborationContext:
         "Leitura da area cliente sobre qualidade de atendimento, parceria e entrega.",
       status: "pending",
+      reminderCount: 0,
+      lastReminderSentAt: null,
       dueDate: "2026-04-15"
     },
     {
@@ -2074,6 +2102,8 @@ export const seed = {
       collaborationContext:
         "Percepcao de parceria, confiabilidade e resultado na relacao com consultoria.",
       status: "pending",
+      reminderCount: 0,
+      lastReminderSentAt: null,
       dueDate: "2026-04-15"
     }
   ],

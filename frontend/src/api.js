@@ -168,6 +168,10 @@ export const api = {
     }),
   getEvaluationCycleParticipants: (cycleId) =>
     request(`/api/evaluations/cycles/${cycleId}/participants`),
+  notifyEvaluationCycleDelinquents: (cycleId) =>
+    request(`/api/evaluations/cycles/${cycleId}/notify-delinquents`, {
+      method: "POST"
+    }),
   updateEvaluationCycleStatus: (cycleId, status) =>
     request(`/api/evaluations/cycles/${cycleId}/status`, {
       method: "PATCH",

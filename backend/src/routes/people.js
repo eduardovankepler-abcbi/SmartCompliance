@@ -14,7 +14,16 @@ export function createPeopleRouter(store) {
   });
 
   router.post("/", requireRoles("admin", "hr"), async (req, res) => {
-    const { name, roleTitle, area, managerPersonId, employmentType, satisfactionScore } = req.body;
+    const {
+      name,
+      roleTitle,
+      area,
+      workUnit,
+      workMode,
+      managerPersonId,
+      employmentType,
+      satisfactionScore
+    } = req.body;
 
     if (!name || !roleTitle || !area || !employmentType) {
       return badRequest(res, "Campos obrigatorios da pessoa nao informados.");
@@ -26,6 +35,8 @@ export function createPeopleRouter(store) {
           name,
           roleTitle,
           area,
+          workUnit,
+          workMode,
           managerPersonId: managerPersonId || null,
           employmentType,
           satisfactionScore:
@@ -42,7 +53,16 @@ export function createPeopleRouter(store) {
   });
 
   router.patch("/:personId", requireRoles("admin", "hr"), async (req, res) => {
-    const { name, roleTitle, area, managerPersonId, employmentType, satisfactionScore } = req.body;
+    const {
+      name,
+      roleTitle,
+      area,
+      workUnit,
+      workMode,
+      managerPersonId,
+      employmentType,
+      satisfactionScore
+    } = req.body;
 
     if (!name || !roleTitle || !area || !employmentType) {
       return badRequest(res, "Campos obrigatorios da pessoa nao informados.");
@@ -55,6 +75,8 @@ export function createPeopleRouter(store) {
           name,
           roleTitle,
           area,
+          workUnit,
+          workMode,
           managerPersonId: managerPersonId || null,
           employmentType,
           satisfactionScore:

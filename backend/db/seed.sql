@@ -1,11 +1,11 @@
-INSERT INTO people (id, name, role_title, area, manager_person_id, employment_type, satisfaction_score) VALUES
-('p1', 'Colaborador Demo 01', 'Analista Demo', 'Compliance', 'p6', 'internal', 4.4),
-('p2', 'Colaborador Demo 02', 'Lider Tecnico Demo', 'Tecnologia', 'p4', 'internal', 4.1),
-('p3', 'Consultor Demo 01', 'Consultor Demo', 'Consultoria', 'p4', 'consultant', 4.0),
-('p4', 'Gestor Demo Tecnologia', 'Gerente Demo', 'Tecnologia', 'p6', 'internal', 4.3),
-('p5', 'Admin Plataforma Demo', 'Administrador da Plataforma', 'Administracao', NULL, 'internal', 4.5),
-('p6', 'RH Demo Corporativo', 'Business Partner RH', 'Gente e Gestao', 'p5', 'internal', 4.6),
-('p7', 'Compliance Demo', 'Analista de Compliance', 'Compliance', 'p6', 'internal', 4.2)
+INSERT INTO people (id, name, role_title, area, work_unit, work_mode, manager_person_id, employment_type, satisfaction_score) VALUES
+('p1', 'Colaborador Demo 01', 'Analista Demo', 'Compliance', 'Sao Paulo', 'hybrid', 'p6', 'internal', 4.4),
+('p2', 'Colaborador Demo 02', 'Lider Tecnico Demo', 'Tecnologia', 'Sao Paulo', 'onsite', 'p4', 'internal', 4.1),
+('p3', 'Consultor Demo 01', 'Consultor Demo', 'Consultoria', 'Sao Paulo', 'remote', 'p4', 'consultant', 4.0),
+('p4', 'Gestor Demo Tecnologia', 'Gerente Demo', 'Tecnologia', 'Sao Paulo', 'hybrid', 'p6', 'internal', 4.3),
+('p5', 'Admin Plataforma Demo', 'Administrador da Plataforma', 'Administracao', 'Sao Paulo', 'onsite', NULL, 'internal', 4.5),
+('p6', 'RH Demo Corporativo', 'Business Partner RH', 'Gente e Gestao', 'Sao Paulo', 'hybrid', 'p5', 'internal', 4.6),
+('p7', 'Compliance Demo', 'Analista de Compliance', 'Compliance', 'Sao Paulo', 'onsite', 'p6', 'internal', 4.2)
 ON DUPLICATE KEY UPDATE name = VALUES(name);
 
 INSERT INTO areas (id, name, manager_person_id) VALUES
@@ -247,15 +247,15 @@ INSERT INTO evaluation_cycles (id, template_id, library_id, library_name, title,
 ('c1', 't1', 'library_standard_02_2026', 'Biblioteca padrao 02/2026', 'Ciclo Semestral 2026.1', '2026.1', 'Liberado', TRUE, NULL, '2026-04-15', 'Todos os colaboradores', 'u6')
 ON DUPLICATE KEY UPDATE title = VALUES(title);
 
-INSERT INTO evaluation_assignments (id, cycle_id, reviewer_user_id, reviewee_person_id, relationship_type, project_context, collaboration_context, status, due_date) VALUES
-('ea1', 'c1', 'u1', 'p2', 'peer', 'Projeto Modernizacao Portal', 'Atuaram juntos na priorizacao de melhorias e alinhamento de requisitos.', 'submitted', '2026-04-15'),
-('ea2', 'c1', 'u4', 'p2', 'manager', 'Rotina da area', 'Avaliacao gerencial semestral.', 'pending', '2026-04-15'),
-('ea3', 'c1', 'u2', 'p1', 'cross-functional', 'Politica de acessos', 'Solicitacao de feedback de colaboracao em atividade compartilhada.', 'pending', '2026-04-15'),
-('ea4', 'c1', 'u1', 'p1', 'self', 'Reflexao individual', 'Autoavaliacao semestral do colaborador.', 'pending', '2026-04-15'),
-('ea5', 'c1', 'u1', 'p4', 'leader', 'Avaliacao da lideranca imediata', 'Leitura da lideranca no semestre.', 'pending', '2026-04-15'),
-('ea6', 'c1', 'u1', 'p1', 'company', 'Experiencia institucional', 'Avaliacao da empresa e da experiencia geral do colaborador.', 'pending', '2026-04-15'),
-('ea7', 'c1', 'u1', 'p2', 'client-internal', 'Consumo interno entre areas', 'Leitura da area cliente sobre qualidade de atendimento, parceria e entrega.', 'pending', '2026-04-15'),
-('ea8', 'c1', 'u1', 'p3', 'client-external', 'Interacao com consultoria', 'Percepcao de parceria, confiabilidade e resultado na relacao com consultoria.', 'pending', '2026-04-15')
+INSERT INTO evaluation_assignments (id, cycle_id, reviewer_user_id, reviewee_person_id, relationship_type, project_context, collaboration_context, status, reminder_count, last_reminder_sent_at, due_date) VALUES
+('ea1', 'c1', 'u1', 'p2', 'peer', 'Projeto Modernizacao Portal', 'Atuaram juntos na priorizacao de melhorias e alinhamento de requisitos.', 'submitted', 0, NULL, '2026-04-15'),
+('ea2', 'c1', 'u4', 'p2', 'manager', 'Rotina da area', 'Avaliacao gerencial semestral.', 'pending', 0, NULL, '2026-04-15'),
+('ea3', 'c1', 'u2', 'p1', 'cross-functional', 'Politica de acessos', 'Solicitacao de feedback de colaboracao em atividade compartilhada.', 'pending', 0, NULL, '2026-04-15'),
+('ea4', 'c1', 'u1', 'p1', 'self', 'Reflexao individual', 'Autoavaliacao semestral do colaborador.', 'pending', 0, NULL, '2026-04-15'),
+('ea5', 'c1', 'u1', 'p4', 'leader', 'Avaliacao da lideranca imediata', 'Leitura da lideranca no semestre.', 'pending', 0, NULL, '2026-04-15'),
+('ea6', 'c1', 'u1', 'p1', 'company', 'Experiencia institucional', 'Avaliacao da empresa e da experiencia geral do colaborador.', 'pending', 0, NULL, '2026-04-15'),
+('ea7', 'c1', 'u1', 'p2', 'client-internal', 'Consumo interno entre areas', 'Leitura da area cliente sobre qualidade de atendimento, parceria e entrega.', 'pending', 0, NULL, '2026-04-15'),
+('ea8', 'c1', 'u1', 'p3', 'client-external', 'Interacao com consultoria', 'Percepcao de parceria, confiabilidade e resultado na relacao com consultoria.', 'pending', 0, NULL, '2026-04-15')
 ON DUPLICATE KEY UPDATE relationship_type = VALUES(relationship_type), status = VALUES(status);
 
 INSERT INTO evaluation_cycle_participants (id, cycle_id, person_id, status) VALUES

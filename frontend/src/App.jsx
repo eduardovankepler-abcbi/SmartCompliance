@@ -192,6 +192,7 @@ export default function App() {
     developmentNote,
     evaluationCycleHistory,
     evaluationCycleOptions,
+    evaluationOperationNotice,
     evaluationModuleOptions,
     feedbackProviderOptions,
     feedbackRequestCycleOptions,
@@ -211,6 +212,7 @@ export default function App() {
     handleFeedbackProviderToggle,
     handleFeedbackRequestReview,
     handleFeedbackRequestSubmit,
+    handleNotifyDelinquents,
     handleReceivedManagerFeedbackSubmit,
     receivedManagerFeedbackDrafts,
     resetEvaluations,
@@ -1207,6 +1209,7 @@ export default function App() {
             developmentNote={developmentNote}
             evaluationCycleHistory={evaluationCycleHistory}
             evaluationCycleOptions={evaluationCycleOptions}
+            evaluationOperationNotice={evaluationOperationNotice}
             evaluationLibrary={evaluationLibrary}
             evaluationModuleOptions={evaluationModuleOptions}
             feedbackProviderOptions={feedbackProviderOptions}
@@ -1236,6 +1239,7 @@ export default function App() {
             handleFeedbackProviderToggle={handleFeedbackProviderToggle}
             handleFeedbackRequestReview={handleFeedbackRequestReview}
             handleFeedbackRequestSubmit={handleFeedbackRequestSubmit}
+            handleNotifyDelinquents={handleNotifyDelinquents}
             handleReceivedManagerFeedbackSubmit={handleReceivedManagerFeedbackSubmit}
             receivedManagerFeedbackDrafts={receivedManagerFeedbackDrafts}
             roleKey={user.roleKey}

@@ -31,6 +31,7 @@ export function EvaluationsSection(props) {
     cycles,
     evaluationCycleHistory,
     evaluationCycleOptions,
+    evaluationOperationNotice,
     evaluationLibrary,
     evaluationModuleOptions,
     feedbackProviderOptions,
@@ -53,6 +54,7 @@ export function EvaluationsSection(props) {
     handleFeedbackProviderToggle,
     handleFeedbackRequestReview,
     handleFeedbackRequestSubmit,
+    handleNotifyDelinquents,
     handleReceivedManagerFeedbackSubmit,
     receivedManagerFeedbackDrafts,
     roleKey,
@@ -489,6 +491,38 @@ export function EvaluationsSection(props) {
               <p className="mini-label">Submodulo</p>
               <strong>{activeEvaluationModuleMeta?.label || "Fluxo ativo"}</strong>
             </div>
+            <div className="mini-card">
+              <p className="mini-label">Taxa de adesao</p>
+              <strong>{evaluationCycleStructure?.compliance?.adherenceRate ?? 0}%</strong>
+            </div>
+            <div className="mini-card">
+              <p className="mini-label">Taxa de inadimplencia</p>
+              <strong>{evaluationCycleStructure?.compliance?.delinquencyRate ?? 0}%</strong>
+            </div>
+            <div className="mini-card">
+              <p className="mini-label">Inadimplentes</p>
+              <strong>{evaluationCycleStructure?.compliance?.delinquentAssignments ?? 0}</strong>
+            </div>
+          </div>
+          <div className="list-card">
+            <div className="row">
+              <div>
+                <strong>Notificar inadimplentes</strong>
+                <p className="muted">
+                  Dispara lembrete manual para assignments vencidos ainda pendentes no ciclo.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="primary-button"
+                onClick={() => handleNotifyDelinquents(activeEvaluationCycleId)}
+              >
+                Notificar inadimplentes
+              </button>
+            </div>
+            {evaluationOperationNotice ? (
+              <p className="muted">{evaluationOperationNotice}</p>
+            ) : null}
           </div>
           {evaluationCycleStructure?.relationshipSummary?.length ? (
             <div className="metrics-grid">
@@ -500,6 +534,44 @@ export function EvaluationsSection(props) {
               ))}
             </div>
           ) : null}
+          {evaluationCycleStructure?.delinquents?.length ? (
+            <div className="stack-list">
+              <div className="list-card">
+                <strong>Lista de inadimplentes</strong>
+                <p className="muted">
+                  Assignments vencidos, ainda pendentes, com historico de lembretes enviados.
+                </p>
+              </div>
+              <div className="metrics-grid">
+                {evaluationCycleStructure.delinquents.map((assignment) => (
+                  <article className="mini-card" key={assignment.id}>
+                    <div className="row">
+                      <strong>{assignment.reviewerName || "Avaliador"}</strong>
+                      <span className="badge">{assignment.daysOverdue} dia(s)</span>
+                    </div>
+                    <p className="muted">
+                      {getRelationshipLabel(assignment.relationshipType)} ·{" "}
+                      {assignment.revieweeName}
+                    </p>
+                    <p className="muted">
+                      Prazo: {formatDate(assignment.dueDate)} · Lembretes:{" "}
+                      {assignment.reminderCount || 0}
+                    </p>
+                    <p className="muted">
+                      Ultimo lembrete: {formatDate(assignment.lastReminderSentAt)}
+                    </p>
+                  </article>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="list-card">
+              <strong>Sem inadimplentes no ciclo</strong>
+              <p className="muted">
+                Nao ha assignments vencidos e pendentes no ciclo selecionado neste momento.
+              </p>
+            </div>
+          )}
           {evaluationCycleStructure?.participants?.length ? (
             <div className="metrics-grid">
               {evaluationCycleStructure.participants.map((participant) => (

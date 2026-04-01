@@ -78,6 +78,9 @@ const DEFAULT_EVALUATION_LIBRARY_NAME = "Biblioteca padrao 02/2026";
 const DEFAULT_EVALUATION_LIBRARY_DESCRIPTION =
   "Biblioteca oficial do ciclo, com os modelos base do produto.";
 const DEFAULT_PERSON_SATISFACTION_SCORE = 4;
+const DEFAULT_WORK_UNIT = "Unidade principal";
+const DEFAULT_WORK_MODE = "hybrid";
+const WORK_MODE_OPTIONS = ["onsite", "hybrid", "remote"];
 
 const createId = (prefix) =>
   `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
@@ -363,6 +366,8 @@ function enrichPerson(people, person, areas = []) {
   const area = areas.find((item) => item.name === person.area);
   return {
     ...person,
+    workUnit: String(person.workUnit || DEFAULT_WORK_UNIT),
+    workMode: normalizeWorkMode(person.workMode),
     managerPersonId: person.managerPersonId || null,
     managerName: manager?.name || "",
     areaManagerPersonId: area?.managerPersonId || null,
@@ -388,6 +393,8 @@ function toPublicUser(db, user) {
           name: publicPerson.name,
           roleTitle: publicPerson.roleTitle,
           area: publicPerson.area,
+          workUnit: publicPerson.workUnit,
+          workMode: publicPerson.workMode,
           managerPersonId: publicPerson.managerPersonId,
           managerName: publicPerson.managerName,
           employmentType: publicPerson.employmentType
@@ -430,9 +437,133 @@ function filterPeopleForUser(people, user, areas = []) {
     name: person.name,
     roleTitle: person.roleTitle,
     area: person.area,
+    workUnit: person.workUnit,
+    workMode: person.workMode,
     managerPersonId: person.managerPersonId,
     managerName: person.managerName
   }));
+}
+
+function normalizeWorkMode(value) {
+  const normalized = String(value || DEFAULT_WORK_MODE).trim().toLowerCase();
+  if (!WORK_MODE_OPTIONS.includes(normalized)) {
+    throw new Error("Modalidade de trabalho invalida.");
+  }
+  return normalized;
+}
+
+function normalizeWorkUnit(value) {
+  const normalized = String(value || "").trim();
+  return normalized || DEFAULT_WORK_UNIT;
+}
+
+function normalizeWorkContextPayload(payload) {
+  return {
+    workUnit: normalizeWorkUnit(payload.workUnit),
+    workMode: normalizeWorkMode(payload.workMode)
+  };
+}
+
+function isSameWorkUnit(leftPerson, rightPerson) {
+  return (
+    normalizeWorkUnit(leftPerson?.workUnit).toLowerCase() ===
+    normalizeWorkUnit(rightPerson?.workUnit).toLowerCase()
+  );
+}
+
+function isRemoteWorker(person) {
+  return normalizeWorkMode(person?.workMode) === "remote";
+}
+
+function buildSameUnitCandidates(eligibleActors, actor) {
+  return eligibleActors.filter(
+    (candidate) =>
+      candidate.id !== actor.id &&
+      isSameWorkUnit(candidate.person, actor.person)
+  );
+}
+
+function parseDateValue(value) {
+  if (!value) {
+    return null;
+  }
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function getStartOfToday() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return today;
+}
+
+function calculateDaysOverdue(dueDate, today = getStartOfToday()) {
+  const due = parseDateValue(dueDate);
+  if (!due) {
+    return 0;
+  }
+  due.setHours(0, 0, 0, 0);
+  return Math.max(0, Math.floor((today.getTime() - due.getTime()) / 86400000));
+}
+
+function isAssignmentDelinquent(assignment, cycleStatus = assignment?.cycleStatus, today = getStartOfToday()) {
+  if (!assignment || assignment.status !== "pending") {
+    return false;
+  }
+  if (!isReleasedCycle(cycleStatus)) {
+    return false;
+  }
+  const due = parseDateValue(assignment.dueDate);
+  if (!due) {
+    return false;
+  }
+  due.setHours(0, 0, 0, 0);
+  return due.getTime() < today.getTime();
+}
+
+function buildCycleComplianceSummary(assignments, cycleStatus) {
+  const today = getStartOfToday();
+  const totalAssignments = assignments.length;
+  const submittedAssignments = assignments.filter((item) => item.status === "submitted").length;
+  const pendingAssignments = assignments.filter((item) => item.status === "pending").length;
+  const delinquentAssignments = assignments.filter((item) =>
+    isAssignmentDelinquent(item, cycleStatus, today)
+  );
+
+  return {
+    totalAssignments,
+    submittedAssignments,
+    pendingAssignments,
+    delinquentAssignments: delinquentAssignments.length,
+    adherenceRate: calculatePercentage(submittedAssignments, totalAssignments),
+    delinquencyRate: calculatePercentage(delinquentAssignments.length, totalAssignments)
+  };
+}
+
+function presentDelinquentAssignment(assignment, db, cycleStatus) {
+  const reviewer = db.users.find((item) => item.id === assignment.reviewerUserId);
+  const reviewerPerson = reviewer
+    ? db.people.find((item) => item.id === reviewer.personId)
+    : null;
+  const reviewee = db.people.find((item) => item.id === assignment.revieweePersonId);
+
+  return {
+    id: assignment.id,
+    cycleId: assignment.cycleId,
+    reviewerUserId: assignment.reviewerUserId,
+    reviewerName: reviewerPerson?.name || "",
+    reviewerEmail: reviewer?.email || "",
+    revieweePersonId: assignment.revieweePersonId,
+    revieweeName: assignment.relationshipType === "company" ? "Empresa" : reviewee?.name || "",
+    revieweeArea: assignment.relationshipType === "company" ? "Institucional" : reviewee?.area || "",
+    relationshipType: assignment.relationshipType,
+    dueDate: assignment.dueDate,
+    status: assignment.status,
+    reminderCount: Number(assignment.reminderCount || 0),
+    lastReminderSentAt: assignment.lastReminderSentAt || null,
+    daysOverdue: calculateDaysOverdue(assignment.dueDate),
+    isDelinquent: isAssignmentDelinquent(assignment, cycleStatus)
+  };
 }
 
 function assertValidManagerReference(people, managerPersonId, personId = null) {
@@ -984,6 +1115,8 @@ function presentAssignment(row, customLibraries = []) {
     templateId: templateDefinition?.id || row.templateId || questionTemplate.id,
     weight: evaluationLibrary.weights[row.relationshipType] || 0,
     cycleStatus: cycle.cycleStatus || "",
+    reminderCount: Number(row.reminderCount || 0),
+    lastReminderSentAt: row.lastReminderSentAt || null,
     revieweeName: row.relationshipType === "company" ? "Empresa" : row.revieweeName,
     revieweeArea: row.relationshipType === "company" ? "Institucional" : row.revieweeArea
   };
@@ -1087,6 +1220,54 @@ async function ensureMysqlFeedbackAcknowledgementSupport(pool) {
       "ALTER TABLE evaluation_submissions ADD COLUMN reviewee_acknowledged_at DATETIME NULL"
     ],
     detectMysqlFeedbackAcknowledgementSupport
+  );
+}
+
+async function detectMysqlPeopleWorkContextSupport(pool) {
+  try {
+    const [unitRows] = await pool.query("SHOW COLUMNS FROM people LIKE 'work_unit'");
+    const [modeRows] = await pool.query("SHOW COLUMNS FROM people LIKE 'work_mode'");
+    return hasMysqlColumn(unitRows) && hasMysqlColumn(modeRows);
+  } catch (_error) {
+    return false;
+  }
+}
+
+async function ensureMysqlPeopleWorkContextSupport(pool) {
+  return ensureMysqlColumns(
+    pool,
+    "people",
+    [
+      `ALTER TABLE people ADD COLUMN work_unit VARCHAR(120) NOT NULL DEFAULT '${DEFAULT_WORK_UNIT}'`,
+      `ALTER TABLE people ADD COLUMN work_mode VARCHAR(30) NOT NULL DEFAULT '${DEFAULT_WORK_MODE}'`
+    ],
+    detectMysqlPeopleWorkContextSupport
+  );
+}
+
+async function detectMysqlAssignmentReminderSupport(pool) {
+  try {
+    const [countRows] = await pool.query(
+      "SHOW COLUMNS FROM evaluation_assignments LIKE 'reminder_count'"
+    );
+    const [dateRows] = await pool.query(
+      "SHOW COLUMNS FROM evaluation_assignments LIKE 'last_reminder_sent_at'"
+    );
+    return hasMysqlColumn(countRows) && hasMysqlColumn(dateRows);
+  } catch (_error) {
+    return false;
+  }
+}
+
+async function ensureMysqlAssignmentReminderSupport(pool) {
+  return ensureMysqlColumns(
+    pool,
+    "evaluation_assignments",
+    [
+      "ALTER TABLE evaluation_assignments ADD COLUMN reminder_count INT NOT NULL DEFAULT 0",
+      "ALTER TABLE evaluation_assignments ADD COLUMN last_reminder_sent_at DATETIME NULL"
+    ],
+    detectMysqlAssignmentReminderSupport
   );
 }
 
@@ -1267,16 +1448,21 @@ function getUserByPersonId(users, personId) {
 }
 
 function pushAssignment(assignments, nextAssignment) {
+  const normalizedAssignment = {
+    reminderCount: 0,
+    lastReminderSentAt: null,
+    ...nextAssignment
+  };
   const exists = assignments.some(
     (item) =>
-      item.cycleId === nextAssignment.cycleId &&
-      item.reviewerUserId === nextAssignment.reviewerUserId &&
-      item.revieweePersonId === nextAssignment.revieweePersonId &&
-      item.relationshipType === nextAssignment.relationshipType
+      item.cycleId === normalizedAssignment.cycleId &&
+      item.reviewerUserId === normalizedAssignment.reviewerUserId &&
+      item.revieweePersonId === normalizedAssignment.revieweePersonId &&
+      item.relationshipType === normalizedAssignment.relationshipType
   );
 
   if (!exists) {
-    assignments.push(nextAssignment);
+    assignments.push(normalizedAssignment);
   }
 }
 
@@ -1295,13 +1481,16 @@ function generateAssignments({ users, people, cycleId, dueDate }) {
   const assignments = [];
 
   for (const actor of eligibleActors) {
-    const sameAreaCandidates = eligibleActors.filter(
-      (candidate) =>
-        candidate.id !== actor.id && candidate.person.area === actor.person.area
+    const sameUnitCandidates = buildSameUnitCandidates(eligibleActors, actor);
+    const sameAreaCandidates = sameUnitCandidates.filter(
+      (candidate) => candidate.person.area === actor.person.area
     );
     const anyPeerCandidates = eligibleActors.filter((candidate) => candidate.id !== actor.id);
-    const crossFunctionalCandidates = eligibleActors.filter(
-      (candidate) => candidate.id !== actor.id && candidate.person.area !== actor.person.area
+    const crossFunctionalCandidates = sameUnitCandidates.filter(
+      (candidate) =>
+        candidate.person.area !== actor.person.area &&
+        !isRemoteWorker(actor.person) &&
+        !isRemoteWorker(candidate.person)
     );
     const internalClientCandidates = eligibleActors.filter(
       (candidate) =>
@@ -1553,6 +1742,7 @@ function presentCycleParticipantStructure(db, cycleId, customLibraries = []) {
     (participant) => participant.cycleId === cycleId
   );
   const raterRows = (db.cycleRaters || []).filter((rater) => rater.cycleId === cycleId);
+  const cycleAssignments = (db.assignments || []).filter((assignment) => assignment.cycleId === cycleId);
 
   const participants = participantRows
     .map((participant) => {
@@ -1598,6 +1788,11 @@ function presentCycleParticipantStructure(db, cycleId, customLibraries = []) {
       };
     })
     .sort((left, right) => left.personName.localeCompare(right.personName, "pt-BR"));
+  const compliance = buildCycleComplianceSummary(cycleAssignments, cycle.status);
+  const delinquents = cycleAssignments
+    .filter((assignment) => isAssignmentDelinquent(assignment, cycle.status))
+    .map((assignment) => presentDelinquentAssignment(assignment, db, cycle.status))
+    .sort((left, right) => right.daysOverdue - left.daysOverdue || left.reviewerName.localeCompare(right.reviewerName, "pt-BR"));
 
   return {
     cycle: {
@@ -1609,6 +1804,8 @@ function presentCycleParticipantStructure(db, cycleId, customLibraries = []) {
       participantCount: participants.length,
       raterCount: raterRows.length
     },
+    compliance,
+    delinquents,
     participants,
     relationshipSummary: Object.entries(
       raterRows.reduce((summary, rater) => {
@@ -2345,11 +2542,20 @@ function assertCanCreateFeedbackRequest(db, actorUser, payload) {
   }
 
   for (const providerPersonId of uniqueProviderIds) {
+    const providerPerson = db.people.find((item) => item.id === providerPersonId);
     const providerUser = db.users.find(
       (item) => item.personId === providerPersonId && item.status === "active"
     );
     if (!providerUser) {
       throw new Error("Todos os fornecedores precisam ter usuario ativo.");
+    }
+    if (!providerPerson) {
+      throw new Error("Pessoa fornecedora de feedback nao encontrada.");
+    }
+    if (!isSameWorkUnit(actorUser.person, providerPerson)) {
+      throw new Error(
+        "Feedback direto entre colaboradores exige que ambos estejam na mesma unidade."
+      );
     }
 
     const duplicateAssignment = db.assignments.some(
@@ -2525,6 +2731,8 @@ function mapMysqlPersonRow(row) {
     name: row.name,
     roleTitle: row.roleTitle,
     area: row.area,
+    workUnit: row.workUnit || DEFAULT_WORK_UNIT,
+    workMode: row.workMode || DEFAULT_WORK_MODE,
     managerPersonId: row.managerPersonId || null,
     managerName: row.managerName,
     employmentType: row.employmentType,
@@ -2542,15 +2750,38 @@ function mapMysqlAreaRow(row) {
 }
 
 async function fetchPeopleRows(pool) {
-  const [rows] = await pool.query(
-    `SELECT p.id, p.name, p.role_title AS roleTitle, p.area,
-            p.manager_person_id AS managerPersonId, manager.name AS managerName,
-            p.employment_type AS employmentType, p.satisfaction_score AS satisfactionScore
-     FROM people p
-     LEFT JOIN people manager ON manager.id = p.manager_person_id
-     ORDER BY p.name`
-  );
-  return rows.map(mapMysqlPersonRow);
+  try {
+    const [rows] = await pool.query(
+      `SELECT p.id, p.name, p.role_title AS roleTitle, p.area,
+              p.work_unit AS workUnit, p.work_mode AS workMode,
+              p.manager_person_id AS managerPersonId, manager.name AS managerName,
+              p.employment_type AS employmentType, p.satisfaction_score AS satisfactionScore
+       FROM people p
+       LEFT JOIN people manager ON manager.id = p.manager_person_id
+       ORDER BY p.name`
+    );
+    return rows.map(mapMysqlPersonRow);
+  } catch (error) {
+    if (error?.code !== "ER_BAD_FIELD_ERROR" && error?.errno !== 1054) {
+      throw error;
+    }
+
+    const [rows] = await pool.query(
+      `SELECT p.id, p.name, p.role_title AS roleTitle, p.area,
+              p.manager_person_id AS managerPersonId, manager.name AS managerName,
+              p.employment_type AS employmentType, p.satisfaction_score AS satisfactionScore
+       FROM people p
+       LEFT JOIN people manager ON manager.id = p.manager_person_id
+       ORDER BY p.name`
+    );
+    return rows.map((row) =>
+      mapMysqlPersonRow({
+        ...row,
+        workUnit: DEFAULT_WORK_UNIT,
+        workMode: DEFAULT_WORK_MODE
+      })
+    );
+  }
 }
 
 async function fetchAreaRows(pool) {
@@ -2632,6 +2863,35 @@ async function fetchCycleRaterRows(pool, cycleId = null) {
          ORDER BY cycle_id, participant_person_id, relationship_type`
       );
   return rows;
+}
+
+async function fetchCycleAssignmentRows(
+  pool,
+  cycleId,
+  { supportsAssignmentReminder = false } = {}
+) {
+  const baseSelect = supportsAssignmentReminder
+    ? `SELECT id, cycle_id AS cycleId, reviewer_user_id AS reviewerUserId,
+              reviewee_person_id AS revieweePersonId, relationship_type AS relationshipType,
+              project_context AS projectContext, collaboration_context AS collaborationContext,
+              status, reminder_count AS reminderCount, last_reminder_sent_at AS lastReminderSentAt,
+              due_date AS dueDate
+       FROM evaluation_assignments
+       WHERE cycle_id = ?
+       ORDER BY due_date, relationship_type`
+    : `SELECT id, cycle_id AS cycleId, reviewer_user_id AS reviewerUserId,
+              reviewee_person_id AS revieweePersonId, relationship_type AS relationshipType,
+              project_context AS projectContext, collaboration_context AS collaborationContext,
+              status, due_date AS dueDate
+       FROM evaluation_assignments
+       WHERE cycle_id = ?
+       ORDER BY due_date, relationship_type`;
+  const [rows] = await pool.query(baseSelect, [cycleId]);
+  return rows.map((row) => ({
+    ...row,
+    reminderCount: Number(row.reminderCount || 0),
+    lastReminderSentAt: row.lastReminderSentAt || null
+  }));
 }
 
 async function fetchCycleReportRows(pool, cycleId = null) {
@@ -2971,12 +3231,15 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
 
       assertValidManagerReference(db.people, payload.managerPersonId);
       assertValidAreaReference(db.areas, payload.area);
+      const workContext = normalizeWorkContextPayload(payload);
 
       const person = {
         id: createId("person"),
         name: payload.name,
         roleTitle: payload.roleTitle,
         area: payload.area,
+        workUnit: workContext.workUnit,
+        workMode: workContext.workMode,
         managerPersonId: payload.managerPersonId || null,
         employmentType: payload.employmentType,
         satisfactionScore: Number(payload.satisfactionScore ?? DEFAULT_PERSON_SATISFACTION_SCORE)
@@ -2996,10 +3259,13 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
 
       assertValidManagerReference(db.people, payload.managerPersonId, personId);
       assertValidAreaReference(db.areas, payload.area);
+      const workContext = normalizeWorkContextPayload(payload);
 
       person.name = payload.name;
       person.roleTitle = payload.roleTitle;
       person.area = payload.area;
+      person.workUnit = workContext.workUnit;
+      person.workMode = workContext.workMode;
       person.managerPersonId = payload.managerPersonId || null;
       person.employmentType = payload.employmentType;
       if (payload.satisfactionScore !== undefined && payload.satisfactionScore !== null) {
@@ -3317,6 +3583,50 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
 
       hydrateCycleStructure(db, cycleId);
       return presentCycleParticipantStructure(db, cycleId, customLibraryState.published);
+    },
+    async notifyCycleDelinquents(cycleId, actorUser) {
+      const cycle = db.cycles.find((item) => item.id === cycleId);
+      if (!cycle) {
+        throw new Error("Ciclo de avaliacao nao encontrado.");
+      }
+
+      const delinquentAssignments = db.assignments.filter(
+        (assignment) =>
+          assignment.cycleId === cycleId && isAssignmentDelinquent(assignment, cycle.status)
+      );
+
+      if (!delinquentAssignments.length) {
+        return {
+          cycleId,
+          notifiedAssignments: 0,
+          delinquentAssignments: []
+        };
+      }
+
+      const reminderSentAt = new Date().toISOString();
+      delinquentAssignments.forEach((assignment) => {
+        assignment.reminderCount = Number(assignment.reminderCount || 0) + 1;
+        assignment.lastReminderSentAt = reminderSentAt;
+      });
+
+      pushAuditLog(db.auditLogs, {
+        category: AUDIT_CATEGORIES.cycle,
+        action: "delinquent_reminder_sent",
+        entityType: "evaluation_cycle",
+        entityId: cycle.id,
+        entityLabel: cycle.title,
+        actorUser,
+        summary: `Lembrete enviado para inadimplentes: ${cycle.title}`,
+        detail: `${delinquentAssignments.length} assignments vencidos sinalizados manualmente.`
+      });
+
+      return {
+        cycleId,
+        notifiedAssignments: delinquentAssignments.length,
+        delinquentAssignments: delinquentAssignments.map((assignment) =>
+          presentDelinquentAssignment(assignment, db, cycle.status)
+        )
+      };
     },
     async updateEvaluationCycleStatus(cycleId, nextStatus, actorUser) {
       const cycle = db.cycles.find((item) => item.id === cycleId);
@@ -4099,7 +4409,7 @@ function buildMysqlStore(
   pool,
   customLibraryState,
   anonymousResponseState,
-  { supportsCycleConfig, supportsFeedbackAcknowledgement } = {}
+  { supportsCycleConfig, supportsFeedbackAcknowledgement, supportsAssignmentReminder } = {}
 ) {
   return {
     async findUserByEmail(email) {
@@ -4364,31 +4674,57 @@ function buildMysqlStore(
       const [people, areas] = await Promise.all([fetchPeopleRows(pool), fetchAreaRows(pool)]);
       assertValidManagerReference(people, payload.managerPersonId);
       assertValidAreaReference(areas, payload.area);
+      const workContext = normalizeWorkContextPayload(payload);
 
       const person = {
         id: createId("person"),
         name: payload.name,
         roleTitle: payload.roleTitle,
         area: payload.area,
+        workUnit: workContext.workUnit,
+        workMode: workContext.workMode,
         managerPersonId: payload.managerPersonId || null,
         employmentType: payload.employmentType,
         satisfactionScore: Number(payload.satisfactionScore ?? DEFAULT_PERSON_SATISFACTION_SCORE)
       };
 
-      await pool.query(
-        `INSERT INTO people
-         (id, name, role_title, area, manager_person_id, employment_type, satisfaction_score)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [
-          person.id,
-          person.name,
-          person.roleTitle,
-          person.area,
-          person.managerPersonId,
-          person.employmentType,
-          person.satisfactionScore
-        ]
-      );
+      try {
+        await pool.query(
+          `INSERT INTO people
+           (id, name, role_title, area, work_unit, work_mode, manager_person_id, employment_type, satisfaction_score)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            person.id,
+            person.name,
+            person.roleTitle,
+            person.area,
+            person.workUnit,
+            person.workMode,
+            person.managerPersonId,
+            person.employmentType,
+            person.satisfactionScore
+          ]
+        );
+      } catch (error) {
+        if (error?.code !== "ER_BAD_FIELD_ERROR" && error?.errno !== 1054) {
+          throw error;
+        }
+
+        await pool.query(
+          `INSERT INTO people
+           (id, name, role_title, area, manager_person_id, employment_type, satisfaction_score)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          [
+            person.id,
+            person.name,
+            person.roleTitle,
+            person.area,
+            person.managerPersonId,
+            person.employmentType,
+            person.satisfactionScore
+          ]
+        );
+      }
 
       return enrichPerson(people, person, areas);
     },
@@ -4405,25 +4741,50 @@ function buildMysqlStore(
 
       assertValidManagerReference(people, payload.managerPersonId, personId);
       assertValidAreaReference(areas, payload.area);
-
-      await pool.query(
-        `UPDATE people
-         SET name = ?, role_title = ?, area = ?, manager_person_id = ?, employment_type = ?, satisfaction_score = ?
-         WHERE id = ?`,
-        [
-          payload.name,
-          payload.roleTitle,
-          payload.area,
-          payload.managerPersonId || null,
-          payload.employmentType,
-          Number(
-            payload.satisfactionScore === undefined || payload.satisfactionScore === null
-              ? person.satisfactionScore
-              : payload.satisfactionScore
-          ),
-          personId
-        ]
+      const workContext = normalizeWorkContextPayload(payload);
+      const nextSatisfactionScore = Number(
+        payload.satisfactionScore === undefined || payload.satisfactionScore === null
+          ? person.satisfactionScore
+          : payload.satisfactionScore
       );
+
+      try {
+        await pool.query(
+          `UPDATE people
+           SET name = ?, role_title = ?, area = ?, work_unit = ?, work_mode = ?, manager_person_id = ?, employment_type = ?, satisfaction_score = ?
+           WHERE id = ?`,
+          [
+            payload.name,
+            payload.roleTitle,
+            payload.area,
+            workContext.workUnit,
+            workContext.workMode,
+            payload.managerPersonId || null,
+            payload.employmentType,
+            nextSatisfactionScore,
+            personId
+          ]
+        );
+      } catch (error) {
+        if (error?.code !== "ER_BAD_FIELD_ERROR" && error?.errno !== 1054) {
+          throw error;
+        }
+
+        await pool.query(
+          `UPDATE people
+           SET name = ?, role_title = ?, area = ?, manager_person_id = ?, employment_type = ?, satisfaction_score = ?
+           WHERE id = ?`,
+          [
+            payload.name,
+            payload.roleTitle,
+            payload.area,
+            payload.managerPersonId || null,
+            payload.employmentType,
+            nextSatisfactionScore,
+            personId
+          ]
+        );
+      }
 
       return enrichPerson(
         people.map((item) =>
@@ -4433,13 +4794,11 @@ function buildMysqlStore(
                 name: payload.name,
                 roleTitle: payload.roleTitle,
                 area: payload.area,
+                workUnit: workContext.workUnit,
+                workMode: workContext.workMode,
                 managerPersonId: payload.managerPersonId || null,
                 employmentType: payload.employmentType,
-                satisfactionScore: Number(
-                  payload.satisfactionScore === undefined || payload.satisfactionScore === null
-                    ? item.satisfactionScore
-                    : payload.satisfactionScore
-                )
+                satisfactionScore: nextSatisfactionScore
               }
             : item
         ),
@@ -4448,13 +4807,11 @@ function buildMysqlStore(
           name: payload.name,
           roleTitle: payload.roleTitle,
           area: payload.area,
+          workUnit: workContext.workUnit,
+          workMode: workContext.workMode,
           managerPersonId: payload.managerPersonId || null,
           employmentType: payload.employmentType,
-          satisfactionScore: Number(
-            payload.satisfactionScore === undefined || payload.satisfactionScore === null
-              ? person.satisfactionScore
-              : payload.satisfactionScore
-          )
+          satisfactionScore: nextSatisfactionScore
         },
         areas
       );
@@ -5124,11 +5481,12 @@ function buildMysqlStore(
         throw new Error("Ciclo de avaliacao nao encontrado.");
       }
 
-      const [people, users, participantRows, raterRows] = await Promise.all([
+      const [people, users, participantRows, raterRows, assignmentRows] = await Promise.all([
         fetchPeopleRows(pool),
         fetchUserRows(pool),
         fetchCycleParticipantRows(pool, cycleId),
-        fetchCycleRaterRows(pool, cycleId)
+        fetchCycleRaterRows(pool, cycleId),
+        fetchCycleAssignmentRows(pool, cycleId, { supportsAssignmentReminder })
       ]);
 
       return presentCycleParticipantStructure(
@@ -5136,12 +5494,95 @@ function buildMysqlStore(
           cycles: [cycleRows[0]],
           people,
           users,
+          assignments: assignmentRows,
           cycleParticipants: participantRows,
           cycleRaters: raterRows
         },
         cycleId,
         customLibraryState.published
       );
+    },
+    async notifyCycleDelinquents(cycleId, actorUser) {
+      const [cycleRows] = await pool.query(
+        `SELECT id, title, status
+         FROM evaluation_cycles
+         WHERE id = ?
+         LIMIT 1`,
+        [cycleId]
+      );
+      if (!cycleRows[0]) {
+        throw new Error("Ciclo de avaliacao nao encontrado.");
+      }
+
+      const assignments = await fetchCycleAssignmentRows(pool, cycleId, {
+        supportsAssignmentReminder
+      });
+      const delinquentAssignments = assignments.filter((assignment) =>
+        isAssignmentDelinquent(assignment, cycleRows[0].status)
+      );
+
+      if (!delinquentAssignments.length) {
+        return {
+          cycleId,
+          notifiedAssignments: 0,
+          delinquentAssignments: []
+        };
+      }
+
+      const reminderSentAt = new Date().toISOString();
+      const connection = await pool.getConnection();
+      try {
+        await connection.beginTransaction();
+
+        for (const assignment of delinquentAssignments) {
+          if (supportsAssignmentReminder) {
+            await connection.query(
+              `UPDATE evaluation_assignments
+               SET reminder_count = COALESCE(reminder_count, 0) + 1,
+                   last_reminder_sent_at = ?
+               WHERE id = ?`,
+              [reminderSentAt, assignment.id]
+            );
+          }
+        }
+
+        await insertAuditLog(connection, {
+          category: AUDIT_CATEGORIES.cycle,
+          action: "delinquent_reminder_sent",
+          entityType: "evaluation_cycle",
+          entityId: cycleRows[0].id,
+          entityLabel: cycleRows[0].title,
+          actorUser,
+          summary: `Lembrete enviado para inadimplentes: ${cycleRows[0].title}`,
+          detail: `${delinquentAssignments.length} assignments vencidos sinalizados manualmente.`
+        });
+
+        await connection.commit();
+      } catch (error) {
+        await connection.rollback();
+        throw error;
+      } finally {
+        connection.release();
+      }
+
+      const [people, users] = await Promise.all([fetchPeopleRows(pool), fetchUserRows(pool)]);
+      const refreshedAssignments = await fetchCycleAssignmentRows(pool, cycleId, {
+        supportsAssignmentReminder
+      });
+
+      return {
+        cycleId,
+        notifiedAssignments: delinquentAssignments.length,
+        delinquentAssignments: refreshedAssignments
+          .filter((assignment) => isAssignmentDelinquent(assignment, cycleRows[0].status))
+          .map((assignment) =>
+            presentDelinquentAssignment(
+              assignment,
+              { people, users },
+              cycleRows[0].status
+            )
+          )
+      };
     },
     async updateEvaluationCycleStatus(cycleId, nextStatus, actorUser) {
       const [rows] = await pool.query(
@@ -6490,12 +6931,21 @@ export async function createStore() {
     connectionLimit: 10
   });
 
-  const [supportsCycleConfig, supportsFeedbackAcknowledgement] = await Promise.all([
-    ensureMysqlCycleConfigSupport(pool),
-    ensureMysqlFeedbackAcknowledgementSupport(pool)
-  ]);
+  const [
+    supportsCycleConfig,
+    supportsFeedbackAcknowledgement,
+    _supportsPeopleWorkContext,
+    supportsAssignmentReminder
+  ] =
+    await Promise.all([
+      ensureMysqlCycleConfigSupport(pool),
+      ensureMysqlFeedbackAcknowledgementSupport(pool),
+      ensureMysqlPeopleWorkContextSupport(pool),
+      ensureMysqlAssignmentReminderSupport(pool)
+    ]);
   return buildMysqlStore(pool, customLibraryState, anonymousResponseState, {
     supportsCycleConfig,
-    supportsFeedbackAcknowledgement
+    supportsFeedbackAcknowledgement,
+    supportsAssignmentReminder
   });
 }

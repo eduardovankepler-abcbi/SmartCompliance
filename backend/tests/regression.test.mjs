@@ -656,6 +656,8 @@ try {
       name: "Pessoa Homologacao",
       roleTitle: "Analista de Testes",
       area: "Tecnologia",
+      workUnit: "Sao Paulo",
+      workMode: "hybrid",
       managerPersonId: manager.personId,
       employmentType: "internal"
     },
@@ -666,6 +668,161 @@ try {
     createdPerson.satisfactionScore,
     4,
     "Cadastro de pessoa sem score manual deve assumir valor padrao"
+  );
+  assert.equal(createdPerson.workUnit, "Sao Paulo", "Pessoa deve manter unidade de trabalho");
+  assert.equal(createdPerson.workMode, "hybrid", "Pessoa deve manter modalidade de trabalho");
+
+  const remotePerson = await store.createPerson(
+    {
+      name: "Pessoa Remota Teste",
+      roleTitle: "Consultor Remoto",
+      area: "Consultoria",
+      workUnit: "Sao Paulo",
+      workMode: "remote",
+      managerPersonId: manager.personId,
+      employmentType: "consultant"
+    },
+    admin
+  );
+  const remoteUser = await store.createUser(
+    {
+      personId: remotePerson.id,
+      email: "remoto.teste@demo.local",
+      password: "demo123",
+      roleKey: "employee",
+      status: "active"
+    },
+    admin
+  );
+
+  const rioPerson = await store.createPerson(
+    {
+      name: "Pessoa Unidade Rio",
+      roleTitle: "Analista Rio",
+      area: "Consultoria",
+      workUnit: "Rio de Janeiro",
+      workMode: "onsite",
+      managerPersonId: manager.personId,
+      employmentType: "internal"
+    },
+    admin
+  );
+  await store.createUser(
+    {
+      personId: rioPerson.id,
+      email: "rio.teste@demo.local",
+      password: "demo123",
+      roleKey: "employee",
+      status: "active"
+    },
+    admin
+  );
+
+  const workContextCycle = await store.createEvaluationCycle(
+    {
+      title: "Ciclo por unidade",
+      semesterLabel: "2026.3",
+      dueDate: "2026-11-30",
+      targetGroup: "Todos os colaboradores",
+      createdByUserId: admin.id
+    },
+    admin
+  );
+  const workContextStructure = await store.getEvaluationCycleParticipants(workContextCycle.id);
+  const remoteParticipant = workContextStructure.participants.find(
+    (participant) => participant.personId === remotePerson.id
+  );
+  assert.ok(remoteParticipant, "Pessoa remota deve participar do ciclo");
+  assert.equal(
+    remoteParticipant.raters.some((rater) => rater.relationshipType === "cross-functional"),
+    false,
+    "Pessoa 100% remota nao deve ser avaliada no feedback indireto"
+  );
+  assert.equal(
+    workContextStructure.participants.some((participant) =>
+      participant.raters.some(
+        (rater) =>
+          rater.relationshipType === "cross-functional" && rater.raterUserId === remoteUser.id
+      )
+    ),
+    false,
+    "Pessoa 100% remota nao deve avaliar no feedback indireto"
+  );
+
+  const rioParticipant = workContextStructure.participants.find(
+    (participant) => participant.personId === rioPerson.id
+  );
+  assert.ok(rioParticipant, "Pessoa de outra unidade deve participar do ciclo");
+  assert.equal(
+    rioParticipant.raters.some((rater) => rater.relationshipType === "cross-functional"),
+    false,
+    "Pessoa sem colegas da mesma unidade nao deve receber feedback indireto"
+  );
+
+  const employeeActor = await store.getUserById(employee.id);
+  await assert.rejects(
+    () =>
+      store.createFeedbackRequest(
+        {
+          cycleId: workContextCycle.id,
+          providerPersonIds: [rioPerson.id],
+          contextNote:
+            "Colaboramos em uma frente compartilhada e quero validar a restricao de unidade."
+        },
+        employeeActor
+      ),
+    /mesma unidade/i,
+    "Feedback direto deve respeitar a mesma unidade de trabalho"
+  );
+
+  const overdueCycle = await store.createEvaluationCycle(
+    {
+      title: "Ciclo inadimplencia",
+      semesterLabel: "2026.0",
+      dueDate: "2026-03-01",
+      targetGroup: "Todos os colaboradores",
+      createdByUserId: admin.id
+    },
+    admin
+  );
+  await store.updateEvaluationCycleStatus(overdueCycle.id, "Liberado", admin);
+
+  const overdueStructure = await store.getEvaluationCycleParticipants(overdueCycle.id);
+  assert.ok(
+    overdueStructure.compliance.delinquentAssignments > 0,
+    "Ciclo vencido deve expor assignments inadimplentes"
+  );
+  assert.ok(
+    overdueStructure.compliance.delinquencyRate > 0,
+    "Ciclo vencido deve calcular taxa de inadimplencia"
+  );
+  assert.ok(
+    overdueStructure.delinquents.length > 0,
+    "Estrutura operacional deve listar inadimplentes"
+  );
+
+  const notifyDelinquentsResponse = await sendJson(
+    baseUrl,
+    `/api/evaluations/cycles/${overdueCycle.id}/notify-delinquents`,
+    {
+      method: "POST",
+      headers: getAuthHeader(hr.id)
+    }
+  );
+  assert.equal(
+    notifyDelinquentsResponse.response.status,
+    200,
+    "RH deve conseguir notificar inadimplentes do ciclo"
+  );
+  assert.ok(
+    notifyDelinquentsResponse.payload.notifiedAssignments > 0,
+    "Notificacao deve atingir assignments vencidos"
+  );
+  assert.ok(
+    notifyDelinquentsResponse.payload.delinquentAssignments.every(
+      (assignment) => Number(assignment.reminderCount) >= 1
+    ),
+    "Assignments notificados devem registrar contagem de lembretes"
   );
 
   const createdCompetency = await store.createCompetency(

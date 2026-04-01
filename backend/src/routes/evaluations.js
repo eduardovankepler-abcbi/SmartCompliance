@@ -128,6 +128,21 @@ export function createEvaluationsRouter(store) {
     }
   );
 
+  router.post(
+    "/cycles/:cycleId/notify-delinquents",
+    requireRoles("admin", "hr"),
+    async (req, res) => {
+      try {
+        const result = await store.notifyCycleDelinquents(req.params.cycleId, req.auth.user);
+        res.json(result);
+      } catch (error) {
+        res
+          .status(400)
+          .json({ error: error.message || "Falha ao notificar inadimplentes do ciclo." });
+      }
+    }
+  );
+
   router.get("/assignments", async (req, res, next) => {
     try {
       res.json(await store.getEvaluationAssignmentsForUser(req.auth.user.id));

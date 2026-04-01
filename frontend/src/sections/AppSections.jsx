@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { AuditTrailPanel } from "../components/AuditTrailPanel";
+import { workModeOptions } from "../appConfig.js";
 
 export function DashboardSection({
   BarMetricRow,
@@ -1288,6 +1289,24 @@ export function PeopleSection({
               }
               onChange={(value) => setPersonForm({ ...personForm, managerPersonId: value })}
             />
+            <Input
+              label="Unidade de trabalho"
+              value={personForm.workUnit}
+              onChange={(value) => setPersonForm({ ...personForm, workUnit: value })}
+            />
+            <Select
+              label="Modalidade"
+              value={personForm.workMode}
+              options={workModeOptions}
+              renderLabel={(value) =>
+                value === "onsite"
+                  ? "Presencial"
+                  : value === "remote"
+                    ? "100% Home Office"
+                    : "Hibrido"
+              }
+              onChange={(value) => setPersonForm({ ...personForm, workMode: value })}
+            />
             <Select
               label="Vinculo"
               value={personForm.employmentType}
@@ -1361,6 +1380,14 @@ export function PeopleSection({
                 <p className="muted">{person.roleTitle}</p>
                 <p className="muted">
                   {person.area} | Gestor: {person.managerName || "-"}
+                </p>
+                <p className="muted">
+                  Unidade: {person.workUnit || "-"} | Modalidade:{" "}
+                  {person.workMode === "onsite"
+                    ? "Presencial"
+                    : person.workMode === "remote"
+                      ? "100% Home Office"
+                      : "Hibrido"}
                 </p>
               </article>
             )

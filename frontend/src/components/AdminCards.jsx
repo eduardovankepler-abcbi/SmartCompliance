@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { workModeOptions } from "../appConfig.js";
 import { Input, Select, Textarea } from "./FormControls";
 
 export function IncidentQueueCard({
@@ -229,6 +230,8 @@ export function PersonStructureCard({ areaOptions, managerOptions, onSave, perso
     name: person.name,
     roleTitle: person.roleTitle,
     area: person.area,
+    workUnit: person.workUnit || "",
+    workMode: person.workMode || "hybrid",
     managerPersonId: person.managerPersonId || "",
     employmentType: person.employmentType || "internal"
   });
@@ -238,6 +241,8 @@ export function PersonStructureCard({ areaOptions, managerOptions, onSave, perso
       name: person.name,
       roleTitle: person.roleTitle,
       area: person.area,
+      workUnit: person.workUnit || "",
+      workMode: person.workMode || "hybrid",
       managerPersonId: person.managerPersonId || "",
       employmentType: person.employmentType || "internal"
     });
@@ -246,7 +251,9 @@ export function PersonStructureCard({ areaOptions, managerOptions, onSave, perso
     person.employmentType,
     person.managerPersonId,
     person.name,
-    person.roleTitle
+    person.roleTitle,
+    person.workMode,
+    person.workUnit
   ]);
 
   return (
@@ -261,6 +268,14 @@ export function PersonStructureCard({ areaOptions, managerOptions, onSave, perso
       <p className="muted">
         Gestor atual: {person.managerName || "Nao definido"} | Responsavel da area:{" "}
         {person.areaManagerName || "Nao definido"}
+      </p>
+      <p className="muted">
+        Unidade: {person.workUnit || "-"} | Modalidade:{" "}
+        {person.workMode === "onsite"
+          ? "Presencial"
+          : person.workMode === "remote"
+            ? "100% Home Office"
+            : "Hibrido"}
       </p>
       <div className="incident-actions compact-actions structure-actions">
         <Input
@@ -293,6 +308,24 @@ export function PersonStructureCard({ areaOptions, managerOptions, onSave, perso
               managerPersonId: value
             }))
           }
+        />
+        <Input
+          label="Unidade de trabalho"
+          value={draft.workUnit}
+          onChange={(value) => setDraft((current) => ({ ...current, workUnit: value }))}
+        />
+        <Select
+          label="Modalidade"
+          value={draft.workMode}
+          options={workModeOptions}
+          renderLabel={(value) =>
+            value === "onsite"
+              ? "Presencial"
+              : value === "remote"
+                ? "100% Home Office"
+                : "Hibrido"
+          }
+          onChange={(value) => setDraft((current) => ({ ...current, workMode: value }))}
         />
         <Select
           label="Vinculo"

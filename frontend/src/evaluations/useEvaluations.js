@@ -212,6 +212,7 @@ export function useEvaluations({
     initialRoute.evaluationWorkspace || "respond"
   );
   const [evaluationCycleStructure, setEvaluationCycleStructure] = useState(null);
+  const [evaluationOperationNotice, setEvaluationOperationNotice] = useState("");
   const [showEvaluationLibrary, setShowEvaluationLibrary] = useState(false);
   const [selectedAssignment, setSelectedAssignment] = useState(null);
   const [assignmentDetail, setAssignmentDetail] = useState(null);
@@ -618,6 +619,7 @@ export function useEvaluations({
     setComparisonEvaluationCycleId("");
     setActiveEvaluationWorkspace(route.evaluationWorkspace || "respond");
     setEvaluationCycleStructure(null);
+    setEvaluationOperationNotice("");
     setShowEvaluationLibrary(false);
     setSelectedAssignment(null);
     setAssignmentDetail(null);
@@ -693,6 +695,7 @@ export function useEvaluations({
   async function handleCycleStatusChange(cycleId, status) {
     try {
       setError("");
+      setEvaluationOperationNotice("");
       await api.updateEvaluationCycleStatus(cycleId, status);
       setSelectedAssignment(null);
       setAssignmentDetail(null);
@@ -705,6 +708,7 @@ export function useEvaluations({
   async function handleCycleConfigUpdate(cycleId, payload) {
     try {
       setError("");
+      setEvaluationOperationNotice("");
       await api.updateEvaluationCycleConfig(cycleId, payload);
       await reloadData();
     } catch (err) {
@@ -803,6 +807,21 @@ export function useEvaluations({
     }
   }
 
+  async function handleNotifyDelinquents(cycleId) {
+    try {
+      setError("");
+      const result = await api.notifyEvaluationCycleDelinquents(cycleId);
+      setEvaluationOperationNotice(
+        result.notifiedAssignments
+          ? `${result.notifiedAssignments} inadimplente(s) notificados no ciclo.`
+          : "Nenhum inadimplente pendente para notificacao."
+      );
+      await reloadData();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
   async function handleCustomLibraryImport(event) {
     const file = event.target.files?.[0];
     if (!file) {
@@ -873,6 +892,7 @@ export function useEvaluations({
     developmentNote,
     evaluationCycleHistory,
     evaluationCycleOptions,
+    evaluationOperationNotice,
     evaluationModuleOptions,
     feedbackProviderOptions,
     feedbackRequestCycleOptions,
@@ -893,6 +913,7 @@ export function useEvaluations({
     handleFeedbackProviderToggle,
     handleFeedbackRequestReview,
     handleFeedbackRequestSubmit,
+    handleNotifyDelinquents,
     handleReceivedManagerFeedbackSubmit,
     receivedManagerFeedbackDrafts,
     resetEvaluations,

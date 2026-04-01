@@ -125,9 +125,13 @@ export const emptyPerson = {
   name: "",
   roleTitle: "",
   area: "",
+  workUnit: "",
+  workMode: "hybrid",
   managerPersonId: "",
   employmentType: "internal"
 };
+
+export const workModeOptions = ["onsite", "hybrid", "remote"];
 
 export const emptyArea = {
   name: "",
