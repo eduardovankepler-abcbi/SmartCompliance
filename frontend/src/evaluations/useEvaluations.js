@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
 import { parseAppHash } from "../appRoute";
 import { evaluationModules } from "../appConfig.js";
+import { validateEvaluationAnswerForm } from "./validation.js";
 
 function getInitialEvaluationRoute() {
   if (typeof window === "undefined") {
@@ -623,6 +624,15 @@ export function useEvaluations({
     }
 
     try {
+      const validation = validateEvaluationAnswerForm({
+        template: assignmentDetail.template,
+        answerForm
+      });
+      if (!validation.ok) {
+        setError(validation.message);
+        return;
+      }
+
       setError("");
       await api.submitEvaluation({
         assignmentId: assignmentDetail.assignment.id,

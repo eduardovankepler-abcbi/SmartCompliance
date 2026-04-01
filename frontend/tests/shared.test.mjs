@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { getCapabilities } from "../src/access.js";
 import { evaluationModules } from "../src/appConfig.js";
+import { validateEvaluationAnswerForm } from "../src/evaluations/validation.js";
 import {
   formatDate,
   getAssignmentStatusLabel,
@@ -98,5 +99,43 @@ assert.equal(hrCapabilities.canManageCycles, true);
 assert.equal(hrCapabilities.canViewAuditTrail, true);
 assert.equal(hrCapabilities.canViewEvaluationLibrary, true);
 assert.equal(hrCapabilities.canViewOrganizationDevelopment, true);
+
+assert.deepEqual(
+  validateEvaluationAnswerForm({
+    template: {
+      questions: [
+        {
+          id: "q1",
+          isRequired: true,
+          inputType: "text",
+          dimensionTitle: "Pergunta aberta",
+          prompt: "Explique."
+        }
+      ]
+    },
+    answerForm: { q1: { textValue: "" } }
+  }).ok,
+  false,
+  "Validacao deve bloquear texto obrigatorio vazio"
+);
+assert.deepEqual(
+  validateEvaluationAnswerForm({
+    template: {
+      questions: [
+        {
+          id: "q1",
+          isRequired: true,
+          inputType: "scale",
+          dimensionTitle: "Nota",
+          prompt: "Avalie.",
+          collectEvidenceOnExtreme: true
+        }
+      ]
+    },
+    answerForm: { q1: { score: 5, evidenceNote: "" } }
+  }).ok,
+  false,
+  "Validacao deve exigir evidencia em notas extremas quando configurado"
+);
 
 console.log("Frontend shared helper tests passed.");

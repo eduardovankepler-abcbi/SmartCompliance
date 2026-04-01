@@ -250,6 +250,71 @@ try {
     "Template indireto deve usar escala de percepcao organizacional"
   );
 
+  const releasedCycles = await store.getEvaluationCycles();
+  const cycleForManagerResponse = releasedCycles[0];
+  assert.ok(cycleForManagerResponse, "Precisa existir pelo menos um ciclo para teste de envio");
+  if (cycleForManagerResponse.status !== "Liberado") {
+    await store.updateEvaluationCycleStatus(cycleForManagerResponse.id, "Liberado", admin);
+  }
+
+  const managerAssignments = await store.getEvaluationAssignmentsForUser(manager.id);
+  const managerFeedbackAssignment = managerAssignments.find(
+    (assignment) =>
+      assignment.cycleId === cycleForManagerResponse.id && assignment.relationshipType === "manager"
+  );
+  assert.ok(managerFeedbackAssignment, "Gestor precisa ter um assignment de feedback do lider");
+
+  const managerFeedbackDetail = await store.getEvaluationAssignmentById(
+    managerFeedbackAssignment.id,
+    manager.id
+  );
+  assert.ok(managerFeedbackDetail, "Detalhe do assignment do gestor precisa carregar template");
+
+  const managerTemplate = await store.getEvaluationTemplateForCycleRelationship(
+    managerFeedbackDetail.cycleId,
+    "manager"
+  );
+
+  const managerAnswers = managerTemplate.questions.map((question) => {
+    if (question.inputType === "text") {
+      return {
+        questionId: question.id,
+        score: null,
+        evidenceNote: "",
+        textValue: "ok",
+        selectedOptions: []
+      };
+    }
+
+    if (question.inputType === "multi-select") {
+      const option = (question.options || [])[0]?.value || "";
+      return {
+        questionId: question.id,
+        score: null,
+        evidenceNote: "",
+        textValue: "",
+        selectedOptions: option ? [option] : []
+      };
+    }
+
+    return {
+      questionId: question.id,
+      score: 3,
+      evidenceNote: "",
+      textValue: "",
+      selectedOptions: []
+    };
+  });
+
+  const managerSubmission = await store.submitEvaluationAssignment({
+    assignmentId: managerFeedbackAssignment.id,
+    reviewerUserId: manager.id,
+    answers: managerAnswers,
+    strengthsNote: "ok",
+    developmentNote: "ok"
+  });
+  assert.ok(managerSubmission.id, "Envio de feedback do lider deve gerar submission");
+
   const createdCycleStructure = await store.getEvaluationCycleParticipants(createdCycle.id);
   assert.ok(
     createdCycleStructure.participants.length > 0,
