@@ -1,6 +1,17 @@
 import { useEffect, useState } from "react";
 import { workModeOptions } from "../appConfig.js";
+import { getRoleLabel } from "../appLabels.js";
 import { Input, Select, Textarea } from "./FormControls";
+
+function getEmploymentTypeLabel(value) {
+  if (value === "consultant") {
+    return "Consultor";
+  }
+  if (value === "internal") {
+    return "Interno";
+  }
+  return value || "-";
+}
 
 export function IncidentQueueCard({
   areaOptions,
@@ -146,7 +157,19 @@ export function UserAdminCard({ onSave, user, userRoleOptions, userStatusOptions
       </div>
       <p>{user.email}</p>
       <p className="muted">
-        {user.personArea} | Perfil atual: {user.roleKey}
+        {user.personArea} | Perfil atual: {getRoleLabel(user.roleKey)}
+      </p>
+      <p className="muted">
+        {user.personRoleTitle || "Cargo nao informado"} | Gestor direto: {user.managerName || "Nao definido"}
+      </p>
+      <p className="muted">Lider da area: {user.areaManagerName || "Nao definido"}</p>
+      <p className="muted">
+        Unidade: {user.personWorkUnit || "-"} | Modalidade:{" "}
+        {user.personWorkMode === "onsite"
+          ? "Presencial"
+          : user.personWorkMode === "remote"
+            ? "100% Home Office"
+            : "Hibrido"}
       </p>
       <div className="incident-actions compact-actions">
         <Input
@@ -156,9 +179,10 @@ export function UserAdminCard({ onSave, user, userRoleOptions, userStatusOptions
           onChange={(value) => setDraft((current) => ({ ...current, email: value }))}
         />
         <Select
-          label="Nivel de acesso"
+          label="Perfil de acesso"
           value={draft.roleKey}
           options={userRoleOptions}
+          renderLabel={(value) => getRoleLabel(value)}
           onChange={(value) => setDraft((current) => ({ ...current, roleKey: value }))}
         />
         <Select
@@ -186,18 +210,16 @@ export function UserAdminCard({ onSave, user, userRoleOptions, userStatusOptions
   );
 }
 
-export function AreaAdminCard({ area, managerOptions, onSave }) {
+export function AreaAdminCard({ area, onSave }) {
   const [draft, setDraft] = useState({
-    name: area.name,
-    managerPersonId: area.managerPersonId || ""
+    name: area.name
   });
 
   useEffect(() => {
     setDraft({
-      name: area.name,
-      managerPersonId: area.managerPersonId || ""
+      name: area.name
     });
-  }, [area.managerPersonId, area.name]);
+  }, [area.name]);
 
   return (
     <article className="list-card compact-list-card">
@@ -205,26 +227,12 @@ export function AreaAdminCard({ area, managerOptions, onSave }) {
         <strong>{area.name}</strong>
         <span className="badge">{area.peopleCount} pessoas</span>
       </div>
-      <p className="muted">Gestor responsavel: {area.managerName || "Nao definido"}</p>
+      <p className="muted">Lider atual da area: {area.managerName || "Nao definido"}</p>
       <div className="incident-actions compact-actions structure-actions">
         <Input
           label="Nome da area"
           value={draft.name}
           onChange={(value) => setDraft((current) => ({ ...current, name: value }))}
-        />
-        <Select
-          label="Gestor responsavel"
-          value={draft.managerPersonId}
-          options={managerOptions.map((item) => item.value)}
-          renderLabel={(value) =>
-            managerOptions.find((item) => item.value === value)?.label || value
-          }
-          onChange={(value) =>
-            setDraft((current) => ({
-              ...current,
-              managerPersonId: value
-            }))
-          }
         />
         <button type="button" className="primary-button" onClick={() => onSave(area.id, draft)}>
           Salvar area
@@ -234,7 +242,24 @@ export function AreaAdminCard({ area, managerOptions, onSave }) {
   );
 }
 
-export function PersonStructureCard({ areaOptions, managerOptions, onSave, person }) {
+function getAccessJourneyLabel(accessState, linkedUser) {
+  if (accessState?.key === "active") {
+    return `Acesso ativo · ${getRoleLabel(linkedUser?.roleKey)}`;
+  }
+  if (accessState?.key === "inactive") {
+    return `Acesso inativo · ${getRoleLabel(linkedUser?.roleKey)}`;
+  }
+  return "Acesso pendente";
+}
+
+export function PersonStructureCard({
+  accessState,
+  areaOptions,
+  managerOptions,
+  onPrepareUserProvisioning,
+  onSave,
+  person
+}) {
   const [draft, setDraft] = useState({
     name: person.name,
     roleTitle: person.roleTitle,
@@ -243,8 +268,7 @@ export function PersonStructureCard({ areaOptions, managerOptions, onSave, perso
     workMode: person.workMode || "hybrid",
     managerPersonId: person.managerPersonId || "",
     isAreaManager: person.areaManagerPersonId === person.id ? "yes" : "no",
-    employmentType: person.employmentType || "internal",
-    satisfactionScore: person.satisfactionScore ?? 4
+    employmentType: person.employmentType || "internal"
   });
 
   useEffect(() => {
@@ -256,8 +280,7 @@ export function PersonStructureCard({ areaOptions, managerOptions, onSave, perso
       workMode: person.workMode || "hybrid",
       managerPersonId: person.managerPersonId || "",
       isAreaManager: person.areaManagerPersonId === person.id ? "yes" : "no",
-      employmentType: person.employmentType || "internal",
-      satisfactionScore: person.satisfactionScore ?? 4
+      employmentType: person.employmentType || "internal"
     });
   }, [
     person.area,
@@ -266,7 +289,6 @@ export function PersonStructureCard({ areaOptions, managerOptions, onSave, perso
     person.managerPersonId,
     person.name,
     person.roleTitle,
-    person.satisfactionScore,
     person.workMode,
     person.workUnit
   ]);
@@ -276,14 +298,16 @@ export function PersonStructureCard({ areaOptions, managerOptions, onSave, perso
       <div className="row">
         <strong>{person.name}</strong>
         <span className="badge">
-          {person.areaManagerPersonId === person.id ? "Lider da area" : person.employmentType || "internal"}
+          {person.areaManagerPersonId === person.id
+            ? "Lider da area"
+            : getEmploymentTypeLabel(person.employmentType)}
         </span>
       </div>
       <p className="muted">
         {person.roleTitle} | {person.area}
       </p>
       <p className="muted">
-        Gestor atual: {person.managerName || "Nao definido"} | Responsavel da area:{" "}
+        Gestor direto: {person.managerName || "Nao definido"} | Lider atual da area:{" "}
         {person.areaManagerName || "Nao definido"}
       </p>
       <p className="muted">
@@ -293,6 +317,13 @@ export function PersonStructureCard({ areaOptions, managerOptions, onSave, perso
           : person.workMode === "remote"
             ? "100% Home Office"
             : "Hibrido"}
+      </p>
+      <p className="muted">{getAccessJourneyLabel(accessState, accessState?.user)}</p>
+      <p className="muted">
+        Satisfacao atual:{" "}
+        {Number.isFinite(Number(person.satisfactionScore))
+          ? Number(person.satisfactionScore).toFixed(1)
+          : "Aguardando pesquisa"}
       </p>
       <div className="incident-actions compact-actions structure-actions">
         <Input
@@ -313,12 +344,13 @@ export function PersonStructureCard({ areaOptions, managerOptions, onSave, perso
           onChange={(value) => setDraft((current) => ({ ...current, area: value }))}
         />
         <Select
-          label="Gestor"
+          label="Gestor direto"
           value={draft.managerPersonId}
           options={managerOptions.map((item) => item.value)}
           renderLabel={(value) =>
             managerOptions.find((item) => item.value === value)?.label || value
           }
+          helper="Pessoa que acompanha as entregas e responde pela gestao direta deste colaborador."
           onChange={(value) =>
             setDraft((current) => ({
               ...current,
@@ -331,7 +363,7 @@ export function PersonStructureCard({ areaOptions, managerOptions, onSave, perso
           value={draft.isAreaManager}
           options={["no", "yes"]}
           renderLabel={(value) => (value === "yes" ? "Sim" : "Nao")}
-          helper="Se marcado, esta pessoa passa a ser a responsavel atual pela area."
+          helper="Marque Sim apenas quando esta pessoa for a lider atual da area."
           onChange={(value) => setDraft((current) => ({ ...current, isAreaManager: value }))}
         />
         <Input
@@ -359,19 +391,18 @@ export function PersonStructureCard({ areaOptions, managerOptions, onSave, perso
           renderLabel={(value) => (value === "internal" ? "Interno" : "Consultor")}
           onChange={(value) => setDraft((current) => ({ ...current, employmentType: value }))}
         />
-        <Input
-          label="Score de satisfacao"
-          type="number"
-          min="1"
-          max="5"
-          step="0.1"
-          helper="Escala operacional de 1 a 5."
-          value={draft.satisfactionScore}
-          onChange={(value) => setDraft((current) => ({ ...current, satisfactionScore: value }))}
-        />
         <button type="button" className="primary-button" onClick={() => onSave(person.id, draft)}>
           Salvar vinculos
         </button>
+        {accessState?.key === "pending" ? (
+          <button
+            type="button"
+            className="refresh"
+            onClick={() => onPrepareUserProvisioning?.(person.id)}
+          >
+            Criar acesso
+          </button>
+        ) : null}
       </div>
     </article>
   );

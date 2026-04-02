@@ -487,6 +487,12 @@ select {
   border-color: transparent;
 }
 
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
 .utility-button {
   display: inline-flex;
   align-items: center;
@@ -668,6 +674,40 @@ select {
   align-items: start;
 }
 
+.people-flow-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(280px, 0.7fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.people-primary-form {
+  gap: 10px;
+}
+
+.people-hierarchy-summary {
+  gap: 12px;
+}
+
+.hierarchy-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+.hierarchy-step-card {
+  display: grid;
+  gap: 4px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.hierarchy-step-card p {
+  margin: 0;
+}
+
 .nested-card {
   padding: 0;
   border: none;
@@ -845,6 +885,59 @@ select {
 
 .mini-label {
   margin: 0;
+  color: var(--muted);
+}
+
+.access-journey-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.guide-step-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.guide-step-card {
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.guide-step-card.complete {
+  border-color: rgba(71, 181, 120, 0.35);
+  background: linear-gradient(135deg, rgba(71, 181, 120, 0.12), transparent 60%);
+}
+
+.guide-step-card.current {
+  border-color: rgba(229, 55, 34, 0.28);
+  background: linear-gradient(135deg, rgba(229, 55, 34, 0.14), transparent 60%);
+}
+
+.guide-step-card.pending {
+  opacity: 0.88;
+}
+
+.pending-access-card {
+  display: grid;
+  gap: 10px;
+}
+
+.pending-access-card .refresh {
+  justify-self: start;
+}
+
+.form-guidance-error {
+  color: var(--accent-red);
+}
+
+.form-guidance-success {
   color: var(--muted);
 }
 
@@ -1534,6 +1627,18 @@ select {
     grid-template-columns: 1fr;
   }
 
+  .people-flow-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .access-journey-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .guide-step-grid {
+    grid-template-columns: 1fr;
+  }
+
   .incident-actions {
     grid-template-columns: 1fr;
   }
@@ -1589,6 +1694,12 @@ select {
   }
 
   .table-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .access-journey-grid {
     grid-template-columns: 1fr;
   }
 }

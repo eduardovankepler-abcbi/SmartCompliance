@@ -78,7 +78,6 @@ const DEFAULT_EVALUATION_LIBRARY_ID = "library_standard_02_2026";
 const DEFAULT_EVALUATION_LIBRARY_NAME = "Biblioteca padrao 02/2026";
 const DEFAULT_EVALUATION_LIBRARY_DESCRIPTION =
   "Biblioteca oficial do ciclo, com os modelos base do produto.";
-const DEFAULT_PERSON_SATISFACTION_SCORE = 4;
 const DEFAULT_WORK_UNIT = "Unidade principal";
 const DEFAULT_WORK_MODE = "hybrid";
 const WORK_MODE_OPTIONS = ["onsite", "hybrid", "remote"];
@@ -419,6 +418,11 @@ function toAdminUserRow(db, user) {
     personId: user.personId,
     personName: publicPerson?.name || "",
     personArea: publicPerson?.area || "",
+    personRoleTitle: publicPerson?.roleTitle || "",
+    personWorkUnit: publicPerson?.workUnit || "",
+    personWorkMode: publicPerson?.workMode || "",
+    managerName: publicPerson?.managerName || "",
+    areaManagerName: publicPerson?.areaManagerName || "",
     email: user.email,
     roleKey: user.roleKey,
     status: user.status
@@ -483,19 +487,6 @@ function normalizeOptionalText(value) {
   return String(value || "").trim();
 }
 
-function normalizeSatisfactionScore(value, fallback = DEFAULT_PERSON_SATISFACTION_SCORE) {
-  if (value === undefined || value === null || value === "") {
-    return Number(fallback);
-  }
-
-  const score = Number(value);
-  if (!Number.isFinite(score) || score < 1 || score > 5) {
-    throw new Error("Score de satisfacao deve ficar entre 1 e 5.");
-  }
-
-  return score;
-}
-
 function normalizePersonPayload(payload) {
   const workContext = normalizeWorkContextPayload(payload);
   const employmentType = normalizeRequiredText(payload.employmentType, "Vinculo");
@@ -508,8 +499,7 @@ function normalizePersonPayload(payload) {
     workUnit: workContext.workUnit,
     workMode: workContext.workMode,
     managerPersonId: payload.managerPersonId || null,
-    employmentType,
-    satisfactionScore: normalizeSatisfactionScore(payload.satisfactionScore)
+    employmentType
   };
 }
 
@@ -594,6 +584,32 @@ function buildSameUnitCandidates(eligibleActors, actor) {
       candidate.id !== actor.id &&
       isSameWorkUnit(candidate.person, actor.person)
   );
+}
+
+function getPeopleWithSatisfactionScores(people) {
+  return people.filter((person) => Number.isFinite(Number(person.satisfactionScore)));
+}
+
+function averageSatisfactionScore(people) {
+  const scoredPeople = getPeopleWithSatisfactionScores(people);
+  if (!scoredPeople.length) {
+    return null;
+  }
+
+  return Number(average(scoredPeople.map((person) => Number(person.satisfactionScore))).toFixed(1));
+}
+
+function updatePersonSatisfactionScoreInMemory(db, revieweePersonId, overallScore) {
+  if (!Number.isFinite(Number(overallScore))) {
+    return;
+  }
+
+  const person = db.people.find((item) => item.id === revieweePersonId);
+  if (!person) {
+    return;
+  }
+
+  person.satisfactionScore = Number(Number(overallScore).toFixed(2));
 }
 
 function parseDateValue(value) {
@@ -698,6 +714,25 @@ function assertValidManagerReference(people, managerPersonId, personId = null) {
   }
 }
 
+function assertNoManagerCycle(people, managerPersonId, personId = null) {
+  if (!managerPersonId || !personId) {
+    return;
+  }
+
+  let currentManagerId = managerPersonId;
+  const visited = new Set();
+
+  while (currentManagerId && !visited.has(currentManagerId)) {
+    if (currentManagerId === personId) {
+      throw new Error("A hierarquia informada cria um ciclo de gestao invalido.");
+    }
+
+    visited.add(currentManagerId);
+    currentManagerId =
+      people.find((person) => person.id === currentManagerId)?.managerPersonId || null;
+  }
+}
+
 function assertValidAreaReference(areas, areaName) {
   if (!areaName || !areas.some((area) => normalizeAreaName(area.name) === normalizeAreaName(areaName))) {
     throw new Error("Area informada nao foi encontrada.");
@@ -712,6 +747,28 @@ function assertValidAreaManagerReference(people, managerPersonId) {
   const managerExists = people.some((person) => person.id === managerPersonId);
   if (!managerExists) {
     throw new Error("Responsavel da area nao foi encontrado.");
+  }
+}
+
+function assertNoDuplicatePersonProfile(people, payload, personId = null) {
+  const normalizedName = normalizeOptionalText(payload.name).toLowerCase();
+  const normalizedArea = normalizeAreaName(payload.area);
+  const normalizedRoleTitle = normalizeOptionalText(payload.roleTitle).toLowerCase();
+
+  const duplicate = people.find((person) => {
+    if (personId && person.id === personId) {
+      return false;
+    }
+
+    return (
+      normalizeOptionalText(person.name).toLowerCase() === normalizedName &&
+      normalizeAreaName(person.area) === normalizedArea &&
+      normalizeOptionalText(person.roleTitle).toLowerCase() === normalizedRoleTitle
+    );
+  });
+
+  if (duplicate) {
+    throw new Error("Ja existe uma pessoa com mesmo nome, area e cargo.");
   }
 }
 
@@ -824,7 +881,7 @@ function buildDashboard(db, user, anonymousResponses = []) {
   ];
 
   if (isOrgWideUser(user)) {
-    const avgSatisfaction = average(db.people.map((person) => person.satisfactionScore));
+    const avgSatisfaction = averageSatisfactionScore(db.people);
     const completedAssignments = db.assignments.filter((item) => item.status === "submitted").length;
     const adherence = db.assignments.length
       ? Math.round((completedAssignments / db.assignments.length) * 100)
@@ -836,7 +893,7 @@ function buildDashboard(db, user, anonymousResponses = []) {
       cards: [
         {
           label: "Satisfacao media",
-          value: avgSatisfaction.toFixed(1),
+          value: avgSatisfaction === null ? "-" : avgSatisfaction.toFixed(1),
           trend: "Painel institucional consolidado"
         },
         {
@@ -856,7 +913,7 @@ function buildDashboard(db, user, anonymousResponses = []) {
         }
       ],
       satisfactionByArea: Object.values(
-        db.people.reduce((acc, person) => {
+        getPeopleWithSatisfactionScores(db.people).reduce((acc, person) => {
           const entry = acc[person.area] || { area: person.area, scores: [] };
           entry.scores.push(Number(person.satisfactionScore));
           acc[person.area] = entry;
@@ -2090,7 +2147,7 @@ function calculatePercentage(value, total) {
 
 function buildSatisfactionByAreaSeries(people) {
   return Object.values(
-    people.reduce((acc, person) => {
+    getPeopleWithSatisfactionScores(people).reduce((acc, person) => {
       const entry = acc[person.area] || {
         area: person.area,
         scores: [],
@@ -2296,9 +2353,7 @@ function buildDashboardPayload({
   const submittedAssignments = assignments.filter((item) => item.status === "submitted").length;
   const pendingAssignments = assignments.filter((item) => item.status === "pending").length;
   const peopleCount = people.length;
-  const avgSatisfaction = peopleCount
-    ? Number(average(people.map((person) => person.satisfactionScore)).toFixed(1))
-    : 0;
+  const avgSatisfaction = averageSatisfactionScore(people);
   const peopleWithDevelopment = new Set(developmentRecords.map((item) => item.personId)).size;
   const peopleWithApplause = new Set(applauseEntries.map((item) => item.receiverPersonId)).size;
 
@@ -2319,7 +2374,7 @@ function buildDashboardPayload({
     cards: [
       {
         label: "Satisfacao media",
-        value: avgSatisfaction ? avgSatisfaction.toFixed(1) : "-",
+        value: avgSatisfaction === null ? "-" : avgSatisfaction.toFixed(1),
         trend: scopeLabel
       },
       {
@@ -3291,7 +3346,9 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         throw new Error("Ja existe uma area com este nome.");
       }
 
-      assertValidAreaManagerReference(db.people, payload.managerPersonId);
+      if (payload.managerPersonId !== undefined) {
+        assertValidAreaManagerReference(db.people, payload.managerPersonId);
+      }
 
       const area = {
         id: createId("area"),
@@ -3325,11 +3382,15 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         throw new Error("Ja existe uma area com este nome.");
       }
 
-      assertValidAreaManagerReference(db.people, payload.managerPersonId);
+      if (payload.managerPersonId !== undefined) {
+        assertValidAreaManagerReference(db.people, payload.managerPersonId);
+      }
 
       const previousName = area.name;
       area.name = normalizedName;
-      area.managerPersonId = payload.managerPersonId || null;
+      if (payload.managerPersonId !== undefined) {
+        area.managerPersonId = payload.managerPersonId || null;
+      }
 
       if (previousName !== area.name) {
         db.people.forEach((person) => {
@@ -3352,11 +3413,13 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
       const personPayload = normalizePersonPayload(payload);
       const shouldLeadArea = normalizeAreaLeadershipFlag(payload.isAreaManager);
       assertValidManagerReference(db.people, personPayload.managerPersonId);
+      assertNoDuplicatePersonProfile(db.people, personPayload);
       assertValidAreaReference(db.areas, personPayload.area);
 
       const person = {
         id: createId("person"),
-        ...personPayload
+        ...personPayload,
+        satisfactionScore: null
       };
       db.people.unshift(person);
       db.areas = assignAreaLeadershipSnapshot(
@@ -3378,14 +3441,12 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
       }
 
       const personPayload = normalizePersonPayload({
-        ...payload,
-        satisfactionScore:
-          payload.satisfactionScore === undefined || payload.satisfactionScore === null
-            ? person.satisfactionScore
-            : payload.satisfactionScore
+        ...payload
       });
       const shouldLeadArea = normalizeAreaLeadershipFlag(payload.isAreaManager);
       assertValidManagerReference(db.people, personPayload.managerPersonId, personId);
+      assertNoManagerCycle(db.people, personPayload.managerPersonId, personId);
+      assertNoDuplicatePersonProfile(db.people, personPayload, personId);
       assertValidAreaReference(db.areas, personPayload.area);
 
       Object.assign(person, personPayload);
@@ -4042,6 +4103,13 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         );
         anonymousResponseState.responses.unshift(anonymousSubmission);
         await saveAnonymousResponseState(anonymousResponseState);
+        if (assignment.relationshipType === "company") {
+          updatePersonSatisfactionScoreInMemory(
+            db,
+            assignment.revieweePersonId,
+            anonymousSubmission.overallScore
+          );
+        }
         assignment.status = "submitted";
         hydrateCycleStructure(db, assignment.cycleId);
         return anonymousSubmission;
@@ -4732,7 +4800,9 @@ function buildMysqlStore(
         throw new Error("Ja existe uma area com este nome.");
       }
 
-      assertValidAreaManagerReference(people, payload.managerPersonId);
+      if (payload.managerPersonId !== undefined) {
+        assertValidAreaManagerReference(people, payload.managerPersonId);
+      }
 
       const area = {
         id: createId("area"),
@@ -4773,13 +4843,17 @@ function buildMysqlStore(
         throw new Error("Ja existe uma area com este nome.");
       }
 
-      assertValidAreaManagerReference(people, payload.managerPersonId);
+      if (payload.managerPersonId !== undefined) {
+        assertValidAreaManagerReference(people, payload.managerPersonId);
+      }
+      const nextManagerPersonId =
+        payload.managerPersonId === undefined ? area.managerPersonId : payload.managerPersonId || null;
 
       await pool.query(
         `UPDATE areas
          SET name = ?, manager_person_id = ?
          WHERE id = ?`,
-        [normalizedName, payload.managerPersonId || null, areaId]
+        [normalizedName, nextManagerPersonId, areaId]
       );
 
       if (area.name !== normalizedName) {
@@ -4792,7 +4866,7 @@ function buildMysqlStore(
       })), {
         ...area,
         name: normalizedName,
-        managerPersonId: payload.managerPersonId || null
+        managerPersonId: nextManagerPersonId
       });
     },
     async getPeople(actorUser) {
@@ -4808,11 +4882,13 @@ function buildMysqlStore(
       const shouldLeadArea = normalizeAreaLeadershipFlag(payload.isAreaManager);
       const [people, areas] = await Promise.all([fetchPeopleRows(pool), fetchAreaRows(pool)]);
       assertValidManagerReference(people, personPayload.managerPersonId);
+      assertNoDuplicatePersonProfile(people, personPayload);
       assertValidAreaReference(areas, personPayload.area);
 
       const person = {
         id: createId("person"),
-        ...personPayload
+        ...personPayload,
+        satisfactionScore: null
       };
 
       try {
@@ -4879,14 +4955,12 @@ function buildMysqlStore(
       }
 
       const personPayload = normalizePersonPayload({
-        ...payload,
-        satisfactionScore:
-          payload.satisfactionScore === undefined || payload.satisfactionScore === null
-            ? person.satisfactionScore
-            : payload.satisfactionScore
+        ...payload
       });
       const shouldLeadArea = normalizeAreaLeadershipFlag(payload.isAreaManager);
       assertValidManagerReference(people, personPayload.managerPersonId, personId);
+      assertNoManagerCycle(people, personPayload.managerPersonId, personId);
+      assertNoDuplicatePersonProfile(people, personPayload, personId);
       assertValidAreaReference(areas, personPayload.area);
 
       try {
@@ -4902,7 +4976,7 @@ function buildMysqlStore(
             personPayload.workMode,
             personPayload.managerPersonId,
             personPayload.employmentType,
-            personPayload.satisfactionScore,
+            person.satisfactionScore,
             personId
           ]
         );
@@ -4921,7 +4995,7 @@ function buildMysqlStore(
             personPayload.area,
             personPayload.managerPersonId,
             personPayload.employmentType,
-            personPayload.satisfactionScore,
+            person.satisfactionScore,
             personId
           ]
         );
@@ -4967,9 +5041,14 @@ function buildMysqlStore(
 
       const [rows] = await pool.query(
         `SELECT u.id, u.person_id AS personId, p.name AS personName, p.area AS personArea,
+                p.role_title AS personRoleTitle, p.work_unit AS personWorkUnit,
+                p.work_mode AS personWorkMode, manager.name AS managerName, areaManager.name AS areaManagerName,
                 u.email, u.role_key AS roleKey, u.status
          FROM users u
          JOIN people p ON p.id = u.person_id
+         LEFT JOIN people manager ON manager.id = p.manager_person_id
+         LEFT JOIN areas a ON a.name = p.area
+         LEFT JOIN people areaManager ON areaManager.id = a.manager_person_id
          ORDER BY p.name`
       );
       return rows;
@@ -4988,9 +5067,13 @@ function buildMysqlStore(
       assertValidUserStatus(payload.status);
 
       const [personRows] = await pool.query(
-        `SELECT id, name, area
-         FROM people
-         WHERE id = ?
+        `SELECT p.id, p.name, p.area, p.role_title AS roleTitle, p.work_unit AS workUnit,
+                p.work_mode AS workMode, manager.name AS managerName, areaManager.name AS areaManagerName
+         FROM people p
+         LEFT JOIN people manager ON manager.id = p.manager_person_id
+         LEFT JOIN areas a ON a.name = p.area
+         LEFT JOIN people areaManager ON areaManager.id = a.manager_person_id
+         WHERE p.id = ?
          LIMIT 1`,
         [payload.personId]
       );
@@ -5049,7 +5132,12 @@ function buildMysqlStore(
       return {
         ...user,
         personName: personRows[0].name,
-        personArea: personRows[0].area
+        personArea: personRows[0].area,
+        personRoleTitle: personRows[0].roleTitle || "",
+        personWorkUnit: personRows[0].workUnit || "",
+        personWorkMode: personRows[0].workMode || "",
+        managerName: personRows[0].managerName || "",
+        areaManagerName: personRows[0].areaManagerName || ""
       };
     },
     async updateUser(userId, payload, actorUser) {
@@ -5065,9 +5153,14 @@ function buildMysqlStore(
 
       const [rows] = await pool.query(
         `SELECT u.id, u.person_id AS personId, p.name AS personName, p.area AS personArea,
+                p.role_title AS personRoleTitle, p.work_unit AS personWorkUnit,
+                p.work_mode AS personWorkMode, manager.name AS managerName, areaManager.name AS areaManagerName,
                 u.email
          FROM users u
          JOIN people p ON p.id = u.person_id
+         LEFT JOIN people manager ON manager.id = p.manager_person_id
+         LEFT JOIN areas a ON a.name = p.area
+         LEFT JOIN people areaManager ON areaManager.id = a.manager_person_id
          WHERE u.id = ?
          LIMIT 1`,
         [userId]
@@ -5119,6 +5212,11 @@ function buildMysqlStore(
         personId: rows[0].personId,
         personName: rows[0].personName,
         personArea: rows[0].personArea,
+        personRoleTitle: rows[0].personRoleTitle || "",
+        personWorkUnit: rows[0].personWorkUnit || "",
+        personWorkMode: rows[0].personWorkMode || "",
+        managerName: rows[0].managerName || "",
+        areaManagerName: rows[0].areaManagerName || "",
         email,
         roleKey: payload.roleKey,
         status: payload.status
@@ -6320,6 +6418,17 @@ function buildMysqlStore(
             assignment.relationshipType
           ]
         );
+        if (
+          assignment.relationshipType === "company" &&
+          Number.isFinite(Number(anonymousSubmission.overallScore))
+        ) {
+          await pool.query(
+            `UPDATE people
+             SET satisfaction_score = ?
+             WHERE id = ?`,
+            [Number(Number(anonymousSubmission.overallScore).toFixed(2)), assignment.revieweePersonId]
+          );
+        }
         return anonymousSubmission;
       }
 

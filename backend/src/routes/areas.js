@@ -24,7 +24,7 @@ export function createAreasRouter(store) {
       const area = await store.createArea(
         {
           name,
-          managerPersonId: managerPersonId || null
+          managerPersonId
         },
         req.auth.user
       );
@@ -46,7 +46,7 @@ export function createAreasRouter(store) {
         req.params.areaId,
         {
           name,
-          managerPersonId: managerPersonId || null
+          managerPersonId
         },
         req.auth.user
       );

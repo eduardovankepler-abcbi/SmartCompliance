@@ -129,8 +129,7 @@ export const emptyPerson = {
   workMode: "hybrid",
   managerPersonId: "",
   isAreaManager: "no",
-  employmentType: "internal",
-  satisfactionScore: ""
+  employmentType: "internal"
 };
 
 export const workModeOptions = ["onsite", "hybrid", "remote"];

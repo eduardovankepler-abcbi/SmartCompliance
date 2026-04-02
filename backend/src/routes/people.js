@@ -22,8 +22,7 @@ export function createPeopleRouter(store) {
       workMode,
       managerPersonId,
       isAreaManager,
-      employmentType,
-      satisfactionScore
+      employmentType
     } = req.body;
 
     if (!name || !roleTitle || !area || !employmentType) {
@@ -40,11 +39,7 @@ export function createPeopleRouter(store) {
           workMode,
           managerPersonId: managerPersonId || null,
           isAreaManager,
-          employmentType,
-          satisfactionScore:
-            satisfactionScore === undefined || satisfactionScore === null
-              ? undefined
-              : Number(satisfactionScore)
+          employmentType
         },
         req.auth.user
       );
@@ -63,8 +58,7 @@ export function createPeopleRouter(store) {
       workMode,
       managerPersonId,
       isAreaManager,
-      employmentType,
-      satisfactionScore
+      employmentType
     } = req.body;
 
     if (!name || !roleTitle || !area || !employmentType) {
@@ -82,11 +76,7 @@ export function createPeopleRouter(store) {
           workMode,
           managerPersonId: managerPersonId || null,
           isAreaManager,
-          employmentType,
-          satisfactionScore:
-            satisfactionScore === undefined || satisfactionScore === null
-              ? undefined
-              : Number(satisfactionScore)
+          employmentType
         },
         req.auth.user
       );

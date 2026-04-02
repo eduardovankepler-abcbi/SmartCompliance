@@ -636,7 +636,7 @@ export function EvaluationsSection(props) {
                   </div>
                   <p className="muted">
                     {participant.personArea}
-                    {participant.managerName ? ` · Gestor: ${participant.managerName}` : ""}
+                    {participant.managerName ? ` · Gestor direto: ${participant.managerName}` : ""}
                   </p>
                   <p className="muted">
                     Unidade: {participant.personWorkUnit || "-"} · Modalidade:{" "}

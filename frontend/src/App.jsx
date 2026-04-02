@@ -68,6 +68,7 @@ import {
 } from "./navigation";
 import {
   buildSuggestedUserEmail,
+  getPersonConsistencyMessages,
   validatePersonPayload,
   validateUserPayload
 } from "./registry.js";
@@ -105,6 +106,28 @@ export default function App() {
   const [applauseForm, setApplauseForm] = useState(emptyApplause);
   const [developmentForm, setDevelopmentForm] = useState(emptyDevelopment);
   const [developmentPlanForm, setDevelopmentPlanForm] = useState(emptyDevelopmentPlan);
+
+  function getSuggestedRoleForPerson(person) {
+    if (!person) {
+      return emptyUser.roleKey;
+    }
+
+    const isAreaLeader = person.areaManagerPersonId === person.id;
+    const hasDirectReports = people.some((item) => item.managerPersonId === person.id);
+
+    return isAreaLeader || hasDirectReports ? "manager" : "employee";
+  }
+
+  function buildUserFormFromPerson(person, options = {}) {
+    return {
+      ...emptyUser,
+      personId: person?.id || "",
+      email: buildSuggestedUserEmail(person?.name || ""),
+      roleKey:
+        options.roleKey ||
+        (options.isAreaManager ? "manager" : getSuggestedRoleForPerson(person))
+    };
+  }
 
   const toggleTheme = () => {
     setTheme((current) => (current === "dark" ? "light" : "dark"));
@@ -388,7 +411,7 @@ export default function App() {
   );
 
   const managerOptions = useMemo(
-    () => [{ value: "", label: "Sem gestor definido" }, ...peopleOptions],
+    () => [{ value: "", label: "Sem gestor direto definido" }, ...peopleOptions],
     [peopleOptions]
   );
 
@@ -420,10 +443,76 @@ export default function App() {
       }));
   }, [people, users]);
 
+  const usersByPersonId = useMemo(
+    () => Object.fromEntries(users.map((item) => [item.personId, item])),
+    [users]
+  );
+
+  const peopleAccessJourney = useMemo(
+    () =>
+      people.map((person) => {
+        const linkedUser = usersByPersonId[person.id] || null;
+        const accessState = !linkedUser
+          ? "pending"
+          : linkedUser.status === "active"
+            ? "active"
+            : "inactive";
+
+        return {
+          ...person,
+          linkedUser,
+          accessState
+        };
+      }),
+    [people, usersByPersonId]
+  );
+
+  const accessJourneySummary = useMemo(
+    () => ({
+      totalPeople: peopleAccessJourney.length,
+      pending: peopleAccessJourney.filter((person) => person.accessState === "pending").length,
+      active: peopleAccessJourney.filter((person) => person.accessState === "active").length,
+      inactive: peopleAccessJourney.filter((person) => person.accessState === "inactive").length
+    }),
+    [peopleAccessJourney]
+  );
+
+  const personAccessStateById = useMemo(
+    () =>
+      Object.fromEntries(
+        peopleAccessJourney.map((person) => [
+          person.id,
+          {
+            key: person.accessState,
+            user: person.linkedUser
+          }
+        ])
+      ),
+    [peopleAccessJourney]
+  );
+
   const selectedUserPerson = useMemo(
     () => peopleById[userForm.personId] || null,
     [peopleById, userForm.personId]
   );
+
+  const suggestedUserRole = useMemo(
+    () => getSuggestedRoleForPerson(selectedUserPerson),
+    [selectedUserPerson]
+  );
+
+  const suggestedUserRoleReason = useMemo(() => {
+    if (!selectedUserPerson) {
+      return "";
+    }
+    if (selectedUserPerson.areaManagerPersonId === selectedUserPerson.id) {
+      return "Pessoa marcada como lider atual da area.";
+    }
+    if (people.some((item) => item.managerPersonId === selectedUserPerson.id)) {
+      return "Pessoa com colaboradores vinculados como gestor direto.";
+    }
+    return "Acesso individual recomendado para quem nao lidera time nem area.";
+  }, [people, selectedUserPerson]);
 
   const suggestedUserEmail = useMemo(
     () => buildSuggestedUserEmail(selectedUserPerson?.name || ""),
@@ -741,15 +830,6 @@ export default function App() {
   }, [activeDevelopmentView, developmentViewOptions]);
 
   useEffect(() => {
-    if (!areaForm.managerPersonId && managerOptions.length) {
-      setAreaForm((current) => ({
-        ...current,
-        managerPersonId: current.managerPersonId || ""
-      }));
-    }
-  }, [areaForm.managerPersonId, managerOptions]);
-
-  useEffect(() => {
     if (!areas.length) {
       return;
     }
@@ -814,12 +894,14 @@ export default function App() {
       "";
 
     if (nextPersonId !== userForm.personId) {
+      const nextPerson = peopleById[nextPersonId] || null;
       setUserForm((current) => ({
         ...current,
-        personId: nextPersonId
+        personId: nextPersonId,
+        roleKey: nextPerson ? getSuggestedRoleForPerson(nextPerson) : emptyUser.roleKey
       }));
     }
-  }, [availableUserPeopleOptions, userForm.personId]);
+  }, [availableUserPeopleOptions, peopleById, userForm.personId]);
 
   useEffect(() => {
     if (!userForm.personId || !suggestedUserEmail) {
@@ -940,24 +1022,36 @@ export default function App() {
     }
   }
 
-  async function handlePersonSubmit(event) {
-    event.preventDefault();
+  async function handlePersonSubmit(event, options = {}) {
+    event?.preventDefault?.();
     try {
       const validationError = validatePersonPayload(personForm);
       if (validationError) {
         setError(validationError);
         return;
       }
+      const personConsistency = getPersonConsistencyMessages(personForm, { areas, people });
+      if (personConsistency.blocking.length) {
+        setError(personConsistency.blocking[0]);
+        return;
+      }
 
       setError("");
-      await api.createPerson({
+      const createdPerson = await api.createPerson({
         ...personForm,
-        managerPersonId: personForm.managerPersonId || null,
-        satisfactionScore:
-          personForm.satisfactionScore === "" ? undefined : Number(personForm.satisfactionScore)
+        managerPersonId: personForm.managerPersonId || null
       });
       setPersonForm(emptyPerson);
       await reloadData();
+
+      if (options.createUserAfter) {
+        setUserForm(
+          buildUserFormFromPerson(createdPerson, {
+            isAreaManager: personForm.isAreaManager === "yes"
+          })
+        );
+        setActiveSection("Usuarios");
+      }
     } catch (err) {
       setError(err.message);
     }
@@ -968,8 +1062,7 @@ export default function App() {
     try {
       setError("");
       await api.createArea({
-        ...areaForm,
-        managerPersonId: areaForm.managerPersonId || null
+        name: areaForm.name
       });
       setAreaForm(emptyArea);
       await reloadData();
@@ -995,13 +1088,18 @@ export default function App() {
         setError(validationError);
         return;
       }
+      const personConsistency = getPersonConsistencyMessages(payload, {
+        areas,
+        currentPersonId: personId,
+        people
+      });
+      if (personConsistency.blocking.length) {
+        setError(personConsistency.blocking[0]);
+        return;
+      }
 
       setError("");
-      await api.updatePerson(personId, {
-        ...payload,
-        satisfactionScore:
-          payload.satisfactionScore === "" ? undefined : Number(payload.satisfactionScore)
-      });
+      await api.updatePerson(personId, payload);
       await reloadData();
     } catch (err) {
       setError(err.message);
@@ -1043,6 +1141,26 @@ export default function App() {
     } catch (err) {
       setError(err.message);
     }
+  }
+
+  function prepareUserProvisioning(personId) {
+    const person = peopleById[personId];
+    if (!person) {
+      return;
+    }
+
+    setUserForm(buildUserFormFromPerson(person));
+    setActiveSection("Usuarios");
+  }
+
+  function handleUserPersonSelect(personId) {
+    const person = peopleById[personId] || null;
+
+    setUserForm((current) => ({
+      ...current,
+      personId,
+      roleKey: person ? getSuggestedRoleForPerson(person) : emptyUser.roleKey
+    }));
   }
 
   async function handleIncidentUpdate(incidentId, payload) {
@@ -1448,10 +1566,15 @@ export default function App() {
             handleAreaSubmit={handleAreaSubmit}
             handleAreaUpdate={handleAreaUpdate}
             handlePersonSubmit={handlePersonSubmit}
+            handlePersonSubmitAndCreateUser={() =>
+              handlePersonSubmit(undefined, { createUserAfter: true })
+            }
             handlePersonUpdate={handlePersonUpdate}
             managerOptions={managerOptions}
             people={people}
+            personAccessStateById={personAccessStateById}
             personForm={personForm}
+            onPrepareUserProvisioning={prepareUserProvisioning}
             setAreaForm={setAreaForm}
             setPersonForm={setPersonForm}
           />
@@ -1467,9 +1590,15 @@ export default function App() {
             formatDate={formatDate}
             handleUserSubmit={handleUserSubmit}
             handleUserUpdate={handleUserUpdate}
+            handleUserPersonSelect={handleUserPersonSelect}
+            accessJourneySummary={accessJourneySummary}
+            pendingAccessPeople={peopleAccessJourney.filter((person) => person.accessState === "pending")}
+            onPrepareUserProvisioning={prepareUserProvisioning}
             selectedUserPerson={selectedUserPerson}
             setUserForm={setUserForm}
             suggestedUserEmail={suggestedUserEmail}
+            suggestedUserRole={suggestedUserRole}
+            suggestedUserRoleReason={suggestedUserRoleReason}
             userForm={userForm}
             userRoleOptions={userRoleOptions}
             userStatusOptions={userStatusOptions}

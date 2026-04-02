@@ -3,6 +3,8 @@ import { getCapabilities } from "../src/access.js";
 import { evaluationModules } from "../src/appConfig.js";
 import {
   buildSuggestedUserEmail,
+  getPersonConsistencyMessages,
+  getUserConsistencyMessages,
   validatePersonPayload,
   validateUserPayload
 } from "../src/registry.js";
@@ -95,11 +97,62 @@ assert.equal(
     name: "Maria",
     roleTitle: "Analista",
     area: "Tecnologia",
-    employmentType: "internal",
-    satisfactionScore: "6"
+    workUnit: "Sao Paulo",
+    employmentType: "internal"
   }),
-  "A satisfacao deve ficar entre 1 e 5.",
-  "Cadastro de pessoa deve bloquear score invalido"
+  "",
+  "Cadastro de pessoa nao deve depender de score manual"
+);
+assert.equal(
+  validatePersonPayload({
+    name: "Maria",
+    roleTitle: "Analista",
+    area: "Tecnologia",
+    employmentType: "internal",
+    workUnit: ""
+  }),
+  "Informe a unidade de trabalho.",
+  "Cadastro de pessoa deve exigir unidade de trabalho explicita"
+);
+assert.deepEqual(
+  getPersonConsistencyMessages(
+    {
+      name: "Maria",
+      roleTitle: "Analista",
+      area: "Tecnologia",
+      workUnit: "Sao Paulo",
+      workMode: "remote",
+      managerPersonId: "",
+      employmentType: "internal",
+      isAreaManager: "no"
+    },
+    {
+      people: [],
+      areas: []
+    }
+  ).warnings,
+  [
+    "A pessoa sera cadastrada sem gestor direto definido.",
+    "Quem trabalha 100% home office nao participa do feedback indireto."
+  ],
+  "Fluxo de pessoa deve alertar sobre gestor ausente e impacto do home office"
+);
+assert.deepEqual(
+  getUserConsistencyMessages(
+    {
+      roleKey: "employee",
+      status: "inactive"
+    },
+    {
+      selectedPerson: { name: "Maria" },
+      suggestedRole: "manager"
+    }
+  ).warnings,
+  [
+    "O perfil escolhido difere do sugerido para Maria. Revise antes de salvar.",
+    "Este acesso nascera inativo e a pessoa nao conseguira entrar ate nova liberacao."
+  ],
+  "Fluxo de usuario deve alertar sobre perfil divergente e acesso inativo"
 );
 assert.equal(
   validateUserPayload(

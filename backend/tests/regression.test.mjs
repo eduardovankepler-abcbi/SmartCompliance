@@ -501,6 +501,15 @@ try {
     });
   }
 
+  const employeeAfterCompanySurvey = (await store.getPeople(admin)).find(
+    (person) => person.id === employee.personId
+  );
+  assert.equal(
+    employeeAfterCompanySurvey?.satisfactionScore,
+    4,
+    "Score de satisfacao deve refletir a pesquisa institucional respondida"
+  );
+
   await store.updateEvaluationCycleStatus(createdCycle.id, "Encerrado", admin);
   await store.updateEvaluationCycleStatus(createdCycle.id, "Processado", admin);
 
@@ -668,7 +677,6 @@ try {
       workMode: "hybrid",
       managerPersonId: manager.personId,
       employmentType: "internal",
-      satisfactionScore: "4.5",
       isAreaManager: true
     },
     admin
@@ -676,8 +684,8 @@ try {
 
   assert.equal(
     createdPerson.satisfactionScore,
-    4.5,
-    "Cadastro de pessoa deve aceitar score manual valido"
+    null,
+    "Cadastro de pessoa nao deve aceitar score manual; o valor nasce sem pesquisa"
   );
   assert.equal(createdPerson.name, "Pessoa Homologacao", "Cadastro deve normalizar o nome");
   assert.equal(
@@ -702,17 +710,29 @@ try {
     "Area deve passar a apontar para a pessoa criada como lider"
   );
 
+  const renamedArea = await store.updateArea(
+    createdArea.id,
+    {
+      name: "Area Lideranca Teste Renomeada"
+    },
+    admin
+  );
+  assert.equal(
+    renamedArea.managerPersonId,
+    createdPerson.id,
+    "Renomear a area nao deve remover a lideranca ja definida"
+  );
+
   const updatedPersonWithoutLeadership = await store.updatePerson(
     createdPerson.id,
     {
       name: createdPerson.name,
       roleTitle: createdPerson.roleTitle,
-      area: createdPerson.area,
+      area: renamedArea.name,
       workUnit: createdPerson.workUnit,
       workMode: createdPerson.workMode,
       managerPersonId: createdPerson.managerPersonId,
       employmentType: createdPerson.employmentType,
-      satisfactionScore: createdPerson.satisfactionScore,
       isAreaManager: false
     },
     admin
@@ -721,6 +741,78 @@ try {
     updatedPersonWithoutLeadership.areaManagerPersonId,
     null,
     "Edicao da pessoa deve permitir remover a lideranca da area"
+  );
+
+  await assert.rejects(
+    () =>
+      store.createPerson(
+        {
+          name: createdPerson.name,
+          roleTitle: createdPerson.roleTitle,
+          area: renamedArea.name,
+          workUnit: createdPerson.workUnit,
+          workMode: createdPerson.workMode,
+          managerPersonId: manager.personId,
+          employmentType: createdPerson.employmentType
+        },
+        admin
+      ),
+    /mesmo nome, area e cargo/i,
+    "Cadastro deve bloquear duplicidade exata de nome, area e cargo"
+  );
+
+  const cycleArea = await store.createArea(
+    {
+      name: "Area Ciclo Hierarquia",
+      managerPersonId: null
+    },
+    admin
+  );
+
+  const cycleLeader = await store.createPerson(
+    {
+      name: "Pessoa Ciclo Lider",
+      roleTitle: "Coordenador",
+      area: cycleArea.name,
+      workUnit: "Curitiba",
+      workMode: "hybrid",
+      managerPersonId: manager.personId,
+      employmentType: "internal"
+    },
+    admin
+  );
+
+  const cycleAnalyst = await store.createPerson(
+    {
+      name: "Pessoa Ciclo Analista",
+      roleTitle: "Analista",
+      area: cycleArea.name,
+      workUnit: "Curitiba",
+      workMode: "hybrid",
+      managerPersonId: cycleLeader.id,
+      employmentType: "internal"
+    },
+    admin
+  );
+
+  await assert.rejects(
+    () =>
+      store.updatePerson(
+        cycleLeader.id,
+        {
+          name: cycleLeader.name,
+          roleTitle: cycleLeader.roleTitle,
+          area: cycleLeader.area,
+          workUnit: cycleLeader.workUnit,
+          workMode: cycleLeader.workMode,
+          managerPersonId: cycleAnalyst.id,
+          employmentType: cycleLeader.employmentType,
+          isAreaManager: false
+        },
+        admin
+      ),
+    /ciclo de gestao invalido/i,
+    "Edicao deve bloquear ciclos na hierarquia de gestao"
   );
 
   const remotePerson = await store.createPerson(
