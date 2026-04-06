@@ -1,5 +1,7 @@
 import { useState } from "react";
 
+const EmptyComponent = () => null;
+
 export function DashboardSection({
   BarMetricRow,
   ColumnMetricCard,
@@ -27,6 +29,13 @@ export function DashboardSection({
   setDashboardTimeGrouping,
   summary
 }) {
+  const SafeBarMetricRow = BarMetricRow || EmptyComponent;
+  const SafeColumnMetricCard = ColumnMetricCard || EmptyComponent;
+  const SafeDashboardDonut = DashboardDonut || EmptyComponent;
+  const SafeFunnelSeriesChart = FunnelSeriesChart || EmptyComponent;
+  const SafeMetricCard = MetricCard || EmptyComponent;
+  const SafeResponseDistributionChartCard = ResponseDistributionChartCard || EmptyComponent;
+  const SafeSelect = Select || EmptyComponent;
   const [dashboardViewMode, setDashboardViewMode] = useState("executive");
   const executiveHighlights = buildExecutiveHighlights({
     dashboard,
@@ -50,7 +59,7 @@ export function DashboardSection({
           <span>Refine o dashboard por elemento do ciclo e por area ou setor</span>
         </div>
         <div className="dashboard-filter-grid">
-          <Select
+          <SafeSelect
             label="Elemento da composicao do ciclo"
             value={dashboardCompositionFilter}
             options={dashboardCompositionOptions.map((item) => item.value)}
@@ -59,14 +68,14 @@ export function DashboardSection({
             }
             onChange={setDashboardCompositionFilter}
           />
-          <Select
+          <SafeSelect
             label="Area / Setor"
             value={dashboardAreaFilter}
             options={["all", ...((canFilterDashboardByArea && dashboard?.areaOptions) || [])]}
             renderLabel={(value) => (value === "all" ? "Todas as areas e setores" : value)}
             onChange={setDashboardAreaFilter}
           />
-          <Select
+          <SafeSelect
             label="Consolidar ciclos por"
             value={dashboardTimeGrouping}
             options={dashboardTimeGroupingOptions.map((item) => item.value)}
@@ -122,13 +131,13 @@ export function DashboardSection({
           </p>
         </div>
         <div className="hero-panel-grid">
-          <MetricCard
+          <SafeMetricCard
             label="Pessoas"
             value={dashboard?.scopeSummary?.peopleCount ?? summary?.peopleCount}
           />
-          <MetricCard label="Incidentes abertos" value={summary?.openIncidents} />
-          <MetricCard label="Ciclos ativos" value={summary?.activeEvaluationCycles} />
-          <MetricCard
+          <SafeMetricCard label="Incidentes abertos" value={summary?.openIncidents} />
+          <SafeMetricCard label="Ciclos ativos" value={summary?.activeEvaluationCycles} />
+          <SafeMetricCard
             label="Assignments pendentes"
             value={dashboard?.scopeSummary?.pendingAssignments ?? summary?.pendingAssignments}
           />
@@ -271,7 +280,7 @@ export function DashboardSection({
             </div>
             <div className="bar-list">
               {dashboard.cycleTimeline.map((item) => (
-                <BarMetricRow
+                <SafeBarMetricRow
                   key={`${item.periodKey}-adherence`}
                   label={item.label}
                   value={`${item.adherencePercentage}%`}
@@ -293,7 +302,7 @@ export function DashboardSection({
           </div>
           <div className="bar-list">
             {dashboard.satisfactionByArea.map((item) => (
-              <BarMetricRow
+              <SafeBarMetricRow
                 key={item.area}
                 label={item.area}
                 value={item.score}
@@ -314,7 +323,7 @@ export function DashboardSection({
           </div>
           <div className="bar-list">
             {dashboard.assignmentStatus.map((item) => (
-              <BarMetricRow
+              <SafeBarMetricRow
                 key={item.status}
                 label={getAssignmentStatusLabel(item.status)}
                 value={item.total}
@@ -392,7 +401,7 @@ export function DashboardSection({
                   </div>
                   <div className="response-chart-grid">
                     {group.questions.map((question) => (
-                      <ResponseDistributionChartCard
+                      <SafeResponseDistributionChartCard
                         key={question.questionId}
                         question={question}
                       />
@@ -420,7 +429,7 @@ export function DashboardSection({
               <h3>Panorama de clima</h3>
               <span>Leitura radial do sentimento agregado</span>
             </div>
-            <DashboardDonut
+            <SafeDashboardDonut
               items={dashboard?.donutMetrics || []}
               emptyMessage="Sem indicadores suficientes para compor o panorama."
             />
@@ -431,7 +440,7 @@ export function DashboardSection({
               <h3>Resumo de distribuicao</h3>
               <span>Comparativo rapido de concluido e pendente</span>
             </div>
-            <ColumnMetricCard
+            <SafeColumnMetricCard
               items={dashboard?.assignmentStatus || []}
               getLabel={getAssignmentStatusLabel}
             />
@@ -444,7 +453,7 @@ export function DashboardSection({
               <h3>Funil do recorte</h3>
               <span>Leitura de cobertura ao longo do fluxo</span>
             </div>
-            <FunnelSeriesChart
+            <SafeFunnelSeriesChart
               items={dashboard?.funnelMetrics || []}
               emptyMessage="Sem dados para compor o funil neste recorte."
             />
@@ -455,7 +464,7 @@ export function DashboardSection({
               <h3>Comparativo por relacionamento</h3>
               <span>Media consolidada dos modulos ativos no recorte</span>
             </div>
-            <ColumnMetricCard
+            <SafeColumnMetricCard
               items={dashboard?.evaluationMix || []}
               getLabel={getRelationshipLabel}
             />

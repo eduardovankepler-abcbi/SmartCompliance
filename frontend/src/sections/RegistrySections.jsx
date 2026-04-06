@@ -8,6 +8,8 @@ import {
   validateUserPayload
 } from "../registry.js";
 
+const EmptyComponent = () => null;
+
 function getSuggestedRoleDescription(roleKey) {
   if (roleKey === "manager") {
     return "Recomendado para quem lidera area ou acompanha entregas diretas do time.";
@@ -103,6 +105,10 @@ export function PeopleSection({
   setAreaForm,
   setPersonForm
 }) {
+  const SafeAreaAdminCard = AreaAdminCard || EmptyComponent;
+  const SafeInput = Input || EmptyComponent;
+  const SafePersonStructureCard = PersonStructureCard || EmptyComponent;
+  const SafeSelect = Select || EmptyComponent;
   const selectedArea = areas.find((area) => area.name === personForm.area) || null;
   const hasRegisteredAreas = areaOptions.length > 0;
   const selectedManager =
@@ -174,19 +180,19 @@ export function PeopleSection({
                 <h3>Nova pessoa</h3>
                 <span>Defina a hierarquia da pessoa em um unico fluxo</span>
               </div>
-              <Input
+              <SafeInput
                 label="Nome"
                 placeholder="Ex.: Maria Clara Souza"
                 value={personForm.name}
                 onChange={(value) => setPersonForm({ ...personForm, name: value })}
               />
-              <Input
+              <SafeInput
                 label="Cargo"
                 placeholder="Ex.: Analista de Compliance"
                 value={personForm.roleTitle}
                 onChange={(value) => setPersonForm({ ...personForm, roleTitle: value })}
               />
-              <Select
+              <SafeSelect
                 label="Area"
                 value={personForm.area}
                 options={areaOptions.map((item) => item.value)}
@@ -194,7 +200,7 @@ export function PeopleSection({
                 disabled={!hasRegisteredAreas}
                 onChange={(value) => setPersonForm({ ...personForm, area: value })}
               />
-              <Select
+              <SafeSelect
                 label="Gestor direto"
                 value={personForm.managerPersonId}
                 options={managerOptions.map((item) => item.value)}
@@ -204,7 +210,7 @@ export function PeopleSection({
                 helper="Escolha a pessoa que acompanha a rotina e aprova as entregas diretas deste colaborador."
                 onChange={(value) => setPersonForm({ ...personForm, managerPersonId: value })}
               />
-              <Select
+              <SafeSelect
                 label="Lider da area"
                 value={personForm.isAreaManager}
                 options={["no", "yes"]}
@@ -212,14 +218,14 @@ export function PeopleSection({
                 helper="Use esta opcao apenas quando a pessoa for a lider atual da area selecionada."
                 onChange={(value) => setPersonForm({ ...personForm, isAreaManager: value })}
               />
-              <Input
+              <SafeInput
                 label="Unidade de trabalho"
                 helper="Use o nome da base/unidade para organizar as avaliacoes entre pares."
                 placeholder="Ex.: Sao Paulo"
                 value={personForm.workUnit}
                 onChange={(value) => setPersonForm({ ...personForm, workUnit: value })}
               />
-              <Select
+              <SafeSelect
                 label="Modalidade"
                 value={personForm.workMode}
                 options={workModeOptions}
@@ -232,7 +238,7 @@ export function PeopleSection({
                 }
                 onChange={(value) => setPersonForm({ ...personForm, workMode: value })}
               />
-              <Select
+              <SafeSelect
                 label="Vinculo"
                 value={personForm.employmentType}
                 options={["internal", "consultant"]}
@@ -396,7 +402,7 @@ export function PeopleSection({
                   <h3>Nova area</h3>
                   <span>Cadastre a area primeiro e volte para concluir a hierarquia pela pessoa.</span>
                 </div>
-                <Input
+                <SafeInput
                   label="Nome da area"
                   placeholder="Ex.: Tecnologia"
                   value={areaForm.name}
@@ -424,7 +430,7 @@ export function PeopleSection({
         <div className="stack-list compact-stack">
           {people.map((person) =>
             canManagePeopleRegistry ? (
-              <PersonStructureCard
+              <SafePersonStructureCard
                 key={person.id}
                 areaOptions={areaOptions}
                 accessState={personAccessStateById[person.id]}
@@ -479,7 +485,7 @@ export function PeopleSection({
         <div className="stack-list compact-stack">
           {areas.map((area) =>
             canManagePeopleRegistry ? (
-              <AreaAdminCard key={area.id} area={area} onSave={handleAreaUpdate} />
+              <SafeAreaAdminCard key={area.id} area={area} onSave={handleAreaUpdate} />
             ) : (
               <article className="list-card compact-list-card" key={area.id}>
                 <div className="row">
@@ -519,6 +525,9 @@ export function UsersSection({
   userStatusOptions,
   users
 }) {
+  const SafeInput = Input || EmptyComponent;
+  const SafeSelect = Select || EmptyComponent;
+  const SafeUserAdminCard = UserAdminCard || EmptyComponent;
   const hasPendingAccess = pendingAccessPeople.length > 0;
   const userValidationError = hasPendingAccess ? validateUserPayload(userForm) : "";
   const userConsistency = getUserConsistencyMessages(userForm, {
@@ -657,7 +666,7 @@ export function UsersSection({
           <h3>Novo usuario</h3>
           <span>Crie o acesso depois que a pessoa ja estiver posicionada na hierarquia</span>
         </div>
-        <Select
+        <SafeSelect
           label="Pessoa"
           value={userForm.personId}
           options={availableUserPeopleOptions.map((item) => item.value)}
@@ -693,7 +702,7 @@ export function UsersSection({
             </p>
           </article>
         ) : null}
-        <Input
+        <SafeInput
           label="Email"
           type="email"
           placeholder="nome.sobrenome@empresa.com"
@@ -705,14 +714,14 @@ export function UsersSection({
           value={userForm.email}
           onChange={(value) => setUserForm({ ...userForm, email: value })}
         />
-        <Input
+        <SafeInput
           label="Senha inicial"
           type="password"
           helper="Minimo de 6 caracteres. Use uma senha temporaria para o primeiro acesso."
           value={userForm.password}
           onChange={(value) => setUserForm({ ...userForm, password: value })}
         />
-        <Select
+        <SafeSelect
           label="Perfil de acesso"
           value={userForm.roleKey}
           options={userRoleOptions}
@@ -720,7 +729,7 @@ export function UsersSection({
           helper={getSuggestedRoleDescription(userForm.roleKey)}
           onChange={(value) => setUserForm({ ...userForm, roleKey: value })}
         />
-        <Select
+        <SafeSelect
           label="Status"
           value={userForm.status}
           options={userStatusOptions}
@@ -749,7 +758,7 @@ export function UsersSection({
         </div>
         <div className="stack-list compact-stack">
           {users.map((item) => (
-            <UserAdminCard
+            <SafeUserAdminCard
               key={item.id}
               user={item}
               onSave={handleUserUpdate}

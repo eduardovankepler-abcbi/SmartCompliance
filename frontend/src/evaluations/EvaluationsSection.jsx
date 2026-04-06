@@ -5,6 +5,8 @@ import { FeedbackRequestPanel } from "./FeedbackRequestPanel";
 import { AuditTrailPanel } from "../components/AuditTrailPanel";
 import { getRelationshipLabel } from "../appLabels.js";
 
+const EmptyComponent = () => null;
+
 function getWorkModeLabel(value) {
   switch (value) {
     case "onsite":
@@ -89,6 +91,14 @@ export function EvaluationsSection(props) {
     setShowEvaluationLibrary,
     showEvaluationLibrary
   } = props;
+  const SafeEvaluationInsightsPanel = EvaluationInsightsPanel || EmptyComponent;
+  const SafeEvaluationLibraryPanel = EvaluationLibraryPanel || EmptyComponent;
+  const SafeEvaluationResponsePanel = EvaluationResponsePanel || EmptyComponent;
+  const SafeFeedbackRequestPanel = FeedbackRequestPanel || EmptyComponent;
+  const SafeAuditTrailPanel = AuditTrailPanel || EmptyComponent;
+  const SafeInput = Input || EmptyComponent;
+  const SafeSelect = Select || EmptyComponent;
+  const SafeTextarea = Textarea || EmptyComponent;
 
   const isIndividualJourney = roleKey === "employee";
   const shouldShowPublishedCycles = !isIndividualJourney;
@@ -193,7 +203,7 @@ export function EvaluationsSection(props) {
         </div>
         <div className="evaluation-cycle-toolbar">
           {evaluationCycleOptions.length > 1 ? (
-            <Select
+            <SafeSelect
               label="Ciclo ativo"
               value={activeEvaluationCycleId}
               options={evaluationCycleOptions.map((cycle) => cycle.id)}
@@ -234,7 +244,7 @@ export function EvaluationsSection(props) {
         ) : null}
       </div>
 
-      <EvaluationInsightsPanel
+      <SafeEvaluationInsightsPanel
         Select={Select}
         activeCycleModuleSummary={activeCycleModuleSummary}
         activeEvaluationCycleId={activeEvaluationCycleId}
@@ -250,7 +260,7 @@ export function EvaluationsSection(props) {
         setComparisonEvaluationCycleId={setComparisonEvaluationCycleId}
       />
 
-      <EvaluationLibraryPanel
+      <SafeEvaluationLibraryPanel
         Input={Input}
         Textarea={Textarea}
         canViewEvaluationLibrary={canViewEvaluationLibrary}
@@ -273,12 +283,12 @@ export function EvaluationsSection(props) {
             <h3>Novo ciclo</h3>
             <span>Distribuicao automatica com liberacao posterior</span>
           </div>
-          <Input
+          <SafeInput
             label="Titulo"
             value={cycleForm.title}
             onChange={(value) => setCycleForm({ ...cycleForm, title: value })}
           />
-          <Select
+          <SafeSelect
             label="Biblioteca aplicada"
             value={cycleForm.libraryId}
             options={evaluationLibrary?.cycleLibraries?.map((library) => library.id) || []}
@@ -288,18 +298,18 @@ export function EvaluationsSection(props) {
             }
             onChange={(value) => setCycleForm({ ...cycleForm, libraryId: value })}
           />
-          <Input
+          <SafeInput
             label="Semestre"
             value={cycleForm.semesterLabel}
             onChange={(value) => setCycleForm({ ...cycleForm, semesterLabel: value })}
           />
-          <Input
+          <SafeInput
             label="Prazo"
             type="date"
             value={cycleForm.dueDate}
             onChange={(value) => setCycleForm({ ...cycleForm, dueDate: value })}
           />
-          <Input
+          <SafeInput
             label="Grupo alvo"
             value={cycleForm.targetGroup}
             onChange={(value) => setCycleForm({ ...cycleForm, targetGroup: value })}
@@ -430,7 +440,7 @@ export function EvaluationsSection(props) {
         </div>
       ) : null}
 
-      <FeedbackRequestPanel
+      <SafeFeedbackRequestPanel
         Select={Select}
         Textarea={Textarea}
         activeEvaluationModuleMeta={activeEvaluationModuleMeta}
@@ -449,7 +459,7 @@ export function EvaluationsSection(props) {
       />
 
       {!isIndividualJourney && isOperationsWorkspace ? (
-        <AuditTrailPanel
+        <SafeAuditTrailPanel
           entries={auditEntries.slice(0, 6)}
           emptyMessage="Criacoes de ciclo, liberacoes e aprovacoes de feedback aparecerao aqui."
           formatDate={formatDate}
@@ -458,7 +468,7 @@ export function EvaluationsSection(props) {
         />
       ) : null}
 
-      <EvaluationResponsePanel
+      <SafeEvaluationResponsePanel
         Select={Select}
         Textarea={Textarea}
         activeCycleModuleSummary={activeCycleModuleSummary}
@@ -499,14 +509,14 @@ export function EvaluationsSection(props) {
           </div>
           <div className="list-card">
             <div className="dashboard-filter-grid">
-              <Select
+              <SafeSelect
                 label="Unidade"
                 value={evaluationOperationWorkUnitFilter}
                 options={evaluationOperationWorkUnitOptions}
                 renderLabel={(value) => (value === "all" ? "Todas as unidades" : value)}
                 onChange={setEvaluationOperationWorkUnitFilter}
               />
-              <Select
+              <SafeSelect
                 label="Modalidade"
                 value={evaluationOperationWorkModeFilter}
                 options={evaluationOperationWorkModeOptions}

@@ -1,5 +1,7 @@
 import { AuditTrailPanel } from "../components/AuditTrailPanel";
 
+const EmptyComponent = () => null;
+
 export function ComplianceSection({
   IncidentQueueCard,
   Input,
@@ -20,6 +22,10 @@ export function ComplianceSection({
   roleKey,
   setIncidentForm
 }) {
+  const SafeIncidentQueueCard = IncidentQueueCard || EmptyComponent;
+  const SafeInput = Input || EmptyComponent;
+  const SafeSelect = Select || EmptyComponent;
+  const SafeTextarea = Textarea || EmptyComponent;
   const isOperationalCompliance = roleKey === "compliance";
   const shouldShowReporterLabel = incidentForm.anonymity === "identified";
   const shouldShowAssignedPerson = canManageIncidentQueue;
@@ -35,12 +41,12 @@ export function ComplianceSection({
               : "Canal estruturado de etica e conduta"}
           </span>
         </div>
-        <Input
+        <SafeInput
           label="Titulo"
           value={incidentForm.title}
           onChange={(value) => setIncidentForm({ ...incidentForm, title: value })}
         />
-        <Select
+        <SafeSelect
           label="Categoria"
           value={incidentForm.category}
           options={[
@@ -52,13 +58,13 @@ export function ComplianceSection({
           ]}
           onChange={(value) => setIncidentForm({ ...incidentForm, category: value })}
         />
-        <Select
+        <SafeSelect
           label="Classificacao inicial"
           value={incidentForm.classification}
           options={incidentClassificationOptions}
           onChange={(value) => setIncidentForm({ ...incidentForm, classification: value })}
         />
-        <Select
+        <SafeSelect
           label="Identificacao"
           value={incidentForm.anonymity}
           options={["anonymous", "identified"]}
@@ -66,13 +72,13 @@ export function ComplianceSection({
           onChange={(value) => setIncidentForm({ ...incidentForm, anonymity: value })}
         />
         {shouldShowReporterLabel ? (
-          <Input
+          <SafeInput
             label="Nome do relator"
             value={incidentForm.reporterLabel}
             onChange={(value) => setIncidentForm({ ...incidentForm, reporterLabel: value })}
           />
         ) : null}
-        <Select
+        <SafeSelect
           label="Area responsavel"
           value={incidentForm.responsibleArea}
           options={incidentAreaOptions.map((item) => item.value)}
@@ -90,7 +96,7 @@ export function ComplianceSection({
           }
         />
         {shouldShowAssignedPerson ? (
-          <Select
+          <SafeSelect
             label="Responsavel inicial"
             value={incidentForm.assignedPersonId}
             options={incidentResponsibleOptions
@@ -102,7 +108,7 @@ export function ComplianceSection({
             onChange={(value) => setIncidentForm({ ...incidentForm, assignedPersonId: value })}
           />
         ) : null}
-        <Textarea
+        <SafeTextarea
           label="Descricao"
           value={incidentForm.description}
           onChange={(value) => setIncidentForm({ ...incidentForm, description: value })}
@@ -124,7 +130,7 @@ export function ComplianceSection({
         <div className="stack-list">
           {canViewIncidents ? (
             incidents.map((incident) => (
-              <IncidentQueueCard
+              <SafeIncidentQueueCard
                 key={incident.id}
                 canManage={canManageIncidentQueue}
                 formatDate={formatDate}
@@ -196,6 +202,12 @@ export function DevelopmentSection({
   setDevelopmentForm,
   setDevelopmentPlanForm
 }) {
+  const SafeDevelopmentPlanAdminCard = DevelopmentPlanAdminCard || EmptyComponent;
+  const SafeDevelopmentRecordAdminCard = DevelopmentRecordAdminCard || EmptyComponent;
+  const SafeInput = Input || EmptyComponent;
+  const SafeMetricCard = MetricCard || EmptyComponent;
+  const SafeSelect = Select || EmptyComponent;
+  const SafeTextarea = Textarea || EmptyComponent;
   const isEmployeeJourney = roleKey === "employee";
   const showDevelopmentViews = developmentViewOptions.length > 1;
   const showDevelopmentMetrics = !isEmployeeJourney;
@@ -241,7 +253,7 @@ export function DevelopmentSection({
         {showDevelopmentMetrics ? (
           <div className="metrics-grid">
             {developmentMetrics.map((item) => (
-              <MetricCard key={item.label} label={item.label} value={item.value} />
+              <SafeMetricCard key={item.label} label={item.label} value={item.value} />
             ))}
           </div>
         ) : null}
@@ -259,7 +271,7 @@ export function DevelopmentSection({
           </span>
         </div>
         {showDevelopmentPersonSelect ? (
-          <Select
+          <SafeSelect
             label="Pessoa"
             value={developmentForm.personId}
             options={developmentFormPeopleOptions.map((item) => item.value)}
@@ -269,34 +281,34 @@ export function DevelopmentSection({
             onChange={(value) => setDevelopmentForm({ ...developmentForm, personId: value })}
           />
         ) : null}
-        <Select
+        <SafeSelect
           label="Tipo"
           value={developmentForm.recordType}
           options={developmentRecordTypes}
           onChange={(value) => setDevelopmentForm({ ...developmentForm, recordType: value })}
         />
-        <Input
+        <SafeInput
           label="Titulo"
           value={developmentForm.title}
           onChange={(value) => setDevelopmentForm({ ...developmentForm, title: value })}
         />
-        <Input
+        <SafeInput
           label="Instituicao / provedor"
           value={developmentForm.providerName}
           onChange={(value) => setDevelopmentForm({ ...developmentForm, providerName: value })}
         />
-        <Input
+        <SafeInput
           label="Conclusao"
           type="date"
           value={developmentForm.completedAt}
           onChange={(value) => setDevelopmentForm({ ...developmentForm, completedAt: value })}
         />
-        <Input
+        <SafeInput
           label="Competencia / eixo"
           value={developmentForm.skillSignal}
           onChange={(value) => setDevelopmentForm({ ...developmentForm, skillSignal: value })}
         />
-        <Textarea
+        <SafeTextarea
           label="Notas"
           value={developmentForm.notes}
           onChange={(value) => setDevelopmentForm({ ...developmentForm, notes: value })}
@@ -318,7 +330,7 @@ export function DevelopmentSection({
           </span>
         </div>
         {showDevelopmentPlanPersonSelect ? (
-          <Select
+          <SafeSelect
             label="Pessoa"
             value={developmentPlanForm.personId}
             options={developmentPlanPeopleOptions.map((item) => item.value)}
@@ -328,7 +340,7 @@ export function DevelopmentSection({
             onChange={(value) => setDevelopmentPlanForm({ ...developmentPlanForm, personId: value })}
           />
         ) : null}
-        <Select
+        <SafeSelect
           label="Ciclo"
           value={developmentPlanForm.cycleId}
           options={developmentPlanCycleOptions.map((item) => item.value)}
@@ -337,7 +349,7 @@ export function DevelopmentSection({
           }
           onChange={(value) => setDevelopmentPlanForm({ ...developmentPlanForm, cycleId: value })}
         />
-        <Select
+        <SafeSelect
           label="Competencia"
           value={developmentPlanForm.competencyId}
           options={developmentPlanCompetencyOptions.map((item) => item.value)}
@@ -348,24 +360,24 @@ export function DevelopmentSection({
             setDevelopmentPlanForm({ ...developmentPlanForm, competencyId: value })
           }
         />
-        <Input
+        <SafeInput
           label="Foco prioritario"
           value={developmentPlanForm.focusTitle}
           onChange={(value) => setDevelopmentPlanForm({ ...developmentPlanForm, focusTitle: value })}
         />
-        <Textarea
+        <SafeTextarea
           label="Acao sugerida"
           rows={3}
           value={developmentPlanForm.actionText}
           onChange={(value) => setDevelopmentPlanForm({ ...developmentPlanForm, actionText: value })}
         />
-        <Input
+        <SafeInput
           label="Prazo"
           type="date"
           value={developmentPlanForm.dueDate}
           onChange={(value) => setDevelopmentPlanForm({ ...developmentPlanForm, dueDate: value })}
         />
-        <Textarea
+        <SafeTextarea
           label="Evidencia esperada"
           rows={3}
           value={developmentPlanForm.expectedEvidence}
@@ -422,7 +434,7 @@ export function DevelopmentSection({
         <div className="stack-list">
           {developmentPlans.length ? (
             developmentPlans.map((plan) => (
-              <DevelopmentPlanAdminCard
+              <SafeDevelopmentPlanAdminCard
                 key={plan.id}
                 competencyOptions={developmentPlanCompetencyOptions}
                 cycleOptions={developmentPlanCycleOptions}
@@ -458,7 +470,7 @@ export function DevelopmentSection({
         <div className="stack-list">
           {filteredDevelopmentRecords.length ? (
             filteredDevelopmentRecords.map((record) => (
-              <DevelopmentRecordAdminCard
+              <SafeDevelopmentRecordAdminCard
                 key={record.id}
                 developmentRecordTypes={developmentRecordTypes}
                 getDevelopmentTrackLabel={getDevelopmentTrackLabel}
@@ -511,6 +523,10 @@ export function ApplauseSection({
   roleKey,
   setApplauseForm
 }) {
+  const SafeApplauseAdminCard = ApplauseAdminCard || EmptyComponent;
+  const SafeInput = Input || EmptyComponent;
+  const SafeSelect = Select || EmptyComponent;
+  const SafeTextarea = Textarea || EmptyComponent;
   const isEmployeeJourney = roleKey === "employee";
 
   return (
@@ -524,7 +540,7 @@ export function ApplauseSection({
               : "Reconhecimento formal com contexto obrigatorio"}
           </span>
         </div>
-        <Select
+        <SafeSelect
           label="Quem recebe"
           value={applauseForm.receiverPersonId}
           options={applausePeopleOptions.map((item) => item.value)}
@@ -533,7 +549,7 @@ export function ApplauseSection({
           }
           onChange={(value) => setApplauseForm({ ...applauseForm, receiverPersonId: value })}
         />
-        <Select
+        <SafeSelect
           label="Categoria"
           value={applauseForm.category}
           options={[
@@ -545,12 +561,12 @@ export function ApplauseSection({
           ]}
           onChange={(value) => setApplauseForm({ ...applauseForm, category: value })}
         />
-        <Input
+        <SafeInput
           label="Impacto"
           value={applauseForm.impact}
           onChange={(value) => setApplauseForm({ ...applauseForm, impact: value })}
         />
-        <Textarea
+        <SafeTextarea
           label="Contexto"
           value={applauseForm.contextNote}
           onChange={(value) => setApplauseForm({ ...applauseForm, contextNote: value })}
@@ -572,7 +588,7 @@ export function ApplauseSection({
         <div className="stack-list">
           {applauseEntries.map((entry) =>
             canManageApplause ? (
-              <ApplauseAdminCard
+              <SafeApplauseAdminCard
                 key={entry.id}
                 onSave={handleApplauseUpdate}
                 personOptions={applausePeopleOptions}
