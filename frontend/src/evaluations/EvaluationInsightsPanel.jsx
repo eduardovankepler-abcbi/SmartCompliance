@@ -39,7 +39,7 @@ export function EvaluationInsightsPanel({
       <div className="card card-span">
         <div className="card-header">
           <h3>Leituras do ciclo</h3>
-          <span>Consolidado do submodulo no seu escopo de acesso</span>
+          <span>Consolidado</span>
         </div>
         <div className="evaluation-cycle-grid">
           <div className="list-card">
@@ -63,7 +63,7 @@ export function EvaluationInsightsPanel({
           <div className="list-card">
             <div className="card-header">
               <strong>Comparar com outro ciclo</strong>
-              <span>Historico armazenado por ciclo</span>
+              <span>Comparacao</span>
             </div>
             <SafeSelect
               label="Ciclo para comparacao"
@@ -104,9 +104,7 @@ export function EvaluationInsightsPanel({
                 ) : null}
               </>
             ) : (
-              <p className="muted">
-                Ainda nao ha outro ciclo disponivel para comparacao neste ambiente.
-              </p>
+              <p className="muted">Nenhum ciclo disponivel para comparacao.</p>
             )}
           </div>
         </div>
@@ -115,7 +113,7 @@ export function EvaluationInsightsPanel({
       <div className="card card-span">
         <div className="card-header">
           <h3>Historico armazenado por ciclo</h3>
-          <span>Comparativo do submodulo dentro do seu escopo</span>
+          <span>Historico</span>
         </div>
         <div className="stack-list evaluation-history-list">
           {(evaluationCycleHistory || []).length ? (
@@ -166,10 +164,7 @@ export function EvaluationInsightsPanel({
           ) : (
             <div className="list-card">
               <strong>Sem historico para este submodulo</strong>
-              <p className="muted">
-                Assim que o ciclo tiver assignments ou respostas registradas, o historico passara a
-                aparecer aqui para comparacao.
-              </p>
+              <p className="muted">Nenhum dado registrado.</p>
             </div>
           )}
         </div>

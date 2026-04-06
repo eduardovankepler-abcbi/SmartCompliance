@@ -165,9 +165,7 @@ export function EvaluationsSection(props) {
           <div>
             <h3>{isIndividualJourney ? "Minhas avaliacoes" : "Submodulos de avaliacao"}</h3>
             <span>
-              {isIndividualJourney
-                ? "Escolha o fluxo e responda os assignments pendentes do ciclo ativo"
-                : "Navegue pelos fluxos do ciclo ativo"}
+              {isIndividualJourney ? "Ciclo ativo" : "Fluxos do ciclo ativo"}
             </span>
           </div>
           <div className="action-row">
@@ -321,7 +319,7 @@ export function EvaluationsSection(props) {
         <form className="card" onSubmit={handleCycleSubmit}>
           <div className="card-header">
             <h3>Novo ciclo</h3>
-            <span>Distribuicao automatica com liberacao posterior</span>
+            <span>Planejamento</span>
           </div>
           <SafeInput
             label="Titulo"
@@ -362,7 +360,7 @@ export function EvaluationsSection(props) {
         <div className="card card-span">
           <div className="card-header">
             <h3>Ciclos publicados</h3>
-            <span>Status visivel para acompanhamento do semestre</span>
+            <span>Semestre</span>
           </div>
           <div className="metrics-grid">
             {(cycles || []).map((cycle) => (
@@ -388,7 +386,7 @@ export function EvaluationsSection(props) {
         <div className="card card-span">
           <div className="card-header">
             <h3>Ciclos ativos</h3>
-            <span>Controle de liberacao e encerramento</span>
+            <span>Controle</span>
           </div>
           <div className="metrics-grid">
             {(cycles || []).map((cycle) => (
@@ -545,7 +543,7 @@ export function EvaluationsSection(props) {
         <div className="card card-span compact-card evaluation-operations-summary">
           <div className="card-header">
             <h3>Participantes e avaliadores do ciclo</h3>
-            <span>Estrutura formal do 360 para o ciclo em foco</span>
+            <span>Estrutura do ciclo</span>
           </div>
           <div className="list-card">
             <div className="dashboard-filter-grid">
@@ -566,11 +564,7 @@ export function EvaluationsSection(props) {
                 onChange={setEvaluationOperationWorkModeFilter}
               />
             </div>
-            <p className="muted">
-              {hasOperationFilters
-                ? "Recorte operacional aplicado sobre os avaliados do ciclo."
-                : "Use os filtros para recortar a operacao por unidade e modalidade."}
-            </p>
+            {hasOperationFilters ? <p className="muted">Filtros aplicados</p> : null}
           </div>
           <div className="metrics-grid">
             <div className="mini-card">
@@ -606,9 +600,6 @@ export function EvaluationsSection(props) {
             <div className="row">
               <div>
                 <strong>Notificar inadimplentes</strong>
-                <p className="muted">
-                  Dispara lembrete manual para assignments vencidos ainda pendentes no ciclo.
-                </p>
               </div>
               <button
                 type="button"
@@ -636,9 +627,6 @@ export function EvaluationsSection(props) {
             <div className="stack-list">
               <div className="list-card">
                 <strong>Lista de inadimplentes</strong>
-                <p className="muted">
-                  Assignments vencidos, ainda pendentes, com historico de lembretes enviados.
-                </p>
               </div>
               <div className="metrics-grid">
                 {operationsStructure.delinquents.map((assignment) => (
@@ -669,9 +657,6 @@ export function EvaluationsSection(props) {
           ) : (
             <div className="list-card">
               <strong>Sem inadimplentes no ciclo</strong>
-              <p className="muted">
-                Nao ha assignments vencidos e pendentes no ciclo selecionado neste momento.
-              </p>
             </div>
           )}
           {operationsStructure?.participants?.length ? (
@@ -701,7 +686,7 @@ export function EvaluationsSection(props) {
               ))}
             </div>
           ) : (
-            <p className="muted">Abra um ciclo para materializar participantes e avaliadores.</p>
+            <p className="muted">Nenhum participante neste ciclo.</p>
           )}
         </div>
       ) : null}

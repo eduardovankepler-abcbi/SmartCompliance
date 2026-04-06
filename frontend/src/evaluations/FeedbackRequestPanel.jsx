@@ -57,13 +57,12 @@ export function FeedbackRequestPanel({
     <div className="card card-span">
       <div className="card-header">
         <h3>{workspaceCopy.heading} · fornecedores</h3>
-        <span>Selecione ate 3 pessoas com quem voce colaborou diretamente</span>
+        <span>Ate 3 fornecedores</span>
       </div>
       <div className="two-columns">
         <form className="stack-list" onSubmit={handleFeedbackRequestSubmit}>
           <div className="list-card evaluation-workspace-spotlight">
             <strong>Selecionar fornecedores</strong>
-            <p className="muted">{workspaceCopy.description}</p>
           </div>
           <SafeSelect
             label="Ciclo"
@@ -119,9 +118,6 @@ export function FeedbackRequestPanel({
         <div className="stack-list">
           <div className="list-card">
             <strong>Fila de solicitacoes</strong>
-            <p className="muted">
-              RH/Admin aprovam a solicitacao e o sistema gera os assignments de feedback direto.
-            </p>
           </div>
           {(filteredFeedbackRequests || []).length ? (
             (filteredFeedbackRequests || []).map((request) => (
@@ -164,10 +160,7 @@ export function FeedbackRequestPanel({
           ) : (
             <div className="list-card">
               <strong>Nenhuma solicitacao registrada</strong>
-              <p className="muted">
-                As solicitacoes de feedback direto aparecerao aqui conforme o ciclo for sendo
-                preparado.
-              </p>
+              <p className="muted">Nenhuma solicitacao no momento.</p>
             </div>
           )}
         </div>

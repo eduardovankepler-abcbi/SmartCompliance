@@ -92,7 +92,7 @@ export function EvaluationResponsePanel({
         <h3>
           {workspaceCopy.heading} {"·"} {activeCycleModuleSummary?.title || "Ciclo ativo"}
         </h3>
-        {activeEvaluationWorkspace === "insights" ? <span>{workspaceCopy.description}</span> : null}
+        {activeEvaluationWorkspace === "insights" ? <span>Leituras</span> : null}
       </div>
       <div className={isIndividualJourney ? "stack-list" : "two-columns evaluation-response-layout"}>
         {!isIndividualJourney ? (
@@ -100,7 +100,6 @@ export function EvaluationResponsePanel({
             <div
               className={`list-card evaluation-workspace-spotlight ${moduleExperience.tone}`}
             >
-              <p className="muted">{workspaceCopy.description}</p>
               {activeEvaluationWorkspace === "insights" && moduleExperience.spotlightItems.length ? (
                 <div className="evaluation-context-grid">
                   {moduleExperience.spotlightItems.map((item) => (
@@ -194,10 +193,7 @@ export function EvaluationResponsePanel({
           ) : (
             <div className="list-card">
               <strong>Leituras restritas</strong>
-              <p className="muted">
-                Consolidacoes e comparacoes entre ciclos ficam disponiveis apenas para gestor e
-                administrador.
-              </p>
+              <p className="muted">Disponivel apenas para gestor e administrador.</p>
             </div>
           )}
         </div>
@@ -255,7 +251,7 @@ function RespondView({
     return (
       <div className="list-card">
         <strong>{workspaceCopy.selectionTitle}</strong>
-        <p className="muted">{workspaceCopy.selectionDescription}</p>
+        <p className="muted">Selecione um item para continuar.</p>
       </div>
     );
   }
@@ -264,9 +260,7 @@ function RespondView({
     return (
       <div className="list-card">
         <strong>Avaliacao ja enviada</strong>
-        <p className="muted">
-          Este assignment ja foi concluido. Escolha outro item pendente para responder.
-        </p>
+        <p className="muted">Escolha outro item pendente.</p>
       </div>
     );
   }
@@ -275,10 +269,7 @@ function RespondView({
     return (
       <div className="list-card">
         <strong>Interacao bloqueada</strong>
-        <p className="muted">
-          Este assignment pertence a um ciclo em{" "}
-          {assignmentDetail.assignment.cycleStatus.toLowerCase()}.
-        </p>
+        <p className="muted">{assignmentDetail.assignment.cycleStatus}</p>
         <p className="muted">
           {getCycleStatusDescription(assignmentDetail.assignment.cycleStatus)}
         </p>
@@ -391,10 +382,7 @@ function ReceivedManagerFeedbackView({
     return (
       <div className="list-card">
         <strong>Feedback ainda nao recebido</strong>
-        <p className="muted">
-          Assim que seu gestor concluir o feedback do ciclo, ele aparecera aqui para leitura e
-          confirmacao.
-        </p>
+        <p className="muted">Aguardando envio do gestor.</p>
       </div>
     );
   }
@@ -403,9 +391,6 @@ function ReceivedManagerFeedbackView({
     <div className="stack-list feedback-receipt-list">
       <div className="list-card evaluation-response-summary manager">
         <strong>Feedback do lider recebido</strong>
-        <p className="muted">
-          Leia o feedback formal do seu gestor e registre se concorda com a devolutiva.
-        </p>
       </div>
       {feedbackItems.map((feedback) => {
         const draft = receivedManagerFeedbackDrafts?.[feedback.id] || {

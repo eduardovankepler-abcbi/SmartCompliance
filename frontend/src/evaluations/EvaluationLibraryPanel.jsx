@@ -210,7 +210,7 @@ export function EvaluationLibraryPanel({
       <div className="card-header">
         <div>
           <h3>Biblioteca de avaliacoes</h3>
-          <span>Organize perguntas por tipo de avaliacao e mantenha as dimensoes do modelo</span>
+          <span>Edite bibliotecas e competencias</span>
         </div>
         <span>{evaluationLibrary?.customLibraries?.length || 0} bibliotecas publicadas</span>
       </div>
@@ -245,23 +245,7 @@ export function EvaluationLibraryPanel({
         {activeTab === "libraries" ? (
           <>
             <div className="list-card">
-              <div className="card-header">
-                <strong>Como a biblioteca esta organizada</strong>
-                <span>Leitura rapida para o RH</span>
-              </div>
-              <p className="muted">
-                <strong>Biblioteca</strong> e o conjunto completo de templates.{" "}
-                <strong>Template</strong> e o questionario de um tipo de avaliacao.{" "}
-                <strong>Pergunta</strong> e cada item respondido dentro do template.
-              </p>
-            </div>
-
-            <div className="list-card">
               <strong>Bibliotecas publicadas</strong>
-              <p className="muted">
-                Espaco para o RH gerenciar os conjuntos de perguntas e templates usados nos tipos
-                de avaliacao.
-              </p>
               {libraryOptions.length ? (
                 libraryOptions.map((library) => (
                   <p className="muted" key={library.id}>
@@ -285,10 +269,6 @@ export function EvaluationLibraryPanel({
                 <strong>Perguntas por tipo de avaliacao</strong>
                 <span>{activeLibrary?.name || "Biblioteca ativa"}</span>
               </div>
-              <p className="muted">
-                Visualizacao operacional dos templates e perguntas disponiveis em cada tipo de
-                avaliacao.
-              </p>
               {libraryOptions.length > 1 ? (
                 <label className="field">
                   <span>Biblioteca em foco</span>
@@ -357,10 +337,6 @@ export function EvaluationLibraryPanel({
                           {activeTemplate.questions?.length || 0} pergunta(s)
                         </span>
                       </div>
-                      <p className="muted">
-                        Tipo de avaliacao:{" "}
-                        {getRelationshipLabel(activeTemplate.relationshipType || activeTemplate.key)}
-                      </p>
                       {activeLibrary.sourceType === "custom" ? (
                         <>
                           <Input
@@ -517,19 +493,11 @@ export function EvaluationLibraryPanel({
                     Salvar biblioteca customizada
                   </button>
                 </div>
-              ) : (
-                <p className="muted">
-                  A biblioteca padrao continua como referencia. Para personalizar perguntas, use
-                  uma biblioteca customizada via importacao ou edite uma biblioteca publicada.
-                </p>
-              )}
+              ) : null}
             </div>
 
             <div className="list-card">
               <strong>Importar biblioteca</strong>
-              <p className="muted">
-                Use planilhas para cadastrar ou atualizar perguntas por tipo de avaliacao.
-              </p>
               <button
                 className="secondary-button"
                 type="button"
@@ -593,13 +561,9 @@ export function EvaluationLibraryPanel({
           <>
             <div className="list-card">
               <div className="card-header">
-                <strong>Competencias formais do modelo</strong>
+                <strong>Competencias</strong>
                 <span>{competencies?.length || 0} cadastradas</span>
               </div>
-              <p className="muted">
-                Dimensoes estruturais do modelo de avaliacao, usadas para organizar perguntas,
-                leituras e PDIs.
-              </p>
               {competencies?.length ? (
                 <div className="stack-list compact-stack">
                   {competencies.map((competency) => {
@@ -702,7 +666,7 @@ export function EvaluationLibraryPanel({
             <form className="list-card" onSubmit={onCompetencySubmit}>
               <div className="card-header">
                 <strong>Nova competencia</strong>
-                <span>Base formal para questionarios, leituras e desenvolvimento</span>
+                <span>Nova dimensao</span>
               </div>
               <div className="compact-actions structure-actions">
                 <Input
