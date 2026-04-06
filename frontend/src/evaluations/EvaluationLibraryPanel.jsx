@@ -36,6 +36,7 @@ export function EvaluationLibraryPanel({
 }) {
   const [activeTab, setActiveTab] = useState("libraries");
   const [activeLibraryId, setActiveLibraryId] = useState("");
+  const [activeTemplateKey, setActiveTemplateKey] = useState("");
   const [competencyForm, setCompetencyForm] = useState(emptyCompetencyForm);
   const [competencyDrafts, setCompetencyDrafts] = useState({});
   const [libraryDrafts, setLibraryDrafts] = useState({});
@@ -57,6 +58,12 @@ export function EvaluationLibraryPanel({
 
   const activeLibrary =
     libraryOptions.find((library) => library.id === activeLibraryId) || libraryOptions[0] || null;
+  const activeLibraryTemplates =
+    libraryDrafts[activeLibrary?.id]?.templates || activeLibrary?.templates || [];
+  const activeTemplate =
+    activeLibraryTemplates.find(
+      (template) => (template.relationshipType || template.key) === activeTemplateKey
+    ) || activeLibraryTemplates[0] || null;
 
   useEffect(() => {
     setCompetencyDrafts(
@@ -84,6 +91,21 @@ export function EvaluationLibraryPanel({
       setActiveLibraryId(libraryOptions[0].id);
     }
   }, [activeLibraryId, libraryOptions]);
+
+  useEffect(() => {
+    if (!activeLibraryTemplates.length) {
+      setActiveTemplateKey("");
+      return;
+    }
+
+    if (
+      !activeLibraryTemplates.some(
+        (template) => (template.relationshipType || template.key) === activeTemplateKey
+      )
+    ) {
+      setActiveTemplateKey(activeLibraryTemplates[0].relationshipType || activeLibraryTemplates[0].key);
+    }
+  }, [activeLibraryTemplates, activeTemplateKey]);
 
   useEffect(() => {
     setLibraryDrafts(
@@ -163,6 +185,24 @@ export function EvaluationLibraryPanel({
         }))
       }))
     });
+  }
+
+  function updateActiveTemplate(updateFn) {
+    if (!activeLibrary || !activeTemplate) {
+      return;
+    }
+
+    setLibraryDrafts((current) => ({
+      ...current,
+      [activeLibrary.id]: {
+        ...current[activeLibrary.id],
+        templates: current[activeLibrary.id].templates.map((item) =>
+          (item.relationshipType || item.key) === (activeTemplate.relationshipType || activeTemplate.key)
+            ? updateFn(item)
+            : item
+        )
+      }
+    }));
   }
 
   return (
@@ -279,67 +319,76 @@ export function EvaluationLibraryPanel({
                   </span>
                 </div>
               ) : null}
-              {activeLibrary?.templates?.length ? (
+              {activeLibraryTemplates.length ? (
                 <div className="stack-list compact-stack">
-                  {(libraryDrafts[activeLibrary.id]?.templates || activeLibrary.templates).map((template, templateIndex) => (
-                    <div className="list-card compact-list-card" key={template.id}>
+                  <div className="module-toolbar">
+                    {activeLibraryTemplates.map((template) => {
+                      const templateKey = template.relationshipType || template.key;
+                      return (
+                        <button
+                          key={template.id}
+                          type="button"
+                          className={
+                            templateKey === activeTemplateKey
+                              ? "button-reset module-tab active"
+                              : "button-reset module-tab"
+                          }
+                          onClick={() => setActiveTemplateKey(templateKey)}
+                        >
+                          <span className="module-tab-title">
+                            {getRelationshipLabel(templateKey) || template.modelName}
+                          </span>
+                          <span className="module-tab-meta">
+                            {template.questions?.length || 0} pergunta(s)
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {activeTemplate ? (
+                    <div className="list-card compact-list-card">
                       <div className="row">
                         <strong>
-                          {getRelationshipLabel(template.relationshipType || template.key) ||
-                            template.modelName}
+                          {getRelationshipLabel(activeTemplate.relationshipType || activeTemplate.key) ||
+                            activeTemplate.modelName}
                         </strong>
                         <span className="badge">
-                          {template.questions?.length || 0} pergunta(s)
+                          {activeTemplate.questions?.length || 0} pergunta(s)
                         </span>
                       </div>
                       <p className="muted">
                         Tipo de avaliacao:{" "}
-                        {getRelationshipLabel(template.relationshipType || template.key)}
+                        {getRelationshipLabel(activeTemplate.relationshipType || activeTemplate.key)}
                       </p>
                       {activeLibrary.sourceType === "custom" ? (
                         <>
                           <Input
                             label="Nome do template"
-                            value={template.modelName}
+                            value={activeTemplate.modelName}
                             onChange={(value) =>
-                              setLibraryDrafts((current) => ({
-                                ...current,
-                                [activeLibrary.id]: {
-                                  ...current[activeLibrary.id],
-                                  templates: current[activeLibrary.id].templates.map((item, index) =>
-                                    index === templateIndex ? { ...item, modelName: value } : item
-                                  )
-                                }
-                              }))
+                              updateActiveTemplate((item) => ({ ...item, modelName: value }))
                             }
                           />
                           <Textarea
                             label="Descricao do template"
-                            value={template.description || ""}
+                            value={activeTemplate.description || ""}
                             onChange={(value) =>
-                              setLibraryDrafts((current) => ({
-                                ...current,
-                                [activeLibrary.id]: {
-                                  ...current[activeLibrary.id],
-                                  templates: current[activeLibrary.id].templates.map((item, index) =>
-                                    index === templateIndex ? { ...item, description: value } : item
-                                  )
-                                }
-                              }))
+                              updateActiveTemplate((item) => ({ ...item, description: value }))
                             }
                           />
                         </>
                       ) : (
                         <>
-                          <p className="muted">{template.modelName}</p>
-                          {template.description ? (
-                            <p className="muted">{template.description}</p>
+                          <p className="muted">{activeTemplate.modelName}</p>
+                          {activeTemplate.description ? (
+                            <p className="muted">{activeTemplate.description}</p>
                           ) : null}
                         </>
                       )}
-                      {template.questions?.length ? (
+                      {activeTemplate.questions?.length ? (
                         <div className="stack-list compact-stack">
-                          {template.questions.map((question, index) => (
+                          {activeTemplate.questions.map((question, index) => (
                             <div className="list-card compact-list-card" key={question.id || index}>
                               <p className="mini-label">Pergunta {index + 1}</p>
                               {activeLibrary.sourceType === "custom" ? (
@@ -348,23 +397,13 @@ export function EvaluationLibraryPanel({
                                     label="Dimensao da pergunta"
                                     value={question.dimensionTitle || ""}
                                     onChange={(value) =>
-                                      setLibraryDrafts((current) => ({
-                                        ...current,
-                                        [activeLibrary.id]: {
-                                          ...current[activeLibrary.id],
-                                          templates: current[activeLibrary.id].templates.map((item, itemIndex) =>
-                                            itemIndex === templateIndex
-                                              ? {
-                                                  ...item,
-                                                  questions: item.questions.map((entry, entryIndex) =>
-                                                    entryIndex === index
-                                                      ? { ...entry, dimensionTitle: value }
-                                                      : entry
-                                                  )
-                                                }
-                                              : item
-                                          )
-                                        }
+                                      updateActiveTemplate((item) => ({
+                                        ...item,
+                                        questions: item.questions.map((entry, entryIndex) =>
+                                          entryIndex === index
+                                            ? { ...entry, dimensionTitle: value }
+                                            : entry
+                                        )
                                       }))
                                     }
                                   />
@@ -372,23 +411,11 @@ export function EvaluationLibraryPanel({
                                     label="Enunciado da pergunta"
                                     value={question.prompt || ""}
                                     onChange={(value) =>
-                                      setLibraryDrafts((current) => ({
-                                        ...current,
-                                        [activeLibrary.id]: {
-                                          ...current[activeLibrary.id],
-                                          templates: current[activeLibrary.id].templates.map((item, itemIndex) =>
-                                            itemIndex === templateIndex
-                                              ? {
-                                                  ...item,
-                                                  questions: item.questions.map((entry, entryIndex) =>
-                                                    entryIndex === index
-                                                      ? { ...entry, prompt: value }
-                                                      : entry
-                                                  )
-                                                }
-                                              : item
-                                          )
-                                        }
+                                      updateActiveTemplate((item) => ({
+                                        ...item,
+                                        questions: item.questions.map((entry, entryIndex) =>
+                                          entryIndex === index ? { ...entry, prompt: value } : entry
+                                        )
                                       }))
                                     }
                                   />
@@ -396,23 +423,13 @@ export function EvaluationLibraryPanel({
                                     label="Texto de apoio ao respondente"
                                     value={question.helperText || ""}
                                     onChange={(value) =>
-                                      setLibraryDrafts((current) => ({
-                                        ...current,
-                                        [activeLibrary.id]: {
-                                          ...current[activeLibrary.id],
-                                          templates: current[activeLibrary.id].templates.map((item, itemIndex) =>
-                                            itemIndex === templateIndex
-                                              ? {
-                                                  ...item,
-                                                  questions: item.questions.map((entry, entryIndex) =>
-                                                    entryIndex === index
-                                                      ? { ...entry, helperText: value }
-                                                      : entry
-                                                  )
-                                                }
-                                              : item
-                                          )
-                                        }
+                                      updateActiveTemplate((item) => ({
+                                        ...item,
+                                        questions: item.questions.map((entry, entryIndex) =>
+                                          entryIndex === index
+                                            ? { ...entry, helperText: value }
+                                            : entry
+                                        )
                                       }))
                                     }
                                   />
@@ -421,23 +438,13 @@ export function EvaluationLibraryPanel({
                                       label="Opcoes da multipla escolha"
                                       value={question.optionsText || ""}
                                       onChange={(value) =>
-                                        setLibraryDrafts((current) => ({
-                                          ...current,
-                                          [activeLibrary.id]: {
-                                            ...current[activeLibrary.id],
-                                            templates: current[activeLibrary.id].templates.map((item, itemIndex) =>
-                                              itemIndex === templateIndex
-                                                ? {
-                                                    ...item,
-                                                    questions: item.questions.map((entry, entryIndex) =>
-                                                      entryIndex === index
-                                                        ? { ...entry, optionsText: value }
-                                                        : entry
-                                                    )
-                                                  }
-                                                : item
-                                            )
-                                          }
+                                        updateActiveTemplate((item) => ({
+                                          ...item,
+                                          questions: item.questions.map((entry, entryIndex) =>
+                                            entryIndex === index
+                                              ? { ...entry, optionsText: value }
+                                              : entry
+                                          )
                                         }))
                                       }
                                       helper="Separe as opcoes com |"
@@ -467,7 +474,7 @@ export function EvaluationLibraryPanel({
                         <p className="muted">Nenhuma pergunta cadastrada neste template.</p>
                       )}
                     </div>
-                  ))}
+                  ) : null}
                 </div>
               ) : (
                 <p className="muted">
