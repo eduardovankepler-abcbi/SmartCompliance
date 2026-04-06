@@ -13,6 +13,10 @@ const competencyStatusOptions = [
   { value: "inactive", label: "Inativa" }
 ];
 
+function getLibrarySourceLabel(sourceType) {
+  return sourceType === "custom" ? "Customizada" : "Padrao";
+}
+
 export function EvaluationLibraryPanel({
   Input,
   Textarea,
@@ -201,6 +205,18 @@ export function EvaluationLibraryPanel({
         {activeTab === "libraries" ? (
           <>
             <div className="list-card">
+              <div className="card-header">
+                <strong>Como a biblioteca esta organizada</strong>
+                <span>Leitura rapida para o RH</span>
+              </div>
+              <p className="muted">
+                <strong>Biblioteca</strong> e o conjunto completo de templates.{" "}
+                <strong>Template</strong> e o questionario de um tipo de avaliacao.{" "}
+                <strong>Pergunta</strong> e cada item respondido dentro do template.
+              </p>
+            </div>
+
+            <div className="list-card">
               <strong>Bibliotecas publicadas</strong>
               <p className="muted">
                 Espaco para o RH gerenciar os conjuntos de perguntas e templates usados nos tipos
@@ -209,7 +225,8 @@ export function EvaluationLibraryPanel({
               {libraryOptions.length ? (
                 libraryOptions.map((library) => (
                   <p className="muted" key={library.id}>
-                    {library.name} | {library.templateCount || library.templates?.length || 0} templates |{" "}
+                    {library.name} ({getLibrarySourceLabel(library.sourceType)}) |{" "}
+                    {library.templateCount || library.templates?.length || 0} templates |{" "}
                     {library.questionCount ||
                       (library.templates || []).reduce(
                         (total, template) => total + (template.questions?.length || 0),
@@ -229,7 +246,8 @@ export function EvaluationLibraryPanel({
                 <span>{activeLibrary?.name || "Biblioteca ativa"}</span>
               </div>
               <p className="muted">
-                Visualizacao operacional dos templates e perguntas disponiveis para cada fluxo.
+                Visualizacao operacional dos templates e perguntas disponiveis em cada tipo de
+                avaliacao.
               </p>
               {libraryOptions.length > 1 ? (
                 <label className="field">
@@ -240,11 +258,26 @@ export function EvaluationLibraryPanel({
                   >
                     {libraryOptions.map((library) => (
                       <option key={library.id} value={library.id}>
-                        {library.name}
+                        {library.name} - {getLibrarySourceLabel(library.sourceType)}
                       </option>
                     ))}
                   </select>
                 </label>
+              ) : null}
+              {activeLibrary ? (
+                <div className="row">
+                  <span className="badge">{getLibrarySourceLabel(activeLibrary.sourceType)}</span>
+                  <span className="muted">
+                    {activeLibrary.templateCount || activeLibrary.templates?.length || 0} templates
+                    ·{" "}
+                    {activeLibrary.questionCount ||
+                      (activeLibrary.templates || []).reduce(
+                        (total, template) => total + (template.questions?.length || 0),
+                        0
+                      )}{" "}
+                    perguntas
+                  </span>
+                </div>
               ) : null}
               {activeLibrary?.templates?.length ? (
                 <div className="stack-list compact-stack">
@@ -259,6 +292,10 @@ export function EvaluationLibraryPanel({
                           {template.questions?.length || 0} pergunta(s)
                         </span>
                       </div>
+                      <p className="muted">
+                        Tipo de avaliacao:{" "}
+                        {getRelationshipLabel(template.relationshipType || template.key)}
+                      </p>
                       {activeLibrary.sourceType === "custom" ? (
                         <>
                           <Input
@@ -304,10 +341,11 @@ export function EvaluationLibraryPanel({
                         <div className="stack-list compact-stack">
                           {template.questions.map((question, index) => (
                             <div className="list-card compact-list-card" key={question.id || index}>
+                              <p className="mini-label">Pergunta {index + 1}</p>
                               {activeLibrary.sourceType === "custom" ? (
                                 <>
                                   <Input
-                                    label="Dimensao"
+                                    label="Dimensao da pergunta"
                                     value={question.dimensionTitle || ""}
                                     onChange={(value) =>
                                       setLibraryDrafts((current) => ({
@@ -331,7 +369,7 @@ export function EvaluationLibraryPanel({
                                     }
                                   />
                                   <Textarea
-                                    label="Pergunta"
+                                    label="Enunciado da pergunta"
                                     value={question.prompt || ""}
                                     onChange={(value) =>
                                       setLibraryDrafts((current) => ({
@@ -355,7 +393,7 @@ export function EvaluationLibraryPanel({
                                     }
                                   />
                                   <Textarea
-                                    label="Texto de apoio"
+                                    label="Texto de apoio ao respondente"
                                     value={question.helperText || ""}
                                     onChange={(value) =>
                                       setLibraryDrafts((current) => ({
@@ -380,7 +418,7 @@ export function EvaluationLibraryPanel({
                                   />
                                   {question.inputType === "multi-select" ? (
                                     <Input
-                                      label="Opcoes"
+                                      label="Opcoes da multipla escolha"
                                       value={question.optionsText || ""}
                                       onChange={(value) =>
                                         setLibraryDrafts((current) => ({
