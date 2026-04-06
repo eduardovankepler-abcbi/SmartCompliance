@@ -1,12 +1,11 @@
 import { EvaluationsSection } from "./evaluations/EvaluationsSection";
+import { DashboardSection } from "./sections/DashboardSection.jsx";
+import { PeopleSection, UsersSection } from "./sections/RegistrySections.jsx";
 import {
   ApplauseSection,
   ComplianceSection,
-  DashboardSection,
-  DevelopmentSection,
-  PeopleSection,
-  UsersSection
-} from "./sections/AppSections";
+  DevelopmentSection
+} from "./sections/OperationsSections.jsx";
 
 export function AppSceneRenderer(props) {
   const {
