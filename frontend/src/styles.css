@@ -667,6 +667,16 @@ button:disabled {
   gap: 12px;
 }
 
+.cycle-create-card {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 18px;
+}
+
+.cycle-create-card .card-header,
+.cycle-create-card > button {
+  grid-column: 1 / -1;
+}
+
 .registry-form-grid {
   display: grid;
   grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
@@ -1612,6 +1622,10 @@ button:disabled {
   }
 
   .page-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .cycle-create-card {
     grid-template-columns: 1fr;
   }
 

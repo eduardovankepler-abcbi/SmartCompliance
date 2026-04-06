@@ -316,7 +316,7 @@ export function EvaluationsSection(props) {
       />
 
       {canManageCycles && isOperationsWorkspace ? (
-        <form className="card" onSubmit={handleCycleSubmit}>
+        <form className="card card-span cycle-create-card" onSubmit={handleCycleSubmit}>
           <div className="card-header">
             <h3>Novo ciclo</h3>
             <span>Planejamento</span>
