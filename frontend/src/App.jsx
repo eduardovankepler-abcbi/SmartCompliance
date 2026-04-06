@@ -439,8 +439,8 @@ export default function App() {
       onRefresh={reloadData}
       onSectionChange={setActiveSection}
       onToggleTheme={toggleTheme}
-      profileArea={user.person.area}
-      profileName={user.person.name}
+      profileArea={user?.person?.area || "-"}
+      profileName={user?.person?.name || "Usuario"}
       profileRoleLabel={getRoleLabel(user.roleKey)}
       statusLabel={shellStatusLabel}
       theme={theme}
