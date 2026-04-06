@@ -4,6 +4,41 @@ import {
   getEvaluationWorkspaceCopy
 } from "../appLabels.js";
 
+function NativeSelectField({
+  label,
+  value = "",
+  options = [],
+  onChange,
+  renderLabel
+}) {
+  return (
+    <label className="field">
+      <span>{label}</span>
+      <select value={value} onChange={(event) => onChange(event.target.value)}>
+        {options.map((option) => (
+          <option key={option} value={option}>
+            {renderLabel ? renderLabel(option) : option}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function NativeTextareaField({
+  label,
+  value = "",
+  rows = 4,
+  onChange
+}) {
+  return (
+    <label className="field">
+      <span>{label}</span>
+      <textarea rows={rows} value={value} onChange={(event) => onChange(event.target.value)} />
+    </label>
+  );
+}
+
 export function EvaluationResponsePanel({
   Select,
   Textarea,
@@ -36,8 +71,8 @@ export function EvaluationResponsePanel({
   setStrengthsNote,
   strengthsNote
 }) {
-  const SafeSelect = Select || (() => null);
-  const SafeTextarea = Textarea || (() => null);
+  const SafeSelect = Select || NativeSelectField;
+  const SafeTextarea = Textarea || NativeTextareaField;
   const workspaceCopy = getEvaluationWorkspaceCopy(
     activeEvaluationModuleMeta?.key,
     activeEvaluationWorkspace
@@ -199,8 +234,8 @@ function RespondView({
   setStrengthsNote,
   strengthsNote
 }) {
-  const SafeSelect = Select || (() => null);
-  const SafeTextarea = Textarea || (() => null);
+  const SafeSelect = Select || NativeSelectField;
+  const SafeTextarea = Textarea || NativeTextareaField;
   const questionSections = groupQuestionsBySection(assignmentDetail?.template?.questions || []);
 
   if (isIndividualJourney && activeEvaluationModuleMeta?.relationshipType === "manager") {
@@ -502,9 +537,12 @@ function QuestionField({
   setAnswerForm,
   workspaceCopy
 }) {
-  const SafeSelect = Select || (() => null);
-  const SafeTextarea = Textarea || (() => null);
+  const SafeSelect = Select || NativeSelectField;
+  const SafeTextarea = Textarea || NativeTextareaField;
   const answerValue = answerForm[question.id] || {};
+  const scaleOptions = Array.isArray(scale) && scale.length
+    ? scale
+    : [1, 2, 3, 4, 5].map((value) => ({ value, label: String(value) }));
 
   return (
     <div className="list-card evaluation-question-panel">
@@ -568,9 +606,9 @@ function QuestionField({
             <SafeSelect
               label="Resposta"
               value={String(answerValue.score ?? 3)}
-              options={scale.map((item) => String(item.value))}
+              options={scaleOptions.map((item) => String(item.value))}
               renderLabel={(value) =>
-                scale.find((item) => String(item.value) === value)?.label || value
+                scaleOptions.find((item) => String(item.value) === value)?.label || value
               }
               onChange={(value) =>
                 setAnswerForm({
