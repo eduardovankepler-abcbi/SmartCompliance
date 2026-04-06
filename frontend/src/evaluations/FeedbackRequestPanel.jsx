@@ -17,6 +17,9 @@ export function FeedbackRequestPanel({
   handleFeedbackRequestSubmit,
   setFeedbackRequestForm
 }) {
+  const SafeSelect = Select || (() => null);
+  const SafeTextarea = Textarea || (() => null);
+
   if (
     activeEvaluationWorkspace !== "respond" ||
     activeEvaluationModuleMeta?.relationshipType !== "peer"
@@ -38,7 +41,7 @@ export function FeedbackRequestPanel({
             <strong>Selecionar fornecedores</strong>
             <p className="muted">{workspaceCopy.description}</p>
           </div>
-          <Select
+          <SafeSelect
             label="Ciclo"
             value={feedbackRequestForm.cycleId}
             options={feedbackRequestCycleOptions.map((cycle) => cycle.id)}
@@ -77,7 +80,7 @@ export function FeedbackRequestPanel({
               );
             })}
           </div>
-          <Textarea
+          <SafeTextarea
             label="Contexto da colaboracao"
             value={feedbackRequestForm.contextNote}
             onChange={(value) =>

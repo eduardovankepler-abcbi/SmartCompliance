@@ -13,6 +13,8 @@ export function EvaluationInsightsPanel({
   setComparisonEvaluationCycleId,
   activeEvaluationWorkspace
 }) {
+  const SafeSelect = Select || (() => null);
+
   if (!canViewEvaluationInsights || activeEvaluationWorkspace !== "insights") {
     return null;
   }
@@ -48,7 +50,7 @@ export function EvaluationInsightsPanel({
               <strong>Comparar com outro ciclo</strong>
               <span>Historico armazenado por ciclo</span>
             </div>
-            <Select
+            <SafeSelect
               label="Ciclo para comparacao"
               value={comparisonEvaluationCycleId}
               options={comparisonCycleOptions.map((cycle) => cycle.id)}

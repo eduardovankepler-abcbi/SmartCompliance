@@ -36,6 +36,8 @@ export function EvaluationResponsePanel({
   setStrengthsNote,
   strengthsNote
 }) {
+  const SafeSelect = Select || (() => null);
+  const SafeTextarea = Textarea || (() => null);
   const workspaceCopy = getEvaluationWorkspaceCopy(
     activeEvaluationModuleMeta?.key,
     activeEvaluationWorkspace
@@ -121,8 +123,8 @@ export function EvaluationResponsePanel({
         <div className="stack-list">
           {activeEvaluationWorkspace === "respond" ? (
             <RespondView
-              Select={Select}
-              Textarea={Textarea}
+              Select={SafeSelect}
+              Textarea={SafeTextarea}
               activeEvaluationModuleMeta={activeEvaluationModuleMeta}
               answerForm={answerForm}
               assignmentDetail={assignmentDetail}
@@ -197,12 +199,14 @@ function RespondView({
   setStrengthsNote,
   strengthsNote
 }) {
+  const SafeSelect = Select || (() => null);
+  const SafeTextarea = Textarea || (() => null);
   const questionSections = groupQuestionsBySection(assignmentDetail?.template?.questions || []);
 
   if (isIndividualJourney && activeEvaluationModuleMeta?.relationshipType === "manager") {
     return (
       <ReceivedManagerFeedbackView
-        Textarea={Textarea}
+        Textarea={SafeTextarea}
         feedbackItems={filteredReceivedManagerFeedback}
         formatDate={formatDate}
         handleReceivedManagerFeedbackSubmit={handleReceivedManagerFeedbackSubmit}
@@ -305,8 +309,8 @@ function RespondView({
           {section.questions.map((question) => (
             <QuestionField
               key={question.id}
-              Select={Select}
-              Textarea={Textarea}
+              Select={SafeSelect}
+              Textarea={SafeTextarea}
               answerForm={answerForm}
               getVisibilityLabel={getVisibilityLabel}
               question={question}
@@ -318,7 +322,7 @@ function RespondView({
         </div>
       ))}
       {assignmentDetail.template.policy.showStrengthsNote ? (
-        <Textarea
+        <SafeTextarea
           label={workspaceCopy.strengthsLabel}
           value={strengthsNote}
           rows={3}
@@ -326,7 +330,7 @@ function RespondView({
         />
       ) : null}
       {assignmentDetail.template.policy.showDevelopmentNote ? (
-        <Textarea
+        <SafeTextarea
           label={workspaceCopy.developmentLabel}
           value={developmentNote}
           rows={3}
@@ -498,6 +502,8 @@ function QuestionField({
   setAnswerForm,
   workspaceCopy
 }) {
+  const SafeSelect = Select || (() => null);
+  const SafeTextarea = Textarea || (() => null);
   const answerValue = answerForm[question.id] || {};
 
   return (
@@ -509,7 +515,7 @@ function QuestionField({
       <p className="muted">{question.prompt}</p>
       {question.helperText ? <p className="muted">{question.helperText}</p> : null}
       {question.inputType === "text" ? (
-        <Textarea
+        <SafeTextarea
           label="Resposta"
           value={answerValue.textValue ?? ""}
           rows={4}
@@ -559,7 +565,7 @@ function QuestionField({
       ) : (
         <>
           <div className="evaluation-question-controls">
-            <Select
+            <SafeSelect
               label="Resposta"
               value={String(answerValue.score ?? 3)}
               options={scale.map((item) => String(item.value))}
@@ -578,7 +584,7 @@ function QuestionField({
             />
           </div>
           {question.collectEvidenceOnExtreme ? (
-            <Textarea
+            <SafeTextarea
               label={workspaceCopy.evidenceLabel}
               value={answerValue.evidenceNote ?? ""}
               rows={3}

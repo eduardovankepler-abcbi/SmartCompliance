@@ -7,11 +7,20 @@ import {
   DevelopmentSection
 } from "./sections/OperationsSections.jsx";
 
+const EmptyComponent = () => null;
+
 export function AppSceneRenderer(props) {
   const {
     activeSection,
     loading
   } = props;
+  const SafeDashboardSection = DashboardSection || EmptyComponent;
+  const SafeComplianceSection = ComplianceSection || EmptyComponent;
+  const SafeEvaluationsSection = EvaluationsSection || EmptyComponent;
+  const SafeDevelopmentSection = DevelopmentSection || EmptyComponent;
+  const SafeApplauseSection = ApplauseSection || EmptyComponent;
+  const SafePeopleSection = PeopleSection || EmptyComponent;
+  const SafeUsersSection = UsersSection || EmptyComponent;
 
   if (loading) {
     return null;
@@ -20,7 +29,7 @@ export function AppSceneRenderer(props) {
   switch (activeSection) {
     case "Dashboard":
       return (
-        <DashboardSection
+        <SafeDashboardSection
           BarMetricRow={props.BarMetricRow}
           ColumnMetricCard={props.ColumnMetricCard}
           DashboardDonut={props.DashboardDonut}
@@ -50,7 +59,7 @@ export function AppSceneRenderer(props) {
       );
     case "Compliance":
       return (
-        <ComplianceSection
+        <SafeComplianceSection
           IncidentQueueCard={props.IncidentQueueCard}
           Input={props.Input}
           Select={props.Select}
@@ -73,7 +82,7 @@ export function AppSceneRenderer(props) {
       );
     case "Avaliacoes":
       return (
-        <EvaluationsSection
+        <SafeEvaluationsSection
           Input={props.Input}
           Select={props.Select}
           Textarea={props.Textarea}
@@ -165,7 +174,7 @@ export function AppSceneRenderer(props) {
       );
     case "Desenvolvimento":
       return (
-        <DevelopmentSection
+        <SafeDevelopmentSection
           auditEntries={props.developmentAuditEntries}
           canViewAuditTrail={props.canViewAuditTrail}
           DevelopmentPlanAdminCard={props.DevelopmentPlanAdminCard}
@@ -205,7 +214,7 @@ export function AppSceneRenderer(props) {
       );
     case "Aplause":
       return (
-        <ApplauseSection
+        <SafeApplauseSection
           ApplauseAdminCard={props.ApplauseAdminCard}
           Input={props.Input}
           Select={props.Select}
@@ -225,7 +234,7 @@ export function AppSceneRenderer(props) {
       );
     case "Pessoas":
       return (
-        <PeopleSection
+        <SafePeopleSection
           AreaAdminCard={props.AreaAdminCard}
           Input={props.Input}
           PersonStructureCard={props.PersonStructureCard}
@@ -250,7 +259,7 @@ export function AppSceneRenderer(props) {
       );
     case "Usuarios":
       return (
-        <UsersSection
+        <SafeUsersSection
           Input={props.Input}
           Select={props.Select}
           UserAdminCard={props.UserAdminCard}
