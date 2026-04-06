@@ -60,6 +60,7 @@ import { useSession } from "./useSession";
 
 export default function App() {
   const [error, setError] = useState("");
+  const navigateToSection = (...args) => setActiveSection(...args);
 
   const {
     authError,
@@ -270,7 +271,7 @@ export default function App() {
     areas,
     people,
     reloadData,
-    setActiveSection,
+    setActiveSection: navigateToSection,
     setError,
     users
   });
@@ -334,7 +335,7 @@ export default function App() {
     auditTrail,
     people,
     reloadData,
-    setActiveSection,
+    setActiveSection: navigateToSection,
     setError,
     user
   });
