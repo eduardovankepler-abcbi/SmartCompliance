@@ -1,71 +1,93 @@
-import crypto from "crypto";
 import fs from "fs/promises";
 import mysql from "mysql2/promise";
 import path from "path";
 import { fileURLToPath } from "url";
 import { env } from "../config/env.js";
 import { evaluationLibrary, questionTemplate, seed } from "./mockData.js";
+import {
+  assertIncidentCreatePayload,
+  assertIncidentUpdatePayload,
+  buildIncidentAuditDetail,
+  resolveIncidentAssignment
+} from "./storeIncidentsDomain.js";
+import {
+  buildEvaluationAnswerRows,
+  buildEvaluationResponseBundle,
+  buildCycleConfigAuditDetail,
+  buildCycleCreatedAuditDetail,
+  buildCycleReminderAuditDetail,
+  buildCycleStatusAuditDetail,
+  buildFeedbackRequestCreateAuditDetail,
+  buildFeedbackRequestItems,
+  buildFeedbackRequestReviewAuditDetail,
+  filterReceivedManagerFeedback,
+  prepareEvaluationCycle,
+  prepareEvaluationSubmission,
+  prepareFeedbackRequest,
+  resolveCycleConfigUpdate
+} from "./storeEvaluationsDomain.js";
+import {
+  assertCanCreateApplause,
+  assertCanManageApplauseEntry,
+  assertCanManageDevelopmentSubject,
+  buildApplauseAuditDetail,
+  buildDevelopmentPlanAuditDetail,
+  buildDevelopmentRecordAuditDetail
+} from "./storeGrowthDomain.js";
+import {
+  prepareAreaMutation,
+  prepareCompetencyMutation,
+  preparePersonMutation
+} from "./storeRegistryDomain.js";
+import {
+  assertPersonHasNoLinkedUser,
+  assertUserPersonExists,
+  buildUserAuditDetail,
+  prepareUserWrite
+} from "./storeUsersDomain.js";
+import {
+  canAccessIncidents,
+  canManageCompetencies,
+  canManageIncidentQueue,
+  canManagePeople,
+  canManageUsers,
+  getAuditCategoriesForUser,
+  isAdminUser,
+  isAnonymousRelationship,
+  isComplianceUser,
+  isFullAccessUser,
+  isHrUser,
+  isManagerUser,
+  isOrgWideUser,
+  isReleasedCycle
+} from "./storeAccess.js";
+import {
+  AUDIT_CATEGORIES,
+  CYCLE_STATUS,
+  DEFAULT_CYCLE_MODULE_AVAILABILITY,
+  DEFAULT_EVALUATION_LIBRARY_DESCRIPTION,
+  DEFAULT_EVALUATION_LIBRARY_ID,
+  DEFAULT_EVALUATION_LIBRARY_NAME,
+  DEFAULT_WORK_MODE,
+  DEFAULT_WORK_UNIT,
+  FEEDBACK_ACKNOWLEDGEMENT_STATUS,
+  FEEDBACK_REQUEST_STATUS,
+  MIN_ANONYMOUS_AGGREGATE_RESPONSES,
+} from "./storeConstants.js";
+import { createId, hashPassword, verifyPasswordHash } from "./storeSecurity.js";
+import {
+  assertCycleStatusTransition,
+  assertValidApplauseStatus,
+  assertValidDevelopmentPlanStatus,
+  assertValidDevelopmentRecordStatus,
+  assertValidFeedbackRequestStatus,
+  normalizeAreaName,
+  normalizeOptionalText,
+  normalizeRequiredText,
+  normalizeWorkMode,
+  normalizeWorkUnit
+} from "./storeValidation.js";
 
-const ORG_WIDE_ROLES = ["admin", "hr", "compliance"];
-const INCIDENT_ACCESS_ROLES = ["admin", "hr", "compliance"];
-const MAX_APPLAUSE_PER_MONTH = 3;
-const MAX_RECIPROCAL_APPLAUSE = 2;
-const MIN_ANONYMOUS_AGGREGATE_RESPONSES = 3;
-const INCIDENT_STATUS = [
-  "Em triagem",
-  "Em apuracao",
-  "Aguardando retorno",
-  "Concluido"
-];
-const INCIDENT_CLASSIFICATION = [
-  "Conduta e Relacionamento",
-  "Integridade e Etica",
-  "Assedio e Respeito",
-  "Fraude e Desvio",
-  "Processos e Controles",
-  "Nao classificado"
-];
-const CYCLE_STATUS = {
-  planning: "Planejamento",
-  released: "Liberado",
-  closed: "Encerrado",
-  processed: "Processado"
-};
-const DEFAULT_CYCLE_MODULE_AVAILABILITY = Object.freeze({
-  self: true,
-  company: true,
-  leader: true,
-  manager: true,
-  peer: true,
-  "cross-functional": true,
-  "client-internal": true,
-  "client-external": true
-});
-const USER_ROLE_OPTIONS = ["admin", "hr", "manager", "employee", "compliance"];
-const USER_STATUS_OPTIONS = ["active", "inactive"];
-const EMPLOYMENT_TYPE_OPTIONS = ["internal", "consultant"];
-const COMPETENCY_STATUS_OPTIONS = ["active", "inactive"];
-const DEVELOPMENT_RECORD_STATUS_OPTIONS = ["active", "archived"];
-const DEVELOPMENT_PLAN_STATUS_OPTIONS = ["active", "completed", "archived"];
-const APPLAUSE_STATUS_OPTIONS = ["Validado", "Em revisao", "Arquivado"];
-const FEEDBACK_REQUEST_STATUS = {
-  pending: "pending",
-  approved: "approved",
-  rejected: "rejected"
-};
-const FEEDBACK_ACKNOWLEDGEMENT_STATUS = {
-  agreed: "agreed",
-  disagreed: "disagreed"
-};
-const AUDIT_CATEGORIES = {
-  user: "user",
-  competency: "competency",
-  incident: "incident",
-  cycle: "cycle",
-  feedbackRequest: "feedback_request",
-  applause: "applause",
-  development: "development"
-};
 const CUSTOM_LIBRARY_STORAGE_FILE = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "custom-libraries.json"
@@ -74,163 +96,11 @@ const ANONYMOUS_RESPONSE_STORAGE_FILE = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "anonymous-responses.json"
 );
-const DEFAULT_EVALUATION_LIBRARY_ID = "library_standard_02_2026";
-const DEFAULT_EVALUATION_LIBRARY_NAME = "Biblioteca padrao 02/2026";
-const DEFAULT_EVALUATION_LIBRARY_DESCRIPTION =
-  "Biblioteca oficial do ciclo, com os modelos base do produto.";
-const DEFAULT_WORK_UNIT = "Unidade principal";
-const DEFAULT_WORK_MODE = "hybrid";
-const WORK_MODE_OPTIONS = ["onsite", "hybrid", "remote"];
-
-const createId = (prefix) =>
-  `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
 
 const cloneSeed = () => JSON.parse(JSON.stringify(seed));
 
-const hashPassword = (value) =>
-  crypto.createHash("sha256").update(value).digest("hex");
-
-function safeCompare(left, right) {
-  const leftBuffer = Buffer.from(left || "", "utf8");
-  const rightBuffer = Buffer.from(right || "", "utf8");
-
-  if (leftBuffer.length !== rightBuffer.length) {
-    return false;
-  }
-
-  return crypto.timingSafeEqual(leftBuffer, rightBuffer);
-}
-
-function verifyPasswordHash(storedHash, password) {
-  if (!storedHash) {
-    return false;
-  }
-
-  if (storedHash.startsWith("pbkdf2$")) {
-    const [, iterationsRaw, salt, expectedHash] = storedHash.split("$");
-    const iterations = Number(iterationsRaw);
-    if (!iterations || !salt || !expectedHash) {
-      return false;
-    }
-
-    const derivedHash = crypto
-      .pbkdf2Sync(password, salt, iterations, 64, "sha512")
-      .toString("hex");
-
-    return safeCompare(derivedHash, expectedHash);
-  }
-
-  return safeCompare(hashPassword(password), storedHash);
-}
-
 function average(values) {
   return values.reduce((sum, value) => sum + Number(value), 0) / Math.max(values.length, 1);
-}
-
-function isOrgWideUser(user) {
-  return ORG_WIDE_ROLES.includes(user?.roleKey || "");
-}
-
-function isFullAccessUser(user) {
-  return isOrgWideUser(user);
-}
-
-function isManagerUser(user) {
-  return user?.roleKey === "manager";
-}
-
-function isHrUser(user) {
-  return user?.roleKey === "hr";
-}
-
-function isAdminUser(user) {
-  return user?.roleKey === "admin";
-}
-
-function canManagePeople(user) {
-  return ["admin", "hr"].includes(user?.roleKey || "");
-}
-
-function canManageCompetencies(user) {
-  return ["admin", "hr"].includes(user?.roleKey || "");
-}
-
-function canManageUsers(user) {
-  return ["admin", "hr"].includes(user?.roleKey || "");
-}
-
-function canAccessIncidents(user) {
-  return INCIDENT_ACCESS_ROLES.includes(user?.roleKey || "");
-}
-
-function isComplianceUser(user) {
-  return user?.roleKey === "compliance";
-}
-
-function canManageIncidentQueue(user) {
-  return ["admin", "hr", "compliance"].includes(user?.roleKey || "");
-}
-
-function getAuditCategoriesForUser(user) {
-  switch (user?.roleKey) {
-    case "admin":
-    case "hr":
-      return [
-        AUDIT_CATEGORIES.user,
-        AUDIT_CATEGORIES.competency,
-        AUDIT_CATEGORIES.incident,
-        AUDIT_CATEGORIES.cycle,
-        AUDIT_CATEGORIES.feedbackRequest,
-        AUDIT_CATEGORIES.applause,
-        AUDIT_CATEGORIES.development
-      ];
-    case "compliance":
-      return [AUDIT_CATEGORIES.incident];
-    case "manager":
-      return [
-        AUDIT_CATEGORIES.cycle,
-        AUDIT_CATEGORIES.feedbackRequest,
-        AUDIT_CATEGORIES.applause,
-        AUDIT_CATEGORIES.development
-      ];
-    default:
-      return [];
-  }
-}
-
-function isAnonymousRelationship(relationshipType) {
-  return ["leader", "company", "client-internal", "client-external"].includes(
-    relationshipType
-  );
-}
-
-function isReleasedCycle(status) {
-  return status === CYCLE_STATUS.released;
-}
-
-function assertValidCycleStatus(status) {
-  if (!Object.values(CYCLE_STATUS).includes(status)) {
-    throw new Error("Status de ciclo invalido.");
-  }
-}
-
-function assertCycleStatusTransition(currentStatus, nextStatus) {
-  assertValidCycleStatus(nextStatus);
-
-  if (currentStatus === nextStatus) {
-    return;
-  }
-
-  const allowedTransitions = {
-    [CYCLE_STATUS.planning]: [CYCLE_STATUS.released, CYCLE_STATUS.closed],
-    [CYCLE_STATUS.released]: [CYCLE_STATUS.closed],
-    [CYCLE_STATUS.closed]: [CYCLE_STATUS.processed],
-    [CYCLE_STATUS.processed]: []
-  };
-
-  if (!(allowedTransitions[currentStatus] || []).includes(nextStatus)) {
-    throw new Error("Transicao de status do ciclo nao permitida.");
-  }
 }
 
 function presentCycleReportSnapshot(row) {
@@ -250,84 +120,6 @@ function presentCycleReportSnapshot(row) {
     questionAverages,
     generatedAt: row.generatedAt
   };
-}
-
-function assertValidIncidentClassification(classification) {
-  if (!INCIDENT_CLASSIFICATION.includes(classification)) {
-    throw new Error("Classificacao do caso invalida.");
-  }
-}
-
-function assertValidIncidentStatus(status) {
-  if (!INCIDENT_STATUS.includes(status)) {
-    throw new Error("Status do caso invalido.");
-  }
-}
-
-function assertValidUserRole(roleKey) {
-  if (!USER_ROLE_OPTIONS.includes(roleKey)) {
-    throw new Error("Nivel de acesso invalido.");
-  }
-}
-
-function assertValidUserStatus(status) {
-  if (!USER_STATUS_OPTIONS.includes(status)) {
-    throw new Error("Status de usuario invalido.");
-  }
-}
-
-function assertValidEmploymentType(employmentType) {
-  if (!EMPLOYMENT_TYPE_OPTIONS.includes(employmentType)) {
-    throw new Error("Vinculo da pessoa invalido.");
-  }
-}
-
-function assertValidDevelopmentRecordStatus(status) {
-  if (!DEVELOPMENT_RECORD_STATUS_OPTIONS.includes(status)) {
-    throw new Error("Status de desenvolvimento invalido.");
-  }
-}
-
-function assertValidDevelopmentPlanStatus(status) {
-  if (!DEVELOPMENT_PLAN_STATUS_OPTIONS.includes(status)) {
-    throw new Error("Status do PDI invalido.");
-  }
-}
-
-function assertValidApplauseStatus(status) {
-  if (!APPLAUSE_STATUS_OPTIONS.includes(status)) {
-    throw new Error("Status do Aplause invalido.");
-  }
-}
-
-function assertValidFeedbackRequestStatus(status) {
-  if (!Object.values(FEEDBACK_REQUEST_STATUS).includes(status)) {
-    throw new Error("Status da solicitacao de feedback invalido.");
-  }
-}
-
-function normalizeAreaName(value) {
-  return String(value || "")
-    .trim()
-    .toLowerCase();
-}
-
-function normalizeCompetencyName(value) {
-  return String(value || "").trim();
-}
-
-function normalizeCompetencyKey(value) {
-  return String(value || "")
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
-
-function assertValidCompetencyStatus(status) {
-  if (!COMPETENCY_STATUS_OPTIONS.includes(status)) {
-    throw new Error("Status da competencia invalido.");
-  }
 }
 
 function presentCompetency(competency) {
@@ -455,68 +247,6 @@ function filterPeopleForUser(people, user, areas = []) {
   }));
 }
 
-function normalizeWorkMode(value) {
-  const normalized = String(value || DEFAULT_WORK_MODE).trim().toLowerCase();
-  if (!WORK_MODE_OPTIONS.includes(normalized)) {
-    throw new Error("Modalidade de trabalho invalida.");
-  }
-  return normalized;
-}
-
-function normalizeWorkUnit(value) {
-  const normalized = String(value || "").trim();
-  return normalized || DEFAULT_WORK_UNIT;
-}
-
-function normalizeWorkContextPayload(payload) {
-  return {
-    workUnit: normalizeWorkUnit(payload.workUnit),
-    workMode: normalizeWorkMode(payload.workMode)
-  };
-}
-
-function normalizeRequiredText(value, fieldLabel) {
-  const normalized = String(value || "").trim();
-  if (!normalized) {
-    throw new Error(`${fieldLabel} obrigatorio(a).`);
-  }
-  return normalized;
-}
-
-function normalizeOptionalText(value) {
-  return String(value || "").trim();
-}
-
-function normalizePersonPayload(payload) {
-  const workContext = normalizeWorkContextPayload(payload);
-  const employmentType = normalizeRequiredText(payload.employmentType, "Vinculo");
-  assertValidEmploymentType(employmentType);
-
-  return {
-    name: normalizeRequiredText(payload.name, "Nome"),
-    roleTitle: normalizeRequiredText(payload.roleTitle, "Cargo"),
-    area: normalizeRequiredText(payload.area, "Area"),
-    workUnit: workContext.workUnit,
-    workMode: workContext.workMode,
-    managerPersonId: payload.managerPersonId || null,
-    employmentType
-  };
-}
-
-function normalizeAreaLeadershipFlag(value) {
-  if (typeof value === "string") {
-    const normalized = value.trim().toLowerCase();
-    if (["yes", "true", "1", "sim"].includes(normalized)) {
-      return true;
-    }
-    if (["no", "false", "0", ""].includes(normalized)) {
-      return false;
-    }
-  }
-
-  return Boolean(value);
-}
-
 function assignAreaLeadershipSnapshot(areas, personId, areaName, shouldLeadArea) {
   const nextAreaKey = normalizeAreaName(areaName);
 
@@ -540,31 +270,6 @@ function assignAreaLeadershipSnapshot(areas, personId, areaName, shouldLeadArea)
 
     return area;
   });
-}
-
-function normalizeUserEmail(value) {
-  const normalized = normalizeOptionalText(value).toLowerCase();
-  if (!normalized) {
-    throw new Error("Email do usuario obrigatorio.");
-  }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) {
-    throw new Error("Email do usuario invalido.");
-  }
-  return normalized;
-}
-
-function normalizeUserPassword(value, { required = false } = {}) {
-  const normalized = String(value || "").trim();
-  if (!normalized) {
-    if (required) {
-      throw new Error("Senha do usuario obrigatoria.");
-    }
-    return "";
-  }
-  if (normalized.length < 6) {
-    throw new Error("Senha do usuario deve ter pelo menos 6 caracteres.");
-  }
-  return normalized;
 }
 
 function isSameWorkUnit(leftPerson, rightPerson) {
@@ -2748,96 +2453,12 @@ function assertCanCreateFeedbackRequest(db, actorUser, payload) {
   return uniqueProviderIds;
 }
 
-function assertCanCreateDevelopmentRecord(actorUser, people, personId) {
-  const actorPersonId = actorUser.person?.id || actorUser.personId;
-
-  if (isOrgWideUser(actorUser)) {
-    return;
-  }
-
-  if (
-    isManagerUser(actorUser) &&
-    (actorPersonId === personId ||
-      people.some((person) => person.id === personId && person.managerPersonId === actorPersonId))
-  ) {
-    return;
-  }
-
-  if (actorPersonId !== personId) {
-    throw new Error("Voce so pode registrar desenvolvimento no proprio perfil ou na sua equipe.");
-  }
-}
-
 function assertCanCreateDevelopmentPlan(actorUser, people, personId) {
-  assertCanCreateDevelopmentRecord(actorUser, people, personId);
-}
-
-function isSameMonth(firstDate, secondDate) {
-  const first = new Date(firstDate);
-  const second = new Date(secondDate);
-  return (
-    first.getUTCFullYear() === second.getUTCFullYear() &&
-    first.getUTCMonth() === second.getUTCMonth()
-  );
-}
-
-function assertCanCreateApplause(existingEntries, payload) {
-  if (payload.senderPersonId === payload.receiverPersonId) {
-    throw new Error("Nao e permitido enviar Aplause para si mesmo.");
-  }
-
-  if (!payload.contextNote?.trim() || payload.contextNote.trim().length < 20) {
-    throw new Error("O contexto do Aplause precisa ter pelo menos 20 caracteres.");
-  }
-
-  const now = new Date().toISOString();
-  const sentThisMonth = existingEntries.filter(
-    (entry) =>
-      entry.senderPersonId === payload.senderPersonId && isSameMonth(entry.createdAt, now)
-  );
-
-  if (sentThisMonth.length >= MAX_APPLAUSE_PER_MONTH) {
-    throw new Error("Limite mensal de Aplause por pessoa atingido.");
-  }
-
-  const reciprocalEntries = existingEntries.filter(
-    (entry) =>
-      entry.senderPersonId === payload.receiverPersonId &&
-      entry.receiverPersonId === payload.senderPersonId
-  );
-
-  if (reciprocalEntries.length >= MAX_RECIPROCAL_APPLAUSE) {
-    throw new Error("Padrao reciproco excessivo detectado para este Aplause.");
-  }
-}
-
-function canManageApplause(actorUser) {
-  return ["admin", "hr", "manager"].includes(actorUser?.roleKey || "");
-}
-
-function assertCanManageApplauseEntry(actorUser, people, entry) {
-  if (!canManageApplause(actorUser)) {
-    throw new Error("Perfil sem permissao para atualizar Aplause.");
-  }
-
-  if (isOrgWideUser(actorUser)) {
-    return;
-  }
-
-  const actorPersonId = actorUser.person?.id || actorUser.personId;
-  const visiblePersonIds = new Set([
-    actorPersonId,
-    ...getTeamPeople(people, actorPersonId).map((item) => item.id)
-  ]);
-
-  if (
-    visiblePersonIds.has(entry.senderPersonId) ||
-    visiblePersonIds.has(entry.receiverPersonId)
-  ) {
-    return;
-  }
-
-  throw new Error("Voce so pode atualizar Aplause do seu proprio escopo.");
+  assertCanManageDevelopmentSubject(actorUser, people, personId, {
+    isOrgWideUser,
+    isManagerUser,
+    getTeamPeople
+  });
 }
 
 async function loadCustomLibraryState() {
@@ -3243,33 +2864,11 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         throw new Error("Perfil sem permissao para cadastrar competencias.");
       }
 
-      const normalizedName = normalizeCompetencyName(payload.name);
-      const normalizedKey = normalizeCompetencyKey(payload.key || payload.name);
-      if (!normalizedName) {
-        throw new Error("Nome da competencia nao informado.");
-      }
-      if (!normalizedKey) {
-        throw new Error("Chave da competencia invalida.");
-      }
-
-      assertValidCompetencyStatus(payload.status || "active");
-
-      if (
-        db.competencies.some(
-          (item) =>
-            normalizeCompetencyName(item.name).toLowerCase() === normalizedName.toLowerCase() ||
-            normalizeCompetencyKey(item.key) === normalizedKey
-        )
-      ) {
-        throw new Error("Ja existe uma competencia com este nome ou chave.");
-      }
+      const competencyData = prepareCompetencyMutation(db.competencies, payload);
 
       const competency = {
         id: createId("competency"),
-        key: normalizedKey,
-        name: normalizedName,
-        description: String(payload.description || "").trim(),
-        status: payload.status || "active"
+        ...competencyData
       };
       db.competencies.unshift(competency);
       pushAuditLog(db.auditLogs, {
@@ -3294,32 +2893,14 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         throw new Error("Competencia nao encontrada.");
       }
 
-      const normalizedName = normalizeCompetencyName(payload.name);
-      const normalizedKey = normalizeCompetencyKey(payload.key || payload.name);
-      if (!normalizedName) {
-        throw new Error("Nome da competencia nao informado.");
-      }
-      if (!normalizedKey) {
-        throw new Error("Chave da competencia invalida.");
-      }
+      const competencyData = prepareCompetencyMutation(db.competencies, payload, {
+        competencyId
+      });
 
-      assertValidCompetencyStatus(payload.status || "active");
-
-      if (
-        db.competencies.some(
-          (item) =>
-            item.id !== competencyId &&
-            (normalizeCompetencyName(item.name).toLowerCase() === normalizedName.toLowerCase() ||
-              normalizeCompetencyKey(item.key) === normalizedKey)
-        )
-      ) {
-        throw new Error("Ja existe uma competencia com este nome ou chave.");
-      }
-
-      competency.name = normalizedName;
-      competency.key = normalizedKey;
-      competency.description = String(payload.description || "").trim();
-      competency.status = payload.status || "active";
+      competency.name = competencyData.name;
+      competency.key = competencyData.key;
+      competency.description = competencyData.description;
+      competency.status = competencyData.status;
       pushAuditLog(db.auditLogs, {
         category: AUDIT_CATEGORIES.competency,
         action: "updated",
@@ -3337,23 +2918,17 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         throw new Error("Perfil sem permissao para cadastrar areas.");
       }
 
-      const normalizedName = payload.name?.trim();
-      if (!normalizedName) {
-        throw new Error("Nome da area nao informado.");
-      }
-
-      if (db.areas.some((area) => normalizeAreaName(area.name) === normalizeAreaName(normalizedName))) {
-        throw new Error("Ja existe uma area com este nome.");
-      }
-
-      if (payload.managerPersonId !== undefined) {
-        assertValidAreaManagerReference(db.people, payload.managerPersonId);
-      }
+      const areaMutation = prepareAreaMutation({
+        areas: db.areas,
+        payload,
+        people: db.people,
+        assertValidAreaManagerReference
+      });
 
       const area = {
         id: createId("area"),
-        name: normalizedName,
-        managerPersonId: payload.managerPersonId || null
+        name: areaMutation.normalizedName,
+        managerPersonId: areaMutation.managerPersonId || null
       };
       db.areas.unshift(area);
       return enrichArea(db.people, area);
@@ -3368,28 +2943,18 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         throw new Error("Area nao encontrada.");
       }
 
-      const normalizedName = payload.name?.trim();
-      if (!normalizedName) {
-        throw new Error("Nome da area nao informado.");
-      }
-
-      if (
-        db.areas.some(
-          (item) =>
-            item.id !== areaId && normalizeAreaName(item.name) === normalizeAreaName(normalizedName)
-        )
-      ) {
-        throw new Error("Ja existe uma area com este nome.");
-      }
-
-      if (payload.managerPersonId !== undefined) {
-        assertValidAreaManagerReference(db.people, payload.managerPersonId);
-      }
+      const areaMutation = prepareAreaMutation({
+        areaId,
+        areas: db.areas,
+        payload,
+        people: db.people,
+        assertValidAreaManagerReference
+      });
 
       const previousName = area.name;
-      area.name = normalizedName;
-      if (payload.managerPersonId !== undefined) {
-        area.managerPersonId = payload.managerPersonId || null;
+      area.name = areaMutation.normalizedName;
+      if (areaMutation.managerPersonId !== undefined) {
+        area.managerPersonId = areaMutation.managerPersonId;
       }
 
       if (previousName !== area.name) {
@@ -3410,11 +2975,15 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         throw new Error("Perfil sem permissao para cadastrar pessoas.");
       }
 
-      const personPayload = normalizePersonPayload(payload);
-      const shouldLeadArea = normalizeAreaLeadershipFlag(payload.isAreaManager);
-      assertValidManagerReference(db.people, personPayload.managerPersonId);
-      assertNoDuplicatePersonProfile(db.people, personPayload);
-      assertValidAreaReference(db.areas, personPayload.area);
+      const { personPayload, shouldLeadArea } = preparePersonMutation({
+        areas: db.areas,
+        payload,
+        people: db.people,
+        assertNoDuplicatePersonProfile,
+        assertNoManagerCycle,
+        assertValidAreaReference,
+        assertValidManagerReference
+      });
 
       const person = {
         id: createId("person"),
@@ -3440,14 +3009,18 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         throw new Error("Pessoa nao encontrada.");
       }
 
-      const personPayload = normalizePersonPayload({
-        ...payload
+      const { personPayload, shouldLeadArea } = preparePersonMutation({
+        areaId: personId,
+        areas: db.areas,
+        payload: {
+          ...payload
+        },
+        people: db.people,
+        assertNoDuplicatePersonProfile,
+        assertNoManagerCycle,
+        assertValidAreaReference,
+        assertValidManagerReference
       });
-      const shouldLeadArea = normalizeAreaLeadershipFlag(payload.isAreaManager);
-      assertValidManagerReference(db.people, personPayload.managerPersonId, personId);
-      assertNoManagerCycle(db.people, personPayload.managerPersonId, personId);
-      assertNoDuplicatePersonProfile(db.people, personPayload, personId);
-      assertValidAreaReference(db.areas, personPayload.area);
 
       Object.assign(person, personPayload);
       db.areas = assignAreaLeadershipSnapshot(
@@ -3474,31 +3047,19 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         throw new Error("Perfil sem permissao para cadastrar usuarios.");
       }
 
-      const email = normalizeUserEmail(payload.email);
-      const password = normalizeUserPassword(payload.password, { required: true });
-      assertValidUserRole(payload.roleKey);
-      assertValidUserStatus(payload.status);
-
       const person = db.people.find((item) => item.id === payload.personId);
-      if (!person) {
-        throw new Error("Pessoa vinculada nao encontrada.");
-      }
+      assertUserPersonExists(person);
+      assertPersonHasNoLinkedUser(db.users.some((item) => item.personId === payload.personId));
 
-      if (db.users.some((item) => item.personId === payload.personId)) {
-        throw new Error("Ja existe um usuario vinculado a esta pessoa.");
-      }
-
-      if (db.users.some((item) => item.email.toLowerCase() === email)) {
-        throw new Error("Ja existe um usuario com este email.");
-      }
+      const userData = prepareUserWrite(db.users, payload, { requirePassword: true });
 
       const user = {
         id: createId("user"),
         personId: payload.personId,
-        email,
-        passwordHash: hashPassword(password),
-        roleKey: payload.roleKey,
-        status: payload.status
+        email: userData.email,
+        passwordHash: hashPassword(userData.password),
+        roleKey: userData.roleKey,
+        status: userData.status
       };
       db.users.unshift(user);
       pushAuditLog(db.auditLogs, {
@@ -3509,7 +3070,7 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         entityLabel: person.name,
         actorUser,
         summary: `Usuario criado para ${person.name}`,
-        detail: `${payload.roleKey} · ${payload.status} · ${email}`
+        detail: buildUserAuditDetail(userData)
       });
       return toAdminUserRow(db, user);
     },
@@ -3518,25 +3079,18 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         throw new Error("Perfil sem permissao para atualizar usuarios.");
       }
 
-      assertValidUserRole(payload.roleKey);
-      assertValidUserStatus(payload.status);
-
       const user = db.users.find((item) => item.id === userId);
       if (!user) {
         throw new Error("Usuario nao encontrado.");
       }
 
-      const email = normalizeUserEmail(payload.email);
-      const password = normalizeUserPassword(payload.password);
-      if (db.users.some((item) => item.id !== userId && item.email.toLowerCase() === email)) {
-        throw new Error("Ja existe um usuario com este email.");
-      }
+      const userData = prepareUserWrite(db.users, payload, { userId });
 
-      user.email = email;
-      user.roleKey = payload.roleKey;
-      user.status = payload.status;
-      if (password) {
-        user.passwordHash = hashPassword(password);
+      user.email = userData.email;
+      user.roleKey = userData.roleKey;
+      user.status = userData.status;
+      if (userData.password) {
+        user.passwordHash = hashPassword(userData.password);
       }
 
       const person = db.people.find((item) => item.id === user.personId);
@@ -3548,7 +3102,7 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         entityLabel: person?.name || user.email,
         actorUser,
         summary: `Acesso atualizado para ${person?.name || user.email}`,
-        detail: `${payload.roleKey} · ${payload.status} · ${email}${password ? " · senha redefinida" : ""}`
+        detail: buildUserAuditDetail(userData)
       });
 
       return toAdminUserRow(db, user);
@@ -3563,26 +3117,27 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
       return db.incidents.map((incident) => enrichIncident(incident, db.people, db.areas));
     },
     async createIncident(payload, actorUser) {
-      assertValidIncidentClassification(payload.classification);
-      assertValidIncidentArea(db.areas, payload.responsibleArea);
-      assertValidIncidentAssignee(db.people, payload.assignedPersonId);
-
-      const area = db.areas.find(
-        (item) => normalizeAreaName(item.name) === normalizeAreaName(payload.responsibleArea)
-      );
-      const assignedPerson =
-        db.people.find((person) => person.id === payload.assignedPersonId) ||
-        db.people.find((person) => person.id === area?.managerPersonId) ||
-        null;
+      assertIncidentCreatePayload({
+        areas: db.areas,
+        people: db.people,
+        payload,
+        assertValidIncidentArea,
+        assertValidIncidentAssignee
+      });
+      const incidentRouting = resolveIncidentAssignment({
+        areas: db.areas,
+        people: db.people,
+        payload
+      });
 
       const incident = {
         id: createId("incident"),
         status: "Em triagem",
         createdAt: new Date().toISOString(),
         ...payload,
-        responsibleArea: area?.name || payload.responsibleArea,
-        assignedPersonId: assignedPerson?.id || null,
-        assignedTo: assignedPerson?.name || area?.managerName || "Nao definido"
+        responsibleArea: incidentRouting.responsibleArea,
+        assignedPersonId: incidentRouting.assignedPersonId,
+        assignedTo: incidentRouting.assignedTo
       };
       db.incidents.unshift(incident);
       pushAuditLog(db.auditLogs, {
@@ -3593,7 +3148,11 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         entityLabel: incident.title,
         actorUser,
         summary: `Relato registrado: ${incident.title}`,
-        detail: `${incident.classification} · Area: ${incident.responsibleArea} · Responsavel inicial: ${incident.assignedTo}`
+        detail: buildIncidentAuditDetail({
+          classification: incident.classification,
+          responsibleArea: incident.responsibleArea,
+          assignedTo: incident.assignedTo
+        })
       });
       return enrichIncident(incident, db.people, db.areas);
     },
@@ -3607,24 +3166,24 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         throw new Error("Caso de compliance nao encontrado.");
       }
 
-      assertValidIncidentClassification(payload.classification);
-      assertValidIncidentStatus(payload.status);
-      assertValidIncidentArea(db.areas, payload.responsibleArea);
-      assertValidIncidentAssignee(db.people, payload.assignedPersonId);
-
-      const area = db.areas.find(
-        (item) => normalizeAreaName(item.name) === normalizeAreaName(payload.responsibleArea)
-      );
-      const assignedPerson =
-        db.people.find((person) => person.id === payload.assignedPersonId) ||
-        db.people.find((person) => person.id === area?.managerPersonId) ||
-        null;
+      assertIncidentUpdatePayload({
+        areas: db.areas,
+        people: db.people,
+        payload,
+        assertValidIncidentArea,
+        assertValidIncidentAssignee
+      });
+      const incidentRouting = resolveIncidentAssignment({
+        areas: db.areas,
+        people: db.people,
+        payload
+      });
 
       incident.classification = payload.classification;
       incident.status = payload.status;
-      incident.responsibleArea = area?.name || payload.responsibleArea;
-      incident.assignedPersonId = assignedPerson?.id || null;
-      incident.assignedTo = assignedPerson?.name || area?.managerName || "Nao definido";
+      incident.responsibleArea = incidentRouting.responsibleArea;
+      incident.assignedPersonId = incidentRouting.assignedPersonId;
+      incident.assignedTo = incidentRouting.assignedTo;
 
       pushAuditLog(db.auditLogs, {
         category: AUDIT_CATEGORIES.incident,
@@ -3634,7 +3193,12 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         entityLabel: incident.title,
         actorUser,
         summary: `Caso atualizado: ${incident.title}`,
-        detail: `${incident.status} · ${incident.classification} · Area: ${incident.responsibleArea} · Responsavel: ${incident.assignedTo}`
+        detail: buildIncidentAuditDetail({
+          status: incident.status,
+          classification: incident.classification,
+          responsibleArea: incident.responsibleArea,
+          assignedTo: incident.assignedTo
+        })
       });
 
       return enrichIncident(incident, db.people, db.areas);
@@ -3729,16 +3293,12 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         throw new Error("Biblioteca selecionada nao foi encontrada.");
       }
 
-      const cycle = {
-        id: createId("cycle"),
-        ...payload,
-        templateId: questionTemplate.id,
-        libraryId: selectedLibrary?.id || DEFAULT_EVALUATION_LIBRARY_ID,
-        libraryName: selectedLibrary?.name || DEFAULT_EVALUATION_LIBRARY_NAME,
-        isEnabled: true,
-        moduleAvailability: { ...DEFAULT_CYCLE_MODULE_AVAILABILITY },
-        status: CYCLE_STATUS.planning
-      };
+      const cycle = prepareEvaluationCycle({
+        payload,
+        createId,
+        questionTemplateId: questionTemplate.id,
+        selectedLibrary
+      });
       db.cycles.unshift(cycle);
 
       const generatedAssignments = generateAssignments({
@@ -3757,7 +3317,10 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         entityLabel: cycle.title,
         actorUser,
         summary: `Ciclo criado: ${cycle.title}`,
-        detail: `${cycle.semesterLabel} · ${generatedAssignments.length} assignments distribuidos`
+        detail: buildCycleCreatedAuditDetail({
+          semesterLabel: cycle.semesterLabel,
+          assignmentCount: generatedAssignments.length
+        })
       });
 
       return {
@@ -3811,7 +3374,7 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         entityLabel: cycle.title,
         actorUser,
         summary: `Lembrete enviado para inadimplentes: ${cycle.title}`,
-        detail: `${delinquentAssignments.length} assignments vencidos sinalizados manualmente.`
+        detail: buildCycleReminderAuditDetail(delinquentAssignments.length)
       });
 
       return {
@@ -3850,7 +3413,7 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         entityLabel: cycle.title,
         actorUser,
         summary: `Status do ciclo atualizado: ${cycle.title}`,
-        detail: `${previousStatus} -> ${nextStatus}`
+        detail: buildCycleStatusAuditDetail(previousStatus, nextStatus)
       });
       return { ...presentCycle(cycle), supportsConfig: true };
     },
@@ -3864,24 +3427,15 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         throw new Error("Ciclo de avaliacao nao encontrado.");
       }
 
-      if (payload?.isEnabled !== undefined) {
-        cycle.isEnabled = Boolean(payload.isEnabled);
+      const currentModuleAvailability = normalizeCycleModuleAvailability(cycle.moduleAvailability);
+      const cycleConfigUpdate = resolveCycleConfigUpdate(currentModuleAvailability, payload);
+
+      if (cycleConfigUpdate.nextIsEnabled !== undefined) {
+        cycle.isEnabled = cycleConfigUpdate.nextIsEnabled;
       }
 
-      if (payload?.moduleAvailability) {
-        if (typeof payload.moduleAvailability !== "object") {
-          throw new Error("moduleAvailability precisa ser um objeto.");
-        }
-
-        const allowedKeys = Object.keys(DEFAULT_CYCLE_MODULE_AVAILABILITY);
-        const current = normalizeCycleModuleAvailability(cycle.moduleAvailability);
-        for (const [relationshipType, enabled] of Object.entries(payload.moduleAvailability)) {
-          if (!allowedKeys.includes(relationshipType)) {
-            throw new Error("Relacionamento de questionario invalido.");
-          }
-          current[relationshipType] = Boolean(enabled);
-        }
-        cycle.moduleAvailability = current;
+      if (cycleConfigUpdate.nextModuleAvailability) {
+        cycle.moduleAvailability = cycleConfigUpdate.nextModuleAvailability;
       }
 
       pushAuditLog(db.auditLogs, {
@@ -3892,7 +3446,7 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         entityLabel: cycle.title,
         actorUser,
         summary: `Configuracao do ciclo atualizada: ${cycle.title}`,
-        detail: `Ativo: ${cycle.isEnabled ? "sim" : "nao"} · Questionarios configurados`
+        detail: buildCycleConfigAuditDetail(cycle.isEnabled)
       });
 
       return presentCycle(cycle);
@@ -3926,28 +3480,22 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
       return enrichAssignment(db, assignment, customLibraryState.published);
     },
     async getEvaluationResponses(actorUser) {
-      const responses = [
-        ...db.submissions.map((item) => enrichSubmission(db, item, customLibraryState.published)),
-        ...anonymousResponseState.responses
-      ];
-      return buildResponsesBundle(responses, actorUser, {
+      return buildEvaluationResponseBundle({
+        submissions: db.submissions,
+        anonymousResponses: anonymousResponseState.responses,
+        buildSubmission: (item) => enrichSubmission(db, item, customLibraryState.published),
+        actorUser,
+        buildResponsesBundle,
         cycles: db.cycles,
         cycleReports: db.cycleReports.map((item) => presentCycleReportSnapshot(item))
       });
     },
     async getReceivedManagerFeedback(actorUser) {
-      return db.submissions
-        .map((item) => enrichSubmission(db, item, customLibraryState.published))
-        .filter(
-          (submission) =>
-            submission.relationshipType === "manager" &&
-            submission.revieweePersonId === actorUser?.person?.id
-        )
-        .sort((left, right) => {
-          const rightDate = right?.submittedAt ? new Date(right.submittedAt).getTime() : 0;
-          const leftDate = left?.submittedAt ? new Date(left.submittedAt).getTime() : 0;
-          return rightDate - leftDate;
-        });
+      return filterReceivedManagerFeedback({
+        submissions: db.submissions,
+        actorUser,
+        buildSubmission: (item) => enrichSubmission(db, item, customLibraryState.published)
+      });
     },
     async getFeedbackRequests(actorUser) {
       return filterFeedbackRequestsForUser(db, actorUser);
@@ -3956,24 +3504,22 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
       const providerPersonIds = assertCanCreateFeedbackRequest(db, actorUser, payload);
 
       const request = {
-        id: createId("feedback_request"),
-        cycleId: payload.cycleId,
-        requesterUserId: actorUser.id,
-        revieweePersonId: actorUser.person.id,
-        status: FEEDBACK_REQUEST_STATUS.pending,
-        contextNote: payload.contextNote.trim(),
-        requestedAt: new Date().toISOString(),
+        ...prepareFeedbackRequest({
+          payload,
+          actorUser,
+          createId,
+          requestedAt: new Date().toISOString()
+        }),
         decidedAt: null,
         decidedByUserId: null
       };
       db.feedbackRequests.unshift(request);
 
-      const items = providerPersonIds.map((providerPersonId) => ({
-        id: createId("feedback_request_item"),
+      const items = buildFeedbackRequestItems({
+        providerPersonIds,
         requestId: request.id,
-        providerPersonId,
-        assignmentId: null
-      }));
+        createId
+      });
       db.feedbackRequestItems.unshift(...items);
 
       pushAuditLog(db.auditLogs, {
@@ -3984,7 +3530,7 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         entityLabel: actorUser.person?.name || actorUser.email,
         actorUser,
         summary: `Solicitacao de feedback direto registrada`,
-        detail: `${providerPersonIds.length} fornecedores sugeridos · Ciclo ${request.cycleId}`
+        detail: buildFeedbackRequestCreateAuditDetail(providerPersonIds, request.cycleId)
       });
 
       return presentFeedbackRequest(db, request);
@@ -4060,7 +3606,7 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
           payload.status === FEEDBACK_REQUEST_STATUS.approved
             ? "Solicitacao de feedback aprovada"
             : "Solicitacao de feedback rejeitada",
-        detail: `Ciclo ${request.cycleId} · Contexto: ${request.contextNote}`
+        detail: buildFeedbackRequestReviewAuditDetail(request)
       });
 
       return presentFeedbackRequest(db, request);
@@ -4115,35 +3661,19 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         return anonymousSubmission;
       }
 
-      const scaleScores = getAnsweredScaleScores(payload.answers);
-      const overallScore = scaleScores.length ? Number(average(scaleScores).toFixed(2)) : null;
-      const submission = {
-        id: createId("submission"),
-        assignmentId: assignment.id,
-        cycleId: assignment.cycleId,
-        reviewerUserId: payload.reviewerUserId,
-        revieweePersonId: assignment.revieweePersonId,
-        overallScore,
-        strengthsNote: payload.strengthsNote || "",
-        developmentNote: payload.developmentNote || "",
-        submittedAt: new Date().toISOString()
-      };
+      const submission = prepareEvaluationSubmission({
+        assignment,
+        payload,
+        createId,
+        getAnsweredScaleScores,
+        average
+      });
 
-      const answerRows = payload.answers.map((answer) => {
-        const question = templateDefinition.questions.find(
-          (item) => item.id === answer.questionId
-        );
-
-        return {
-          id: createId("answer"),
-          submissionId: submission.id,
-          questionId: answer.questionId,
-          score: Number.isFinite(Number(answer.score)) ? Number(answer.score) : null,
-          evidenceNote: answer.evidenceNote || "",
-          textValue: answer.textValue || "",
-          selectedOptions: Array.isArray(answer.selectedOptions) ? answer.selectedOptions : [],
-          answerType: question?.inputType || "scale"
-        };
+      const answerRows = buildEvaluationAnswerRows({
+        answers: payload.answers,
+        templateDefinition,
+        submissionId: submission.id,
+        createId
       });
 
       db.submissions.unshift(submission);
@@ -4246,7 +3776,11 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         entityLabel: applause.category,
         actorUser: db.users.find((user) => user.personId === applause.senderPersonId) || null,
         summary: `Aplause registrado para ${receiver?.name || "colaborador"}`,
-        detail: `${applause.category} · ${sender?.name || "-"} -> ${receiver?.name || "-"}`
+        detail: buildApplauseAuditDetail({
+          category: applause.category,
+          senderName: sender?.name,
+          receiverName: receiver?.name
+        })
       });
       return {
         ...applause,
@@ -4260,7 +3794,10 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         throw new Error("Registro de Aplause nao encontrado.");
       }
 
-      assertCanManageApplauseEntry(actorUser, db.people, applause);
+      assertCanManageApplauseEntry(actorUser, db.people, applause, {
+        isOrgWideUser,
+        getTeamPeople
+      });
       assertValidApplauseStatus(payload.status);
 
       applause.receiverPersonId = payload.receiverPersonId;
@@ -4282,7 +3819,11 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
           payload.status === "Arquivado"
             ? `Aplause arquivado para ${receiver?.name || "colaborador"}`
             : `Aplause atualizado para ${receiver?.name || "colaborador"}`,
-        detail: `${applause.category} · ${sender?.name || "-"} -> ${receiver?.name || "-"}`
+        detail: buildApplauseAuditDetail({
+          category: applause.category,
+          senderName: sender?.name,
+          receiverName: receiver?.name
+        })
       });
 
       return {
@@ -4318,7 +3859,11 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
       return records.filter((item) => item.personId === actorPersonId);
     },
     async createDevelopmentRecord(payload, actorUser) {
-      assertCanCreateDevelopmentRecord(actorUser, db.people, payload.personId);
+      assertCanManageDevelopmentSubject(actorUser, db.people, payload.personId, {
+        isOrgWideUser,
+        isManagerUser,
+        getTeamPeople
+      });
 
       const record = {
         id: createId("development"),
@@ -4336,7 +3881,7 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         entityLabel: record.title,
         actorUser,
         summary: `Registro de desenvolvimento criado para ${person?.name || "pessoa"}`,
-        detail: `${record.recordType} · ${record.providerName} · ${record.skillSignal}`
+        detail: buildDevelopmentRecordAuditDetail(record)
       });
       return record;
     },
@@ -4346,7 +3891,11 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         throw new Error("Registro de desenvolvimento nao encontrado.");
       }
 
-      assertCanCreateDevelopmentRecord(actorUser, db.people, payload.personId);
+      assertCanManageDevelopmentSubject(actorUser, db.people, payload.personId, {
+        isOrgWideUser,
+        isManagerUser,
+        getTeamPeople
+      });
       assertValidDevelopmentRecordStatus(payload.status);
 
       record.personId = payload.personId;
@@ -4371,7 +3920,7 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
           payload.status === "archived"
             ? `Registro de desenvolvimento arquivado para ${person?.name || "pessoa"}`
             : `Registro de desenvolvimento atualizado para ${person?.name || "pessoa"}`,
-        detail: `${record.recordType} · ${record.providerName} · ${record.skillSignal}`
+        detail: buildDevelopmentRecordAuditDetail(record)
       });
 
       return {
@@ -4435,7 +3984,7 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         entityLabel: plan.focusTitle,
         actorUser,
         summary: `PDI criado para ${person?.name || "pessoa"}`,
-        detail: `${plan.focusTitle} · Prazo ${plan.dueDate}`
+        detail: buildDevelopmentPlanAuditDetail(plan)
       });
       return enrichDevelopmentPlan(plan, db.people, db.cycles, db.competencies);
     },
@@ -4479,7 +4028,7 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
           payload.status === "archived"
             ? `PDI arquivado para ${person?.name || "pessoa"}`
             : `PDI atualizado para ${person?.name || "pessoa"}`,
-        detail: `${plan.focusTitle} · Prazo ${plan.dueDate}`
+        detail: buildDevelopmentPlanAuditDetail(plan)
       });
 
       return enrichDevelopmentPlan(plan, db.people, db.cycles, db.competencies);
@@ -4677,34 +4226,12 @@ function buildMysqlStore(
         throw new Error("Perfil sem permissao para cadastrar competencias.");
       }
 
-      const normalizedName = normalizeCompetencyName(payload.name);
-      const normalizedKey = normalizeCompetencyKey(payload.key || payload.name);
-      if (!normalizedName) {
-        throw new Error("Nome da competencia nao informado.");
-      }
-      if (!normalizedKey) {
-        throw new Error("Chave da competencia invalida.");
-      }
-
-      assertValidCompetencyStatus(payload.status || "active");
-
       const existing = await fetchCompetencyRows(pool);
-      if (
-        existing.some(
-          (item) =>
-            normalizeCompetencyName(item.name).toLowerCase() === normalizedName.toLowerCase() ||
-            normalizeCompetencyKey(item.key) === normalizedKey
-        )
-      ) {
-        throw new Error("Ja existe uma competencia com este nome ou chave.");
-      }
+      const competencyData = prepareCompetencyMutation(existing, payload);
 
       const competency = {
         id: createId("competency"),
-        key: normalizedKey,
-        name: normalizedName,
-        description: String(payload.description || "").trim(),
-        status: payload.status || "active"
+        ...competencyData
       };
 
       await pool.query(
@@ -4731,39 +4258,27 @@ function buildMysqlStore(
         throw new Error("Perfil sem permissao para atualizar competencias.");
       }
 
-      const normalizedName = normalizeCompetencyName(payload.name);
-      const normalizedKey = normalizeCompetencyKey(payload.key || payload.name);
-      if (!normalizedName) {
-        throw new Error("Nome da competencia nao informado.");
-      }
-      if (!normalizedKey) {
-        throw new Error("Chave da competencia invalida.");
-      }
-
-      assertValidCompetencyStatus(payload.status || "active");
-
       const existing = await fetchCompetencyRows(pool);
       const competency = existing.find((item) => item.id === competencyId);
       if (!competency) {
         throw new Error("Competencia nao encontrada.");
       }
 
-      if (
-        existing.some(
-          (item) =>
-            item.id !== competencyId &&
-            (normalizeCompetencyName(item.name).toLowerCase() === normalizedName.toLowerCase() ||
-              normalizeCompetencyKey(item.key) === normalizedKey)
-        )
-      ) {
-        throw new Error("Ja existe uma competencia com este nome ou chave.");
-      }
+      const competencyData = prepareCompetencyMutation(existing, payload, {
+        competencyId
+      });
 
       await pool.query(
         `UPDATE competencies
          SET competency_key = ?, name = ?, description = ?, status = ?
          WHERE id = ?`,
-        [normalizedKey, normalizedName, String(payload.description || "").trim(), payload.status || "active", competencyId]
+        [
+          competencyData.key,
+          competencyData.name,
+          competencyData.description,
+          competencyData.status,
+          competencyId
+        ]
       );
 
       await persistAuditLog(pool, {
@@ -4771,18 +4286,15 @@ function buildMysqlStore(
         action: "updated",
         entityType: "competency",
         entityId: competencyId,
-        entityLabel: normalizedName,
+        entityLabel: competencyData.name,
         actorUser,
-        summary: `Competencia atualizada: ${normalizedName}`,
-        detail: `${normalizedKey} · ${payload.status || "active"}`
+        summary: `Competencia atualizada: ${competencyData.name}`,
+        detail: `${competencyData.key} · ${competencyData.status}`
       });
 
       return presentCompetency({
         ...competency,
-        key: normalizedKey,
-        name: normalizedName,
-        description: String(payload.description || "").trim(),
-        status: payload.status || "active"
+        ...competencyData
       });
     },
     async createArea(payload, actorUser) {
@@ -4790,24 +4302,18 @@ function buildMysqlStore(
         throw new Error("Perfil sem permissao para cadastrar areas.");
       }
 
-      const normalizedName = payload.name?.trim();
-      if (!normalizedName) {
-        throw new Error("Nome da area nao informado.");
-      }
-
       const [areas, people] = await Promise.all([fetchAreaRows(pool), fetchPeopleRows(pool)]);
-      if (areas.some((area) => normalizeAreaName(area.name) === normalizeAreaName(normalizedName))) {
-        throw new Error("Ja existe uma area com este nome.");
-      }
-
-      if (payload.managerPersonId !== undefined) {
-        assertValidAreaManagerReference(people, payload.managerPersonId);
-      }
+      const areaMutation = prepareAreaMutation({
+        areas,
+        payload,
+        people,
+        assertValidAreaManagerReference
+      });
 
       const area = {
         id: createId("area"),
-        name: normalizedName,
-        managerPersonId: payload.managerPersonId || null
+        name: areaMutation.normalizedName,
+        managerPersonId: areaMutation.managerPersonId || null
       };
 
       await pool.query(
@@ -4823,49 +4329,44 @@ function buildMysqlStore(
         throw new Error("Perfil sem permissao para atualizar areas.");
       }
 
-      const normalizedName = payload.name?.trim();
-      if (!normalizedName) {
-        throw new Error("Nome da area nao informado.");
-      }
-
       const [areas, people] = await Promise.all([fetchAreaRows(pool), fetchPeopleRows(pool)]);
       const area = areas.find((item) => item.id === areaId);
       if (!area) {
         throw new Error("Area nao encontrada.");
       }
 
-      if (
-        areas.some(
-          (item) =>
-            item.id !== areaId && normalizeAreaName(item.name) === normalizeAreaName(normalizedName)
-        )
-      ) {
-        throw new Error("Ja existe uma area com este nome.");
-      }
-
-      if (payload.managerPersonId !== undefined) {
-        assertValidAreaManagerReference(people, payload.managerPersonId);
-      }
+      const areaMutation = prepareAreaMutation({
+        areaId,
+        areas,
+        payload,
+        people,
+        assertValidAreaManagerReference
+      });
       const nextManagerPersonId =
-        payload.managerPersonId === undefined ? area.managerPersonId : payload.managerPersonId || null;
+        areaMutation.managerPersonId === undefined
+          ? area.managerPersonId
+          : areaMutation.managerPersonId;
 
       await pool.query(
         `UPDATE areas
          SET name = ?, manager_person_id = ?
          WHERE id = ?`,
-        [normalizedName, nextManagerPersonId, areaId]
+        [areaMutation.normalizedName, nextManagerPersonId, areaId]
       );
 
-      if (area.name !== normalizedName) {
-        await pool.query(`UPDATE people SET area = ? WHERE area = ?`, [normalizedName, area.name]);
+      if (area.name !== areaMutation.normalizedName) {
+        await pool.query(`UPDATE people SET area = ? WHERE area = ?`, [
+          areaMutation.normalizedName,
+          area.name
+        ]);
       }
 
       return enrichArea(people.map((person) => ({
         ...person,
-        area: person.area === area.name ? normalizedName : person.area
+        area: person.area === area.name ? areaMutation.normalizedName : person.area
       })), {
         ...area,
-        name: normalizedName,
+        name: areaMutation.normalizedName,
         managerPersonId: nextManagerPersonId
       });
     },
@@ -4878,12 +4379,16 @@ function buildMysqlStore(
         throw new Error("Perfil sem permissao para cadastrar pessoas.");
       }
 
-      const personPayload = normalizePersonPayload(payload);
-      const shouldLeadArea = normalizeAreaLeadershipFlag(payload.isAreaManager);
       const [people, areas] = await Promise.all([fetchPeopleRows(pool), fetchAreaRows(pool)]);
-      assertValidManagerReference(people, personPayload.managerPersonId);
-      assertNoDuplicatePersonProfile(people, personPayload);
-      assertValidAreaReference(areas, personPayload.area);
+      const { personPayload, shouldLeadArea } = preparePersonMutation({
+        areas,
+        payload,
+        people,
+        assertNoDuplicatePersonProfile,
+        assertNoManagerCycle,
+        assertValidAreaReference,
+        assertValidManagerReference
+      });
 
       const person = {
         id: createId("person"),
@@ -4954,14 +4459,18 @@ function buildMysqlStore(
         throw new Error("Pessoa nao encontrada.");
       }
 
-      const personPayload = normalizePersonPayload({
-        ...payload
+      const { personPayload, shouldLeadArea } = preparePersonMutation({
+        areaId: personId,
+        areas,
+        payload: {
+          ...payload
+        },
+        people,
+        assertNoDuplicatePersonProfile,
+        assertNoManagerCycle,
+        assertValidAreaReference,
+        assertValidManagerReference
       });
-      const shouldLeadArea = normalizeAreaLeadershipFlag(payload.isAreaManager);
-      assertValidManagerReference(people, personPayload.managerPersonId, personId);
-      assertNoManagerCycle(people, personPayload.managerPersonId, personId);
-      assertNoDuplicatePersonProfile(people, personPayload, personId);
-      assertValidAreaReference(areas, personPayload.area);
 
       try {
         await pool.query(
@@ -5061,10 +4570,7 @@ function buildMysqlStore(
         throw new Error("Perfil sem permissao para cadastrar usuarios.");
       }
 
-      const email = normalizeUserEmail(payload.email);
-      const password = normalizeUserPassword(payload.password, { required: true });
-      assertValidUserRole(payload.roleKey);
-      assertValidUserStatus(payload.status);
+      const userData = prepareUserWrite([], payload, { requirePassword: true });
 
       const [personRows] = await pool.query(
         `SELECT p.id, p.name, p.area, p.role_title AS roleTitle, p.work_unit AS workUnit,
@@ -5077,9 +4583,7 @@ function buildMysqlStore(
          LIMIT 1`,
         [payload.personId]
       );
-      if (!personRows[0]) {
-        throw new Error("Pessoa vinculada nao encontrada.");
-      }
+      assertUserPersonExists(personRows[0]);
 
       const [personUserRows] = await pool.query(
         `SELECT id
@@ -5088,34 +4592,30 @@ function buildMysqlStore(
          LIMIT 1`,
         [payload.personId]
       );
-      if (personUserRows[0]) {
-        throw new Error("Ja existe um usuario vinculado a esta pessoa.");
-      }
+      assertPersonHasNoLinkedUser(Boolean(personUserRows[0]));
 
       const [emailRows] = await pool.query(
-        `SELECT id
+        `SELECT id, email
          FROM users
-         WHERE email = ?
-         LIMIT 1`,
-        [email]
+         WHERE email = ? OR id = ?
+         LIMIT 2`,
+        [userData.email, "__no_user__"]
       );
-      if (emailRows[0]) {
-        throw new Error("Ja existe um usuario com este email.");
-      }
+      prepareUserWrite(emailRows, userData, { requirePassword: true });
 
       const user = {
         id: createId("user"),
         personId: payload.personId,
-        email,
-        roleKey: payload.roleKey,
-        status: payload.status
+        email: userData.email,
+        roleKey: userData.roleKey,
+        status: userData.status
       };
 
       await pool.query(
         `INSERT INTO users
          (id, person_id, email, password_hash, role_key, status)
          VALUES (?, ?, ?, ?, ?, ?)`,
-        [user.id, user.personId, user.email, hashPassword(password), user.roleKey, user.status]
+        [user.id, user.personId, user.email, hashPassword(userData.password), user.roleKey, user.status]
       );
 
       await insertAuditLog(pool, {
@@ -5126,7 +4626,7 @@ function buildMysqlStore(
         entityLabel: personRows[0].name,
         actorUser,
         summary: `Usuario criado para ${personRows[0].name}`,
-        detail: `${payload.roleKey} · ${payload.status} · ${email}`
+        detail: buildUserAuditDetail(userData)
       });
 
       return {
@@ -5145,11 +4645,7 @@ function buildMysqlStore(
         throw new Error("Perfil sem permissao para atualizar usuarios.");
       }
 
-      assertValidUserRole(payload.roleKey);
-      assertValidUserStatus(payload.status);
-
-      const email = normalizeUserEmail(payload.email);
-      const password = normalizeUserPassword(payload.password);
+      const userData = prepareUserWrite([], payload, { userId });
 
       const [rows] = await pool.query(
         `SELECT u.id, u.person_id AS personId, p.name AS personName, p.area AS personArea,
@@ -5170,29 +4666,27 @@ function buildMysqlStore(
       }
 
       const [emailRows] = await pool.query(
-        `SELECT id
+        `SELECT id, email
          FROM users
-         WHERE email = ? AND id <> ?
-         LIMIT 1`,
-        [email, userId]
+         WHERE email = ? OR id = ?
+         LIMIT 2`,
+        [userData.email, userId]
       );
-      if (emailRows[0]) {
-        throw new Error("Ja existe um usuario com este email.");
-      }
+      prepareUserWrite(emailRows, userData, { userId });
 
-      if (password) {
+      if (userData.password) {
         await pool.query(
           `UPDATE users
            SET email = ?, role_key = ?, status = ?, password_hash = ?
            WHERE id = ?`,
-          [email, payload.roleKey, payload.status, hashPassword(password), userId]
+          [userData.email, userData.roleKey, userData.status, hashPassword(userData.password), userId]
         );
       } else {
         await pool.query(
           `UPDATE users
            SET email = ?, role_key = ?, status = ?
            WHERE id = ?`,
-          [email, payload.roleKey, payload.status, userId]
+          [userData.email, userData.roleKey, userData.status, userId]
         );
       }
 
@@ -5204,7 +4698,7 @@ function buildMysqlStore(
         entityLabel: rows[0].personName,
         actorUser,
         summary: `Acesso atualizado para ${rows[0].personName}`,
-        detail: `${payload.roleKey} · ${payload.status} · ${email}${password ? " · senha redefinida" : ""}`
+        detail: buildUserAuditDetail(userData)
       });
 
       return {
@@ -5217,9 +4711,9 @@ function buildMysqlStore(
         personWorkMode: rows[0].personWorkMode || "",
         managerName: rows[0].managerName || "",
         areaManagerName: rows[0].areaManagerName || "",
-        email,
-        roleKey: payload.roleKey,
-        status: payload.status
+        email: userData.email,
+        roleKey: userData.roleKey,
+        status: userData.status
       };
     },
     async getSummary(actorUser) {
@@ -5339,27 +4833,18 @@ function buildMysqlStore(
       return rows.map((row) => enrichIncident(row, people, areas));
     },
     async createIncident(payload, actorUser) {
-      assertValidIncidentClassification(payload.classification);
       const [areas, people] = await Promise.all([fetchAreaRows(pool), fetchPeopleRows(pool)]);
-      assertValidIncidentArea(areas, payload.responsibleArea);
-      assertValidIncidentAssignee(people, payload.assignedPersonId);
-
-      const area = areas.find(
-        (item) => normalizeAreaName(item.name) === normalizeAreaName(payload.responsibleArea)
-      );
-      const assignedPerson =
-        people.find((person) => person.id === payload.assignedPersonId) ||
-        people.find((person) => person.id === area?.managerPersonId) ||
-        null;
+      assertIncidentCreatePayload(payload, areas, people);
+      const incidentRouting = resolveIncidentAssignment(payload, areas, people);
 
       const incident = {
         id: createId("incident"),
         status: "Em triagem",
         createdAt: new Date().toISOString(),
         ...payload,
-        responsibleArea: area?.name || payload.responsibleArea,
-        assignedPersonId: assignedPerson?.id || null,
-        assignedTo: assignedPerson?.name || area?.managerName || "Nao definido"
+        responsibleArea: incidentRouting.responsibleArea,
+        assignedPersonId: incidentRouting.assignedPersonId,
+        assignedTo: incidentRouting.assignedTo
       };
 
       await pool.query(
@@ -5390,7 +4875,11 @@ function buildMysqlStore(
         entityLabel: incident.title,
         actorUser,
         summary: `Relato registrado: ${incident.title}`,
-        detail: `${incident.classification} · Area: ${incident.responsibleArea} · Responsavel inicial: ${incident.assignedTo}`
+        detail: buildIncidentAuditDetail({
+          classification: incident.classification,
+          responsibleArea: incident.responsibleArea,
+          assignedTo: incident.assignedTo
+        })
       });
 
       return enrichIncident(incident, people, areas);
@@ -5400,19 +4889,9 @@ function buildMysqlStore(
         throw new Error("Perfil sem permissao para atualizar o caso.");
       }
 
-      assertValidIncidentClassification(payload.classification);
-      assertValidIncidentStatus(payload.status);
       const [areas, people] = await Promise.all([fetchAreaRows(pool), fetchPeopleRows(pool)]);
-      assertValidIncidentArea(areas, payload.responsibleArea);
-      assertValidIncidentAssignee(people, payload.assignedPersonId);
-
-      const area = areas.find(
-        (item) => normalizeAreaName(item.name) === normalizeAreaName(payload.responsibleArea)
-      );
-      const assignedPerson =
-        people.find((person) => person.id === payload.assignedPersonId) ||
-        people.find((person) => person.id === area?.managerPersonId) ||
-        null;
+      assertIncidentUpdatePayload(payload, areas, people);
+      const incidentRouting = resolveIncidentAssignment(payload, areas, people);
 
       const [rows] = await pool.query(
         `SELECT id
@@ -5433,9 +4912,9 @@ function buildMysqlStore(
         [
           payload.classification,
           payload.status,
-          area?.name || payload.responsibleArea,
-          assignedPerson?.id || null,
-          assignedPerson?.name || area?.managerName || "Nao definido",
+          incidentRouting.responsibleArea,
+          incidentRouting.assignedPersonId,
+          incidentRouting.assignedTo,
           incidentId
         ]
       );
@@ -5458,7 +4937,12 @@ function buildMysqlStore(
         entityLabel: updatedRows[0].title,
         actorUser,
         summary: `Caso atualizado: ${updatedRows[0].title}`,
-        detail: `${updatedRows[0].status} · ${updatedRows[0].classification} · Area: ${updatedRows[0].responsibleArea} · Responsavel: ${updatedRows[0].assignedTo}`
+        detail: buildIncidentAuditDetail({
+          status: updatedRows[0].status,
+          classification: updatedRows[0].classification,
+          responsibleArea: updatedRows[0].responsibleArea,
+          assignedTo: updatedRows[0].assignedTo
+        })
       });
 
       return enrichIncident(updatedRows[0], people, areas);
@@ -5583,16 +5067,12 @@ function buildMysqlStore(
         throw new Error("Biblioteca selecionada nao foi encontrada.");
       }
 
-      const cycle = {
-        id: createId("cycle"),
-        ...payload,
-        templateId: questionTemplate.id,
-        libraryId: selectedLibrary?.id || DEFAULT_EVALUATION_LIBRARY_ID,
-        libraryName: selectedLibrary?.name || DEFAULT_EVALUATION_LIBRARY_NAME,
-        isEnabled: true,
-        moduleAvailability: { ...DEFAULT_CYCLE_MODULE_AVAILABILITY },
-        status: CYCLE_STATUS.planning
-      };
+      const cycle = prepareEvaluationCycle({
+        payload,
+        createId,
+        questionTemplateId: questionTemplate.id,
+        selectedLibrary
+      });
       const users = await fetchUserRows(pool);
       const people = await fetchPeopleRows(pool);
       const generatedAssignments = generateAssignments({
@@ -5705,7 +5185,10 @@ function buildMysqlStore(
           entityLabel: cycle.title,
           actorUser,
           summary: `Ciclo criado: ${cycle.title}`,
-          detail: `${cycle.semesterLabel} · ${generatedAssignments.length} assignments distribuidos`
+          detail: buildCycleCreatedAuditDetail({
+            semesterLabel: cycle.semesterLabel,
+            assignmentCount: generatedAssignments.length
+          })
         });
 
         await connection.commit();
@@ -5812,7 +5295,7 @@ function buildMysqlStore(
           entityLabel: cycleRows[0].title,
           actorUser,
           summary: `Lembrete enviado para inadimplentes: ${cycleRows[0].title}`,
-          detail: `${delinquentAssignments.length} assignments vencidos sinalizados manualmente.`
+          detail: buildCycleReminderAuditDetail(delinquentAssignments.length)
         });
 
         await connection.commit();
@@ -5926,7 +5409,7 @@ function buildMysqlStore(
             nextStatus === CYCLE_STATUS.processed
               ? `Ciclo processado: ${updatedRows[0].title}`
               : `Status do ciclo atualizado: ${updatedRows[0].title}`,
-          detail: `${previousStatus} -> ${nextStatus}`
+          detail: buildCycleStatusAuditDetail(previousStatus, nextStatus)
         });
 
         await connection.commit();
@@ -5956,23 +5439,17 @@ function buildMysqlStore(
       }
 
       const current = presentCycle(rows[0]);
+      const cycleConfigUpdate = resolveCycleConfigUpdate(
+        normalizeCycleModuleAvailability(current.moduleAvailability),
+        payload
+      );
       const nextIsEnabled =
-        payload?.isEnabled === undefined ? current.isEnabled : Boolean(payload.isEnabled);
-
-      let nextModuleAvailability = normalizeCycleModuleAvailability(current.moduleAvailability);
-      if (payload?.moduleAvailability) {
-        if (typeof payload.moduleAvailability !== "object") {
-          throw new Error("moduleAvailability precisa ser um objeto.");
-        }
-
-        const allowedKeys = Object.keys(DEFAULT_CYCLE_MODULE_AVAILABILITY);
-        for (const [relationshipType, enabled] of Object.entries(payload.moduleAvailability)) {
-          if (!allowedKeys.includes(relationshipType)) {
-            throw new Error("Relacionamento de questionario invalido.");
-          }
-          nextModuleAvailability[relationshipType] = Boolean(enabled);
-        }
-      }
+        cycleConfigUpdate.nextIsEnabled === undefined
+          ? current.isEnabled
+          : cycleConfigUpdate.nextIsEnabled;
+      const nextModuleAvailability =
+        cycleConfigUpdate.nextModuleAvailability ||
+        normalizeCycleModuleAvailability(current.moduleAvailability);
 
       const connection = await pool.getConnection();
       try {
@@ -5993,7 +5470,7 @@ function buildMysqlStore(
           entityLabel: rows[0].title,
           actorUser,
           summary: `Configuracao do ciclo atualizada: ${rows[0].title}`,
-          detail: `Ativo: ${nextIsEnabled ? "sim" : "nao"} · Questionarios configurados`
+          detail: buildCycleConfigAuditDetail(nextIsEnabled)
         });
 
         await connection.commit();
@@ -6103,30 +5580,32 @@ function buildMysqlStore(
       return assignment;
     },
     async getEvaluationResponses(actorUser) {
-      const responses = [
-        ...(await fetchMysqlResponses(pool, customLibraryState.published, {
-          supportsFeedbackAcknowledgement
-        })),
-        ...anonymousResponseState.responses
-      ];
+      const submissions = await fetchMysqlResponses(pool, customLibraryState.published, {
+        supportsFeedbackAcknowledgement
+      });
       const [cycles, cycleReports] = await Promise.all([
         this.getEvaluationCycles(),
         fetchCycleReportRows(pool)
       ]);
-      return buildResponsesBundle(responses, actorUser, {
+      return buildEvaluationResponseBundle({
+        submissions,
+        anonymousResponses: anonymousResponseState.responses,
+        buildSubmission: (item) => item,
+        actorUser,
+        buildResponsesBundle,
         cycles,
         cycleReports
       });
     },
     async getReceivedManagerFeedback(actorUser) {
-      const responses = await fetchMysqlResponses(pool, customLibraryState.published, {
+      const submissions = await fetchMysqlResponses(pool, customLibraryState.published, {
         supportsFeedbackAcknowledgement
       });
-      return responses.filter(
-        (submission) =>
-          submission.relationshipType === "manager" &&
-          submission.revieweePersonId === actorUser?.person?.id
-      );
+      return filterReceivedManagerFeedback({
+        submissions,
+        actorUser,
+        buildSubmission: (item) => item
+      });
     },
     async getFeedbackRequests(actorUser) {
       const [requestRows] = await pool.query(
@@ -6194,15 +5673,12 @@ function buildMysqlStore(
       };
       const providerPersonIds = assertCanCreateFeedbackRequest(dbSnapshot, actorUser, payload);
 
-      const request = {
-        id: createId("feedback_request"),
-        cycleId: payload.cycleId,
-        requesterUserId: actorUser.id,
-        revieweePersonId: actorUser.person.id,
-        status: FEEDBACK_REQUEST_STATUS.pending,
-        contextNote: payload.contextNote.trim(),
+      const request = prepareFeedbackRequest({
+        payload,
+        actorUser,
+        createId,
         requestedAt: new Date().toISOString()
-      };
+      });
 
       const connection = await pool.getConnection();
       try {
@@ -6222,12 +5698,16 @@ function buildMysqlStore(
           ]
         );
 
-        for (const providerPersonId of providerPersonIds) {
+        for (const item of buildFeedbackRequestItems({
+          providerPersonIds,
+          requestId: request.id,
+          createId
+        })) {
           await connection.query(
             `INSERT INTO evaluation_feedback_request_items
              (id, request_id, provider_person_id, assignment_id)
              VALUES (?, ?, ?, NULL)`,
-            [createId("feedback_request_item"), request.id, providerPersonId]
+            [item.id, item.requestId, item.providerPersonId]
           );
         }
 
@@ -6239,7 +5719,7 @@ function buildMysqlStore(
           entityLabel: actorUser.person?.name || actorUser.email,
           actorUser,
           summary: "Solicitacao de feedback direto registrada",
-          detail: `${providerPersonIds.length} fornecedores sugeridos · Ciclo ${request.cycleId}`
+          detail: buildFeedbackRequestCreateAuditDetail(providerPersonIds, request.cycleId)
         });
 
         await connection.commit();
@@ -6356,7 +5836,7 @@ function buildMysqlStore(
             payload.status === FEEDBACK_REQUEST_STATUS.approved
               ? "Solicitacao de feedback aprovada"
               : "Solicitacao de feedback rejeitada",
-          detail: `Ciclo ${requestRows[0].cycleId} · Contexto: ${requestRows[0].contextNote}`
+          detail: buildFeedbackRequestReviewAuditDetail(requestRows[0])
         });
 
         await connection.commit();
@@ -6432,10 +5912,13 @@ function buildMysqlStore(
         return anonymousSubmission;
       }
 
-      const submissionId = createId("submission");
-      const scaleScores = getAnsweredScaleScores(payload.answers);
-      const overallScore = scaleScores.length ? Number(average(scaleScores).toFixed(2)) : null;
-      const submittedAt = new Date().toISOString();
+      const submission = prepareEvaluationSubmission({
+        assignment,
+        payload,
+        createId,
+        getAnsweredScaleScores,
+        average
+      });
 
       const connection = await pool.getConnection();
       try {
@@ -6443,39 +5926,41 @@ function buildMysqlStore(
 
         await connection.query(
           `INSERT INTO evaluation_submissions
-           (id, assignment_id, cycle_id, reviewer_user_id, reviewee_person_id, overall_score,
+          (id, assignment_id, cycle_id, reviewer_user_id, reviewee_person_id, overall_score,
             strengths_note, development_note, submitted_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
-            submissionId,
-            assignment.id,
-            assignment.cycleId,
-            payload.reviewerUserId,
-            assignment.revieweePersonId,
-            overallScore,
-            payload.strengthsNote || "",
-            payload.developmentNote || "",
-            submittedAt
+            submission.id,
+            submission.assignmentId,
+            submission.cycleId,
+            submission.reviewerUserId,
+            submission.revieweePersonId,
+            submission.overallScore,
+            submission.strengthsNote,
+            submission.developmentNote,
+            submission.submittedAt
           ]
         );
 
-        for (const answer of payload.answers) {
-          const question = templateDefinition.questions.find(
-            (item) => item.id === answer.questionId
-          );
+        for (const answer of buildEvaluationAnswerRows({
+          answers: payload.answers,
+          templateDefinition,
+          submissionId: submission.id,
+          createId
+        })) {
           await connection.query(
             `INSERT INTO evaluation_answers
              (id, submission_id, question_id, answer_type, score, evidence_note, answer_text, answer_options_json)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
             [
-              createId("answer"),
-              submissionId,
+              answer.id,
+              answer.submissionId,
               answer.questionId,
-              question?.inputType || "scale",
-              Number.isFinite(Number(answer.score)) ? Number(answer.score) : null,
-              answer.evidenceNote || "",
-              answer.textValue || "",
-              JSON.stringify(Array.isArray(answer.selectedOptions) ? answer.selectedOptions : [])
+              answer.answerType,
+              answer.score,
+              answer.evidenceNote,
+              answer.textValue,
+              JSON.stringify(answer.selectedOptions)
             ]
           );
         }
@@ -6508,7 +5993,7 @@ function buildMysqlStore(
       const responses = await fetchMysqlResponses(pool, customLibraryState.published, {
         supportsFeedbackAcknowledgement
       });
-      return responses.find((item) => item.id === submissionId);
+      return responses.find((item) => item.id === submission.id);
     },
     async acknowledgeReceivedManagerFeedback(submissionId, payload, actorUser) {
       if (!supportsFeedbackAcknowledgement) {
@@ -6660,7 +6145,11 @@ function buildMysqlStore(
           person: sender ? { id: sender.id, name: sender.name } : null
         },
         summary: `Aplause registrado para ${receiver?.name || "colaborador"}`,
-        detail: `${applause.category} · ${sender?.name || "-"} -> ${receiver?.name || "-"}`
+        detail: buildApplauseAuditDetail({
+          category: applause.category,
+          senderName: sender?.name,
+          receiverName: receiver?.name
+        })
       });
       return {
         ...applause,
@@ -6688,7 +6177,10 @@ function buildMysqlStore(
         throw new Error("Registro de Aplause nao encontrado.");
       }
 
-      assertCanManageApplauseEntry(actorUser, people, applause);
+      assertCanManageApplauseEntry(actorUser, people, applause, {
+        isOrgWideUser,
+        getTeamPeople
+      });
       assertValidApplauseStatus(payload.status);
 
       await pool.query(
@@ -6718,7 +6210,11 @@ function buildMysqlStore(
           payload.status === "Arquivado"
             ? `Aplause arquivado para ${receiver?.name || "colaborador"}`
             : `Aplause atualizado para ${receiver?.name || "colaborador"}`,
-        detail: `${payload.category} · ${sender?.name || "-"} -> ${receiver?.name || "-"}`
+        detail: buildApplauseAuditDetail({
+          category: payload.category,
+          senderName: sender?.name,
+          receiverName: receiver?.name
+        })
       });
 
       return {
@@ -6759,7 +6255,11 @@ function buildMysqlStore(
     },
     async createDevelopmentRecord(payload, actorUser) {
       const people = await fetchPeopleRows(pool);
-      assertCanCreateDevelopmentRecord(actorUser, people, payload.personId);
+      assertCanManageDevelopmentSubject(actorUser, people, payload.personId, {
+        isOrgWideUser,
+        isManagerUser,
+        getTeamPeople
+      });
 
       const record = {
         id: createId("development"),
@@ -6793,7 +6293,7 @@ function buildMysqlStore(
         entityLabel: record.title,
         actorUser,
         summary: `Registro de desenvolvimento criado para ${person?.name || "pessoa"}`,
-        detail: `${record.recordType} · ${record.providerName} · ${record.skillSignal}`
+        detail: buildDevelopmentRecordAuditDetail(record)
       });
       return record;
     },
@@ -6810,7 +6310,16 @@ function buildMysqlStore(
         throw new Error("Registro de desenvolvimento nao encontrado.");
       }
 
-      assertCanCreateDevelopmentRecord(actorUser, people, payload.personId || existingRecord.personId);
+      assertCanManageDevelopmentSubject(
+        actorUser,
+        people,
+        payload.personId || existingRecord.personId,
+        {
+          isOrgWideUser,
+          isManagerUser,
+          getTeamPeople
+        }
+      );
       assertValidDevelopmentRecordStatus(payload.status);
 
       const archivedAt = payload.status === "archived" ? new Date().toISOString() : null;
@@ -6845,7 +6354,7 @@ function buildMysqlStore(
           payload.status === "archived"
             ? `Registro de desenvolvimento arquivado para ${person?.name || "pessoa"}`
             : `Registro de desenvolvimento atualizado para ${person?.name || "pessoa"}`,
-        detail: `${payload.recordType} · ${payload.providerName} · ${payload.skillSignal}`
+        detail: buildDevelopmentRecordAuditDetail(payload)
       });
 
       return {
@@ -6953,7 +6462,7 @@ function buildMysqlStore(
         entityLabel: plan.focusTitle,
         actorUser,
         summary: `PDI criado para ${person?.name || "pessoa"}`,
-        detail: `${plan.focusTitle} · Prazo ${plan.dueDate}`
+        detail: buildDevelopmentPlanAuditDetail(plan)
       });
 
       const [cycles] = await pool.query(
@@ -7028,7 +6537,7 @@ function buildMysqlStore(
           payload.status === "archived"
             ? `PDI arquivado para ${person?.name || "pessoa"}`
             : `PDI atualizado para ${person?.name || "pessoa"}`,
-        detail: `${payload.focusTitle} · Prazo ${payload.dueDate}`
+        detail: buildDevelopmentPlanAuditDetail(payload)
       });
 
       const [cycles] = await pool.query(
