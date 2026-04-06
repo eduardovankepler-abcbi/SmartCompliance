@@ -1,23 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
-import { api } from "./api";
+import { useState } from "react";
 import {
-  academicDevelopmentTypes,
   demoAccounts,
   developmentPlanStatusOptions,
   developmentRecordTypes,
   developmentViewLabels,
-  emptyApplause,
-  emptyArea,
   emptyCycle,
-  emptyDevelopment,
-  emptyDevelopmentPlan,
   emptyFeedbackRequest,
-  emptyIncident,
   emptyLibraryPublish,
   emptyLogin,
-  emptyPerson,
-  emptyUser,
-  evaluationModules,
   feedbackRequestStatusOptions,
   incidentClassificationOptions,
   incidentStatusOptions,
@@ -31,14 +21,12 @@ import {
   getAssignmentStatusLabel,
   getCycleStatusDescription,
   getDevelopmentTrackLabel,
-  getEvaluationModule,
   getFeedbackRequestStatusLabel,
   getRelationshipDescription,
   getRelationshipLabel,
   getRoleLabel,
   getVisibilityLabel
 } from "./appLabels.js";
-import { buildAppHash, parseAppHash } from "./appRoute";
 import {
   ApplauseAdminCard,
   AreaAdminCard,
@@ -57,81 +45,20 @@ import {
   ResponseDistributionChartCard
 } from "./components/DashboardWidgets";
 import { Input, Select, Textarea } from "./components/FormControls";
-import { EvaluationsSection } from "./evaluations/EvaluationsSection";
+import { AppSceneRenderer } from "./AppSceneRenderer";
+import { useAppActions } from "./useAppActions";
 import { useEvaluations } from "./evaluations/useEvaluations";
+import { useDashboardFilters, useDashboardInsights } from "./useDashboardFlow";
+import { useAppShellFlow } from "./useAppShellFlow";
 import { AppShell, ThemeGlyph } from "./layout/AppShell";
-import {
-  getFallbackSectionKey,
-  getPreferredSectionKey,
-  getSectionStatusLabel,
-  getVisibleSections
-} from "./navigation";
-import {
-  buildSuggestedUserEmail,
-  getPersonConsistencyMessages,
-  validatePersonPayload,
-  validateUserPayload
-} from "./registry.js";
-import {
-  ApplauseSection,
-  ComplianceSection,
-  DashboardSection,
-  DevelopmentSection,
-  PeopleSection,
-  UsersSection
-} from "./sections/AppSections";
 import { useAppData } from "./useAppData";
+import { useDevelopmentFlow } from "./useDevelopmentFlow";
+import { useOperationsFlow } from "./useOperationsFlow";
+import { useRegistryFlow } from "./useRegistryFlow";
 import { useSession } from "./useSession";
 
 export default function App() {
-  const [theme, setTheme] = useState("dark");
-  const [activeSection, setActiveSection] = useState(() => {
-    if (typeof window === "undefined") {
-      return "Dashboard";
-    }
-    return parseAppHash(window.location.hash, {
-      fallbackSectionKey: "Dashboard",
-      canViewEvaluationInsights: false
-    }).sectionKey;
-  });
-  const [activeDevelopmentView, setActiveDevelopmentView] = useState("personal");
-  const [dashboardAreaFilter, setDashboardAreaFilter] = useState("all");
-  const [dashboardCompositionFilter, setDashboardCompositionFilter] = useState("all");
-  const [dashboardTimeGrouping, setDashboardTimeGrouping] = useState("semester");
   const [error, setError] = useState("");
-  const [incidentForm, setIncidentForm] = useState(emptyIncident);
-  const [areaForm, setAreaForm] = useState(emptyArea);
-  const [personForm, setPersonForm] = useState(emptyPerson);
-  const [userForm, setUserForm] = useState(emptyUser);
-  const [applauseForm, setApplauseForm] = useState(emptyApplause);
-  const [developmentForm, setDevelopmentForm] = useState(emptyDevelopment);
-  const [developmentPlanForm, setDevelopmentPlanForm] = useState(emptyDevelopmentPlan);
-
-  function getSuggestedRoleForPerson(person) {
-    if (!person) {
-      return emptyUser.roleKey;
-    }
-
-    const isAreaLeader = person.areaManagerPersonId === person.id;
-    const hasDirectReports = people.some((item) => item.managerPersonId === person.id);
-
-    return isAreaLeader || hasDirectReports ? "manager" : "employee";
-  }
-
-  function buildUserFormFromPerson(person, options = {}) {
-    return {
-      ...emptyUser,
-      personId: person?.id || "",
-      email: buildSuggestedUserEmail(person?.name || ""),
-      roleKey:
-        options.roleKey ||
-        (options.isAreaManager ? "manager" : getSuggestedRoleForPerson(person))
-    };
-  }
-
-  const toggleTheme = () => {
-    setTheme((current) => (current === "dark" ? "light" : "dark"));
-  };
 
   const {
     authError,
@@ -168,6 +95,16 @@ export default function App() {
     canManageCycles || canManageFeedbackRequests || canViewEvaluationLibrary;
 
   const {
+    dashboardAreaFilter,
+    dashboardCompositionFilter,
+    resetDashboardFlow,
+    dashboardTimeGrouping,
+    setDashboardAreaFilter,
+    setDashboardCompositionFilter,
+    setDashboardTimeGrouping
+  } = useDashboardFilters();
+
+  const {
     auditTrail,
     applauseEntries,
     areas,
@@ -199,6 +136,22 @@ export default function App() {
     dashboardAreaFilter,
     dashboardTimeGrouping,
     setError
+  });
+
+  const {
+    dashboardCompositionOptions,
+    dashboardTimeGroupingLabel,
+    dashboardTimeGroupingOptions,
+    filteredDashboardEvaluationMix,
+    filteredDashboardResponseDistributions,
+    selectedDashboardCompositionMeta
+  } = useDashboardInsights({
+    canFilterDashboardByArea,
+    dashboard,
+    dashboardAreaFilter,
+    dashboardCompositionFilter,
+    dashboardTimeGrouping,
+    setDashboardAreaFilter
   });
 
   const {
@@ -286,997 +239,143 @@ export default function App() {
     initialLibraryPublishForm: emptyLibraryPublish
   });
 
-  const visibleSections = useMemo(
-    () =>
-      getVisibleSections(sections, {
-        roleKey: user?.roleKey,
-        canViewDashboard,
-        canViewPeople,
-        canViewUsersAdmin
-      }),
-    [canViewDashboard, canViewPeople, canViewUsersAdmin, user?.roleKey]
-  );
+  const {
+    accessJourneySummary,
+    areaForm,
+    areaOptions,
+    availableUserPeopleOptions,
+    handleAreaSubmit,
+    handleAreaUpdate,
+    handlePersonSubmit,
+    handlePersonUpdate,
+    handleUserPersonSelect,
+    handleUserSubmit,
+    handleUserUpdate,
+    managerOptions,
+    pendingAccessPeople,
+    personAccessStateById,
+    personForm,
+    prepareUserProvisioning,
+    resetRegistryForms,
+    selectedUserPerson,
+    setAreaForm,
+    setPersonForm,
+    setUserForm,
+    suggestedUserEmail,
+    suggestedUserRole,
+    suggestedUserRoleReason,
+    userForm
+  } = useRegistryFlow({
+    areas,
+    people,
+    reloadData,
+    setActiveSection,
+    setError,
+    users
+  });
 
-  const preferredSectionKey = useMemo(
-    () => getPreferredSectionKey(user?.roleKey, canViewDashboard ? "Dashboard" : "Avaliacoes"),
-    [canViewDashboard, user?.roleKey]
-  );
+  const {
+    activeDevelopmentView,
+    developmentAuditEntries,
+    developmentEditablePeopleOptions,
+    developmentEditablePlanPeopleOptions,
+    developmentForm,
+    developmentFormPeopleOptions,
+    developmentHighlights,
+    developmentMetrics,
+    developmentPlanCompetencyOptions,
+    developmentPlanCycleOptions,
+    developmentPlanForm,
+    developmentPlanPeopleOptions,
+    developmentViewOptions,
+    filteredDevelopmentPlans,
+    filteredDevelopmentRecords,
+    handleDevelopmentPlanSubmit,
+    handleDevelopmentPlanUpdate,
+    handleDevelopmentSubmit,
+    handleDevelopmentUpdate,
+    resetDevelopmentFlow,
+    setActiveDevelopmentView,
+    setDevelopmentForm,
+    setDevelopmentPlanForm
+  } = useDevelopmentFlow({
+    auditTrail,
+    canManageDevelopmentScope,
+    canViewOrganizationDevelopment,
+    canViewTeamDevelopment,
+    competencies,
+    cycles,
+    developmentPlans,
+    developmentRecords,
+    people,
+    reloadData,
+    setError,
+    user
+  });
 
-  const groupedSections = useMemo(
-    () =>
-      navigationGroups
-        .map((group) => ({
-          ...group,
-          sections: visibleSections.filter((section) => section.group === group.key)
-        }))
-        .filter((group) => group.sections.length > 0),
-    [visibleSections]
-  );
+  const {
+    applauseAuditEntries,
+    applauseForm,
+    applausePeopleOptions,
+    handleApplauseSubmit,
+    handleApplauseUpdate,
+    handleIncidentSubmit,
+    handleIncidentUpdate,
+    incidentAuditEntries,
+    incidentAreaOptions,
+    incidentForm,
+    incidentResponsibleOptions,
+    resetOperationsFlow,
+    setApplauseForm,
+    setIncidentForm
+  } = useOperationsFlow({
+    areas,
+    auditTrail,
+    people,
+    reloadData,
+    setActiveSection,
+    setError,
+    user
+  });
 
-  const fallbackSectionKey = useMemo(
-    () => getFallbackSectionKey(visibleSections, preferredSectionKey),
-    [preferredSectionKey, visibleSections]
-  );
-
-  const shellStatusLabel = useMemo(
-    () =>
-      getSectionStatusLabel({
-        activeSection,
-        roleKey: user?.roleKey,
-        summaryMode: summary?.mode
-      }),
-    [activeSection, summary?.mode, user?.roleKey]
-  );
-
-  useEffect(() => {
-    if (!visibleSections.some((section) => section.key === activeSection)) {
-      setActiveSection(fallbackSectionKey);
-    }
-  }, [activeSection, fallbackSectionKey, visibleSections]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return undefined;
-    }
-
-    const applyHashRoute = () => {
-      const nextRoute = parseAppHash(window.location.hash, {
-        fallbackSectionKey,
-        canViewEvaluationInsights,
-        canViewEvaluationOperations
-      });
-
-      if (nextRoute.sectionKey) {
-        setActiveSection((current) =>
-          nextRoute.sectionKey !== current ? nextRoute.sectionKey : current
-        );
-      }
-
-      if (nextRoute.sectionKey === "Avaliacoes" && nextRoute.evaluationModuleKey) {
-        setActiveEvaluationModule((current) =>
-          nextRoute.evaluationModuleKey !== current ? nextRoute.evaluationModuleKey : current
-        );
-      }
-
-      if (nextRoute.sectionKey === "Avaliacoes" && nextRoute.evaluationWorkspace) {
-        setActiveEvaluationWorkspace((current) =>
-          nextRoute.evaluationWorkspace !== current ? nextRoute.evaluationWorkspace : current
-        );
-      }
-    };
-
-    window.addEventListener("hashchange", applyHashRoute);
-    applyHashRoute();
-
-    return () => window.removeEventListener("hashchange", applyHashRoute);
-  }, [canViewEvaluationInsights, canViewEvaluationOperations, fallbackSectionKey]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    const nextHash = buildAppHash({
-      sectionKey: activeSection,
-      evaluationModuleKey: activeEvaluationModule,
-      evaluationWorkspace: activeEvaluationWorkspace,
-      canViewEvaluationInsights,
-      canViewEvaluationOperations
-    });
-
-    if (window.location.hash !== nextHash) {
-      window.location.hash = nextHash;
-    }
-  }, [
+  const {
+    activeSection,
+    groupedSections,
+    setActiveSection,
+    shellStatusLabel,
+    theme,
+    toggleTheme
+  } = useAppShellFlow({
     activeEvaluationModule,
     activeEvaluationWorkspace,
-    activeSection,
+    canViewDashboard,
     canViewEvaluationInsights,
-    canViewEvaluationOperations
-  ]);
+    canViewEvaluationOperations,
+    canViewPeople,
+    canViewUsersAdmin,
+    navigationGroups,
+    roleKey: user?.roleKey,
+    sections,
+    setActiveEvaluationModule,
+    setActiveEvaluationWorkspace,
+    summaryMode: summary?.mode
+  });
+  const { handleCompetencyCreate, handleCompetencyUpdate, handleLogout } = useAppActions({
+    logoutSession,
+    reloadData,
+    resetDashboardFlow,
+    resetData,
+    resetDevelopmentFlow,
+    resetEvaluations,
+    resetOperationsFlow,
+    resetRegistryForms,
+    setError
+  });
 
-  const peopleOptions = useMemo(
-    () => people.map((person) => ({ value: person.id, label: person.name })),
-    [people]
+  const evaluationAuditEntries = auditTrail.filter(
+    (item) => item.category === "cycle" || item.category === "feedback_request"
   );
-
-  const peopleById = useMemo(
-    () => Object.fromEntries(people.map((person) => [person.id, person])),
-    [people]
-  );
-
-  const areaOptions = useMemo(
-    () => areas.map((area) => ({ value: area.name, label: area.name })),
-    [areas]
-  );
-
-  const managerOptions = useMemo(
-    () => [{ value: "", label: "Sem gestor direto definido" }, ...peopleOptions],
-    [peopleOptions]
-  );
-
-  const incidentAreaOptions = useMemo(
-    () => areas.map((area) => ({ value: area.name, label: area.name })),
-    [areas]
-  );
-
-  const incidentResponsibleOptions = useMemo(
-    () => [
-      { value: "", label: "Nao definido", area: "", isAreaManager: false },
-      ...people.map((person) => ({
-        value: person.id,
-        label: `${person.name} · ${person.area}`,
-        area: person.area,
-        isAreaManager: person.areaManagerPersonId === person.id
-      }))
-    ],
-    [people]
-  );
-
-  const availableUserPeopleOptions = useMemo(() => {
-    const linkedPersonIds = new Set(users.map((item) => item.personId));
-    return people
-      .filter((person) => !linkedPersonIds.has(person.id))
-      .map((person) => ({
-        value: person.id,
-        label: `${person.name} · ${person.area} · ${person.workUnit || "Unidade principal"}`
-      }));
-  }, [people, users]);
-
-  const usersByPersonId = useMemo(
-    () => Object.fromEntries(users.map((item) => [item.personId, item])),
-    [users]
-  );
-
-  const peopleAccessJourney = useMemo(
-    () =>
-      people.map((person) => {
-        const linkedUser = usersByPersonId[person.id] || null;
-        const accessState = !linkedUser
-          ? "pending"
-          : linkedUser.status === "active"
-            ? "active"
-            : "inactive";
-
-        return {
-          ...person,
-          linkedUser,
-          accessState
-        };
-      }),
-    [people, usersByPersonId]
-  );
-
-  const accessJourneySummary = useMemo(
-    () => ({
-      totalPeople: peopleAccessJourney.length,
-      pending: peopleAccessJourney.filter((person) => person.accessState === "pending").length,
-      active: peopleAccessJourney.filter((person) => person.accessState === "active").length,
-      inactive: peopleAccessJourney.filter((person) => person.accessState === "inactive").length
-    }),
-    [peopleAccessJourney]
-  );
-
-  const personAccessStateById = useMemo(
-    () =>
-      Object.fromEntries(
-        peopleAccessJourney.map((person) => [
-          person.id,
-          {
-            key: person.accessState,
-            user: person.linkedUser
-          }
-        ])
-      ),
-    [peopleAccessJourney]
-  );
-
-  const selectedUserPerson = useMemo(
-    () => peopleById[userForm.personId] || null,
-    [peopleById, userForm.personId]
-  );
-
-  const suggestedUserRole = useMemo(
-    () => getSuggestedRoleForPerson(selectedUserPerson),
-    [selectedUserPerson]
-  );
-
-  const suggestedUserRoleReason = useMemo(() => {
-    if (!selectedUserPerson) {
-      return "";
-    }
-    if (selectedUserPerson.areaManagerPersonId === selectedUserPerson.id) {
-      return "Pessoa marcada como lider atual da area.";
-    }
-    if (people.some((item) => item.managerPersonId === selectedUserPerson.id)) {
-      return "Pessoa com colaboradores vinculados como gestor direto.";
-    }
-    return "Acesso individual recomendado para quem nao lidera time nem area.";
-  }, [people, selectedUserPerson]);
-
-  const suggestedUserEmail = useMemo(
-    () => buildSuggestedUserEmail(selectedUserPerson?.name || ""),
-    [selectedUserPerson]
-  );
-
-  const developmentPeopleOptions = useMemo(() => {
-    if (canManageDevelopmentScope) {
-      return peopleOptions;
-    }
-    return peopleOptions.filter((person) => person.value === user?.person?.id);
-  }, [canManageDevelopmentScope, peopleOptions, user]);
-
-  const applausePeopleOptions = useMemo(
-    () => peopleOptions.filter((person) => person.value !== user?.person?.id),
-    [peopleOptions, user]
-  );
-
-  const teamDevelopmentPeopleOptions = useMemo(
-    () =>
-      developmentPeopleOptions.filter(
-        (person) =>
-          people.find((item) => item.id === person.value)?.managerPersonId === user?.person?.id
-      ),
-    [developmentPeopleOptions, people, user]
-  );
-
-  const developmentViewOptions = useMemo(() => {
-    const views = [{ key: "personal", ...developmentViewLabels.personal }];
-    if (canViewTeamDevelopment) {
-      views.push({ key: "team", ...developmentViewLabels.team });
-    }
-    if (canViewOrganizationDevelopment) {
-      views.push({ key: "organization", ...developmentViewLabels.organization });
-    }
-    return views;
-  }, [canViewOrganizationDevelopment, canViewTeamDevelopment]);
-
-  const filteredDevelopmentRecords = useMemo(() => {
-    if (!user) {
-      return [];
-    }
-
-    if (activeDevelopmentView === "organization") {
-      return developmentRecords;
-    }
-
-    if (activeDevelopmentView === "team") {
-      const visibleIds = new Set(teamDevelopmentPeopleOptions.map((person) => person.value));
-      return developmentRecords.filter((record) => visibleIds.has(record.personId));
-    }
-
-    return developmentRecords.filter((record) => record.personId === user.person.id);
-  }, [
-    activeDevelopmentView,
-    developmentRecords,
-    teamDevelopmentPeopleOptions,
-    user
-  ]);
-
-  const filteredDevelopmentPlans = useMemo(() => {
-    if (!user) {
-      return [];
-    }
-
-    if (activeDevelopmentView === "organization") {
-      return developmentPlans;
-    }
-
-    if (activeDevelopmentView === "team") {
-      const visibleIds = new Set(teamDevelopmentPeopleOptions.map((person) => person.value));
-      return developmentPlans.filter((plan) => visibleIds.has(plan.personId));
-    }
-
-    return developmentPlans.filter((plan) => plan.personId === user.person.id);
-  }, [activeDevelopmentView, developmentPlans, teamDevelopmentPeopleOptions, user]);
-
-  const activeDevelopmentRecords = useMemo(
-    () => filteredDevelopmentRecords.filter((record) => (record.status || "active") !== "archived"),
-    [filteredDevelopmentRecords]
-  );
-
-  const developmentFormPeopleOptions = useMemo(() => {
-    if (!user) {
-      return [];
-    }
-
-    if (activeDevelopmentView === "organization") {
-      return developmentPeopleOptions;
-    }
-
-    if (activeDevelopmentView === "team") {
-      return teamDevelopmentPeopleOptions;
-    }
-
-    return developmentPeopleOptions.filter((person) => person.value === user.person.id);
-  }, [
-    activeDevelopmentView,
-    developmentPeopleOptions,
-    teamDevelopmentPeopleOptions,
-    user
-  ]);
-
-  const developmentEditablePeopleOptions = useMemo(() => {
-    const visiblePeople = new Map();
-    filteredDevelopmentRecords.forEach((record) => {
-      if (!visiblePeople.has(record.personId)) {
-        visiblePeople.set(record.personId, {
-          value: record.personId,
-          label: record.personName
-        });
-      }
-    });
-
-    developmentFormPeopleOptions.forEach((person) => {
-      if (!visiblePeople.has(person.value)) {
-        visiblePeople.set(person.value, person);
-      }
-    });
-
-    return Array.from(visiblePeople.values());
-  }, [developmentFormPeopleOptions, filteredDevelopmentRecords]);
-
-  const developmentPlanPeopleOptions = useMemo(() => {
-    if (!user) {
-      return [];
-    }
-
-    if (activeDevelopmentView === "organization") {
-      return developmentPeopleOptions;
-    }
-
-    if (activeDevelopmentView === "team") {
-      return teamDevelopmentPeopleOptions;
-    }
-
-    return developmentPeopleOptions.filter((person) => person.value === user.person.id);
-  }, [activeDevelopmentView, developmentPeopleOptions, teamDevelopmentPeopleOptions, user]);
-
-  const developmentEditablePlanPeopleOptions = useMemo(() => {
-    const visiblePeople = new Map();
-    filteredDevelopmentPlans.forEach((plan) => {
-      if (!visiblePeople.has(plan.personId)) {
-        visiblePeople.set(plan.personId, {
-          value: plan.personId,
-          label: plan.personName
-        });
-      }
-    });
-
-    developmentPlanPeopleOptions.forEach((person) => {
-      if (!visiblePeople.has(person.value)) {
-        visiblePeople.set(person.value, person);
-      }
-    });
-
-    return Array.from(visiblePeople.values());
-  }, [developmentPlanPeopleOptions, filteredDevelopmentPlans]);
-
-  const developmentPlanCycleOptions = useMemo(
-    () => [
-      { value: "", label: "Sem ciclo vinculado" },
-      ...cycles.map((cycle) => ({
-        value: cycle.id,
-        label: `${cycle.title} · ${cycle.semesterLabel}`
-      }))
-    ],
-    [cycles]
-  );
-
-  const developmentPlanCompetencyOptions = useMemo(
-    () => [
-      { value: "", label: "Competencia livre" },
-      ...competencies.map((competency) => ({
-        value: competency.id,
-        label: competency.name
-      }))
-    ],
-    [competencies]
-  );
-
-  const developmentMetrics = useMemo(() => {
-    const peopleInScope = new Set(activeDevelopmentRecords.map((record) => record.personId)).size;
-    const academicRecords = activeDevelopmentRecords.filter((record) =>
-      academicDevelopmentTypes.has(record.recordType)
-    ).length;
-    const certificationRecords = activeDevelopmentRecords.filter(
-      (record) => record.recordType === "Certificacao"
-    ).length;
-    const continuousLearningRecords = activeDevelopmentRecords.filter(
-      (record) =>
-        !academicDevelopmentTypes.has(record.recordType) &&
-        record.recordType !== "Certificacao"
-    ).length;
-
-    return [
-      { label: "Registros no recorte", value: activeDevelopmentRecords.length },
-      { label: "Formacao academica", value: academicRecords },
-      { label: "Certificacoes", value: certificationRecords },
-      {
-        label: activeDevelopmentView === "personal" ? "Pessoas em foco" : "Pessoas no recorte",
-        value: peopleInScope
-      },
-      { label: "Aprendizagem continua", value: continuousLearningRecords }
-    ];
-  }, [activeDevelopmentView, activeDevelopmentRecords]);
-
-  const developmentHighlights = useMemo(
-    () =>
-      Object.values(
-        activeDevelopmentRecords.reduce((acc, record) => {
-          const entry = acc[record.personId] || {
-            personId: record.personId,
-            personName: record.personName,
-            totalRecords: 0,
-            academicRecords: 0,
-            latestDate: "",
-            latestTitle: ""
-          };
-
-          entry.totalRecords += 1;
-          if (academicDevelopmentTypes.has(record.recordType)) {
-            entry.academicRecords += 1;
-          }
-          if (!entry.latestDate || new Date(record.completedAt) > new Date(entry.latestDate)) {
-            entry.latestDate = record.completedAt;
-            entry.latestTitle = record.title;
-          }
-
-          acc[record.personId] = entry;
-          return acc;
-        }, {})
-      ).sort((left, right) => right.totalRecords - left.totalRecords),
-    [activeDevelopmentRecords]
-  );
-
-  const developmentAuditEntries = useMemo(
-    () => auditTrail.filter((item) => item.category === "development"),
-    [auditTrail]
-  );
-
-  const applauseAuditEntries = useMemo(
-    () => auditTrail.filter((item) => item.category === "applause"),
-    [auditTrail]
-  );
-
-  const dashboardCompositionOptions = useMemo(
-    () => [
-      { value: "all", label: "Todos os elementos do ciclo" },
-      ...evaluationModules
-        .filter((module) => module.relationshipType)
-        .map((module) => ({
-          value: module.relationshipType,
-          label: module.label
-        }))
-    ],
-    []
-  );
-
-  const dashboardTimeGroupingOptions = useMemo(
-    () => [
-      { value: "semester", label: "Semestre" },
-      { value: "quarter", label: "Trimestre" },
-      { value: "year", label: "Ano" }
-    ],
-    []
-  );
-
-  const filteredDashboardEvaluationMix = useMemo(() => {
-    if (!dashboard?.evaluationMix) {
-      return [];
-    }
-
-    if (dashboardCompositionFilter === "all") {
-      return dashboard.evaluationMix;
-    }
-
-    return dashboard.evaluationMix.filter((item) => item.type === dashboardCompositionFilter);
-  }, [dashboard, dashboardCompositionFilter]);
-
-  const filteredDashboardResponseDistributions = useMemo(() => {
-    if (!dashboard?.responseDistributions) {
-      return [];
-    }
-
-    if (dashboardCompositionFilter === "all") {
-      return dashboard.responseDistributions;
-    }
-
-    return dashboard.responseDistributions.filter(
-      (group) => group.relationshipType === dashboardCompositionFilter
-    );
-  }, [dashboard, dashboardCompositionFilter]);
-
-  const selectedDashboardCompositionMeta = useMemo(
-    () => (dashboardCompositionFilter === "all" ? null : getEvaluationModule(dashboardCompositionFilter)),
-    [dashboardCompositionFilter]
-  );
-
-  const dashboardTimeGroupingLabel = useMemo(
-    () =>
-      dashboardTimeGroupingOptions.find((item) => item.value === dashboardTimeGrouping)?.label ||
-      dashboardTimeGrouping,
-    [dashboardTimeGrouping, dashboardTimeGroupingOptions]
-  );
-
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-  }, [theme]);
-
-  useEffect(() => {
-    if (!developmentViewOptions.some((view) => view.key === activeDevelopmentView)) {
-      setActiveDevelopmentView(developmentViewOptions[0]?.key || "personal");
-    }
-  }, [activeDevelopmentView, developmentViewOptions]);
-
-  useEffect(() => {
-    if (!areas.length) {
-      return;
-    }
-
-    if (!areaOptions.some((option) => option.value === personForm.area)) {
-      setPersonForm((current) => ({
-        ...current,
-        area: areaOptions[0]?.value || ""
-      }));
-    }
-  }, [areaOptions, areas.length, personForm.area]);
-
-  useEffect(() => {
-    if (!personForm.area) {
-      return;
-    }
-
-    const selectedArea = areas.find((area) => area.name === personForm.area);
-    if (!selectedArea) {
-      return;
-    }
-
-    if (
-      !personForm.managerPersonId ||
-      !people.some((person) => person.id === personForm.managerPersonId)
-    ) {
-      setPersonForm((current) => ({
-        ...current,
-        managerPersonId: current.managerPersonId || selectedArea.managerPersonId || ""
-      }));
-    }
-  }, [areas, people, personForm.area, personForm.managerPersonId]);
-
-  useEffect(() => {
-    if (!incidentAreaOptions.length) {
-      return;
-    }
-
-    if (!incidentAreaOptions.some((option) => option.value === incidentForm.responsibleArea)) {
-      const nextArea = incidentAreaOptions[0]?.value || "";
-      const nextResponsible =
-        incidentResponsibleOptions.find((item) => item.area === nextArea && item.isAreaManager)
-          ?.value || "";
-
-      setIncidentForm((current) => ({
-        ...current,
-        responsibleArea: nextArea,
-        assignedPersonId: current.assignedPersonId || nextResponsible
-      }));
-    }
-  }, [
-    incidentAreaOptions,
-    incidentForm.responsibleArea,
-    incidentResponsibleOptions,
-    setIncidentForm
-  ]);
-
-  useEffect(() => {
-    const nextPersonId =
-      availableUserPeopleOptions.find((person) => person.value === userForm.personId)?.value ||
-      availableUserPeopleOptions[0]?.value ||
-      "";
-
-    if (nextPersonId !== userForm.personId) {
-      const nextPerson = peopleById[nextPersonId] || null;
-      setUserForm((current) => ({
-        ...current,
-        personId: nextPersonId,
-        roleKey: nextPerson ? getSuggestedRoleForPerson(nextPerson) : emptyUser.roleKey
-      }));
-    }
-  }, [availableUserPeopleOptions, peopleById, userForm.personId]);
-
-  useEffect(() => {
-    if (!userForm.personId || !suggestedUserEmail) {
-      return;
-    }
-
-    setUserForm((current) => {
-      const currentEmail = String(current.email || "").trim().toLowerCase();
-      const previousSuggestedEmail = buildSuggestedUserEmail(peopleById[current.personId]?.name || "");
-
-      if (currentEmail && currentEmail !== previousSuggestedEmail) {
-        return current;
-      }
-
-      if (currentEmail === suggestedUserEmail) {
-        return current;
-      }
-
-      return {
-        ...current,
-        email: suggestedUserEmail
-      };
-    });
-  }, [peopleById, suggestedUserEmail, userForm.personId]);
-
-  useEffect(() => {
-    if (!canFilterDashboardByArea && dashboardAreaFilter !== "all") {
-      setDashboardAreaFilter("all");
-      return;
-    }
-
-    if (
-      canFilterDashboardByArea &&
-      dashboardAreaFilter !== "all" &&
-      dashboard?.areaOptions?.length &&
-      !dashboard.areaOptions.includes(dashboardAreaFilter)
-    ) {
-      setDashboardAreaFilter("all");
-    }
-  }, [canFilterDashboardByArea, dashboard, dashboardAreaFilter]);
-
-  useEffect(() => {
-    if (!user) {
-      return;
-    }
-
-    const nextReceiverId =
-      applausePeopleOptions.find((person) => person.value === applauseForm.receiverPersonId)?.value ||
-      applausePeopleOptions[0]?.value ||
-      "";
-
-    if (nextReceiverId !== applauseForm.receiverPersonId) {
-      setApplauseForm((current) => ({
-        ...current,
-        receiverPersonId: nextReceiverId
-      }));
-    }
-  }, [applauseForm.receiverPersonId, applausePeopleOptions, user]);
-
-  useEffect(() => {
-    if (!user) {
-      return;
-    }
-
-    const nextPersonId =
-      developmentFormPeopleOptions.find((person) => person.value === developmentForm.personId)
-        ?.value ||
-      developmentFormPeopleOptions[0]?.value ||
-      user.person.id;
-
-    if (nextPersonId !== developmentForm.personId) {
-      setDevelopmentForm((current) => ({
-        ...current,
-        personId: nextPersonId
-      }));
-    }
-  }, [developmentForm.personId, developmentFormPeopleOptions, user]);
-
-  useEffect(() => {
-    if (!user) {
-      return;
-    }
-
-    const nextPersonId =
-      developmentPlanPeopleOptions.find((person) => person.value === developmentPlanForm.personId)
-        ?.value ||
-      developmentPlanPeopleOptions[0]?.value ||
-      user.person.id;
-
-    if (nextPersonId !== developmentPlanForm.personId) {
-      setDevelopmentPlanForm((current) => ({
-        ...current,
-        personId: nextPersonId
-      }));
-    }
-  }, [developmentPlanForm.personId, developmentPlanPeopleOptions, user]);
-
-  function handleLogout() {
-    logoutSession();
-    resetEvaluations();
-    resetData();
-    setAreaForm(emptyArea);
-    setPersonForm(emptyPerson);
-    setUserForm(emptyUser);
-    setDevelopmentPlanForm(emptyDevelopmentPlan);
-  }
-
-  async function handleIncidentSubmit(event) {
-    event.preventDefault();
-    try {
-      setError("");
-      await api.createIncident(incidentForm);
-      setIncidentForm(emptyIncident);
-      await reloadData();
-      setActiveSection("Compliance");
-    } catch (err) {
-      setError(err.message);
-    }
-  }
-
-  async function handlePersonSubmit(event, options = {}) {
-    event?.preventDefault?.();
-    try {
-      const validationError = validatePersonPayload(personForm);
-      if (validationError) {
-        setError(validationError);
-        return;
-      }
-      const personConsistency = getPersonConsistencyMessages(personForm, { areas, people });
-      if (personConsistency.blocking.length) {
-        setError(personConsistency.blocking[0]);
-        return;
-      }
-
-      setError("");
-      const createdPerson = await api.createPerson({
-        ...personForm,
-        managerPersonId: personForm.managerPersonId || null
-      });
-      setPersonForm(emptyPerson);
-      await reloadData();
-
-      if (options.createUserAfter) {
-        setUserForm(
-          buildUserFormFromPerson(createdPerson, {
-            isAreaManager: personForm.isAreaManager === "yes"
-          })
-        );
-        setActiveSection("Usuarios");
-      }
-    } catch (err) {
-      setError(err.message);
-    }
-  }
-
-  async function handleAreaSubmit(event) {
-    event.preventDefault();
-    try {
-      setError("");
-      await api.createArea({
-        name: areaForm.name
-      });
-      setAreaForm(emptyArea);
-      await reloadData();
-    } catch (err) {
-      setError(err.message);
-    }
-  }
-
-  async function handleAreaUpdate(areaId, payload) {
-    try {
-      setError("");
-      await api.updateArea(areaId, payload);
-      await reloadData();
-    } catch (err) {
-      setError(err.message);
-    }
-  }
-
-  async function handlePersonUpdate(personId, payload) {
-    try {
-      const validationError = validatePersonPayload(payload);
-      if (validationError) {
-        setError(validationError);
-        return;
-      }
-      const personConsistency = getPersonConsistencyMessages(payload, {
-        areas,
-        currentPersonId: personId,
-        people
-      });
-      if (personConsistency.blocking.length) {
-        setError(personConsistency.blocking[0]);
-        return;
-      }
-
-      setError("");
-      await api.updatePerson(personId, payload);
-      await reloadData();
-    } catch (err) {
-      setError(err.message);
-    }
-  }
-
-  async function handleUserSubmit(event) {
-    event.preventDefault();
-    try {
-      const validationError = validateUserPayload(userForm);
-      if (validationError) {
-        setError(validationError);
-        return;
-      }
-
-      setError("");
-      await api.createUser(userForm);
-      setUserForm((current) => ({
-        ...emptyUser,
-        personId: current.personId
-      }));
-      await reloadData();
-    } catch (err) {
-      setError(err.message);
-    }
-  }
-
-  async function handleUserUpdate(userId, payload) {
-    try {
-      const validationError = validateUserPayload(payload, { requirePassword: false });
-      if (validationError) {
-        setError(validationError);
-        return;
-      }
-
-      setError("");
-      await api.updateUser(userId, payload);
-      await reloadData();
-    } catch (err) {
-      setError(err.message);
-    }
-  }
-
-  function prepareUserProvisioning(personId) {
-    const person = peopleById[personId];
-    if (!person) {
-      return;
-    }
-
-    setUserForm(buildUserFormFromPerson(person));
-    setActiveSection("Usuarios");
-  }
-
-  function handleUserPersonSelect(personId) {
-    const person = peopleById[personId] || null;
-
-    setUserForm((current) => ({
-      ...current,
-      personId,
-      roleKey: person ? getSuggestedRoleForPerson(person) : emptyUser.roleKey
-    }));
-  }
-
-  async function handleIncidentUpdate(incidentId, payload) {
-    try {
-      setError("");
-      await api.updateIncident(incidentId, payload);
-      await reloadData();
-    } catch (err) {
-      setError(err.message);
-    }
-  }
-
-  async function handleApplauseSubmit(event) {
-    event.preventDefault();
-    try {
-      setError("");
-      await api.createApplauseEntry(applauseForm);
-      setApplauseForm((current) => ({
-        ...emptyApplause,
-        receiverPersonId: current.receiverPersonId
-      }));
-      await reloadData();
-    } catch (err) {
-      setError(err.message);
-    }
-  }
-
-  async function handleApplauseUpdate(applauseId, payload) {
-    try {
-      setError("");
-      await api.updateApplauseEntry(applauseId, payload);
-      await reloadData();
-    } catch (err) {
-      setError(err.message);
-    }
-  }
-
-  async function handleDevelopmentSubmit(event) {
-    event.preventDefault();
-    try {
-      setError("");
-      await api.createDevelopmentRecord(developmentForm);
-      setDevelopmentForm((current) => ({
-        ...emptyDevelopment,
-        personId: current.personId
-      }));
-      await reloadData();
-    } catch (err) {
-      setError(err.message);
-    }
-  }
-
-  async function handleDevelopmentUpdate(recordId, payload) {
-    try {
-      setError("");
-      await api.updateDevelopmentRecord(recordId, payload);
-      await reloadData();
-    } catch (err) {
-      setError(err.message);
-    }
-  }
-
-  async function handleDevelopmentPlanSubmit(event) {
-    event.preventDefault();
-    try {
-      setError("");
-      await api.createDevelopmentPlan({
-        ...developmentPlanForm,
-        cycleId: developmentPlanForm.cycleId || null,
-        competencyId: developmentPlanForm.competencyId || null
-      });
-      setDevelopmentPlanForm((current) => ({
-        ...emptyDevelopmentPlan,
-        personId: current.personId
-      }));
-      await reloadData();
-    } catch (err) {
-      setError(err.message);
-    }
-  }
-
-  async function handleDevelopmentPlanUpdate(planId, payload) {
-    try {
-      setError("");
-      await api.updateDevelopmentPlan(planId, {
-        ...payload,
-        cycleId: payload.cycleId || null,
-        competencyId: payload.competencyId || null
-      });
-      await reloadData();
-    } catch (err) {
-      setError(err.message);
-    }
-  }
-
-  async function handleCompetencyCreate(payload) {
-    try {
-      setError("");
-      await api.createCompetency(payload);
-      await reloadData();
-    } catch (err) {
-      setError(err.message);
-      throw err;
-    }
-  }
-
-  async function handleCompetencyUpdate(competencyId, payload) {
-    try {
-      setError("");
-      await api.updateCompetency(competencyId, payload);
-      await reloadData();
-    } catch (err) {
-      setError(err.message);
-      throw err;
-    }
-  }
+  const userAuditEntries = auditTrail.filter((item) => item.category === "user");
 
   if (authLoading) {
     return <div className="center-screen">Validando sessao...</div>;
@@ -1345,266 +444,202 @@ export default function App() {
       statusLabel={shellStatusLabel}
       theme={theme}
     >
-        {!loading && activeSection === "Dashboard" ? (
-          <DashboardSection
-            BarMetricRow={BarMetricRow}
-            ColumnMetricCard={ColumnMetricCard}
-            DashboardDonut={DashboardDonut}
-            FunnelSeriesChart={FunnelSeriesChart}
-            MetricCard={MetricCard}
-            ResponseDistributionChartCard={ResponseDistributionChartCard}
-            Select={Select}
-            canFilterDashboardByArea={canFilterDashboardByArea}
-            dashboard={dashboard}
-            dashboardAreaFilter={dashboardAreaFilter}
-            dashboardCompositionFilter={dashboardCompositionFilter}
-            dashboardCompositionOptions={dashboardCompositionOptions}
-            dashboardTimeGrouping={dashboardTimeGrouping}
-            dashboardTimeGroupingLabel={dashboardTimeGroupingLabel}
-            dashboardTimeGroupingOptions={dashboardTimeGroupingOptions}
-            filteredDashboardEvaluationMix={filteredDashboardEvaluationMix}
-            filteredDashboardResponseDistributions={filteredDashboardResponseDistributions}
-            getAssignmentStatusLabel={getAssignmentStatusLabel}
-            getRelationshipDescription={getRelationshipDescription}
-            getRelationshipLabel={getRelationshipLabel}
-            selectedDashboardCompositionMeta={selectedDashboardCompositionMeta}
-            setDashboardAreaFilter={setDashboardAreaFilter}
-            setDashboardCompositionFilter={setDashboardCompositionFilter}
-            setDashboardTimeGrouping={setDashboardTimeGrouping}
-            summary={summary}
-          />
-        ) : null}
-
-        {!loading && activeSection === "Compliance" ? (
-          <ComplianceSection
-            IncidentQueueCard={IncidentQueueCard}
-            Input={Input}
-            Select={Select}
-            Textarea={Textarea}
-            auditEntries={auditTrail.filter((item) => item.category === "incident")}
-            canManageIncidentQueue={canManageIncidentQueue}
-            canViewIncidents={canViewIncidents}
-            formatDate={formatDate}
-            handleIncidentSubmit={handleIncidentSubmit}
-            handleIncidentUpdate={handleIncidentUpdate}
-            incidentAreaOptions={incidentAreaOptions}
-            incidentClassificationOptions={incidentClassificationOptions}
-            incidentStatusOptions={incidentStatusOptions}
-            incidentForm={incidentForm}
-            incidents={incidents}
-            incidentResponsibleOptions={incidentResponsibleOptions}
-            roleKey={user.roleKey}
-            setIncidentForm={setIncidentForm}
-          />
-        ) : null}
-
-        {!loading && activeSection === "Avaliacoes" ? (
-          <EvaluationsSection
-            Input={Input}
-            Select={Select}
-            Textarea={Textarea}
-            activeCycleModuleSummary={activeCycleModuleSummary}
-            activeEvaluationCycleId={activeEvaluationCycleId}
-            evaluationCycleStructure={evaluationCycleStructure}
-            activeEvaluationModule={activeEvaluationModule}
-            activeEvaluationModuleMeta={activeEvaluationModuleMeta}
-            activeEvaluationWorkspace={activeEvaluationWorkspace}
-            auditEntries={auditTrail.filter(
-              (item) =>
-                item.category === "cycle" || item.category === "feedback_request"
-            )}
-            answerForm={answerForm}
-            assignmentDetail={assignmentDetail}
-            canManageCycles={canManageCycles}
-            canManageFeedbackRequests={canManageFeedbackRequests}
-            canViewEvaluationInsights={canViewEvaluationInsights}
-            canViewEvaluationLibrary={canViewEvaluationLibrary}
-            canViewEvaluationOperations={canViewEvaluationOperations}
-            canViewResponses={canViewResponses}
-            comparisonCycleModuleSummary={comparisonCycleModuleSummary}
-            cycleComparisonHighlights={cycleComparisonHighlights}
-            comparisonCycleOptions={comparisonCycleOptions}
-            comparisonEvaluationCycleId={comparisonEvaluationCycleId}
-            competencies={competencies}
-            customLibraryDraft={customLibraryDraft}
-            customLibraryPublishForm={customLibraryPublishForm}
-            cycleForm={cycleForm}
-            cycles={cycles}
-            developmentNote={developmentNote}
-            evaluationCycleHistory={evaluationCycleHistory}
-            evaluationCycleOptions={evaluationCycleOptions}
-            evaluationOperationNotice={evaluationOperationNotice}
-            evaluationOperationWorkModeFilter={evaluationOperationWorkModeFilter}
-            evaluationOperationWorkModeOptions={evaluationOperationWorkModeOptions}
-            evaluationOperationWorkUnitFilter={evaluationOperationWorkUnitFilter}
-            evaluationOperationWorkUnitOptions={evaluationOperationWorkUnitOptions}
-            evaluationLibrary={evaluationLibrary}
-            evaluationModuleOptions={evaluationModuleOptions}
-            feedbackProviderOptions={feedbackProviderOptions}
-            feedbackRequestCycleOptions={feedbackRequestCycleOptions}
-            feedbackRequestForm={feedbackRequestForm}
-            filteredAggregateResponses={filteredAggregateResponses}
-            filteredAssignments={filteredAssignments}
-            filteredEvaluationCycleStructure={filteredEvaluationCycleStructure}
-            filteredFeedbackRequests={filteredFeedbackRequests}
-            filteredIndividualResponses={filteredIndividualResponses}
-            filteredReceivedManagerFeedback={filteredReceivedManagerFeedback}
-            formatDate={formatDate}
-            getCycleStatusDescription={getCycleStatusDescription}
-            getFeedbackRequestStatusLabel={getFeedbackRequestStatusLabel}
-            getRelationshipDescription={getRelationshipDescription}
-            getRelationshipLabel={getRelationshipLabel}
-            getVisibilityLabel={getVisibilityLabel}
-            handleAssignmentSubmit={handleAssignmentSubmit}
-            handleCompetencyCreate={handleCompetencyCreate}
-            handleCompetencyUpdate={handleCompetencyUpdate}
-            handleCustomLibraryImport={handleCustomLibraryImport}
-            handleCustomLibraryTemplateDownload={api.downloadCustomLibraryTemplate}
-            handleCustomLibraryPublish={handleCustomLibraryPublish}
-            handleCycleStatusChange={handleCycleStatusChange}
-            handleCycleEnabledToggle={handleCycleEnabledToggle}
-            handleCycleModuleToggle={handleCycleModuleToggle}
-            handleCycleSubmit={handleCycleSubmit}
-            handleFeedbackProviderToggle={handleFeedbackProviderToggle}
-            handleFeedbackRequestReview={handleFeedbackRequestReview}
-            handleFeedbackRequestSubmit={handleFeedbackRequestSubmit}
-            handleNotifyDelinquents={handleNotifyDelinquents}
-            handleReceivedManagerFeedbackSubmit={handleReceivedManagerFeedbackSubmit}
-            receivedManagerFeedbackDrafts={receivedManagerFeedbackDrafts}
-            roleKey={user.roleKey}
-            selectedAssignment={selectedAssignment}
-            setActiveEvaluationCycleId={setActiveEvaluationCycleId}
-            setActiveEvaluationModule={setActiveEvaluationModule}
-            setActiveEvaluationWorkspace={setActiveEvaluationWorkspace}
-            setAnswerForm={setAnswerForm}
-            setComparisonEvaluationCycleId={setComparisonEvaluationCycleId}
-            setCustomLibraryPublishForm={setCustomLibraryPublishForm}
-            setCycleForm={setCycleForm}
-            setDevelopmentNote={setDevelopmentNote}
-            setEvaluationOperationWorkModeFilter={setEvaluationOperationWorkModeFilter}
-            setEvaluationOperationWorkUnitFilter={setEvaluationOperationWorkUnitFilter}
-            setFeedbackRequestForm={setFeedbackRequestForm}
-            setReceivedManagerFeedbackDraft={setReceivedManagerFeedbackDraft}
-            setSelectedAssignment={setSelectedAssignment}
-            setShowEvaluationLibrary={setShowEvaluationLibrary}
-            setStrengthsNote={setStrengthsNote}
-            showEvaluationLibrary={showEvaluationLibrary}
-            strengthsNote={strengthsNote}
-          />
-        ) : null}
-
-        {!loading && activeSection === "Desenvolvimento" ? (
-          <DevelopmentSection
-            auditEntries={developmentAuditEntries}
-            canViewAuditTrail={canViewAuditTrail}
-            DevelopmentPlanAdminCard={DevelopmentPlanAdminCard}
-            DevelopmentRecordAdminCard={DevelopmentRecordAdminCard}
-            Input={Input}
-            MetricCard={MetricCard}
-            Select={Select}
-            Textarea={Textarea}
-            activeDevelopmentView={activeDevelopmentView}
-            developmentForm={developmentForm}
-            developmentPlanForm={developmentPlanForm}
-            developmentPlanCycleOptions={developmentPlanCycleOptions}
-            developmentPlanCompetencyOptions={developmentPlanCompetencyOptions}
-            developmentPlanPeopleOptions={developmentPlanPeopleOptions}
-            developmentPlanStatusOptions={developmentPlanStatusOptions}
-            developmentFormPeopleOptions={developmentFormPeopleOptions}
-            developmentHighlights={developmentHighlights}
-            developmentMetrics={developmentMetrics}
-            developmentPlans={filteredDevelopmentPlans}
-            developmentRecordTypes={developmentRecordTypes}
-            developmentEditablePlanPeopleOptions={developmentEditablePlanPeopleOptions}
-            developmentEditablePeopleOptions={developmentEditablePeopleOptions}
-            developmentViewLabels={developmentViewLabels}
-            developmentViewOptions={developmentViewOptions}
-            filteredDevelopmentRecords={filteredDevelopmentRecords}
-            formatDate={formatDate}
-            getDevelopmentTrackLabel={getDevelopmentTrackLabel}
-            handleDevelopmentPlanSubmit={handleDevelopmentPlanSubmit}
-            handleDevelopmentPlanUpdate={handleDevelopmentPlanUpdate}
-            handleDevelopmentSubmit={handleDevelopmentSubmit}
-            handleDevelopmentUpdate={handleDevelopmentUpdate}
-            roleKey={user.roleKey}
-            setActiveDevelopmentView={setActiveDevelopmentView}
-            setDevelopmentForm={setDevelopmentForm}
-            setDevelopmentPlanForm={setDevelopmentPlanForm}
-          />
-        ) : null}
-
-        {!loading && activeSection === "Aplause" ? (
-          <ApplauseSection
-            ApplauseAdminCard={ApplauseAdminCard}
-            Input={Input}
-            Select={Select}
-            Textarea={Textarea}
-            auditEntries={applauseAuditEntries}
-            applauseEntries={applauseEntries}
-            applauseForm={applauseForm}
-            applausePeopleOptions={applausePeopleOptions}
-            canManageApplause={canManageApplause}
-            canViewAuditTrail={canViewAuditTrail}
-            formatDate={formatDate}
-            handleApplauseSubmit={handleApplauseSubmit}
-            handleApplauseUpdate={handleApplauseUpdate}
-            roleKey={user.roleKey}
-            setApplauseForm={setApplauseForm}
-          />
-        ) : null}
-
-        {!loading && activeSection === "Pessoas" ? (
-          <PeopleSection
-            AreaAdminCard={AreaAdminCard}
-            Input={Input}
-            PersonStructureCard={PersonStructureCard}
-            Select={Select}
-            canManagePeopleRegistry={canManagePeopleRegistry}
-            areaForm={areaForm}
-            areaOptions={areaOptions}
-            areas={areas}
-            handleAreaSubmit={handleAreaSubmit}
-            handleAreaUpdate={handleAreaUpdate}
-            handlePersonSubmit={handlePersonSubmit}
-            handlePersonSubmitAndCreateUser={() =>
-              handlePersonSubmit(undefined, { createUserAfter: true })
-            }
-            handlePersonUpdate={handlePersonUpdate}
-            managerOptions={managerOptions}
-            people={people}
-            personAccessStateById={personAccessStateById}
-            personForm={personForm}
-            onPrepareUserProvisioning={prepareUserProvisioning}
-            setAreaForm={setAreaForm}
-            setPersonForm={setPersonForm}
-          />
-        ) : null}
-
-        {!loading && activeSection === "Usuarios" ? (
-          <UsersSection
-            Input={Input}
-            Select={Select}
-            UserAdminCard={UserAdminCard}
-            auditEntries={auditTrail.filter((item) => item.category === "user")}
-            availableUserPeopleOptions={availableUserPeopleOptions}
-            formatDate={formatDate}
-            handleUserSubmit={handleUserSubmit}
-            handleUserUpdate={handleUserUpdate}
-            handleUserPersonSelect={handleUserPersonSelect}
-            accessJourneySummary={accessJourneySummary}
-            pendingAccessPeople={peopleAccessJourney.filter((person) => person.accessState === "pending")}
-            onPrepareUserProvisioning={prepareUserProvisioning}
-            selectedUserPerson={selectedUserPerson}
-            setUserForm={setUserForm}
-            suggestedUserEmail={suggestedUserEmail}
-            suggestedUserRole={suggestedUserRole}
-            suggestedUserRoleReason={suggestedUserRoleReason}
-            userForm={userForm}
-            userRoleOptions={userRoleOptions}
-            userStatusOptions={userStatusOptions}
-            users={users}
-          />
-        ) : null}
+      <AppSceneRenderer
+        activeCycleModuleSummary={activeCycleModuleSummary}
+        activeDevelopmentView={activeDevelopmentView}
+        activeEvaluationCycleId={activeEvaluationCycleId}
+        activeEvaluationModule={activeEvaluationModule}
+        activeEvaluationModuleMeta={activeEvaluationModuleMeta}
+        activeEvaluationWorkspace={activeEvaluationWorkspace}
+        activeSection={activeSection}
+        accessJourneySummary={accessJourneySummary}
+        answerForm={answerForm}
+        applauseAuditEntries={applauseAuditEntries}
+        applauseEntries={applauseEntries}
+        applauseForm={applauseForm}
+        applausePeopleOptions={applausePeopleOptions}
+        areaForm={areaForm}
+        areaOptions={areaOptions}
+        areas={areas}
+        assignmentDetail={assignmentDetail}
+        availableUserPeopleOptions={availableUserPeopleOptions}
+        BarMetricRow={BarMetricRow}
+        canFilterDashboardByArea={canFilterDashboardByArea}
+        canManageApplause={canManageApplause}
+        canManageCycles={canManageCycles}
+        canManageFeedbackRequests={canManageFeedbackRequests}
+        canManageIncidentQueue={canManageIncidentQueue}
+        canManagePeopleRegistry={canManagePeopleRegistry}
+        canViewAuditTrail={canViewAuditTrail}
+        canViewEvaluationInsights={canViewEvaluationInsights}
+        canViewEvaluationLibrary={canViewEvaluationLibrary}
+        canViewEvaluationOperations={canViewEvaluationOperations}
+        canViewIncidents={canViewIncidents}
+        canViewResponses={canViewResponses}
+        ColumnMetricCard={ColumnMetricCard}
+        comparisonCycleModuleSummary={comparisonCycleModuleSummary}
+        comparisonCycleOptions={comparisonCycleOptions}
+        comparisonEvaluationCycleId={comparisonEvaluationCycleId}
+        competencies={competencies}
+        customLibraryDraft={customLibraryDraft}
+        customLibraryPublishForm={customLibraryPublishForm}
+        cycleComparisonHighlights={cycleComparisonHighlights}
+        cycleForm={cycleForm}
+        cycles={cycles}
+        dashboard={dashboard}
+        dashboardAreaFilter={dashboardAreaFilter}
+        dashboardCompositionFilter={dashboardCompositionFilter}
+        dashboardCompositionOptions={dashboardCompositionOptions}
+        dashboardTimeGrouping={dashboardTimeGrouping}
+        dashboardTimeGroupingLabel={dashboardTimeGroupingLabel}
+        dashboardTimeGroupingOptions={dashboardTimeGroupingOptions}
+        DashboardDonut={DashboardDonut}
+        developmentAuditEntries={developmentAuditEntries}
+        developmentForm={developmentForm}
+        developmentFormPeopleOptions={developmentFormPeopleOptions}
+        developmentHighlights={developmentHighlights}
+        developmentMetrics={developmentMetrics}
+        developmentNote={developmentNote}
+        developmentPlanCompetencyOptions={developmentPlanCompetencyOptions}
+        developmentPlanCycleOptions={developmentPlanCycleOptions}
+        developmentPlanForm={developmentPlanForm}
+        developmentPlanPeopleOptions={developmentPlanPeopleOptions}
+        developmentPlanStatusOptions={developmentPlanStatusOptions}
+        developmentRecordTypes={developmentRecordTypes}
+        developmentViewLabels={developmentViewLabels}
+        developmentViewOptions={developmentViewOptions}
+        DevelopmentPlanAdminCard={DevelopmentPlanAdminCard}
+        DevelopmentRecordAdminCard={DevelopmentRecordAdminCard}
+        evaluationAuditEntries={evaluationAuditEntries}
+        evaluationCycleHistory={evaluationCycleHistory}
+        evaluationCycleOptions={evaluationCycleOptions}
+        evaluationCycleStructure={evaluationCycleStructure}
+        evaluationLibrary={evaluationLibrary}
+        evaluationModuleOptions={evaluationModuleOptions}
+        evaluationOperationNotice={evaluationOperationNotice}
+        evaluationOperationWorkModeFilter={evaluationOperationWorkModeFilter}
+        evaluationOperationWorkModeOptions={evaluationOperationWorkModeOptions}
+        evaluationOperationWorkUnitFilter={evaluationOperationWorkUnitFilter}
+        evaluationOperationWorkUnitOptions={evaluationOperationWorkUnitOptions}
+        feedbackProviderOptions={feedbackProviderOptions}
+        feedbackRequestCycleOptions={feedbackRequestCycleOptions}
+        feedbackRequestForm={feedbackRequestForm}
+        filteredAggregateResponses={filteredAggregateResponses}
+        filteredAssignments={filteredAssignments}
+        filteredDashboardEvaluationMix={filteredDashboardEvaluationMix}
+        filteredDashboardResponseDistributions={filteredDashboardResponseDistributions}
+        filteredDevelopmentPlans={filteredDevelopmentPlans}
+        filteredDevelopmentRecords={filteredDevelopmentRecords}
+        filteredEvaluationCycleStructure={filteredEvaluationCycleStructure}
+        filteredFeedbackRequests={filteredFeedbackRequests}
+        filteredIndividualResponses={filteredIndividualResponses}
+        filteredReceivedManagerFeedback={filteredReceivedManagerFeedback}
+        formatDate={formatDate}
+        FunnelSeriesChart={FunnelSeriesChart}
+        getAssignmentStatusLabel={getAssignmentStatusLabel}
+        getCycleStatusDescription={getCycleStatusDescription}
+        getDevelopmentTrackLabel={getDevelopmentTrackLabel}
+        getFeedbackRequestStatusLabel={getFeedbackRequestStatusLabel}
+        getRelationshipDescription={getRelationshipDescription}
+        getRelationshipLabel={getRelationshipLabel}
+        getVisibilityLabel={getVisibilityLabel}
+        handleApplauseSubmit={handleApplauseSubmit}
+        handleApplauseUpdate={handleApplauseUpdate}
+        handleAreaSubmit={handleAreaSubmit}
+        handleAreaUpdate={handleAreaUpdate}
+        handleAssignmentSubmit={handleAssignmentSubmit}
+        handleCompetencyCreate={handleCompetencyCreate}
+        handleCompetencyUpdate={handleCompetencyUpdate}
+        handleCustomLibraryImport={handleCustomLibraryImport}
+        handleCustomLibraryPublish={handleCustomLibraryPublish}
+        handleCustomLibraryTemplateDownload={api.downloadCustomLibraryTemplate}
+        handleCycleEnabledToggle={handleCycleEnabledToggle}
+        handleCycleModuleToggle={handleCycleModuleToggle}
+        handleCycleStatusChange={handleCycleStatusChange}
+        handleCycleSubmit={handleCycleSubmit}
+        handleDevelopmentPlanSubmit={handleDevelopmentPlanSubmit}
+        handleDevelopmentPlanUpdate={handleDevelopmentPlanUpdate}
+        handleDevelopmentSubmit={handleDevelopmentSubmit}
+        handleDevelopmentUpdate={handleDevelopmentUpdate}
+        handleFeedbackProviderToggle={handleFeedbackProviderToggle}
+        handleFeedbackRequestReview={handleFeedbackRequestReview}
+        handleFeedbackRequestSubmit={handleFeedbackRequestSubmit}
+        handleIncidentSubmit={handleIncidentSubmit}
+        handleIncidentUpdate={handleIncidentUpdate}
+        handleNotifyDelinquents={handleNotifyDelinquents}
+        handlePersonSubmit={handlePersonSubmit}
+        handlePersonSubmitAndCreateUser={() =>
+          handlePersonSubmit(undefined, { createUserAfter: true })
+        }
+        handlePersonUpdate={handlePersonUpdate}
+        handleReceivedManagerFeedbackSubmit={handleReceivedManagerFeedbackSubmit}
+        handleUserPersonSelect={handleUserPersonSelect}
+        handleUserSubmit={handleUserSubmit}
+        handleUserUpdate={handleUserUpdate}
+        incidents={incidents}
+        incidentAreaOptions={incidentAreaOptions}
+        incidentAuditEntries={incidentAuditEntries}
+        incidentClassificationOptions={incidentClassificationOptions}
+        incidentForm={incidentForm}
+        incidentResponsibleOptions={incidentResponsibleOptions}
+        incidentStatusOptions={incidentStatusOptions}
+        IncidentQueueCard={IncidentQueueCard}
+        Input={Input}
+        loading={loading}
+        managerOptions={managerOptions}
+        MetricCard={MetricCard}
+        pendingAccessPeople={pendingAccessPeople}
+        people={people}
+        personAccessStateById={personAccessStateById}
+        personForm={personForm}
+        PersonStructureCard={PersonStructureCard}
+        prepareUserProvisioning={prepareUserProvisioning}
+        receivedManagerFeedbackDrafts={receivedManagerFeedbackDrafts}
+        ResponseDistributionChartCard={ResponseDistributionChartCard}
+        roleKey={user.roleKey}
+        selectedAssignment={selectedAssignment}
+        selectedDashboardCompositionMeta={selectedDashboardCompositionMeta}
+        selectedUserPerson={selectedUserPerson}
+        setActiveDevelopmentView={setActiveDevelopmentView}
+        setActiveEvaluationCycleId={setActiveEvaluationCycleId}
+        setActiveEvaluationModule={setActiveEvaluationModule}
+        setActiveEvaluationWorkspace={setActiveEvaluationWorkspace}
+        setAnswerForm={setAnswerForm}
+        setApplauseForm={setApplauseForm}
+        setAreaForm={setAreaForm}
+        setComparisonEvaluationCycleId={setComparisonEvaluationCycleId}
+        setCustomLibraryPublishForm={setCustomLibraryPublishForm}
+        setCycleForm={setCycleForm}
+        setDashboardAreaFilter={setDashboardAreaFilter}
+        setDashboardCompositionFilter={setDashboardCompositionFilter}
+        setDashboardTimeGrouping={setDashboardTimeGrouping}
+        setDevelopmentForm={setDevelopmentForm}
+        setDevelopmentNote={setDevelopmentNote}
+        setDevelopmentPlanForm={setDevelopmentPlanForm}
+        setEvaluationOperationWorkModeFilter={setEvaluationOperationWorkModeFilter}
+        setEvaluationOperationWorkUnitFilter={setEvaluationOperationWorkUnitFilter}
+        setFeedbackRequestForm={setFeedbackRequestForm}
+        setIncidentForm={setIncidentForm}
+        setPersonForm={setPersonForm}
+        setReceivedManagerFeedbackDraft={setReceivedManagerFeedbackDraft}
+        setSelectedAssignment={setSelectedAssignment}
+        setShowEvaluationLibrary={setShowEvaluationLibrary}
+        setStrengthsNote={setStrengthsNote}
+        setUserForm={setUserForm}
+        showEvaluationLibrary={showEvaluationLibrary}
+        strengthsNote={strengthsNote}
+        summary={summary}
+        suggestedUserEmail={suggestedUserEmail}
+        suggestedUserRole={suggestedUserRole}
+        suggestedUserRoleReason={suggestedUserRoleReason}
+        Textarea={Textarea}
+        UserAdminCard={UserAdminCard}
+        userAuditEntries={userAuditEntries}
+        userForm={userForm}
+        userRoleOptions={userRoleOptions}
+        userStatusOptions={userStatusOptions}
+        users={users}
+      />
     </AppShell>
   );
 }
