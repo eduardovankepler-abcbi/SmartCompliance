@@ -1,3 +1,18 @@
+function NativeSelectField({ label, value = "", options = [], onChange, renderLabel }) {
+  return (
+    <label className="field">
+      <span>{label}</span>
+      <select value={value} onChange={(event) => onChange(event.target.value)}>
+        {options.map((option) => (
+          <option key={option} value={option}>
+            {renderLabel ? renderLabel(option) : option}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
 export function EvaluationInsightsPanel({
   Select,
   activeCycleModuleSummary,
@@ -13,7 +28,7 @@ export function EvaluationInsightsPanel({
   setComparisonEvaluationCycleId,
   activeEvaluationWorkspace
 }) {
-  const SafeSelect = Select || (() => null);
+  const SafeSelect = Select || NativeSelectField;
 
   if (!canViewEvaluationInsights || activeEvaluationWorkspace !== "insights") {
     return null;
@@ -53,9 +68,9 @@ export function EvaluationInsightsPanel({
             <SafeSelect
               label="Ciclo para comparacao"
               value={comparisonEvaluationCycleId}
-              options={comparisonCycleOptions.map((cycle) => cycle.id)}
+              options={(comparisonCycleOptions || []).map((cycle) => cycle.id)}
               renderLabel={(value) =>
-                comparisonCycleOptions.find((cycle) => cycle.id === value)?.title || value
+                (comparisonCycleOptions || []).find((cycle) => cycle.id === value)?.title || value
               }
               onChange={setComparisonEvaluationCycleId}
             />
@@ -68,9 +83,9 @@ export function EvaluationInsightsPanel({
                   <MiniMetric label="Media observada" value={comparisonCycleModuleSummary.averageScore ?? "-"} />
                   <MiniMetric label="Conclusao" value={`${comparisonCycleModuleSummary.completionRate}%`} />
                 </div>
-                {cycleComparisonHighlights.length ? (
+                {(cycleComparisonHighlights || []).length ? (
                   <div className="stack-list evaluation-comparison-list">
-                    {cycleComparisonHighlights.map((item) => (
+                    {(cycleComparisonHighlights || []).map((item) => (
                       <article className="list-card evaluation-comparison-card" key={item.key}>
                         <div className="row">
                           <strong>{item.label}</strong>
@@ -103,8 +118,8 @@ export function EvaluationInsightsPanel({
           <span>Comparativo do submodulo dentro do seu escopo</span>
         </div>
         <div className="stack-list evaluation-history-list">
-          {evaluationCycleHistory.length ? (
-            evaluationCycleHistory.map((cycleSummary) => (
+          {(evaluationCycleHistory || []).length ? (
+            (evaluationCycleHistory || []).map((cycleSummary) => (
               <article
                 className={
                   cycleSummary.id === activeEvaluationCycleId

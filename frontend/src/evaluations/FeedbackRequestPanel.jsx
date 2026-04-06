@@ -1,5 +1,29 @@
 import { getEvaluationWorkspaceCopy } from "../appLabels.js";
 
+function NativeSelectField({ label, value = "", options = [], onChange, renderLabel }) {
+  return (
+    <label className="field">
+      <span>{label}</span>
+      <select value={value} onChange={(event) => onChange(event.target.value)}>
+        {options.map((option) => (
+          <option key={option} value={option}>
+            {renderLabel ? renderLabel(option) : option}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function NativeTextareaField({ label, value = "", rows = 4, onChange }) {
+  return (
+    <label className="field">
+      <span>{label}</span>
+      <textarea rows={rows} value={value} onChange={(event) => onChange(event.target.value)} />
+    </label>
+  );
+}
+
 export function FeedbackRequestPanel({
   Select,
   Textarea,
@@ -17,8 +41,8 @@ export function FeedbackRequestPanel({
   handleFeedbackRequestSubmit,
   setFeedbackRequestForm
 }) {
-  const SafeSelect = Select || (() => null);
-  const SafeTextarea = Textarea || (() => null);
+  const SafeSelect = Select || NativeSelectField;
+  const SafeTextarea = Textarea || NativeTextareaField;
 
   if (
     activeEvaluationWorkspace !== "respond" ||
@@ -44,9 +68,9 @@ export function FeedbackRequestPanel({
           <SafeSelect
             label="Ciclo"
             value={feedbackRequestForm.cycleId}
-            options={feedbackRequestCycleOptions.map((cycle) => cycle.id)}
+            options={(feedbackRequestCycleOptions || []).map((cycle) => cycle.id)}
             renderLabel={(value) =>
-              feedbackRequestCycleOptions.find((cycle) => cycle.id === value)?.title || value
+              (feedbackRequestCycleOptions || []).find((cycle) => cycle.id === value)?.title || value
             }
             onChange={(value) =>
               setFeedbackRequestForm({ ...feedbackRequestForm, cycleId: value })
@@ -59,7 +83,7 @@ export function FeedbackRequestPanel({
             </p>
           </div>
           <div className="selection-grid">
-            {feedbackProviderOptions.map((person) => {
+            {(feedbackProviderOptions || []).map((person) => {
               const selected = feedbackRequestForm.providerPersonIds.includes(person.value);
               return (
                 <button
@@ -99,8 +123,8 @@ export function FeedbackRequestPanel({
               RH/Admin aprovam a solicitacao e o sistema gera os assignments de feedback direto.
             </p>
           </div>
-          {filteredFeedbackRequests.length ? (
-            filteredFeedbackRequests.map((request) => (
+          {(filteredFeedbackRequests || []).length ? (
+            (filteredFeedbackRequests || []).map((request) => (
               <article className="list-card" key={request.id}>
                 <div className="row">
                   <strong>{request.revieweeName}</strong>

@@ -7,6 +7,44 @@ import { getRelationshipLabel } from "../appLabels.js";
 
 const EmptyComponent = () => null;
 
+function NativeInputField({
+  label,
+  value = "",
+  onChange,
+  type = "text"
+}) {
+  return (
+    <label className="field">
+      <span>{label}</span>
+      <input type={type} value={value} onChange={(event) => onChange(event.target.value)} />
+    </label>
+  );
+}
+
+function NativeSelectField({ label, value = "", options = [], onChange, renderLabel }) {
+  return (
+    <label className="field">
+      <span>{label}</span>
+      <select value={value} onChange={(event) => onChange(event.target.value)}>
+        {options.map((option) => (
+          <option key={option} value={option}>
+            {renderLabel ? renderLabel(option) : option}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function NativeTextareaField({ label, value = "", rows = 4, onChange }) {
+  return (
+    <label className="field">
+      <span>{label}</span>
+      <textarea rows={rows} value={value} onChange={(event) => onChange(event.target.value)} />
+    </label>
+  );
+}
+
 function getWorkModeLabel(value) {
   switch (value) {
     case "onsite":
@@ -96,9 +134,9 @@ export function EvaluationsSection(props) {
   const SafeEvaluationResponsePanel = EvaluationResponsePanel || EmptyComponent;
   const SafeFeedbackRequestPanel = FeedbackRequestPanel || EmptyComponent;
   const SafeAuditTrailPanel = AuditTrailPanel || EmptyComponent;
-  const SafeInput = Input || EmptyComponent;
-  const SafeSelect = Select || EmptyComponent;
-  const SafeTextarea = Textarea || EmptyComponent;
+  const SafeInput = Input || NativeInputField;
+  const SafeSelect = Select || NativeSelectField;
+  const SafeTextarea = Textarea || NativeTextareaField;
 
   const isIndividualJourney = roleKey === "employee";
   const shouldShowPublishedCycles = !isIndividualJourney;
@@ -185,7 +223,7 @@ export function EvaluationsSection(props) {
           </div>
         </div>
         <div className="module-toolbar">
-          {evaluationModuleOptions.map((module) => (
+          {(evaluationModuleOptions || []).map((module) => (
             <button
               key={module.key}
               type="button"
@@ -202,13 +240,13 @@ export function EvaluationsSection(props) {
           ))}
         </div>
         <div className="evaluation-cycle-toolbar">
-          {evaluationCycleOptions.length > 1 ? (
+          {(evaluationCycleOptions || []).length > 1 ? (
             <SafeSelect
               label="Ciclo ativo"
               value={activeEvaluationCycleId}
-              options={evaluationCycleOptions.map((cycle) => cycle.id)}
+              options={(evaluationCycleOptions || []).map((cycle) => cycle.id)}
               renderLabel={(value) =>
-                evaluationCycleOptions.find((cycle) => cycle.id === value)?.title || value
+                (evaluationCycleOptions || []).find((cycle) => cycle.id === value)?.title || value
               }
               onChange={setActiveEvaluationCycleId}
             />
@@ -325,7 +363,7 @@ export function EvaluationsSection(props) {
             <span>Status visivel para acompanhamento do semestre</span>
           </div>
           <div className="metrics-grid">
-            {cycles.map((cycle) => (
+            {(cycles || []).map((cycle) => (
               <div className="mini-card" key={cycle.id}>
                 <div className="row">
                   <p className="mini-label">{cycle.semesterLabel}</p>
@@ -351,7 +389,7 @@ export function EvaluationsSection(props) {
             <span>Controle de liberacao e encerramento</span>
           </div>
           <div className="metrics-grid">
-            {cycles.map((cycle) => (
+            {(cycles || []).map((cycle) => (
               <div className="mini-card" key={cycle.id}>
                 <div className="row">
                   <p className="mini-label">{cycle.semesterLabel}</p>
