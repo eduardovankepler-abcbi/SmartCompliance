@@ -498,6 +498,8 @@ export default function App() {
         DashboardDonut={DashboardDonut}
         developmentAuditEntries={developmentAuditEntries}
         developmentForm={developmentForm}
+        developmentEditablePeopleOptions={developmentEditablePeopleOptions}
+        developmentEditablePlanPeopleOptions={developmentEditablePlanPeopleOptions}
         developmentFormPeopleOptions={developmentFormPeopleOptions}
         developmentHighlights={developmentHighlights}
         developmentMetrics={developmentMetrics}

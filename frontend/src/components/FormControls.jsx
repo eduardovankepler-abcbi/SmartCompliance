@@ -1,6 +1,6 @@
 export function Input({
   label,
-  value,
+  value = "",
   onChange,
   type = "text",
   placeholder = "",
@@ -28,7 +28,7 @@ export function Input({
   );
 }
 
-export function Textarea({ label, value, onChange, rows = 4, placeholder = "", helper = "" }) {
+export function Textarea({ label, value = "", onChange, rows = 4, placeholder = "", helper = "" }) {
   return (
     <label className="field">
       <span>{label}</span>
@@ -43,7 +43,15 @@ export function Textarea({ label, value, onChange, rows = 4, placeholder = "", h
   );
 }
 
-export function Select({ label, value, options, onChange, renderLabel, helper = "", disabled = false }) {
+export function Select({
+  label,
+  value = "",
+  options = [],
+  onChange,
+  renderLabel,
+  helper = "",
+  disabled = false
+}) {
   return (
     <label className="field">
       <span>{label}</span>
