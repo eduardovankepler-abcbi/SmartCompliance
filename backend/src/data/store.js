@@ -843,6 +843,133 @@ function buildEvaluationLibraryPayload(customLibraries = []) {
   };
 }
 
+function countLibraryQuestions(templates = []) {
+  return (templates || []).reduce(
+    (total, template) => total + ((template?.questions || []).length || 0),
+    0
+  );
+}
+
+function normalizeCustomLibraryQuestion(question, templateKey, index) {
+  const inputType = ["scale", "text", "multi-select"].includes(question?.inputType)
+    ? question.inputType
+    : "scale";
+  const options =
+    inputType === "multi-select"
+      ? (Array.isArray(question?.options) ? question.options : [])
+          .map((option, optionIndex) =>
+            typeof option === "string"
+              ? {
+                  value: option,
+                  label: option
+                }
+              : {
+                  value:
+                    String(option?.value || option?.label || `option_${optionIndex + 1}`).trim(),
+                  label:
+                    String(option?.label || option?.value || `Opcao ${optionIndex + 1}`).trim()
+                }
+          )
+          .filter((option) => option.value && option.label)
+      : [];
+
+  return {
+    id: question?.id || createId("question"),
+    sectionKey: String(question?.sectionKey || templateKey || `secao_${index + 1}`).trim(),
+    sectionTitle: String(question?.sectionTitle || question?.sectionKey || "Secao").trim(),
+    sectionDescription: String(question?.sectionDescription || "").trim(),
+    dimensionKey: String(question?.dimensionKey || `dimensao_${index + 1}`).trim(),
+    dimensionTitle: String(
+      question?.dimensionTitle || question?.sectionTitle || `Pergunta ${index + 1}`
+    ).trim(),
+    prompt: String(question?.prompt || "").trim(),
+    helperText: String(question?.helperText || "").trim(),
+    sortOrder: Number(question?.sortOrder) > 0 ? Number(question.sortOrder) : index + 1,
+    isRequired: question?.isRequired !== false,
+    visibility: ["shared", "private", "confidential"].includes(question?.visibility)
+      ? question.visibility
+      : "shared",
+    inputType,
+    options,
+    scaleProfile: String(question?.scaleProfile || "").trim(),
+    collectEvidenceOnExtreme: Boolean(question?.collectEvidenceOnExtreme)
+  };
+}
+
+function normalizeCustomLibraryTemplate(template, index) {
+  const relationshipType = String(template?.relationshipType || template?.key || "").trim();
+  if (!relationshipType) {
+    throw new Error("Cada template customizado precisa informar o tipo de avaliacao.");
+  }
+
+  const questions = (Array.isArray(template?.questions) ? template.questions : []).map(
+    (question, questionIndex) =>
+      normalizeCustomLibraryQuestion(question, relationshipType, questionIndex)
+  );
+
+  if (!questions.length) {
+    throw new Error(`O template ${relationshipType} precisa ter ao menos uma pergunta.`);
+  }
+
+  if (questions.some((question) => !question.prompt)) {
+    throw new Error(`O template ${relationshipType} possui pergunta sem enunciado.`);
+  }
+
+  if (
+    questions.some(
+      (question) => question.inputType === "multi-select" && !question.options.length
+    )
+  ) {
+    throw new Error(
+      `O template ${relationshipType} possui pergunta multipla escolha sem opcoes.`
+    );
+  }
+
+  return {
+    id: template?.id || createId("template"),
+    relationshipType,
+    key: String(template?.key || relationshipType).trim(),
+    modelName: String(template?.modelName || template?.name || relationshipType).trim(),
+    description: String(template?.description || "").trim(),
+    policy: {
+      ...(template?.policy || {})
+    },
+    questions: questions.sort((left, right) => left.sortOrder - right.sortOrder)
+  };
+}
+
+function preparePublishedCustomLibraryUpdate(existingLibrary, payload = {}) {
+  if (!existingLibrary) {
+    throw new Error("Biblioteca customizada nao encontrada.");
+  }
+
+  const nextName = String(payload.name ?? existingLibrary.name ?? "").trim();
+  if (!nextName) {
+    throw new Error("Nome da biblioteca obrigatorio.");
+  }
+
+  const nextTemplates =
+    payload.templates !== undefined
+      ? (Array.isArray(payload.templates) ? payload.templates : []).map((template, index) =>
+          normalizeCustomLibraryTemplate(template, index)
+        )
+      : existingLibrary.templates || [];
+
+  if (!nextTemplates.length) {
+    throw new Error("A biblioteca precisa manter ao menos um template.");
+  }
+
+  return {
+    ...existingLibrary,
+    name: nextName,
+    description: String(payload.description ?? existingLibrary.description ?? "").trim(),
+    templateCount: nextTemplates.length,
+    questionCount: countLibraryQuestions(nextTemplates),
+    templates: nextTemplates,
+    updatedAt: new Date().toISOString()
+  };
+}
+
 function normalizeCycleModuleAvailability(value) {
   if (!value) {
     return { ...DEFAULT_CYCLE_MODULE_AVAILABILITY };
@@ -3223,8 +3350,8 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
       await saveCustomLibraryState(customLibraryState);
       return draft;
     },
-    async publishCustomLibraryDraft(payload) {
-      const draft = customLibraryState.drafts.find((item) => item.id === payload.draftId);
+      async publishCustomLibraryDraft(payload) {
+        const draft = customLibraryState.drafts.find((item) => item.id === payload.draftId);
       if (!draft) {
         throw new Error("Rascunho da biblioteca nao encontrado.");
       }
@@ -3247,10 +3374,25 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
       customLibraryState.drafts = customLibraryState.drafts.filter(
         (item) => item.id !== payload.draftId
       );
-      await saveCustomLibraryState(customLibraryState);
-      return published;
-    },
-    async getEvaluationTemplateForCycleRelationship(cycleId, relationshipType) {
+        await saveCustomLibraryState(customLibraryState);
+        return published;
+      },
+      async updateCustomLibrary(libraryId, payload) {
+        const libraryIndex = customLibraryState.published.findIndex((item) => item.id === libraryId);
+        if (libraryIndex < 0) {
+          throw new Error("Biblioteca customizada nao encontrada.");
+        }
+
+        const updatedLibrary = preparePublishedCustomLibraryUpdate(
+          customLibraryState.published[libraryIndex],
+          payload
+        );
+
+        customLibraryState.published[libraryIndex] = updatedLibrary;
+        await saveCustomLibraryState(customLibraryState);
+        return updatedLibrary;
+      },
+      async getEvaluationTemplateForCycleRelationship(cycleId, relationshipType) {
       const cycle = db.cycles.find((item) => item.id === cycleId);
       return buildTemplate(
         getTemplateDefinitionForCycle({
@@ -4967,8 +5109,8 @@ function buildMysqlStore(
       await saveCustomLibraryState(customLibraryState);
       return draft;
     },
-    async publishCustomLibraryDraft(payload) {
-      const draft = customLibraryState.drafts.find((item) => item.id === payload.draftId);
+      async publishCustomLibraryDraft(payload) {
+        const draft = customLibraryState.drafts.find((item) => item.id === payload.draftId);
       if (!draft) {
         throw new Error("Rascunho da biblioteca nao encontrado.");
       }
@@ -4991,10 +5133,25 @@ function buildMysqlStore(
       customLibraryState.drafts = customLibraryState.drafts.filter(
         (item) => item.id !== payload.draftId
       );
-      await saveCustomLibraryState(customLibraryState);
-      return published;
-    },
-    async getEvaluationTemplateForCycleRelationship(cycleId, relationshipType) {
+        await saveCustomLibraryState(customLibraryState);
+        return published;
+      },
+      async updateCustomLibrary(libraryId, payload) {
+        const libraryIndex = customLibraryState.published.findIndex((item) => item.id === libraryId);
+        if (libraryIndex < 0) {
+          throw new Error("Biblioteca customizada nao encontrada.");
+        }
+
+        const updatedLibrary = preparePublishedCustomLibraryUpdate(
+          customLibraryState.published[libraryIndex],
+          payload
+        );
+
+        customLibraryState.published[libraryIndex] = updatedLibrary;
+        await saveCustomLibraryState(customLibraryState);
+        return updatedLibrary;
+      },
+      async getEvaluationTemplateForCycleRelationship(cycleId, relationshipType) {
       const [rows] = await pool.query(
         `SELECT id, template_id AS templateId, library_id AS libraryId, library_name AS libraryName
          FROM evaluation_cycles

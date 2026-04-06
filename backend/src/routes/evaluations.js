@@ -337,6 +337,25 @@ export function createEvaluationsRouter(store) {
     }
   );
 
+  router.patch(
+    "/custom-libraries/:libraryId",
+    requireRoles("admin", "hr"),
+    async (req, res) => {
+      const { name, description, templates } = req.body || {};
+
+      try {
+        const library = await store.updateCustomLibrary(
+          req.params.libraryId,
+          { name, description, templates },
+          req.auth.user
+        );
+        res.json(library);
+      } catch (error) {
+        res.status(400).json({ error: error.message || "Falha ao atualizar biblioteca." });
+      }
+    }
+  );
+
   router.post("/submit", async (req, res, next) => {
     const { assignmentId, answers, strengthsNote, developmentNote } = req.body;
 

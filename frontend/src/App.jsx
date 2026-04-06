@@ -192,6 +192,7 @@ export default function App() {
     filteredReceivedManagerFeedback,
     handleAssignmentSubmit,
     handleCustomLibraryImport,
+    handleCustomLibraryUpdate,
     handleCustomLibraryPublish,
     handleCycleStatusChange,
     handleCycleEnabledToggle,
@@ -555,6 +556,7 @@ export default function App() {
         handleCompetencyCreate={handleCompetencyCreate}
         handleCompetencyUpdate={handleCompetencyUpdate}
         handleCustomLibraryImport={handleCustomLibraryImport}
+        handleCustomLibraryUpdate={handleCustomLibraryUpdate}
         handleCustomLibraryPublish={handleCustomLibraryPublish}
         handleCustomLibraryTemplateDownload={api.downloadCustomLibraryTemplate}
         handleCycleEnabledToggle={handleCycleEnabledToggle}

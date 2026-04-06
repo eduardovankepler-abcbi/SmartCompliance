@@ -103,6 +103,7 @@ export function EvaluationsSection(props) {
     handleCompetencyCreate,
     handleCompetencyUpdate,
     handleCustomLibraryImport,
+    handleCustomLibraryUpdate,
     handleCustomLibraryTemplateDownload,
     handleCustomLibraryPublish,
     handleCycleStatusChange,
@@ -309,6 +310,7 @@ export function EvaluationsSection(props) {
         handleCompetencyCreate={handleCompetencyCreate}
         handleCompetencyUpdate={handleCompetencyUpdate}
         handleCustomLibraryImport={handleCustomLibraryImport}
+        handleCustomLibraryUpdate={handleCustomLibraryUpdate}
         handleCustomLibraryTemplateDownload={handleCustomLibraryTemplateDownload}
         handleCustomLibraryPublish={handleCustomLibraryPublish}
         setCustomLibraryPublishForm={setCustomLibraryPublishForm}

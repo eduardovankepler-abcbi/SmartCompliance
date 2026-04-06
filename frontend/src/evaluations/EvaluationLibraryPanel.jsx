@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { getRelationshipLabel } from "../appLabels.js";
 
 const emptyCompetencyForm = {
   name: "",
@@ -23,14 +24,35 @@ export function EvaluationLibraryPanel({
   handleCompetencyCreate,
   handleCompetencyUpdate,
   handleCustomLibraryImport,
+  handleCustomLibraryUpdate,
   handleCustomLibraryTemplateDownload,
   handleCustomLibraryPublish,
   setCustomLibraryPublishForm,
   showEvaluationLibrary
 }) {
   const [activeTab, setActiveTab] = useState("libraries");
+  const [activeLibraryId, setActiveLibraryId] = useState("");
   const [competencyForm, setCompetencyForm] = useState(emptyCompetencyForm);
   const [competencyDrafts, setCompetencyDrafts] = useState({});
+  const [libraryDrafts, setLibraryDrafts] = useState({});
+  const libraryOptions = useMemo(() => {
+    const defaultLibrary = evaluationLibrary?.defaultLibrary
+      ? {
+          ...evaluationLibrary.defaultLibrary,
+          templates: evaluationLibrary?.templates || []
+        }
+      : null;
+
+    const customLibraries = (evaluationLibrary?.customLibraries || []).map((library) => ({
+      ...library,
+      templates: library.templates || []
+    }));
+
+    return [defaultLibrary, ...customLibraries].filter(Boolean);
+  }, [evaluationLibrary]);
+
+  const activeLibrary =
+    libraryOptions.find((library) => library.id === activeLibraryId) || libraryOptions[0] || null;
 
   useEffect(() => {
     setCompetencyDrafts(
@@ -47,6 +69,40 @@ export function EvaluationLibraryPanel({
       )
     );
   }, [competencies]);
+
+  useEffect(() => {
+    if (!libraryOptions.length) {
+      setActiveLibraryId("");
+      return;
+    }
+
+    if (!libraryOptions.some((library) => library.id === activeLibraryId)) {
+      setActiveLibraryId(libraryOptions[0].id);
+    }
+  }, [activeLibraryId, libraryOptions]);
+
+  useEffect(() => {
+    setLibraryDrafts(
+      Object.fromEntries(
+        (evaluationLibrary?.customLibraries || []).map((library) => [
+          library.id,
+          {
+            name: library.name,
+            description: library.description || "",
+            templates: (library.templates || []).map((template) => ({
+              ...template,
+              relationshipType: template.relationshipType || template.key,
+              key: template.key || template.relationshipType,
+              questions: (template.questions || []).map((question) => ({
+                ...question,
+                optionsText: (question.options || []).map((option) => option.label || option.value).join(" | ")
+              }))
+            }))
+          }
+        ])
+      )
+    );
+  }, [evaluationLibrary]);
 
   if (!canViewEvaluationLibrary || !showEvaluationLibrary) {
     return null;
@@ -65,6 +121,44 @@ export function EvaluationLibraryPanel({
     }
 
     await handleCompetencyUpdate(competencyId, draft);
+  }
+
+  async function onLibrarySave() {
+    if (!activeLibrary || activeLibrary.sourceType !== "custom") {
+      return;
+    }
+
+    const draft = libraryDrafts[activeLibrary.id];
+    if (!draft) {
+      return;
+    }
+
+    await handleCustomLibraryUpdate(activeLibrary.id, {
+      name: draft.name,
+      description: draft.description,
+      templates: draft.templates.map((template) => ({
+        ...template,
+        questions: (template.questions || []).map((question) => ({
+          ...question,
+          options:
+            question.inputType === "multi-select"
+              ? String(question.optionsText || "")
+                  .split("|")
+                  .map((item) => item.trim())
+                  .filter(Boolean)
+                  .map((item) => ({
+                    value: item
+                      .toLowerCase()
+                      .normalize("NFD")
+                      .replace(/[\u0300-\u036f]/g, "")
+                      .replace(/[^a-z0-9]+/g, "-")
+                      .replace(/^-+|-+$/g, ""),
+                    label: item
+                  }))
+              : question.options || []
+        }))
+      }))
+    });
   }
 
   return (
@@ -112,15 +206,277 @@ export function EvaluationLibraryPanel({
                 Espaco para o RH gerenciar os conjuntos de perguntas e templates usados nos tipos
                 de avaliacao.
               </p>
-              {evaluationLibrary?.customLibraries?.length ? (
-                evaluationLibrary.customLibraries.map((library) => (
+              {libraryOptions.length ? (
+                libraryOptions.map((library) => (
                   <p className="muted" key={library.id}>
-                    {library.name} | {library.templateCount} templates | {library.questionCount}{" "}
+                    {library.name} | {library.templateCount || library.templates?.length || 0} templates |{" "}
+                    {library.questionCount ||
+                      (library.templates || []).reduce(
+                        (total, template) => total + (template.questions?.length || 0),
+                        0
+                      )}{" "}
                     perguntas
                   </p>
                 ))
               ) : (
                 <p className="muted">Nenhuma biblioteca customizada publicada ainda.</p>
+              )}
+            </div>
+
+            <div className="list-card">
+              <div className="card-header">
+                <strong>Perguntas por tipo de avaliacao</strong>
+                <span>{activeLibrary?.name || "Biblioteca ativa"}</span>
+              </div>
+              <p className="muted">
+                Visualizacao operacional dos templates e perguntas disponiveis para cada fluxo.
+              </p>
+              {libraryOptions.length > 1 ? (
+                <label className="field">
+                  <span>Biblioteca em foco</span>
+                  <select
+                    value={activeLibraryId}
+                    onChange={(event) => setActiveLibraryId(event.target.value)}
+                  >
+                    {libraryOptions.map((library) => (
+                      <option key={library.id} value={library.id}>
+                        {library.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
+              {activeLibrary?.templates?.length ? (
+                <div className="stack-list compact-stack">
+                  {(libraryDrafts[activeLibrary.id]?.templates || activeLibrary.templates).map((template, templateIndex) => (
+                    <div className="list-card compact-list-card" key={template.id}>
+                      <div className="row">
+                        <strong>
+                          {getRelationshipLabel(template.relationshipType || template.key) ||
+                            template.modelName}
+                        </strong>
+                        <span className="badge">
+                          {template.questions?.length || 0} pergunta(s)
+                        </span>
+                      </div>
+                      {activeLibrary.sourceType === "custom" ? (
+                        <>
+                          <Input
+                            label="Nome do template"
+                            value={template.modelName}
+                            onChange={(value) =>
+                              setLibraryDrafts((current) => ({
+                                ...current,
+                                [activeLibrary.id]: {
+                                  ...current[activeLibrary.id],
+                                  templates: current[activeLibrary.id].templates.map((item, index) =>
+                                    index === templateIndex ? { ...item, modelName: value } : item
+                                  )
+                                }
+                              }))
+                            }
+                          />
+                          <Textarea
+                            label="Descricao do template"
+                            value={template.description || ""}
+                            onChange={(value) =>
+                              setLibraryDrafts((current) => ({
+                                ...current,
+                                [activeLibrary.id]: {
+                                  ...current[activeLibrary.id],
+                                  templates: current[activeLibrary.id].templates.map((item, index) =>
+                                    index === templateIndex ? { ...item, description: value } : item
+                                  )
+                                }
+                              }))
+                            }
+                          />
+                        </>
+                      ) : (
+                        <>
+                          <p className="muted">{template.modelName}</p>
+                          {template.description ? (
+                            <p className="muted">{template.description}</p>
+                          ) : null}
+                        </>
+                      )}
+                      {template.questions?.length ? (
+                        <div className="stack-list compact-stack">
+                          {template.questions.map((question, index) => (
+                            <div className="list-card compact-list-card" key={question.id || index}>
+                              {activeLibrary.sourceType === "custom" ? (
+                                <>
+                                  <Input
+                                    label="Dimensao"
+                                    value={question.dimensionTitle || ""}
+                                    onChange={(value) =>
+                                      setLibraryDrafts((current) => ({
+                                        ...current,
+                                        [activeLibrary.id]: {
+                                          ...current[activeLibrary.id],
+                                          templates: current[activeLibrary.id].templates.map((item, itemIndex) =>
+                                            itemIndex === templateIndex
+                                              ? {
+                                                  ...item,
+                                                  questions: item.questions.map((entry, entryIndex) =>
+                                                    entryIndex === index
+                                                      ? { ...entry, dimensionTitle: value }
+                                                      : entry
+                                                  )
+                                                }
+                                              : item
+                                          )
+                                        }
+                                      }))
+                                    }
+                                  />
+                                  <Textarea
+                                    label="Pergunta"
+                                    value={question.prompt || ""}
+                                    onChange={(value) =>
+                                      setLibraryDrafts((current) => ({
+                                        ...current,
+                                        [activeLibrary.id]: {
+                                          ...current[activeLibrary.id],
+                                          templates: current[activeLibrary.id].templates.map((item, itemIndex) =>
+                                            itemIndex === templateIndex
+                                              ? {
+                                                  ...item,
+                                                  questions: item.questions.map((entry, entryIndex) =>
+                                                    entryIndex === index
+                                                      ? { ...entry, prompt: value }
+                                                      : entry
+                                                  )
+                                                }
+                                              : item
+                                          )
+                                        }
+                                      }))
+                                    }
+                                  />
+                                  <Textarea
+                                    label="Texto de apoio"
+                                    value={question.helperText || ""}
+                                    onChange={(value) =>
+                                      setLibraryDrafts((current) => ({
+                                        ...current,
+                                        [activeLibrary.id]: {
+                                          ...current[activeLibrary.id],
+                                          templates: current[activeLibrary.id].templates.map((item, itemIndex) =>
+                                            itemIndex === templateIndex
+                                              ? {
+                                                  ...item,
+                                                  questions: item.questions.map((entry, entryIndex) =>
+                                                    entryIndex === index
+                                                      ? { ...entry, helperText: value }
+                                                      : entry
+                                                  )
+                                                }
+                                              : item
+                                          )
+                                        }
+                                      }))
+                                    }
+                                  />
+                                  {question.inputType === "multi-select" ? (
+                                    <Input
+                                      label="Opcoes"
+                                      value={question.optionsText || ""}
+                                      onChange={(value) =>
+                                        setLibraryDrafts((current) => ({
+                                          ...current,
+                                          [activeLibrary.id]: {
+                                            ...current[activeLibrary.id],
+                                            templates: current[activeLibrary.id].templates.map((item, itemIndex) =>
+                                              itemIndex === templateIndex
+                                                ? {
+                                                    ...item,
+                                                    questions: item.questions.map((entry, entryIndex) =>
+                                                      entryIndex === index
+                                                        ? { ...entry, optionsText: value }
+                                                        : entry
+                                                    )
+                                                  }
+                                                : item
+                                            )
+                                          }
+                                        }))
+                                      }
+                                      helper="Separe as opcoes com |"
+                                    />
+                                  ) : null}
+                                  <p className="muted">
+                                    Tipo: {question.inputType || "scale"} · Visibilidade:{" "}
+                                    {question.visibility || "shared"}
+                                  </p>
+                                </>
+                              ) : (
+                                <>
+                                  <strong>
+                                    {question.dimensionTitle || question.sectionTitle || "Pergunta"}
+                                  </strong>
+                                  <p className="muted">{question.prompt}</p>
+                                  <p className="muted">
+                                    Tipo: {question.inputType || "score"} · Visibilidade:{" "}
+                                    {question.visibility || "shared"}
+                                  </p>
+                                </>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="muted">Nenhuma pergunta cadastrada neste template.</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="muted">
+                  Nenhum template encontrado na biblioteca selecionada.
+                </p>
+              )}
+              {activeLibrary?.sourceType === "custom" ? (
+                <div className="stack-list">
+                  <Input
+                    label="Nome da biblioteca"
+                    value={libraryDrafts[activeLibrary.id]?.name || activeLibrary.name || ""}
+                    onChange={(value) =>
+                      setLibraryDrafts((current) => ({
+                        ...current,
+                        [activeLibrary.id]: {
+                          ...current[activeLibrary.id],
+                          name: value
+                        }
+                      }))
+                    }
+                  />
+                  <Textarea
+                    label="Descricao da biblioteca"
+                    value={
+                      libraryDrafts[activeLibrary.id]?.description ||
+                      activeLibrary.description ||
+                      ""
+                    }
+                    onChange={(value) =>
+                      setLibraryDrafts((current) => ({
+                        ...current,
+                        [activeLibrary.id]: {
+                          ...current[activeLibrary.id],
+                          description: value
+                        }
+                      }))
+                    }
+                  />
+                  <button className="primary-button" type="button" onClick={onLibrarySave}>
+                    Salvar biblioteca customizada
+                  </button>
+                </div>
+              ) : (
+                <p className="muted">
+                  A biblioteca padrao continua como referencia. Para personalizar perguntas, use
+                  uma biblioteca customizada via importacao ou edite uma biblioteca publicada.
+                </p>
               )}
             </div>
 

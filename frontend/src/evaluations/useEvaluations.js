@@ -1004,6 +1004,16 @@ export function useEvaluations({
     }
   }
 
+  async function handleCustomLibraryUpdate(libraryId, payload) {
+    try {
+      setError("");
+      await api.updateCustomLibrary(libraryId, payload);
+      await reloadData();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
   return {
     activeCycleModuleSummary,
     activeEvaluationCycleId,
@@ -1040,6 +1050,7 @@ export function useEvaluations({
     filteredReceivedManagerFeedback,
     handleAssignmentSubmit,
     handleCustomLibraryImport,
+    handleCustomLibraryUpdate,
     handleCustomLibraryTemplateDownload,
     handleCustomLibraryPublish,
     handleCycleStatusChange,

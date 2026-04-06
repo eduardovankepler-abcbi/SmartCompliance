@@ -139,6 +139,7 @@ export function AppSceneRenderer(props) {
           handleCompetencyCreate={props.handleCompetencyCreate}
           handleCompetencyUpdate={props.handleCompetencyUpdate}
           handleCustomLibraryImport={props.handleCustomLibraryImport}
+          handleCustomLibraryUpdate={props.handleCustomLibraryUpdate}
           handleCustomLibraryTemplateDownload={props.handleCustomLibraryTemplateDownload}
           handleCustomLibraryPublish={props.handleCustomLibraryPublish}
           handleCycleStatusChange={props.handleCycleStatusChange}

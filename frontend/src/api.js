@@ -214,6 +214,11 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload)
     }),
+  updateCustomLibrary: (libraryId, payload) =>
+    request(`/api/evaluations/custom-libraries/${libraryId}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload)
+    }),
   submitEvaluation: (payload) =>
     request("/api/evaluations/submit", {
       method: "POST",
