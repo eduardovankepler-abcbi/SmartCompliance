@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
 import { parseAppHash } from "../appRoute";
-import { evaluationModules } from "../appConfig.js";
+import { evaluationModules, isEvaluationModuleVisible } from "../appConfig.js";
 import { validateEvaluationAnswerForm } from "./validation.js";
 
 const DEFAULT_CYCLE_MODULE_AVAILABILITY = Object.freeze({
@@ -398,8 +398,10 @@ export function useEvaluations({
 
   const visibleEvaluationModules = useMemo(() => {
     const base = canViewEvaluationInsights
-      ? evaluationModules
-      : evaluationModules.filter((module) => module.relationshipType);
+      ? evaluationModules.filter(isEvaluationModuleVisible)
+      : evaluationModules.filter(
+          (module) => module.relationshipType && isEvaluationModuleVisible(module)
+        );
 
     if (activeEvaluationWorkspace === "operations" && canViewEvaluationOperations) {
       return base;

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { evaluationModules } from "./appConfig.js";
+import { evaluationModules, isEvaluationModuleVisible } from "./appConfig.js";
 import { getEvaluationModule } from "./appLabels.js";
 
 export function useDashboardFilters() {
@@ -37,7 +37,7 @@ export function useDashboardInsights({
     () => [
       { value: "all", label: "Todos os elementos do ciclo" },
       ...evaluationModules
-        .filter((module) => module.relationshipType)
+        .filter((module) => module.relationshipType && isEvaluationModuleVisible(module))
         .map((module) => ({
           value: module.relationshipType,
           label: module.label

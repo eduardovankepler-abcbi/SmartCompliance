@@ -3,6 +3,7 @@ import { EvaluationLibraryPanel } from "./EvaluationLibraryPanel";
 import { EvaluationResponsePanel } from "./EvaluationResponsePanel";
 import { FeedbackRequestPanel } from "./FeedbackRequestPanel";
 import { AuditTrailPanel } from "../components/AuditTrailPanel";
+import { visibleEvaluationModules } from "../appConfig.js";
 import { getRelationshipLabel } from "../appLabels.js";
 
 const EmptyComponent = () => null;
@@ -155,16 +156,9 @@ export function EvaluationsSection(props) {
   const operationsStructure = filteredEvaluationCycleStructure || evaluationCycleStructure;
   const hasOperationFilters =
     evaluationOperationWorkUnitFilter !== "all" || evaluationOperationWorkModeFilter !== "all";
-  const cycleRelationshipTypes = [
-    "self",
-    "company",
-    "leader",
-    "manager",
-    "peer",
-    "cross-functional",
-    "client-internal",
-    "client-external"
-  ];
+  const cycleRelationshipTypes = visibleEvaluationModules
+    .filter((module) => module.relationshipType)
+    .map((module) => module.relationshipType);
 
   return (
     <section className="page-grid">

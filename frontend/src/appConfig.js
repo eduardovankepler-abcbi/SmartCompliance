@@ -249,14 +249,16 @@ export const evaluationModules = [
     relationshipType: "client-internal",
     label: "Cliente Interno",
     audience: "Area cliente avalia a experiencia da entrega",
-    description: "Percepcao de clientes internos sobre atendimento, parceria e valor entregue."
+    description: "Percepcao de clientes internos sobre atendimento, parceria e valor entregue.",
+    isVisible: false
   },
   {
     key: "client-external",
     relationshipType: "client-external",
     label: "Cliente Externo",
     audience: "Consultoria ou parceiro avalia a experiencia",
-    description: "Leitura externa sobre confiabilidade, atendimento e resultado percebido."
+    description: "Leitura externa sobre confiabilidade, atendimento e resultado percebido.",
+    isVisible: false
   },
   {
     key: "self",
@@ -266,3 +268,9 @@ export const evaluationModules = [
     description: "Reflexao individual complementar ao processo semestral."
   }
 ];
+
+export function isEvaluationModuleVisible(module) {
+  return module?.isVisible !== false;
+}
+
+export const visibleEvaluationModules = evaluationModules.filter(isEvaluationModuleVisible);
