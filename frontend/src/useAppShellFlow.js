@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { buildAppHash, parseAppHash } from "./appRoute";
 import {
   getFallbackSectionKey,
@@ -69,18 +69,38 @@ export function useAppShellFlow({
   const shellStatusLabel = useMemo(
     () =>
       getSectionStatusLabel({
-        activeSection,
+        activeSection: visibleSections.some((section) => section.key === activeSection)
+          ? activeSection
+          : fallbackSectionKey,
         roleKey,
         summaryMode
       }),
-    [activeSection, roleKey, summaryMode]
+    [activeSection, fallbackSectionKey, roleKey, summaryMode, visibleSections]
+  );
+
+  const resolvedActiveSection = useMemo(
+    () =>
+      visibleSections.some((section) => section.key === activeSection)
+        ? activeSection
+        : fallbackSectionKey,
+    [activeSection, fallbackSectionKey, visibleSections]
+  );
+
+  const navigateToSection = useCallback(
+    (nextSectionKey) => {
+      const normalizedSectionKey = visibleSections.some((section) => section.key === nextSectionKey)
+        ? nextSectionKey
+        : fallbackSectionKey;
+      setActiveSection(normalizedSectionKey);
+    },
+    [fallbackSectionKey, visibleSections]
   );
 
   useEffect(() => {
-    if (!visibleSections.some((section) => section.key === activeSection)) {
+    if (resolvedActiveSection !== activeSection) {
       setActiveSection(fallbackSectionKey);
     }
-  }, [activeSection, fallbackSectionKey, visibleSections]);
+  }, [activeSection, fallbackSectionKey, resolvedActiveSection]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -95,9 +115,14 @@ export function useAppShellFlow({
       });
 
       if (nextRoute.sectionKey) {
-        setActiveSection((current) =>
-          nextRoute.sectionKey !== current ? nextRoute.sectionKey : current
-        );
+        setActiveSection((current) => {
+          const nextSectionKey = visibleSections.some(
+            (section) => section.key === nextRoute.sectionKey
+          )
+            ? nextRoute.sectionKey
+            : fallbackSectionKey;
+          return nextSectionKey !== current ? nextSectionKey : current;
+        });
       }
 
       if (nextRoute.sectionKey === "Avaliacoes" && nextRoute.evaluationModuleKey) {
@@ -122,7 +147,8 @@ export function useAppShellFlow({
     canViewEvaluationOperations,
     fallbackSectionKey,
     setActiveEvaluationModule,
-    setActiveEvaluationWorkspace
+    setActiveEvaluationWorkspace,
+    visibleSections
   ]);
 
   useEffect(() => {
@@ -131,7 +157,7 @@ export function useAppShellFlow({
     }
 
     const nextHash = buildAppHash({
-      sectionKey: activeSection,
+      sectionKey: resolvedActiveSection,
       evaluationModuleKey: activeEvaluationModule,
       evaluationWorkspace: activeEvaluationWorkspace,
       canViewEvaluationInsights,
@@ -139,14 +165,14 @@ export function useAppShellFlow({
     });
 
     if (window.location.hash !== nextHash) {
-      window.location.hash = nextHash;
+      window.history.replaceState(null, "", nextHash);
     }
   }, [
     activeEvaluationModule,
     activeEvaluationWorkspace,
-    activeSection,
     canViewEvaluationInsights,
-    canViewEvaluationOperations
+    canViewEvaluationOperations,
+    resolvedActiveSection
   ]);
 
   useEffect(() => {
@@ -158,9 +184,9 @@ export function useAppShellFlow({
   }
 
   return {
-    activeSection,
+    activeSection: resolvedActiveSection,
     groupedSections,
-    setActiveSection,
+    setActiveSection: navigateToSection,
     shellStatusLabel,
     theme,
     toggleTheme
