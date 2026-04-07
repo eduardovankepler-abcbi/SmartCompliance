@@ -762,15 +762,19 @@ button:disabled {
 }
 
 .dashboard-insight-grid {
-  column-width: 320px;
-  column-gap: 14px;
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 14px;
+  align-items: start;
+  grid-auto-flow: dense;
 }
 
 .dashboard-insight-grid > .card {
-  display: inline-grid;
-  width: 100%;
-  margin: 0 0 14px;
-  break-inside: avoid;
+  grid-column: span 4;
+}
+
+.dashboard-card-tall {
+  grid-row: span 2;
 }
 
 .dashboard-visual-card,
@@ -1976,8 +1980,15 @@ button:disabled {
   }
 
   .dashboard-insight-grid {
-    column-width: auto;
-    columns: 2;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .dashboard-insight-grid > .card {
+    grid-column: span 3;
+  }
+
+  .dashboard-card-tall {
+    grid-row: span 1;
   }
 
   .two-columns {
@@ -2079,7 +2090,15 @@ button:disabled {
   }
 
   .dashboard-insight-grid {
-    columns: 1;
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-insight-grid > .card {
+    grid-column: auto;
+  }
+
+  .dashboard-card-tall {
+    grid-row: auto;
   }
 
   .access-journey-grid {

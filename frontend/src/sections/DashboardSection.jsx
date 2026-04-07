@@ -389,29 +389,8 @@ export function DashboardSection({
       </div>
 
       <div className="card-span dashboard-insight-grid">
-        {executiveComparisons.length ? (
-          <div className="card dashboard-side-card">
-            <div className="card-header">
-              <h3>Comparativos do periodo</h3>
-              <span>Variacoes relevantes</span>
-            </div>
-            <div className="executive-comparison-grid">
-              {executiveComparisons.map((item) => (
-                <article
-                  className={`list-card executive-comparison-card ${item.tone}`}
-                  key={item.title}
-                >
-                  <p className="mini-label">{item.title}</p>
-                  <strong>{item.value}</strong>
-                  <p className="muted">{item.detail}</p>
-                </article>
-              ))}
-            </div>
-          </div>
-        ) : null}
-
         {executiveMessages.length ? (
-          <div className="card dashboard-side-card">
+          <div className="card dashboard-side-card dashboard-card-tall">
             <div className="card-header">
               <h3>Mensagens-chave</h3>
               <span>Leituras priorizadas</span>
@@ -450,7 +429,7 @@ export function DashboardSection({
         ) : null}
 
         {satisfactionByAreaItems.length ? (
-          <div className="card dashboard-side-card">
+          <div className="card dashboard-side-card dashboard-card-tall">
             <div className="card-header">
               <h3>Satisfacao por area</h3>
               <span>Mapa de calor</span>
@@ -465,23 +444,24 @@ export function DashboardSection({
           </div>
         ) : null}
 
-        {isExecutiveView ? null : evaluationMixItems.length ? (
+        {executiveComparisons.length ? (
           <div className="card dashboard-side-card">
             <div className="card-header">
-              <h3>Composicao do ciclo</h3>
-              <span>
-                {selectedDashboardCompositionMeta
-                  ? `Recorte de ${selectedDashboardCompositionMeta.label}`
-                  : "Mix de tipos de avaliacao"}
-              </span>
+              <h3>Comparativos do periodo</h3>
+              <span>Variacoes relevantes</span>
             </div>
-            <SafeHeatmapMatrixCard
-              items={evaluationMixItems}
-              getLabel={(item) => getRelationshipLabel(item.type)}
-              getValue={(item) => Number(item.total || 0)}
-              getDetail={(item) => `${item.percentage}% do total`}
-              toneSeed="mix"
-            />
+            <div className="executive-comparison-grid">
+              {executiveComparisons.map((item) => (
+                <article
+                  className={`list-card executive-comparison-card ${item.tone}`}
+                  key={item.title}
+                >
+                  <p className="mini-label">{item.title}</p>
+                  <strong>{item.value}</strong>
+                  <p className="muted">{item.detail}</p>
+                </article>
+              ))}
+            </div>
           </div>
         ) : null}
 
@@ -519,6 +499,26 @@ export function DashboardSection({
                 />
               ))}
             </div>
+          </div>
+        ) : null}
+
+        {isExecutiveView ? null : evaluationMixItems.length ? (
+          <div className="card dashboard-side-card">
+            <div className="card-header">
+              <h3>Composicao do ciclo</h3>
+              <span>
+                {selectedDashboardCompositionMeta
+                  ? `Recorte de ${selectedDashboardCompositionMeta.label}`
+                  : "Mix de tipos de avaliacao"}
+              </span>
+            </div>
+            <SafeHeatmapMatrixCard
+              items={evaluationMixItems}
+              getLabel={(item) => getRelationshipLabel(item.type)}
+              getValue={(item) => Number(item.total || 0)}
+              getDetail={(item) => `${item.percentage}% do total`}
+              toneSeed="mix"
+            />
           </div>
         ) : null}
       </div>
