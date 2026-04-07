@@ -638,8 +638,8 @@ button:disabled {
 }
 
 .dashboard-filter-card {
-  gap: 18px;
-  padding: 20px 22px;
+  gap: 16px;
+  padding: 18px 20px;
   background:
     linear-gradient(145deg, rgba(77, 136, 255, 0.08), transparent 42%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 30%),
@@ -655,13 +655,13 @@ button:disabled {
 .dashboard-focus-strip {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 12px;
+  gap: 10px;
 }
 
 .dashboard-focus-pill {
   display: grid;
   gap: 4px;
-  padding: 12px 14px;
+  padding: 10px 12px;
   border-radius: 14px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(9, 14, 24, 0.36);
@@ -696,8 +696,8 @@ button:disabled {
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
   align-items: stretch;
-  gap: 18px;
-  padding: 26px;
+  gap: 16px;
+  padding: 22px;
   background:
     linear-gradient(135deg, rgba(255, 255, 255, 0.02), transparent 40%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 35%),
@@ -706,15 +706,15 @@ button:disabled {
 
 .dashboard-hero-copy {
   display: grid;
-  gap: 18px;
+  gap: 14px;
   align-content: space-between;
 }
 
 .dashboard-hero-caption {
   display: grid;
-  gap: 10px;
+  gap: 8px;
   align-content: start;
-  padding: 16px 18px;
+  padding: 14px 16px;
   border-radius: 18px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background:
@@ -729,7 +729,7 @@ button:disabled {
 }
 
 .dashboard-kpi-strip .stat-card {
-  min-height: 132px;
+  min-height: 118px;
   background:
     linear-gradient(145deg, rgba(255, 255, 255, 0.02), transparent 55%),
     rgba(8, 13, 23, 0.68);
@@ -740,20 +740,20 @@ button:disabled {
 .hero-panel-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 14px;
+  gap: 12px;
 }
 
 .dashboard-board-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.28fr) minmax(300px, 0.72fr);
-  gap: 16px;
+  gap: 14px;
   align-items: start;
 }
 
 .dashboard-primary-stack,
 .dashboard-secondary-stack {
   display: grid;
-  gap: 16px;
+  gap: 14px;
   align-content: start;
 }
 
@@ -766,7 +766,7 @@ button:disabled {
 }
 
 .dashboard-side-card {
-  padding: 20px;
+  padding: 18px;
 }
 
 .dashboard-tools {
@@ -780,6 +780,11 @@ button:disabled {
   display: grid;
   gap: 16px;
   align-content: start;
+}
+
+.dashboard-grid .card,
+.dashboard-grid .hero-panel {
+  gap: 14px;
 }
 
 .compact-card {
@@ -884,7 +889,7 @@ button:disabled {
 .executive-brief-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 14px;
+  gap: 12px;
 }
 
 .dashboard-story-card {
@@ -897,13 +902,13 @@ button:disabled {
 .dashboard-story-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 14px;
+  gap: 12px;
 }
 
 .dashboard-story-tile {
   display: grid;
-  gap: 12px;
-  min-height: 172px;
+  gap: 10px;
+  min-height: 152px;
   background:
     linear-gradient(145deg, rgba(255, 255, 255, 0.02), transparent 55%),
     rgba(8, 13, 23, 0.68);
@@ -960,13 +965,13 @@ button:disabled {
 
 .dashboard-view-toggle {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
 .dashboard-view-toggle .module-tab {
   min-width: 208px;
-  padding: 14px 16px;
+  padding: 12px 14px;
   border-radius: 16px;
   background: rgba(8, 13, 23, 0.48);
   border: 1px solid rgba(255, 255, 255, 0.05);
@@ -1010,7 +1015,7 @@ button:disabled {
 .executive-comparison-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 14px;
+  gap: 12px;
 }
 
 .executive-comparison-card {
@@ -1044,7 +1049,7 @@ button:disabled {
 .executive-message-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 14px;
+  gap: 12px;
 }
 
 .executive-message-card {
@@ -1076,7 +1081,7 @@ button:disabled {
 }
 
 .mini-card {
-  padding: 20px;
+  padding: 18px;
 }
 
 .stat-card strong,
@@ -1347,13 +1352,13 @@ button:disabled {
 .donut-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 16px;
+  gap: 12px;
 }
 
 .donut-card {
   justify-items: center;
   text-align: center;
-  min-height: 246px;
+  min-height: 218px;
   border: 1px solid rgba(255, 255, 255, 0.06);
   background:
     radial-gradient(circle at top, rgba(77, 136, 255, 0.1), transparent 58%),
@@ -1361,16 +1366,16 @@ button:disabled {
 }
 
 .donut-visual {
-  width: 132px;
-  height: 132px;
+  width: 120px;
+  height: 120px;
   border-radius: 50%;
   display: grid;
   place-items: center;
 }
 
 .donut-hole {
-  width: 86px;
-  height: 86px;
+  width: 78px;
+  height: 78px;
   border-radius: 50%;
   background: var(--surface-strong);
   border: 1px solid var(--line);
@@ -1380,7 +1385,7 @@ button:disabled {
 
 .bar-list {
   display: grid;
-  gap: 14px;
+  gap: 10px;
 }
 
 .bar-row {
@@ -1418,14 +1423,14 @@ button:disabled {
 
 .trend-chart {
   width: 100%;
-  height: 168px;
+  height: 148px;
   display: block;
 }
 
 .trend-footer {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(84px, 1fr));
-  gap: 10px;
+  gap: 8px;
 }
 
 .trend-footer-item {
@@ -1443,16 +1448,16 @@ button:disabled {
 .heatmap-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 12px;
+  gap: 10px;
 }
 
 .heatmap-tile {
   display: grid;
   gap: 8px;
-  padding: 16px;
+  padding: 14px;
   border-radius: 16px;
   border: 1px solid var(--line);
-  min-height: 120px;
+  min-height: 104px;
   align-content: start;
   transition: transform 160ms ease, box-shadow 160ms ease;
 }
