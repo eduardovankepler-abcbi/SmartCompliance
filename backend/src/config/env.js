@@ -57,6 +57,52 @@ function resolveStorageMode() {
   return "memory";
 }
 
+function parseBoolean(value, fallback = false) {
+  if (value === undefined || value === null || value === "") {
+    return fallback;
+  }
+
+  const normalized = String(value).trim().toLowerCase();
+  if (["true", "1", "yes", "on"].includes(normalized)) {
+    return true;
+  }
+  if (["false", "0", "no", "off"].includes(normalized)) {
+    return false;
+  }
+  return fallback;
+}
+
+function buildMysqlSslOption() {
+  const mode = String(process.env.MYSQL_SSL_MODE || process.env.DB_SSL_MODE || "disabled")
+    .trim()
+    .toLowerCase();
+
+  if (mode === "disabled" || mode === "off" || mode === "false" || mode === "none") {
+    return null;
+  }
+
+  const rejectUnauthorized = parseBoolean(
+    process.env.MYSQL_SSL_REJECT_UNAUTHORIZED ?? process.env.DB_SSL_REJECT_UNAUTHORIZED,
+    mode === "verify-full"
+  );
+  const ca =
+    process.env.MYSQL_SSL_CA ||
+    process.env.DB_SSL_CA ||
+    process.env.MYSQL_SSL_CA_PEM ||
+    process.env.DB_SSL_CA_PEM ||
+    "";
+
+  const ssl = {
+    rejectUnauthorized
+  };
+
+  if (ca) {
+    ssl.ca = String(ca).replace(/\\n/g, "\n");
+  }
+
+  return ssl;
+}
+
 export const env = {
   nodeEnv: process.env.NODE_ENV || "development",
   port: Number(process.env.PORT || 4000),
@@ -68,7 +114,8 @@ export const env = {
     port: Number(process.env.MYSQL_PORT || process.env.DB_PORT || 3306),
     user: process.env.MYSQL_USER || process.env.DB_USER || "root",
     password: process.env.MYSQL_PASSWORD || process.env.DB_PASSWORD || "",
-    database: process.env.MYSQL_DATABASE || process.env.DB_NAME || "smart_compliance"
+    database: process.env.MYSQL_DATABASE || process.env.DB_NAME || "smart_compliance",
+    ssl: buildMysqlSslOption()
   }
 };
 

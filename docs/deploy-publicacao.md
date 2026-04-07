@@ -43,6 +43,8 @@ Configurar no servico do Render:
 - `MYSQL_USER=<usuario-do-banco>` (ou `DB_USER`)
 - `MYSQL_PASSWORD=<senha-do-banco>` (ou `DB_PASSWORD`)
 - `MYSQL_DATABASE=<nome-do-banco>` (ou `DB_NAME`)
+- `MYSQL_SSL_MODE=required` quando o provedor exigir SSL
+- `MYSQL_SSL_REJECT_UNAUTHORIZED=false` para homologacao temporaria em provedores como Aiven
 - `CORS_ORIGIN=<url-do-frontend-publicado>` (ou `CORS_ORIGINS` em CSV)
 
 Observacao:

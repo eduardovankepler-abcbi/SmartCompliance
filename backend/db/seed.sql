@@ -1,3 +1,5 @@
+SET FOREIGN_KEY_CHECKS = 0;
+
 INSERT INTO people (id, name, role_title, area, work_unit, work_mode, manager_person_id, employment_type, satisfaction_score) VALUES
 ('p1', 'Colaborador Demo 01', 'Analista Demo', 'Compliance', 'Sao Paulo', 'hybrid', 'p6', 'internal', 4.4),
 ('p2', 'Colaborador Demo 02', 'Lider Tecnico Demo', 'Tecnologia', 'Sao Paulo', 'onsite', 'p4', 'internal', 4.1),
@@ -325,3 +327,5 @@ INSERT INTO audit_logs (id, category, action_key, entity_type, entity_id, entity
 ('al4', 'feedback_request', 'created', 'feedback_request', 'fr1', 'Colaborador Demo 01', 'u1', 'Colaborador Demo 01', 'employee', 'Solicitacao de feedback direto registrada', '2 fornecedores sugeridos · Ciclo c1', '2026-03-16 11:00:00'),
 ('al5', 'user', 'created', 'user', 'u7', 'Compliance Demo', 'u5', 'Admin Plataforma Demo', 'admin', 'Usuario criado para Compliance Demo', 'compliance · active · compliance@demo.local', '2026-03-05 14:20:00')
 ON DUPLICATE KEY UPDATE summary_text = VALUES(summary_text);
+
+SET FOREIGN_KEY_CHECKS = 1;

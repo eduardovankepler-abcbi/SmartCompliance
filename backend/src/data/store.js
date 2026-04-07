@@ -8127,6 +8127,7 @@ export async function createStore() {
     user: env.mysql.user,
     password: env.mysql.password,
     database: env.mysql.database,
+    ssl: env.mysql.ssl || undefined,
     waitForConnections: true,
     connectionLimit: 10
   });
