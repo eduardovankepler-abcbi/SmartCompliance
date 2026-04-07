@@ -1734,12 +1734,12 @@ button:disabled {
   align-items: end;
   justify-items: center;
   text-align: center;
-  min-height: 220px;
+  min-height: 176px;
 }
 
 .column-track {
   width: 100%;
-  height: 120px;
+  height: 88px;
   display: flex;
   align-items: end;
   justify-content: center;
@@ -1752,6 +1752,72 @@ button:disabled {
   border-radius: 18px 18px 8px 8px;
   background: linear-gradient(180deg, rgba(216, 50, 74, 0.35), var(--accent-red));
   min-height: 12px;
+}
+
+.funnel-card {
+  gap: 14px;
+  min-height: 0;
+}
+
+.funnel-track {
+  width: 100%;
+  height: 18px;
+  border-radius: 999px;
+  background: rgba(127, 138, 155, 0.16);
+  overflow: hidden;
+}
+
+.funnel-fill {
+  height: 100%;
+  min-width: 22px;
+  border-radius: inherit;
+}
+
+.funnel-card-single-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.funnel-track-single {
+  height: 22px;
+}
+
+.funnel-series {
+  display: grid;
+  gap: 12px;
+}
+
+.funnel-series-row {
+  display: grid;
+  gap: 8px;
+}
+
+.funnel-series-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.funnel-series-bar-wrap {
+  width: 100%;
+  border-radius: 999px;
+  background: rgba(127, 138, 155, 0.12);
+  padding: 4px;
+}
+
+.funnel-series-bar {
+  min-height: 30px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 12px;
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.86rem;
 }
 
 .incident-actions {

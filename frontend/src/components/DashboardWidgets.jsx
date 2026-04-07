@@ -194,6 +194,40 @@ export function FunnelSeriesChart({ items }) {
   const sortedItems = [...items].sort((left, right) => right.total - left.total);
   const maxValue = Math.max(...sortedItems.map((item) => item.total), 1);
 
+  if (!sortedItems.length) {
+    return (
+      <div className="list-card">
+        <strong>Sem dados suficientes para o funil</strong>
+      </div>
+    );
+  }
+
+  if (sortedItems.length === 1) {
+    const item = sortedItems[0];
+    const tone = getSeriesTone(item.type);
+    return (
+      <div className="mini-card funnel-card funnel-card-single">
+        <div className="funnel-card-single-head">
+          <div>
+            <p className="mini-label">{item.type}</p>
+            <strong>{item.total}</strong>
+          </div>
+          <span className="badge">{item.percentage}% do recorte</span>
+        </div>
+        <div className="funnel-track funnel-track-single">
+          <div
+            className="funnel-fill"
+            style={{
+              width: `${Math.max(item.percentage, 18)}%`,
+              background: tone.gradient,
+              boxShadow: `0 12px 24px ${tone.soft}`
+            }}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="funnel-series">
       {sortedItems.map((item) => {

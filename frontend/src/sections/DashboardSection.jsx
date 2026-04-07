@@ -65,6 +65,7 @@ export function DashboardSection({
   const satisfactionByAreaItems = dashboard?.satisfactionByArea || [];
   const developmentByTypeItems = dashboard?.developmentByType || [];
   const evaluationMixItems = filteredDashboardEvaluationMix || [];
+  const funnelItems = dashboard?.funnelMetrics || [];
   const currentCompositionLabel =
     dashboardCompositionOptions.find((item) => item.value === dashboardCompositionFilter)?.label ||
     dashboardCompositionFilter;
@@ -362,19 +363,25 @@ export function DashboardSection({
               </div>
             </div>
 
-            <div className="card">
-              <div className="card-header">
-                <h3>Funil do recorte</h3>
-                <span>Cobertura do fluxo</span>
+            {funnelItems.length ? (
+              <div className="card">
+                <div className="card-header">
+                  <h3>Funil do recorte</h3>
+                  <span>Cobertura do fluxo</span>
+                </div>
+                <SafeFunnelSeriesChart
+                  items={funnelItems}
+                  emptyMessage="Sem dados para compor o funil neste recorte."
+                />
               </div>
-              <SafeFunnelSeriesChart
-                items={dashboard?.funnelMetrics || []}
-                emptyMessage="Sem dados para compor o funil neste recorte."
-              />
-            </div>
+            ) : null}
 
             {cycleTimelineItems.length ? (
-              <div className="card dashboard-visual-card">
+              <div
+                className={`card dashboard-visual-card ${
+                  funnelItems.length ? "" : "dashboard-board-featured"
+                }`}
+              >
                 <div className="card-header">
                   <h3>Volume por {dashboardTimeGroupingLabel.toLowerCase()}</h3>
                   <span>Evolucao temporal</span>
@@ -416,7 +423,7 @@ export function DashboardSection({
         ) : null}
 
         {assignmentStatusItems.length ? (
-          <div className="card dashboard-side-card dashboard-card-tall">
+          <div className={`card dashboard-side-card ${isExecutiveView ? "dashboard-card-tall" : ""}`}>
             <div className="card-header">
               <h3>Status dos assignments</h3>
               <span>Fluxo atual</span>
