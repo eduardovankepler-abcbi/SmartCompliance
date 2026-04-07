@@ -744,17 +744,19 @@ button:disabled {
 }
 
 .dashboard-board-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.28fr) minmax(300px, 0.72fr);
-  gap: 14px;
-  align-items: start;
+  column-width: 360px;
+  column-gap: 14px;
 }
 
-.dashboard-primary-stack,
-.dashboard-secondary-stack {
-  display: grid;
-  gap: 14px;
-  align-content: start;
+.dashboard-board-grid > .card {
+  display: inline-grid;
+  width: 100%;
+  margin: 0 0 14px;
+  break-inside: avoid;
+}
+
+.dashboard-board-featured {
+  min-height: 0;
 }
 
 .dashboard-visual-card,
@@ -1943,9 +1945,13 @@ button:disabled {
   }
 
   .dashboard-filter-grid,
-  .hero-panel,
-  .dashboard-board-grid {
+  .hero-panel {
     grid-template-columns: 1fr;
+  }
+
+  .dashboard-board-grid {
+    column-width: auto;
+    columns: 1;
   }
 
   .two-columns {

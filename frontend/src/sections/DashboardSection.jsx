@@ -238,45 +238,6 @@ export function DashboardSection({
         </div>
       ) : null}
 
-      {executiveComparisons.length ? (
-        <div className="card card-span">
-          <div className="card-header">
-            <h3>Comparativo automatico do periodo</h3>
-            <span>Melhora, queda e pontos criticos destacados automaticamente</span>
-          </div>
-          <div className="executive-comparison-grid">
-            {executiveComparisons.map((item) => (
-              <article
-                className={`list-card executive-comparison-card ${item.tone}`}
-                key={item.title}
-              >
-                <p className="mini-label">{item.title}</p>
-                <strong>{item.value}</strong>
-                <p className="muted">{item.detail}</p>
-              </article>
-            ))}
-          </div>
-        </div>
-      ) : null}
-
-      {executiveMessages.length ? (
-        <div className="card card-span">
-          <div className="card-header">
-            <h3>Mensagens-chave do recorte</h3>
-            <span>Resumo orientado a decisao para apresentacoes e comites</span>
-          </div>
-          <div className="executive-message-grid">
-            {executiveMessages.map((item) => (
-              <article className={`list-card executive-message-card ${item.tone}`} key={item.title}>
-                <p className="mini-label">{item.title}</p>
-                <strong>{item.headline}</strong>
-                <p className="muted">{item.detail}</p>
-              </article>
-            ))}
-          </div>
-        </div>
-      ) : null}
-
       <div className="card card-span">
         <div className="card-header">
           <h3>
@@ -308,260 +269,256 @@ export function DashboardSection({
       </div>
 
       <div className="card-span dashboard-board-grid">
-        <div className="dashboard-primary-stack">
-          {isExecutiveView ? (
-            <>
-              {(dashboard?.donutMetrics || []).length ? (
-                <div className="card dashboard-visual-card">
-                  <div className="card-header">
-                    <h3>Panorama de cobertura</h3>
-                    <span>Vista rapida do ciclo</span>
-                  </div>
-                  <div className="donut-grid">
-                    {(dashboard?.donutMetrics || []).filter(Boolean).map((item) => (
-                      <SafeDashboardDonut key={item.key || item.label} item={item} />
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-
-              {cycleTimelineItems.length ? (
-                <div className="card dashboard-visual-card">
-                  <div className="card-header">
-                    <h3>Pulso do ciclo</h3>
-                    <span>Adesao por {dashboardTimeGroupingLabel.toLowerCase()}</span>
-                  </div>
-                  <SafeTrendAreaChartCard
-                    items={cycleTimelineItems}
-                    valueKey="adherencePercentage"
-                    labelKey="label"
-                    formatter={(value) => `${value}%`}
-                    detailFormatter={(item) => `${item.submittedAssignments}/${item.totalAssignments}`}
-                  />
-                </div>
-              ) : null}
-
-              {cycleTimelineItems.length ? (
-                <div className="card dashboard-visual-card">
-                  <div className="card-header">
-                    <h3>Ritmo de distribuicao</h3>
-                    <span>Volume no tempo</span>
-                  </div>
-                  <SafeTrendAreaChartCard
-                    items={cycleTimelineItems}
-                    valueKey="totalAssignments"
-                    labelKey="label"
-                    formatter={(value) => String(value)}
-                    detailFormatter={(item) => `${item.totalResponses} respostas`}
-                  />
-                </div>
-              ) : null}
-            </>
-          ) : (
-            <>
-              <div className="card dashboard-visual-card">
+        {isExecutiveView ? (
+          <>
+            {(dashboard?.donutMetrics || []).length ? (
+              <div className="card dashboard-visual-card dashboard-board-featured">
                 <div className="card-header">
-                  <h3>Distribuicao das respostas</h3>
-                  <span>
-                    {selectedDashboardCompositionMeta
-                      ? `Perguntas e distribuicoes de ${selectedDashboardCompositionMeta.label}`
-                      : "Leitura consolidada por relacionamento"}
-                  </span>
+                  <h3>Panorama de cobertura</h3>
+                  <span>Vista rapida do ciclo</span>
                 </div>
-                <div className="stack-list">
-                  {filteredDashboardResponseDistributions.length ? (
-                    filteredDashboardResponseDistributions.map((group) => (
-                      <div className="list-card" key={group.relationshipType}>
-                        <div className="row">
-                          <strong>{getRelationshipLabel(group.relationshipType)}</strong>
-                          <span className="badge">{group.totalResponses} respostas</span>
-                        </div>
-                        <div className="response-chart-grid">
-                          {group.questions.map((question) => (
-                            <SafeResponseDistributionChartCard
-                              key={question.questionId}
-                              question={question}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="list-card">
-                      <strong>Sem respostas para o filtro aplicado</strong>
-                      <p className="muted">
-                        Ajuste o elemento da composicao do ciclo ou o recorte de area/setor para
-                        visualizar dados consolidados.
-                      </p>
-                    </div>
-                  )}
+                <div className="donut-grid">
+                  {(dashboard?.donutMetrics || []).filter(Boolean).map((item) => (
+                    <SafeDashboardDonut key={item.key || item.label} item={item} />
+                  ))}
                 </div>
               </div>
+            ) : null}
 
-              <div className="card">
+            {cycleTimelineItems.length ? (
+              <div className="card dashboard-visual-card dashboard-board-featured">
                 <div className="card-header">
-                  <h3>Funil do recorte</h3>
-                  <span>Cobertura do fluxo</span>
+                  <h3>Pulso do ciclo</h3>
+                  <span>Adesao por {dashboardTimeGroupingLabel.toLowerCase()}</span>
                 </div>
-                <SafeFunnelSeriesChart
-                  items={dashboard?.funnelMetrics || []}
-                  emptyMessage="Sem dados para compor o funil neste recorte."
+                <SafeTrendAreaChartCard
+                  items={cycleTimelineItems}
+                  valueKey="adherencePercentage"
+                  labelKey="label"
+                  formatter={(value) => `${value}%`}
+                  detailFormatter={(item) => `${item.submittedAssignments}/${item.totalAssignments}`}
                 />
               </div>
+            ) : null}
 
-              {cycleTimelineItems.length ? (
-                <div className="card dashboard-visual-card">
-                  <div className="card-header">
-                    <h3>Volume por {dashboardTimeGroupingLabel.toLowerCase()}</h3>
-                    <span>Evolucao temporal</span>
-                  </div>
-                  <SafeTrendAreaChartCard
-                    items={cycleTimelineItems}
-                    valueKey="totalAssignments"
-                    labelKey="label"
-                    formatter={(value) => String(value)}
-                    detailFormatter={(item) => `${item.adherencePercentage}% de adesao`}
-                  />
+            {cycleTimelineItems.length ? (
+              <div className="card dashboard-visual-card">
+                <div className="card-header">
+                  <h3>Ritmo de distribuicao</h3>
+                  <span>Volume no tempo</span>
                 </div>
-              ) : null}
-            </>
-          )}
-        </div>
-
-        <div className="dashboard-secondary-stack">
-          {executiveComparisons.length ? (
-            <div className="card dashboard-side-card">
+                <SafeTrendAreaChartCard
+                  items={cycleTimelineItems}
+                  valueKey="totalAssignments"
+                  labelKey="label"
+                  formatter={(value) => String(value)}
+                  detailFormatter={(item) => `${item.totalResponses} respostas`}
+                />
+              </div>
+            ) : null}
+          </>
+        ) : (
+          <>
+            <div className="card dashboard-visual-card dashboard-board-featured">
               <div className="card-header">
-                <h3>Comparativos do periodo</h3>
-                <span>Variacoes relevantes</span>
-              </div>
-              <div className="executive-comparison-grid">
-                {executiveComparisons.map((item) => (
-                  <article
-                    className={`list-card executive-comparison-card ${item.tone}`}
-                    key={item.title}
-                  >
-                    <p className="mini-label">{item.title}</p>
-                    <strong>{item.value}</strong>
-                    <p className="muted">{item.detail}</p>
-                  </article>
-                ))}
-              </div>
-            </div>
-          ) : null}
-
-          {executiveMessages.length ? (
-            <div className="card dashboard-side-card">
-              <div className="card-header">
-                <h3>Mensagens-chave</h3>
-                <span>Leituras priorizadas</span>
-              </div>
-              <div className="executive-message-grid">
-                {executiveMessages.map((item) => (
-                  <article className={`list-card executive-message-card ${item.tone}`} key={item.title}>
-                    <p className="mini-label">{item.title}</p>
-                    <strong>{item.headline}</strong>
-                    <p className="muted">{item.detail}</p>
-                  </article>
-                ))}
-              </div>
-            </div>
-          ) : null}
-
-          {assignmentStatusItems.length ? (
-            <div className="card dashboard-side-card">
-              <div className="card-header">
-                <h3>Status dos assignments</h3>
-                <span>Fluxo atual</span>
-              </div>
-              <div className="dashboard-column-grid">
-                {assignmentStatusItems.map((item) => (
-                  <SafeColumnMetricCard
-                    key={item.status}
-                    label={getAssignmentStatusLabel(item.status)}
-                    value={item.total}
-                    percentage={item.percentage}
-                    description={`${item.percentage}% do total`}
-                    toneKey={item.status}
-                  />
-                ))}
-              </div>
-            </div>
-          ) : null}
-
-          {satisfactionByAreaItems.length ? (
-            <div className="card dashboard-side-card">
-              <div className="card-header">
-                <h3>Satisfacao por area</h3>
-                <span>Mapa de calor</span>
-              </div>
-              <SafeHeatmapMatrixCard
-                items={satisfactionByAreaItems}
-                getLabel={(item) => item.area}
-                getValue={(item) => Number(item.score || 0)}
-                getDetail={(item) => `${item.peopleCount} pessoas · ${item.percentage}%`}
-                toneSeed="area"
-              />
-            </div>
-          ) : null}
-
-          {isExecutiveView ? null : evaluationMixItems.length ? (
-            <div className="card dashboard-side-card">
-              <div className="card-header">
-                <h3>Composicao do ciclo</h3>
+                <h3>Distribuicao das respostas</h3>
                 <span>
                   {selectedDashboardCompositionMeta
-                    ? `Recorte de ${selectedDashboardCompositionMeta.label}`
-                    : "Mix de tipos de avaliacao"}
+                    ? `Perguntas e distribuicoes de ${selectedDashboardCompositionMeta.label}`
+                    : "Leitura consolidada por relacionamento"}
                 </span>
               </div>
-              <SafeHeatmapMatrixCard
-                items={evaluationMixItems}
-                getLabel={(item) => getRelationshipLabel(item.type)}
-                getValue={(item) => Number(item.total || 0)}
-                getDetail={(item) => `${item.percentage}% do total`}
-                toneSeed="mix"
+              <div className="stack-list">
+                {filteredDashboardResponseDistributions.length ? (
+                  filteredDashboardResponseDistributions.map((group) => (
+                    <div className="list-card" key={group.relationshipType}>
+                      <div className="row">
+                        <strong>{getRelationshipLabel(group.relationshipType)}</strong>
+                        <span className="badge">{group.totalResponses} respostas</span>
+                      </div>
+                      <div className="response-chart-grid">
+                        {group.questions.map((question) => (
+                          <SafeResponseDistributionChartCard
+                            key={question.questionId}
+                            question={question}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="list-card">
+                    <strong>Sem respostas para o filtro aplicado</strong>
+                    <p className="muted">
+                      Ajuste o elemento da composicao do ciclo ou o recorte de area/setor para
+                      visualizar dados consolidados.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="card">
+              <div className="card-header">
+                <h3>Funil do recorte</h3>
+                <span>Cobertura do fluxo</span>
+              </div>
+              <SafeFunnelSeriesChart
+                items={dashboard?.funnelMetrics || []}
+                emptyMessage="Sem dados para compor o funil neste recorte."
               />
             </div>
-          ) : null}
 
-          {developmentByTypeItems.length ? (
-            <div className="card dashboard-side-card">
-              <div className="card-header">
-                <h3>Desenvolvimento por trilha</h3>
-                <span>Volume por tipo</span>
+            {cycleTimelineItems.length ? (
+              <div className="card dashboard-visual-card">
+                <div className="card-header">
+                  <h3>Volume por {dashboardTimeGroupingLabel.toLowerCase()}</h3>
+                  <span>Evolucao temporal</span>
+                </div>
+                <SafeTrendAreaChartCard
+                  items={cycleTimelineItems}
+                  valueKey="totalAssignments"
+                  labelKey="label"
+                  formatter={(value) => String(value)}
+                  detailFormatter={(item) => `${item.adherencePercentage}% de adesao`}
+                />
               </div>
-              <SafeHeatmapMatrixCard
-                items={developmentByTypeItems}
-                getLabel={(item) => item.type}
-                getValue={(item) => Number(item.total || 0)}
-                getDetail={(item) => `${item.percentage}% do recorte`}
-                toneSeed="development"
-              />
-            </div>
-          ) : null}
+            ) : null}
+          </>
+        )}
 
-          {cycleTimelineItems.length ? (
-            <div className="card dashboard-side-card">
-              <div className="card-header">
-                <h3>Adesao por {dashboardTimeGroupingLabel.toLowerCase()}</h3>
-                <span>Concluidas vs distribuidas</span>
-              </div>
-              <div className="bar-list">
-                {cycleTimelineItems.map((item) => (
-                  <SafeBarMetricRow
-                    key={`${item.periodKey}-adherence`}
-                    label={item.label}
-                    value={`${item.adherencePercentage}%`}
-                    detail={`${item.submittedAssignments}/${item.totalAssignments} concluidas | ${item.pendingAssignments} pendentes`}
-                    percentage={item.adherencePercentage}
-                    toneKey={item.periodKey}
-                  />
-                ))}
-              </div>
+        {executiveComparisons.length ? (
+          <div className="card dashboard-side-card">
+            <div className="card-header">
+              <h3>Comparativos do periodo</h3>
+              <span>Variacoes relevantes</span>
             </div>
-          ) : null}
-        </div>
+            <div className="executive-comparison-grid">
+              {executiveComparisons.map((item) => (
+                <article
+                  className={`list-card executive-comparison-card ${item.tone}`}
+                  key={item.title}
+                >
+                  <p className="mini-label">{item.title}</p>
+                  <strong>{item.value}</strong>
+                  <p className="muted">{item.detail}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {executiveMessages.length ? (
+          <div className="card dashboard-side-card">
+            <div className="card-header">
+              <h3>Mensagens-chave</h3>
+              <span>Leituras priorizadas</span>
+            </div>
+            <div className="executive-message-grid">
+              {executiveMessages.map((item) => (
+                <article className={`list-card executive-message-card ${item.tone}`} key={item.title}>
+                  <p className="mini-label">{item.title}</p>
+                  <strong>{item.headline}</strong>
+                  <p className="muted">{item.detail}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {assignmentStatusItems.length ? (
+          <div className="card dashboard-side-card">
+            <div className="card-header">
+              <h3>Status dos assignments</h3>
+              <span>Fluxo atual</span>
+            </div>
+            <div className="dashboard-column-grid">
+              {assignmentStatusItems.map((item) => (
+                <SafeColumnMetricCard
+                  key={item.status}
+                  label={getAssignmentStatusLabel(item.status)}
+                  value={item.total}
+                  percentage={item.percentage}
+                  description={`${item.percentage}% do total`}
+                  toneKey={item.status}
+                />
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {satisfactionByAreaItems.length ? (
+          <div className="card dashboard-side-card">
+            <div className="card-header">
+              <h3>Satisfacao por area</h3>
+              <span>Mapa de calor</span>
+            </div>
+            <SafeHeatmapMatrixCard
+              items={satisfactionByAreaItems}
+              getLabel={(item) => item.area}
+              getValue={(item) => Number(item.score || 0)}
+              getDetail={(item) => `${item.peopleCount} pessoas · ${item.percentage}%`}
+              toneSeed="area"
+            />
+          </div>
+        ) : null}
+
+        {isExecutiveView ? null : evaluationMixItems.length ? (
+          <div className="card dashboard-side-card">
+            <div className="card-header">
+              <h3>Composicao do ciclo</h3>
+              <span>
+                {selectedDashboardCompositionMeta
+                  ? `Recorte de ${selectedDashboardCompositionMeta.label}`
+                  : "Mix de tipos de avaliacao"}
+              </span>
+            </div>
+            <SafeHeatmapMatrixCard
+              items={evaluationMixItems}
+              getLabel={(item) => getRelationshipLabel(item.type)}
+              getValue={(item) => Number(item.total || 0)}
+              getDetail={(item) => `${item.percentage}% do total`}
+              toneSeed="mix"
+            />
+          </div>
+        ) : null}
+
+        {developmentByTypeItems.length ? (
+          <div className="card dashboard-side-card">
+            <div className="card-header">
+              <h3>Desenvolvimento por trilha</h3>
+              <span>Volume por tipo</span>
+            </div>
+            <SafeHeatmapMatrixCard
+              items={developmentByTypeItems}
+              getLabel={(item) => item.type}
+              getValue={(item) => Number(item.total || 0)}
+              getDetail={(item) => `${item.percentage}% do recorte`}
+              toneSeed="development"
+            />
+          </div>
+        ) : null}
+
+        {cycleTimelineItems.length ? (
+          <div className="card dashboard-side-card">
+            <div className="card-header">
+              <h3>Adesao por {dashboardTimeGroupingLabel.toLowerCase()}</h3>
+              <span>Concluidas vs distribuidas</span>
+            </div>
+            <div className="bar-list">
+              {cycleTimelineItems.map((item) => (
+                <SafeBarMetricRow
+                  key={`${item.periodKey}-adherence`}
+                  label={item.label}
+                  value={`${item.adherencePercentage}%`}
+                  detail={`${item.submittedAssignments}/${item.totalAssignments} concluidas | ${item.pendingAssignments} pendentes`}
+                  percentage={item.adherencePercentage}
+                  toneKey={item.periodKey}
+                />
+              ))}
+            </div>
+          </div>
+        ) : null}
       </div>
     </section>
   );
