@@ -41,6 +41,8 @@ export function DashboardSection({
   const SafeSelect = Select || EmptyComponent;
   const SafeTrendAreaChartCard = TrendAreaChartCard || EmptyComponent;
   const [dashboardViewMode, setDashboardViewMode] = useState("executive");
+  const [satisfactionView, setSatisfactionView] = useState("all");
+  const [developmentView, setDevelopmentView] = useState("all");
   const executiveHighlights = buildExecutiveHighlights({
     dashboard,
     dashboardAreaFilter,
@@ -61,6 +63,14 @@ export function DashboardSection({
   const developmentByTypeItems = dashboard?.developmentByType || [];
   const evaluationMixItems = filteredDashboardEvaluationMix || [];
   const funnelItems = dashboard?.funnelMetrics || [];
+  const filteredSatisfactionByAreaItems = getFilteredSatisfactionItems(
+    satisfactionByAreaItems,
+    satisfactionView
+  );
+  const filteredDevelopmentByTypeItems = getFilteredDevelopmentItems(
+    developmentByTypeItems,
+    developmentView
+  );
   const currentCompositionLabel =
     dashboardCompositionOptions.find((item) => item.value === dashboardCompositionFilter)?.label ||
     dashboardCompositionFilter;
@@ -423,11 +433,28 @@ export function DashboardSection({
         {satisfactionByAreaItems.length ? (
           <div className={`card dashboard-side-card ${isExecutiveView ? "dashboard-card-tall" : ""}`}>
             <div className="card-header">
-              <h3>Satisfacao por area</h3>
-              <span>Mapa de calor</span>
+              <div>
+                <h3>Satisfacao por area</h3>
+                <span>Mapa de calor</span>
+              </div>
+              <div className="dashboard-card-filter">
+                <SafeSelect
+                  label="Filtro"
+                  value={satisfactionView}
+                  options={["all", "top", "critical"]}
+                  renderLabel={(value) =>
+                    ({
+                      all: "Todas",
+                      top: "Melhores",
+                      critical: "Menores notas"
+                    })[value] || value
+                  }
+                  onChange={setSatisfactionView}
+                />
+              </div>
             </div>
             <SafeHeatmapMatrixCard
-              items={satisfactionByAreaItems}
+              items={filteredSatisfactionByAreaItems}
               getLabel={(item) => item.area}
               getValue={(item) => Number(item.score || 0)}
               getDetail={(item) => `${item.peopleCount} pessoas · ${item.percentage}%`}
@@ -460,11 +487,28 @@ export function DashboardSection({
         {developmentByTypeItems.length ? (
           <div className="card dashboard-side-card">
             <div className="card-header">
-              <h3>Desenvolvimento por trilha</h3>
-              <span>Volume por tipo</span>
+              <div>
+                <h3>Desenvolvimento por trilha</h3>
+                <span>Volume por tipo</span>
+              </div>
+              <div className="dashboard-card-filter">
+                <SafeSelect
+                  label="Filtro"
+                  value={developmentView}
+                  options={["all", "top", "alpha"]}
+                  renderLabel={(value) =>
+                    ({
+                      all: "Todas",
+                      top: "Mais volume",
+                      alpha: "A-Z"
+                    })[value] || value
+                  }
+                  onChange={setDevelopmentView}
+                />
+              </div>
             </div>
             <SafeHeatmapMatrixCard
-              items={developmentByTypeItems}
+              items={filteredDevelopmentByTypeItems}
               getLabel={(item) => item.type}
               getValue={(item) => Number(item.total || 0)}
               getDetail={(item) => `${item.percentage}% do recorte`}
@@ -704,4 +748,32 @@ function buildDashboardStoryCards({ dashboard, summary, dashboardAreaFilter, das
       icon: "RK"
     }
   ];
+}
+
+function getFilteredSatisfactionItems(items, mode) {
+  const safeItems = [...(items || [])];
+  if (mode === "top") {
+    return safeItems
+      .sort((left, right) => Number(right.score || 0) - Number(left.score || 0))
+      .slice(0, 4);
+  }
+  if (mode === "critical") {
+    return safeItems
+      .sort((left, right) => Number(left.score || 0) - Number(right.score || 0))
+      .slice(0, 4);
+  }
+  return safeItems;
+}
+
+function getFilteredDevelopmentItems(items, mode) {
+  const safeItems = [...(items || [])];
+  if (mode === "top") {
+    return safeItems
+      .sort((left, right) => Number(right.total || 0) - Number(left.total || 0))
+      .slice(0, 4);
+  }
+  if (mode === "alpha") {
+    return safeItems.sort((left, right) => String(left.type || "").localeCompare(String(right.type || "")));
+  }
+  return safeItems;
 }

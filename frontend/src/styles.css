@@ -851,6 +851,19 @@ button:disabled {
   padding: 18px;
 }
 
+.dashboard-card-filter {
+  min-width: 168px;
+}
+
+.dashboard-card-filter label {
+  margin: 0;
+}
+
+.dashboard-card-filter select,
+.dashboard-card-filter input {
+  min-width: 0;
+}
+
 .dashboard-tools {
   display: grid;
   grid-template-columns: minmax(220px, 320px);
