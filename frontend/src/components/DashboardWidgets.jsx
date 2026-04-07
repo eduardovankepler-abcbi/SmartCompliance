@@ -227,6 +227,23 @@ export function FunnelSeriesChart({ items }) {
 
 export function ResponseDistributionChartCard({ question }) {
   const [isOpen, setIsOpen] = useState(false);
+  const safeOptions = (question?.options || []).filter(Boolean);
+  const gradientStops = [];
+  let currentAngle = 0;
+
+  safeOptions.forEach((option) => {
+    const percentage = Math.max(Number(option.percentage || 0), 0);
+    const tone = getSeriesTone(`${question.questionId}-${option.value}`);
+    const slice = percentage * 3.6;
+    gradientStops.push(`${tone.solid} ${currentAngle}deg ${currentAngle + slice}deg`);
+    currentAngle += slice;
+  });
+
+  if (currentAngle < 360) {
+    gradientStops.push(`rgba(127, 138, 155, 0.14) ${currentAngle}deg 360deg`);
+  }
+
+  const pieBackground = `conic-gradient(${gradientStops.join(", ")})`;
 
   return (
     <>
@@ -256,26 +273,27 @@ export function ResponseDistributionChartCard({ question }) {
           </div>
         </div>
         <p className="muted response-chart-prompt">{question.questionPrompt}</p>
-        <div className="response-column-grid">
-          {question.options.map((option) => {
-            const tone = getSeriesTone(`${question.questionId}-${option.value}`);
-            return (
-              <div className="response-column-item" key={`${question.questionId}-${option.value}`}>
-                <div className="response-column-track">
-                  <div
-                    className="response-column-fill"
-                    style={{
-                      height: `${Math.max(option.percentage, 6)}%`,
-                      background: tone.gradient,
-                      boxShadow: `0 10px 18px ${tone.soft}`
-                    }}
-                  />
+        <div className="response-pie-layout">
+          <div className="response-pie-visual" style={{ background: pieBackground }}>
+            <div className="response-pie-hole">
+              <strong>{question.totalAnswers}</strong>
+              <span>resp.</span>
+            </div>
+          </div>
+          <div className="response-pie-legend">
+            {safeOptions.map((option) => {
+              const tone = getSeriesTone(`${question.questionId}-${option.value}`);
+              return (
+                <div className="response-pie-legend-item" key={`${question.questionId}-${option.value}`}>
+                  <div className="response-pie-legend-meta">
+                    <span className="response-pie-legend-dot" style={{ background: tone.solid }} />
+                    <span className="response-pie-legend-label">{option.label}</span>
+                  </div>
+                  <strong>{option.percentage}%</strong>
                 </div>
-                <strong className="response-column-value">{option.percentage}%</strong>
-                <span className="response-column-label">{option.label}</span>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       </div>
 
@@ -302,34 +320,33 @@ export function ResponseDistributionChartCard({ question }) {
               </button>
             </div>
             <p className="muted response-modal-prompt">{question.questionPrompt}</p>
-            <div className="response-column-grid response-column-grid-large">
-              {question.options.map((option) => {
-                const tone = getSeriesTone(`${question.questionId}-${option.value}`);
-                return (
-                  <div
-                    className="response-column-item response-column-item-large"
-                    key={`modal-${question.questionId}-${option.value}`}
-                  >
-                    <div className="response-column-track response-column-track-large">
-                      <div
-                        className="response-column-fill"
-                        style={{
-                          height: `${Math.max(option.percentage, 6)}%`,
-                          background: tone.gradient,
-                          boxShadow: `0 10px 18px ${tone.soft}`
-                        }}
-                      />
+            <div className="response-pie-modal-layout">
+              <div className="response-pie-visual response-pie-visual-large" style={{ background: pieBackground }}>
+                <div className="response-pie-hole response-pie-hole-large">
+                  <strong>{question.totalAnswers}</strong>
+                  <span>respostas</span>
+                </div>
+              </div>
+              <div className="response-pie-legend response-pie-legend-large">
+                {safeOptions.map((option) => {
+                  const tone = getSeriesTone(`${question.questionId}-${option.value}`);
+                  return (
+                    <div
+                      className="response-pie-legend-item response-pie-legend-item-large"
+                      key={`modal-${question.questionId}-${option.value}`}
+                    >
+                      <div className="response-pie-legend-meta">
+                        <span className="response-pie-legend-dot" style={{ background: tone.solid }} />
+                        <span className="response-pie-legend-label">{option.label}</span>
+                      </div>
+                      <div className="response-pie-legend-values">
+                        <strong>{option.percentage}%</strong>
+                        <span className="muted">{option.total} respostas</span>
+                      </div>
                     </div>
-                    <strong className="response-column-value response-column-value-large">
-                      {option.percentage}%
-                    </strong>
-                    <span className="response-column-label response-column-label-large">
-                      {option.label}
-                    </span>
-                    <span className="muted response-column-count">{option.total} respostas</span>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>

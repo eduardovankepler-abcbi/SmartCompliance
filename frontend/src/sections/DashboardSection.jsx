@@ -268,7 +268,11 @@ export function DashboardSection({
         </div>
       </div>
 
-      <div className="card-span dashboard-board-grid">
+      <div
+        className={`card-span dashboard-board-grid ${
+          isExecutiveView ? "dashboard-board-grid-executive" : "dashboard-board-grid-analytical"
+        }`}
+      >
         {isExecutiveView ? (
           <>
             {(dashboard?.donutMetrics || []).length ? (
@@ -319,7 +323,7 @@ export function DashboardSection({
           </>
         ) : (
           <>
-            <div className="card dashboard-visual-card dashboard-board-featured">
+            <div className="card dashboard-visual-card dashboard-board-featured dashboard-analytical-primary">
               <div className="card-header">
                 <h3>Distribuicao das respostas</h3>
                 <span>
@@ -388,8 +392,12 @@ export function DashboardSection({
         )}
       </div>
 
-      <div className="card-span dashboard-insight-grid">
-        {executiveMessages.length ? (
+      <div
+        className={`card-span dashboard-insight-grid ${
+          isExecutiveView ? "dashboard-insight-grid-executive" : "dashboard-insight-grid-analytical"
+        }`}
+      >
+        {isExecutiveView && executiveMessages.length ? (
           <div className="card dashboard-side-card dashboard-card-tall">
             <div className="card-header">
               <h3>Mensagens-chave</h3>
@@ -429,7 +437,7 @@ export function DashboardSection({
         ) : null}
 
         {satisfactionByAreaItems.length ? (
-          <div className="card dashboard-side-card dashboard-card-tall">
+          <div className={`card dashboard-side-card ${isExecutiveView ? "dashboard-card-tall" : ""}`}>
             <div className="card-header">
               <h3>Satisfacao por area</h3>
               <span>Mapa de calor</span>
@@ -444,7 +452,7 @@ export function DashboardSection({
           </div>
         ) : null}
 
-        {executiveComparisons.length ? (
+        {isExecutiveView && executiveComparisons.length ? (
           <div className="card dashboard-side-card">
             <div className="card-header">
               <h3>Comparativos do periodo</h3>
