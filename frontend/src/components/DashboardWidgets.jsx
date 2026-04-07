@@ -375,6 +375,27 @@ export function TrendAreaChartCard({
   const delta = previous ? Number((latest.raw - previous.raw).toFixed(1)) : null;
   const tone = getSeriesTone(`${valueKey}-${labelKey}`);
 
+  if (safeItems.length === 1) {
+    const item = safeItems[0];
+    return (
+      <div className="mini-card trend-card trend-card-single">
+        <div className="trend-card-single-head">
+          <div>
+            <p className="mini-label">{item?.[labelKey]}</p>
+            <strong>{formatter(latest.raw)}</strong>
+          </div>
+          <span className="trend-single-dot" style={{ background: tone.gradient }} aria-hidden="true" />
+        </div>
+        <div className="trend-card-single-summary">
+          <span>{item?.[labelKey]}</span>
+          <strong>
+            {detailFormatter ? detailFormatter(item) : formatter(Number(item?.[valueKey] || 0))}
+          </strong>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="mini-card trend-card">
       <div className="row">

@@ -408,7 +408,7 @@ export function DashboardSection({
         ) : null}
 
         {assignmentStatusItems.length ? (
-          <div className="card dashboard-side-card">
+          <div className="card dashboard-side-card dashboard-card-tall">
             <div className="card-header">
               <h3>Status dos assignments</h3>
               <span>Fluxo atual</span>

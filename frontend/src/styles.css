@@ -777,6 +777,39 @@ button:disabled {
   grid-row: span 2;
 }
 
+.trend-card-single {
+  gap: 14px;
+  min-height: 0;
+}
+
+.trend-card-single-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.trend-single-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  box-shadow: 0 10px 24px rgba(77, 136, 255, 0.24);
+  flex: 0 0 auto;
+}
+
+.trend-card-single-summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.trend-card-single-summary span {
+  color: var(--muted);
+}
+
 .dashboard-visual-card,
 .dashboard-side-card {
   background:
