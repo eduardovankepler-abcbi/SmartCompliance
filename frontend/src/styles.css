@@ -781,6 +781,19 @@ button:disabled {
   grid-column: span 4;
 }
 
+.dashboard-insight-grid-executive {
+  display: block;
+  columns: 3 320px;
+  column-gap: 14px;
+}
+
+.dashboard-insight-grid-executive > .card {
+  display: inline-grid;
+  width: 100%;
+  margin: 0 0 14px;
+  break-inside: avoid;
+}
+
 .dashboard-card-tall {
   grid-row: span 2;
 }
@@ -2262,6 +2275,10 @@ button:disabled {
     grid-column: span 3;
   }
 
+  .dashboard-insight-grid-executive {
+    columns: 2;
+  }
+
   .dashboard-card-tall {
     grid-row: span 1;
   }
@@ -2412,6 +2429,10 @@ button:disabled {
   .dashboard-insight-grid-analytical > .card {
     grid-column: span 4;
   }
+
+  .dashboard-insight-grid-executive {
+    columns: 2 300px;
+  }
 }
 
 @media (max-height: 920px) and (min-width: 981px) {
@@ -2463,6 +2484,10 @@ button:disabled {
 
   .dashboard-insight-grid > .card {
     grid-column: auto;
+  }
+
+  .dashboard-insight-grid-executive {
+    columns: 1;
   }
 
   .dashboard-card-tall {
