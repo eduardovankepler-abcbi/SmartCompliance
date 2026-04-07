@@ -648,7 +648,7 @@ button:disabled {
 
 .dashboard-filter-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 14px;
 }
 
@@ -739,7 +739,7 @@ button:disabled {
 
 .hero-panel-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 12px;
 }
 
@@ -1312,6 +1312,12 @@ button:disabled {
 .stack-list,
 .table-list {
   display: grid;
+  gap: 12px;
+}
+
+.response-chart-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 12px;
 }
 
@@ -2398,6 +2404,80 @@ button:disabled {
 
   .table-row {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 1480px) and (min-width: 981px) {
+  .dashboard-grid {
+    gap: 14px;
+  }
+
+  .dashboard-filter-card,
+  .dashboard-grid .card,
+  .dashboard-grid .hero-panel {
+    padding: 18px;
+  }
+
+  .hero-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-board-grid {
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+  }
+
+  .dashboard-board-grid > .card {
+    grid-column: span 4;
+  }
+
+  .dashboard-board-featured {
+    grid-column: span 8 !important;
+  }
+
+  .dashboard-board-grid-analytical > .card:not(.dashboard-board-featured) {
+    grid-column: span 4;
+  }
+
+  .dashboard-insight-grid {
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+  }
+
+  .dashboard-insight-grid > .card,
+  .dashboard-insight-grid-analytical > .card {
+    grid-column: span 4;
+  }
+}
+
+@media (max-height: 920px) and (min-width: 981px) {
+  .dashboard-grid {
+    gap: 12px;
+  }
+
+  .dashboard-grid .card,
+  .dashboard-grid .hero-panel,
+  .dashboard-filter-card {
+    padding: 16px;
+    gap: 12px;
+  }
+
+  .dashboard-kpi-strip .stat-card {
+    min-height: 102px;
+  }
+
+  .donut-card {
+    min-height: 194px;
+  }
+
+  .heatmap-tile {
+    min-height: 92px;
+  }
+
+  .column-card {
+    min-height: 154px;
+  }
+
+  .column-track {
+    height: 72px;
   }
 }
 
