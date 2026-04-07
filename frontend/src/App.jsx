@@ -42,8 +42,10 @@ import {
   ColumnMetricCard,
   DashboardDonut,
   FunnelSeriesChart,
+  HeatmapMatrixCard,
   MetricCard,
-  ResponseDistributionChartCard
+  ResponseDistributionChartCard,
+  TrendAreaChartCard
 } from "./components/DashboardWidgets";
 import { Input, Select, Textarea } from "./components/FormControls";
 import { AppSceneRenderer } from "./AppSceneRenderer";
@@ -505,6 +507,7 @@ export default function App() {
         dashboardTimeGroupingLabel={dashboardTimeGroupingLabel}
         dashboardTimeGroupingOptions={dashboardTimeGroupingOptions}
         DashboardDonut={DashboardDonut}
+        HeatmapMatrixCard={HeatmapMatrixCard}
         developmentAuditEntries={developmentAuditEntries}
         developmentForm={developmentForm}
         developmentEditablePeopleOptions={developmentEditablePeopleOptions}
@@ -612,6 +615,7 @@ export default function App() {
         prepareUserProvisioning={prepareUserProvisioning}
         receivedManagerFeedbackDrafts={receivedManagerFeedbackDrafts}
         ResponseDistributionChartCard={ResponseDistributionChartCard}
+        TrendAreaChartCard={TrendAreaChartCard}
         roleKey={user.roleKey}
         selectedAssignment={selectedAssignment}
         selectedDashboardCompositionMeta={selectedDashboardCompositionMeta}

@@ -10,7 +10,7 @@ export async function login(page, { email, password }) {
 
 export async function openSection(page, label) {
   await page.getByRole("button", { name: label }).click();
-  await expect(page.getByRole("heading", { name: label })).toBeVisible();
+  await expect(page.getByRole("heading", { name: label, exact: true })).toBeVisible();
 }
 
 export async function openEvaluationWorkspace(page, workspaceLabel) {

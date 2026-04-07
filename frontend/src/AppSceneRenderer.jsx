@@ -34,6 +34,7 @@ export function AppSceneRenderer(props) {
           ColumnMetricCard={props.ColumnMetricCard}
           DashboardDonut={props.DashboardDonut}
           FunnelSeriesChart={props.FunnelSeriesChart}
+          HeatmapMatrixCard={props.HeatmapMatrixCard}
           MetricCard={props.MetricCard}
           ResponseDistributionChartCard={props.ResponseDistributionChartCard}
           Select={props.Select}
@@ -55,6 +56,7 @@ export function AppSceneRenderer(props) {
           setDashboardCompositionFilter={props.setDashboardCompositionFilter}
           setDashboardTimeGrouping={props.setDashboardTimeGrouping}
           summary={props.summary}
+          TrendAreaChartCard={props.TrendAreaChartCard}
         />
       );
     case "Compliance":

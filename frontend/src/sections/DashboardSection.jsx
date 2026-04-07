@@ -7,6 +7,7 @@ export function DashboardSection({
   ColumnMetricCard,
   DashboardDonut,
   FunnelSeriesChart,
+  HeatmapMatrixCard,
   MetricCard,
   ResponseDistributionChartCard,
   Select,
@@ -27,15 +28,18 @@ export function DashboardSection({
   setDashboardAreaFilter,
   setDashboardCompositionFilter,
   setDashboardTimeGrouping,
-  summary
+  summary,
+  TrendAreaChartCard
 }) {
   const SafeBarMetricRow = BarMetricRow || EmptyComponent;
   const SafeColumnMetricCard = ColumnMetricCard || EmptyComponent;
   const SafeDashboardDonut = DashboardDonut || EmptyComponent;
   const SafeFunnelSeriesChart = FunnelSeriesChart || EmptyComponent;
+  const SafeHeatmapMatrixCard = HeatmapMatrixCard || EmptyComponent;
   const SafeMetricCard = MetricCard || EmptyComponent;
   const SafeResponseDistributionChartCard = ResponseDistributionChartCard || EmptyComponent;
   const SafeSelect = Select || EmptyComponent;
+  const SafeTrendAreaChartCard = TrendAreaChartCard || EmptyComponent;
   const [dashboardViewMode, setDashboardViewMode] = useState("executive");
   const executiveHighlights = buildExecutiveHighlights({
     dashboard,
@@ -49,14 +53,41 @@ export function DashboardSection({
     dashboardAreaFilter,
     selectedDashboardCompositionMeta
   });
+  const storyCards = buildDashboardStoryCards({
+    dashboard,
+    summary,
+    dashboardAreaFilter,
+    dashboardTimeGroupingLabel
+  });
   const isExecutiveView = dashboardViewMode === "executive";
+  const assignmentStatusItems = dashboard?.assignmentStatus || [];
+  const cycleTimelineItems = dashboard?.cycleTimeline || [];
+  const satisfactionByAreaItems = dashboard?.satisfactionByArea || [];
+  const developmentByTypeItems = dashboard?.developmentByType || [];
+  const evaluationMixItems = filteredDashboardEvaluationMix || [];
+  const currentCompositionLabel =
+    dashboardCompositionOptions.find((item) => item.value === dashboardCompositionFilter)?.label ||
+    dashboardCompositionFilter;
+  const focusPills = [
+    { label: "Recorte", value: currentCompositionLabel, tone: "neutral" },
+    {
+      label: "Area",
+      value: dashboardAreaFilter === "all" ? "Todas" : dashboardAreaFilter,
+      tone: "positive"
+    },
+    {
+      label: "Consolidacao",
+      value: dashboardTimeGroupingLabel,
+      tone: "warning"
+    }
+  ];
 
   return (
-    <section className="page-grid">
+    <section className="page-grid dashboard-grid">
       <div className="card card-span dashboard-filter-card">
         <div className="card-header">
-          <h3>Filtros analiticos</h3>
-          <span>Refine o dashboard por elemento do ciclo e por area ou setor</span>
+          <h3>Painel de controle</h3>
+          <span>Defina o contexto da leitura</span>
         </div>
         <div className="dashboard-filter-grid">
           <SafeSelect
@@ -107,30 +138,48 @@ export function DashboardSection({
             <span className="module-tab-meta">Exploracao detalhada</span>
           </button>
         </div>
+        <div className="dashboard-focus-strip">
+          {focusPills.map((item) => (
+            <div className={`dashboard-focus-pill ${item.tone}`} key={item.label}>
+              <span>{item.label}</span>
+              <strong>{item.value}</strong>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="hero-panel card-span">
-        <div>
-          <p className="eyebrow">
-            {dashboard?.mode === "executive"
-              ? "Visao executiva"
-              : dashboard?.mode === "team"
-                ? "Visao gerencial"
-                : "Visao pessoal"}
-          </p>
-          <h3>
-            {dashboard?.mode === "executive"
-              ? "Governanca, clima e desenvolvimento em uma unica leitura"
-              : dashboard?.mode === "team"
-                ? "Sua equipe direta em foco, sem exposicao de outras areas"
-                : "Seu recorte operacional do ciclo e da evolucao profissional"}
-          </h3>
-          <p className="muted">
-            {dashboard?.notice ||
-              "O ambiente combina denuncias, ciclos de avaliacao, reconhecimento e historico profissional."}
-          </p>
+        <div className="dashboard-hero-copy">
+          <div>
+            <p className="eyebrow">
+              {dashboard?.mode === "executive"
+                ? "Visao executiva"
+                : dashboard?.mode === "team"
+                  ? "Visao gerencial"
+                  : "Visao pessoal"}
+            </p>
+            <h3>
+              {dashboard?.mode === "executive"
+                ? "Governanca, clima e desenvolvimento em uma unica leitura"
+                : dashboard?.mode === "team"
+                  ? "Sua equipe direta em foco, sem exposicao de outras areas"
+                  : "Seu recorte operacional do ciclo e da evolucao profissional"}
+            </h3>
+            <p className="muted">
+              {dashboard?.notice ||
+                "Acompanhe cobertura, adesao, desenvolvimento e sinais do ciclo em um painel unico."}
+            </p>
+          </div>
+          <div className="dashboard-hero-caption">
+            <span className="badge">Painel {isExecutiveView ? "executivo" : "analitico"}</span>
+            <p className="muted">
+              {isExecutiveView
+                ? "Leitura pronta para comites, checkpoints e tomada de decisao."
+                : "Leitura detalhada para explorar gargalos, distribuicao e cobertura."}
+            </p>
+          </div>
         </div>
-        <div className="hero-panel-grid">
+        <div className="hero-panel-grid dashboard-kpi-strip">
           <SafeMetricCard
             label="Pessoas"
             value={dashboard?.scopeSummary?.peopleCount ?? summary?.peopleCount}
@@ -147,7 +196,7 @@ export function DashboardSection({
       <div className="card card-span">
         <div className="card-header">
           <h3>Leitura executiva do recorte</h3>
-          <span>Sintese pronta para reunioes e checkpoints</span>
+          <span>Sintese orientada a decisao</span>
         </div>
         <div className="executive-brief-grid">
           {executiveHighlights.map((item) => (
@@ -159,6 +208,35 @@ export function DashboardSection({
           ))}
         </div>
       </div>
+
+      {storyCards.length ? (
+        <div className="card card-span dashboard-story-card">
+          <div className="card-header">
+            <h3>Panorama por tema</h3>
+            <span>Governanca, avaliacoes, desenvolvimento e risco</span>
+          </div>
+          <div className="dashboard-story-grid">
+            {storyCards.map((item) => (
+              <article className={`list-card dashboard-story-tile ${item.tone}`} key={item.title}>
+                <div className="dashboard-story-head">
+                  <span className="dashboard-story-icon" aria-hidden="true">
+                    {item.icon}
+                  </span>
+                  <div>
+                    <p className="mini-label">{item.title}</p>
+                    <strong>{item.value}</strong>
+                  </div>
+                </div>
+                <p className="muted">{item.detail}</p>
+                <div className="dashboard-story-foot">
+                  <span>{item.highlightLabel}</span>
+                  <strong>{item.highlightValue}</strong>
+                </div>
+              </article>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       {executiveComparisons.length ? (
         <div className="card card-span">
@@ -229,255 +307,262 @@ export function DashboardSection({
         </div>
       </div>
 
-      {isExecutiveView && dashboard?.donutMetrics?.length ? (
-        <div className="card card-span">
-          <div className="card-header">
-            <h3>Indicadores de cobertura</h3>
-            <span>Resumo executivo do recorte atual</span>
-          </div>
-          <div className="metrics-grid">
-            {dashboard.donutMetrics.map((item) => (
-              <article className="list-card" key={item.key}>
-                <p className="mini-label">{item.label}</p>
-                <strong>{item.percentage}%</strong>
-                <p className="muted">
-                  {item.value} / {item.total}
-                </p>
-                <p className="muted">{item.detail}</p>
-              </article>
-            ))}
-          </div>
-        </div>
-      ) : null}
-
-      {dashboard?.cycleTimeline?.length ? (
-        <>
-          <div className="card">
-            <div className="card-header">
-              <h3>Ciclos consolidados por {dashboardTimeGroupingLabel.toLowerCase()}</h3>
-              <span>Volume de assignments distribuidos em cada periodo</span>
-            </div>
-            <div className="stack-list">
-              {dashboard.cycleTimeline.map((item) => (
-                <article className="list-card" key={item.periodKey}>
-                  <div className="row">
-                    <strong>{item.label}</strong>
-                    <span>{item.totalAssignments}</span>
+      <div className="card-span dashboard-board-grid">
+        <div className="dashboard-primary-stack">
+          {isExecutiveView ? (
+            <>
+              {(dashboard?.donutMetrics || []).length ? (
+                <div className="card dashboard-visual-card">
+                  <div className="card-header">
+                    <h3>Panorama de cobertura</h3>
+                    <span>Vista rapida do ciclo</span>
                   </div>
-                  <p className="muted">
-                    {item.cycleCount} ciclos | {item.totalResponses} respostas
-                  </p>
-                  <p className="muted">Volume relativo: {item.volumePercentage}%</p>
-                </article>
-              ))}
-            </div>
-          </div>
-
-          <div className="card">
-            <div className="card-header">
-              <h3>Adesao por {dashboardTimeGroupingLabel.toLowerCase()}</h3>
-              <span>Concluidas versus distribuidas em cada periodo</span>
-            </div>
-            <div className="bar-list">
-              {dashboard.cycleTimeline.map((item) => (
-                <SafeBarMetricRow
-                  key={`${item.periodKey}-adherence`}
-                  label={item.label}
-                  value={`${item.adherencePercentage}%`}
-                  detail={`${item.submittedAssignments}/${item.totalAssignments} concluidas | ${item.pendingAssignments} pendentes`}
-                  percentage={item.adherencePercentage}
-                  toneKey={item.periodKey}
-                />
-              ))}
-            </div>
-          </div>
-        </>
-      ) : null}
-
-      {dashboard?.satisfactionByArea?.length ? (
-        <div className="card">
-          <div className="card-header">
-            <h3>Satisfacao por area</h3>
-            <span>Somente dados agregados</span>
-          </div>
-          <div className="bar-list">
-            {dashboard.satisfactionByArea.map((item) => (
-              <SafeBarMetricRow
-                key={item.area}
-                label={item.area}
-                value={item.score}
-                detail={`${item.peopleCount} pessoas`}
-                percentage={item.percentage}
-                toneKey={item.area}
-              />
-            ))}
-          </div>
-        </div>
-      ) : null}
-
-      {dashboard?.assignmentStatus?.length ? (
-        <div className="card">
-          <div className="card-header">
-            <h3>Status dos assignments</h3>
-            <span>Leitura de fluxo no recorte atual</span>
-          </div>
-          <div className="bar-list">
-            {dashboard.assignmentStatus.map((item) => (
-              <SafeBarMetricRow
-                key={item.status}
-                label={getAssignmentStatusLabel(item.status)}
-                value={item.total}
-                detail={`${item.percentage}% do total`}
-                percentage={item.percentage}
-                toneKey={item.status}
-              />
-            ))}
-          </div>
-        </div>
-      ) : null}
-
-      {dashboard?.developmentByType?.length ? (
-        <div className="card">
-          <div className="card-header">
-            <h3>Desenvolvimento por trilha</h3>
-            <span>Volume por tipo de registro</span>
-          </div>
-          <div className="stack-list">
-            {dashboard.developmentByType.map((item) => (
-              <article className="list-card" key={item.type}>
-                <div className="row">
-                  <strong>{item.type}</strong>
-                  <span>{item.total}</span>
-                </div>
-                <p className="muted">{item.percentage}% do recorte</p>
-              </article>
-            ))}
-          </div>
-        </div>
-      ) : null}
-
-      {!isExecutiveView ? (
-        <div className="card card-span">
-          <div className="card-header">
-            <h3>Composicao do ciclo</h3>
-            <span>
-              {selectedDashboardCompositionMeta
-                ? `Recorte de ${selectedDashboardCompositionMeta.label}`
-                : "Mix de tipos de avaliacao usados no periodo"}
-            </span>
-          </div>
-          <div className="stack-list">
-            {filteredDashboardEvaluationMix.map((item) => (
-              <article className="list-card" key={item.type}>
-                <div className="row">
-                  <strong>{getRelationshipLabel(item.type)}</strong>
-                  <span>{item.total}</span>
-                </div>
-                <p className="muted">{item.percentage}% do total</p>
-                <p className="muted">{getRelationshipDescription(item.type)}</p>
-              </article>
-            ))}
-          </div>
-        </div>
-      ) : null}
-
-      {!isExecutiveView && dashboard?.responseDistributions?.length ? (
-        <div className="card card-span">
-          <div className="card-header">
-            <h3>Distribuicao das respostas</h3>
-            <span>
-              {selectedDashboardCompositionMeta
-                ? `Perguntas e distribuicoes de ${selectedDashboardCompositionMeta.label}`
-                : "Leitura consolidada por relacionamento"}
-            </span>
-          </div>
-          <div className="stack-list">
-            {filteredDashboardResponseDistributions.length ? (
-              filteredDashboardResponseDistributions.map((group) => (
-                <div className="list-card" key={group.relationshipType}>
-                  <div className="row">
-                    <strong>{getRelationshipLabel(group.relationshipType)}</strong>
-                    <span className="badge">{group.totalResponses} respostas</span>
-                  </div>
-                  <div className="response-chart-grid">
-                    {group.questions.map((question) => (
-                      <SafeResponseDistributionChartCard
-                        key={question.questionId}
-                        question={question}
-                      />
+                  <div className="donut-grid">
+                    {(dashboard?.donutMetrics || []).filter(Boolean).map((item) => (
+                      <SafeDashboardDonut key={item.key || item.label} item={item} />
                     ))}
                   </div>
                 </div>
-              ))
-            ) : (
-              <div className="list-card">
-                <strong>Sem respostas para o filtro aplicado</strong>
-                <p className="muted">
-                  Ajuste o elemento da composicao do ciclo ou o recorte de area/setor para
-                  visualizar dados consolidados.
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-      ) : null}
+              ) : null}
 
-      {isExecutiveView ? (
-        <>
-          <div className="card">
-            <div className="card-header">
-              <h3>Panorama de clima</h3>
-              <span>Leitura radial do sentimento agregado</span>
-            </div>
-            {(dashboard?.donutMetrics || []).length ? (
-              <div className="metrics-grid">
-                {(dashboard?.donutMetrics || []).filter(Boolean).map((item) => (
-                  <SafeDashboardDonut key={item.key || item.label} item={item} />
+              {cycleTimelineItems.length ? (
+                <div className="card dashboard-visual-card">
+                  <div className="card-header">
+                    <h3>Pulso do ciclo</h3>
+                    <span>Adesao por {dashboardTimeGroupingLabel.toLowerCase()}</span>
+                  </div>
+                  <SafeTrendAreaChartCard
+                    items={cycleTimelineItems}
+                    valueKey="adherencePercentage"
+                    labelKey="label"
+                    formatter={(value) => `${value}%`}
+                    detailFormatter={(item) => `${item.submittedAssignments}/${item.totalAssignments}`}
+                  />
+                </div>
+              ) : null}
+
+              {cycleTimelineItems.length ? (
+                <div className="card dashboard-visual-card">
+                  <div className="card-header">
+                    <h3>Ritmo de distribuicao</h3>
+                    <span>Volume no tempo</span>
+                  </div>
+                  <SafeTrendAreaChartCard
+                    items={cycleTimelineItems}
+                    valueKey="totalAssignments"
+                    labelKey="label"
+                    formatter={(value) => String(value)}
+                    detailFormatter={(item) => `${item.totalResponses} respostas`}
+                  />
+                </div>
+              ) : null}
+            </>
+          ) : (
+            <>
+              <div className="card dashboard-visual-card">
+                <div className="card-header">
+                  <h3>Distribuicao das respostas</h3>
+                  <span>
+                    {selectedDashboardCompositionMeta
+                      ? `Perguntas e distribuicoes de ${selectedDashboardCompositionMeta.label}`
+                      : "Leitura consolidada por relacionamento"}
+                  </span>
+                </div>
+                <div className="stack-list">
+                  {filteredDashboardResponseDistributions.length ? (
+                    filteredDashboardResponseDistributions.map((group) => (
+                      <div className="list-card" key={group.relationshipType}>
+                        <div className="row">
+                          <strong>{getRelationshipLabel(group.relationshipType)}</strong>
+                          <span className="badge">{group.totalResponses} respostas</span>
+                        </div>
+                        <div className="response-chart-grid">
+                          {group.questions.map((question) => (
+                            <SafeResponseDistributionChartCard
+                              key={question.questionId}
+                              question={question}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="list-card">
+                      <strong>Sem respostas para o filtro aplicado</strong>
+                      <p className="muted">
+                        Ajuste o elemento da composicao do ciclo ou o recorte de area/setor para
+                        visualizar dados consolidados.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="card">
+                <div className="card-header">
+                  <h3>Funil do recorte</h3>
+                  <span>Cobertura do fluxo</span>
+                </div>
+                <SafeFunnelSeriesChart
+                  items={dashboard?.funnelMetrics || []}
+                  emptyMessage="Sem dados para compor o funil neste recorte."
+                />
+              </div>
+
+              {cycleTimelineItems.length ? (
+                <div className="card dashboard-visual-card">
+                  <div className="card-header">
+                    <h3>Volume por {dashboardTimeGroupingLabel.toLowerCase()}</h3>
+                    <span>Evolucao temporal</span>
+                  </div>
+                  <SafeTrendAreaChartCard
+                    items={cycleTimelineItems}
+                    valueKey="totalAssignments"
+                    labelKey="label"
+                    formatter={(value) => String(value)}
+                    detailFormatter={(item) => `${item.adherencePercentage}% de adesao`}
+                  />
+                </div>
+              ) : null}
+            </>
+          )}
+        </div>
+
+        <div className="dashboard-secondary-stack">
+          {executiveComparisons.length ? (
+            <div className="card dashboard-side-card">
+              <div className="card-header">
+                <h3>Comparativos do periodo</h3>
+                <span>Variacoes relevantes</span>
+              </div>
+              <div className="executive-comparison-grid">
+                {executiveComparisons.map((item) => (
+                  <article
+                    className={`list-card executive-comparison-card ${item.tone}`}
+                    key={item.title}
+                  >
+                    <p className="mini-label">{item.title}</p>
+                    <strong>{item.value}</strong>
+                    <p className="muted">{item.detail}</p>
+                  </article>
                 ))}
               </div>
-            ) : (
-              <div className="list-card">
-                <strong>Sem indicadores suficientes para compor o panorama.</strong>
+            </div>
+          ) : null}
+
+          {executiveMessages.length ? (
+            <div className="card dashboard-side-card">
+              <div className="card-header">
+                <h3>Mensagens-chave</h3>
+                <span>Leituras priorizadas</span>
               </div>
-            )}
-          </div>
+              <div className="executive-message-grid">
+                {executiveMessages.map((item) => (
+                  <article className={`list-card executive-message-card ${item.tone}`} key={item.title}>
+                    <p className="mini-label">{item.title}</p>
+                    <strong>{item.headline}</strong>
+                    <p className="muted">{item.detail}</p>
+                  </article>
+                ))}
+              </div>
+            </div>
+          ) : null}
 
-          <div className="card">
-            <div className="card-header">
-              <h3>Resumo de distribuicao</h3>
-              <span>Comparativo rapido de concluido e pendente</span>
+          {assignmentStatusItems.length ? (
+            <div className="card dashboard-side-card">
+              <div className="card-header">
+                <h3>Status dos assignments</h3>
+                <span>Fluxo atual</span>
+              </div>
+              <div className="dashboard-column-grid">
+                {assignmentStatusItems.map((item) => (
+                  <SafeColumnMetricCard
+                    key={item.status}
+                    label={getAssignmentStatusLabel(item.status)}
+                    value={item.total}
+                    percentage={item.percentage}
+                    description={`${item.percentage}% do total`}
+                    toneKey={item.status}
+                  />
+                ))}
+              </div>
             </div>
-            <SafeColumnMetricCard
-              items={dashboard?.assignmentStatus || []}
-              getLabel={getAssignmentStatusLabel}
-            />
-          </div>
-        </>
-      ) : (
-        <>
-          <div className="card">
-            <div className="card-header">
-              <h3>Funil do recorte</h3>
-              <span>Leitura de cobertura ao longo do fluxo</span>
-            </div>
-            <SafeFunnelSeriesChart
-              items={dashboard?.funnelMetrics || []}
-              emptyMessage="Sem dados para compor o funil neste recorte."
-            />
-          </div>
+          ) : null}
 
-          <div className="card">
-            <div className="card-header">
-              <h3>Comparativo por relacionamento</h3>
-              <span>Media consolidada dos modulos ativos no recorte</span>
+          {satisfactionByAreaItems.length ? (
+            <div className="card dashboard-side-card">
+              <div className="card-header">
+                <h3>Satisfacao por area</h3>
+                <span>Mapa de calor</span>
+              </div>
+              <SafeHeatmapMatrixCard
+                items={satisfactionByAreaItems}
+                getLabel={(item) => item.area}
+                getValue={(item) => Number(item.score || 0)}
+                getDetail={(item) => `${item.peopleCount} pessoas · ${item.percentage}%`}
+                toneSeed="area"
+              />
             </div>
-            <SafeColumnMetricCard
-              items={dashboard?.evaluationMix || []}
-              getLabel={getRelationshipLabel}
-            />
-          </div>
-        </>
-      )}
+          ) : null}
+
+          {isExecutiveView ? null : evaluationMixItems.length ? (
+            <div className="card dashboard-side-card">
+              <div className="card-header">
+                <h3>Composicao do ciclo</h3>
+                <span>
+                  {selectedDashboardCompositionMeta
+                    ? `Recorte de ${selectedDashboardCompositionMeta.label}`
+                    : "Mix de tipos de avaliacao"}
+                </span>
+              </div>
+              <SafeHeatmapMatrixCard
+                items={evaluationMixItems}
+                getLabel={(item) => getRelationshipLabel(item.type)}
+                getValue={(item) => Number(item.total || 0)}
+                getDetail={(item) => `${item.percentage}% do total`}
+                toneSeed="mix"
+              />
+            </div>
+          ) : null}
+
+          {developmentByTypeItems.length ? (
+            <div className="card dashboard-side-card">
+              <div className="card-header">
+                <h3>Desenvolvimento por trilha</h3>
+                <span>Volume por tipo</span>
+              </div>
+              <SafeHeatmapMatrixCard
+                items={developmentByTypeItems}
+                getLabel={(item) => item.type}
+                getValue={(item) => Number(item.total || 0)}
+                getDetail={(item) => `${item.percentage}% do recorte`}
+                toneSeed="development"
+              />
+            </div>
+          ) : null}
+
+          {cycleTimelineItems.length ? (
+            <div className="card dashboard-side-card">
+              <div className="card-header">
+                <h3>Adesao por {dashboardTimeGroupingLabel.toLowerCase()}</h3>
+                <span>Concluidas vs distribuidas</span>
+              </div>
+              <div className="bar-list">
+                {cycleTimelineItems.map((item) => (
+                  <SafeBarMetricRow
+                    key={`${item.periodKey}-adherence`}
+                    label={item.label}
+                    value={`${item.adherencePercentage}%`}
+                    detail={`${item.submittedAssignments}/${item.totalAssignments} concluidas | ${item.pendingAssignments} pendentes`}
+                    percentage={item.adherencePercentage}
+                    toneKey={item.periodKey}
+                  />
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </div>
     </section>
   );
 }
@@ -665,4 +750,66 @@ function buildExecutiveMessages({ dashboard, dashboardAreaFilter, selectedDashbo
   }
 
   return messages.slice(0, 4);
+}
+
+function buildDashboardStoryCards({ dashboard, summary, dashboardAreaFilter, dashboardTimeGroupingLabel }) {
+  const pendingAssignments =
+    dashboard?.scopeSummary?.pendingAssignments ?? summary?.pendingAssignments ?? 0;
+  const activeCycles = summary?.activeEvaluationCycles ?? 0;
+  const openIncidents = summary?.openIncidents ?? 0;
+  const peopleCount = dashboard?.scopeSummary?.peopleCount ?? summary?.peopleCount ?? 0;
+  const topDevelopment = [...(dashboard?.developmentByType || [])].sort(
+    (left, right) => Number(right.total || 0) - Number(left.total || 0)
+  )[0];
+  const topStatus = [...(dashboard?.assignmentStatus || [])].sort(
+    (left, right) => Number(right.total || 0) - Number(left.total || 0)
+  )[0];
+  const bestArea = [...(dashboard?.satisfactionByArea || [])].sort(
+    (left, right) => Number(right.score || 0) - Number(left.score || 0)
+  )[0];
+
+  return [
+    {
+      title: "Governanca",
+      value: `${activeCycles} ciclos ativos`,
+      detail: `Leitura consolidada por ${dashboardTimeGroupingLabel.toLowerCase()} para ${dashboardAreaFilter === "all" ? "toda a operacao" : dashboardAreaFilter}.`,
+      highlightLabel: "Pessoas no recorte",
+      highlightValue: peopleCount,
+      tone: "neutral",
+      icon: "GV"
+    },
+    {
+      title: "Avaliacoes",
+      value: `${pendingAssignments} pendentes`,
+      detail: topStatus
+        ? `${topStatus.total} assignments em ${topStatus.status}.`
+        : "Sem distribuicao de assignments no recorte atual.",
+      highlightLabel: "Status dominante",
+      highlightValue: topStatus ? topStatus.status : "-",
+      tone: "positive",
+      icon: "AV"
+    },
+    {
+      title: "Desenvolvimento",
+      value: topDevelopment ? `${topDevelopment.total} registros` : "Sem registros",
+      detail: topDevelopment
+        ? `Trilha mais frequente: ${topDevelopment.type}.`
+        : "Nao ha movimentacao de desenvolvimento no recorte.",
+      highlightLabel: "Trilha principal",
+      highlightValue: topDevelopment ? topDevelopment.type : "-",
+      tone: "neutral",
+      icon: "DV"
+    },
+    {
+      title: "Risco",
+      value: `${openIncidents} incidentes`,
+      detail: bestArea
+        ? `Melhor satisfacao atual em ${bestArea.area}.`
+        : "Sem leitura de satisfacao por area neste recorte.",
+      highlightLabel: "Melhor area",
+      highlightValue: bestArea ? `${bestArea.area} · ${bestArea.score}` : "-",
+      tone: openIncidents > 0 ? "warning" : "positive",
+      icon: "RK"
+    }
+  ];
 }

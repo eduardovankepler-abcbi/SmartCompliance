@@ -337,3 +337,127 @@ export function ResponseDistributionChartCard({ question }) {
     </>
   );
 }
+
+export function TrendAreaChartCard({
+  items = [],
+  valueKey = "total",
+  labelKey = "label",
+  formatter = (value) => String(value ?? 0),
+  detailFormatter = null
+}) {
+  const safeItems = (items || []).filter(Boolean);
+  if (!safeItems.length) {
+    return (
+      <div className="list-card">
+        <strong>Sem dados suficientes para o grafico</strong>
+      </div>
+    );
+  }
+
+  const values = safeItems.map((item) => Number(item?.[valueKey] || 0));
+  const maxValue = Math.max(...values, 1);
+  const minValue = Math.min(...values, 0);
+  const range = Math.max(maxValue - minValue, 1);
+  const width = 320;
+  const height = 160;
+  const points = safeItems.map((item, index) => {
+    const x =
+      safeItems.length === 1 ? width / 2 : (index / (safeItems.length - 1)) * (width - 16) + 8;
+    const y = height - ((Number(item?.[valueKey] || 0) - minValue) / range) * (height - 28) - 12;
+    return { x, y, raw: Number(item?.[valueKey] || 0), label: item?.[labelKey] || `P${index + 1}` };
+  });
+  const linePath = points
+    .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`)
+    .join(" ");
+  const areaPath = `${linePath} L ${points[points.length - 1].x} ${height} L ${points[0].x} ${height} Z`;
+  const latest = points[points.length - 1];
+  const previous = points.length > 1 ? points[points.length - 2] : null;
+  const delta = previous ? Number((latest.raw - previous.raw).toFixed(1)) : null;
+  const tone = getSeriesTone(`${valueKey}-${labelKey}`);
+
+  return (
+    <div className="mini-card trend-card">
+      <div className="row">
+        <div>
+          <p className="mini-label">{latest.label}</p>
+          <strong>{formatter(latest.raw)}</strong>
+        </div>
+        {delta !== null ? (
+          <span className={delta >= 0 ? "badge trend-badge positive" : "badge trend-badge warning"}>
+            {delta > 0 ? "+" : ""}
+            {formatter(delta)}
+          </span>
+        ) : null}
+      </div>
+      <svg className="trend-chart" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
+        <defs>
+          <linearGradient id={`trend-fill-${valueKey}`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={tone.solid} stopOpacity="0.34" />
+            <stop offset="100%" stopColor={tone.solid} stopOpacity="0.04" />
+          </linearGradient>
+        </defs>
+        <path d={areaPath} fill={`url(#trend-fill-${valueKey})`} />
+        <path d={linePath} fill="none" stroke={tone.solid} strokeWidth="3" strokeLinecap="round" />
+        {points.map((point) => (
+          <circle key={`${point.label}-${point.x}`} cx={point.x} cy={point.y} r="3.5" fill={tone.solid} />
+        ))}
+      </svg>
+      <div className="trend-footer">
+        {safeItems.map((item) => (
+          <div className="trend-footer-item" key={`${item?.[labelKey]}-${item?.[valueKey]}`}>
+            <span>{item?.[labelKey]}</span>
+            <strong>
+              {detailFormatter
+                ? detailFormatter(item)
+                : formatter(Number(item?.[valueKey] || 0))}
+            </strong>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function HeatmapMatrixCard({
+  items = [],
+  getLabel = (item) => item?.label || "-",
+  getValue = (item) => Number(item?.value || 0),
+  getDetail = () => "",
+  toneSeed = "heatmap"
+}) {
+  const safeItems = (items || []).filter(Boolean);
+  if (!safeItems.length) {
+    return (
+      <div className="list-card">
+        <strong>Sem dados suficientes para o mapa</strong>
+      </div>
+    );
+  }
+
+  const maxValue = Math.max(...safeItems.map((item) => getValue(item)), 1);
+
+  return (
+    <div className="heatmap-grid">
+      {safeItems.map((item) => {
+        const value = getValue(item);
+        const tone = getSeriesTone(`${toneSeed}-${getLabel(item)}`);
+        const intensity = Math.max(value / maxValue, 0.12);
+        return (
+          <article
+            className="heatmap-tile"
+            key={`${getLabel(item)}-${value}`}
+            style={{
+              background: `linear-gradient(145deg, ${tone.soft}, rgba(255,255,255,0.02))`,
+              borderColor: `rgba(255,255,255,${0.06 + intensity * 0.12})`,
+              boxShadow: `inset 0 1px 0 rgba(255,255,255,0.02), 0 10px 18px ${tone.soft}`
+            }}
+          >
+            <p className="mini-label">{getLabel(item)}</p>
+            <strong>{value}</strong>
+            <p className="muted">{getDetail(item)}</p>
+          </article>
+        );
+      })}
+    </div>
+  );
+}
