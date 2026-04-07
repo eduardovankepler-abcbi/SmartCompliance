@@ -48,11 +48,6 @@ export function DashboardSection({
     selectedDashboardCompositionMeta
   });
   const executiveComparisons = buildExecutiveComparisons({ dashboard, dashboardTimeGroupingLabel });
-  const executiveMessages = buildExecutiveMessages({
-    dashboard,
-    dashboardAreaFilter,
-    selectedDashboardCompositionMeta
-  });
   const storyCards = buildDashboardStoryCards({
     dashboard,
     summary,
@@ -404,24 +399,6 @@ export function DashboardSection({
           isExecutiveView ? "dashboard-insight-grid-executive" : "dashboard-insight-grid-analytical"
         }`}
       >
-        {isExecutiveView && executiveMessages.length ? (
-          <div className="card dashboard-side-card dashboard-card-tall">
-            <div className="card-header">
-              <h3>Mensagens-chave</h3>
-              <span>Leituras priorizadas</span>
-            </div>
-            <div className="executive-message-grid">
-              {executiveMessages.map((item) => (
-                <article className={`list-card executive-message-card ${item.tone}`} key={item.title}>
-                  <p className="mini-label">{item.title}</p>
-                  <strong>{item.headline}</strong>
-                  <p className="muted">{item.detail}</p>
-                </article>
-              ))}
-            </div>
-          </div>
-        ) : null}
-
         {assignmentStatusItems.length ? (
           <div className={`card dashboard-side-card ${isExecutiveView ? "dashboard-card-tall" : ""}`}>
             <div className="card-header">
@@ -665,65 +642,6 @@ function buildExecutiveComparisons({ dashboard, dashboardTimeGroupingLabel }) {
   }
 
   return comparisons.slice(0, 4);
-}
-
-function buildExecutiveMessages({ dashboard, dashboardAreaFilter, selectedDashboardCompositionMeta }) {
-  const areaLabel = dashboardAreaFilter === "all" ? "organizacao" : dashboardAreaFilter;
-  const compositionLabel =
-    selectedDashboardCompositionMeta?.label?.toLowerCase() || "todos os elementos do ciclo";
-  const satisfactionByArea = dashboard?.satisfactionByArea || [];
-  const pendingAssignments = dashboard?.assignmentStatus?.find((item) => item.status === "pending");
-  const submittedAssignments = dashboard?.assignmentStatus?.find((item) => item.status === "submitted");
-  const latestPeriod = dashboard?.cycleTimeline?.[0];
-  const strongestArea = [...satisfactionByArea].sort(
-    (left, right) => Number(right.score) - Number(left.score)
-  )[0];
-  const weakestArea = [...satisfactionByArea].sort(
-    (left, right) => Number(left.score) - Number(right.score)
-  )[0];
-
-  const messages = [];
-
-  if (pendingAssignments) {
-    messages.push({
-      title: "Risco principal",
-      headline:
-        pendingAssignments.percentage >= 40
-          ? "Pendencia ainda pressiona o fechamento do ciclo"
-          : "Pendencia sob controle, mas ainda requer acompanhamento",
-      detail: `${pendingAssignments.total} assignments pendentes em ${areaLabel}, olhando ${compositionLabel}.`,
-      tone: "warning"
-    });
-  }
-
-  if (strongestArea) {
-    messages.push({
-      title: "Sinal positivo",
-      headline: `${strongestArea.area} sustenta a melhor leitura agregada`,
-      detail: `${strongestArea.score} de media no recorte atual, indicando um bom ponto de referencia interno.`,
-      tone: "positive"
-    });
-  }
-
-  if (weakestArea) {
-    messages.push({
-      title: "Prioridade recomendada",
-      headline: `Atuar em ${weakestArea.area} tende a gerar maior ganho imediato`,
-      detail: `${weakestArea.score} de media sugere concentrar escuta, acompanhamento e acoes corretivas nessa frente.`,
-      tone: "neutral"
-    });
-  }
-
-  if (latestPeriod && submittedAssignments) {
-    messages.push({
-      title: "Leitura do momento",
-      headline: `${latestPeriod.label} concentra ${submittedAssignments.total} respostas concluidas`,
-      detail: `O periodo mais recente resume o ritmo atual do ciclo e deve orientar a narrativa principal da reuniao.`,
-      tone: "neutral"
-    });
-  }
-
-  return messages.slice(0, 4);
 }
 
 function buildDashboardStoryCards({ dashboard, summary, dashboardAreaFilter, dashboardTimeGroupingLabel }) {

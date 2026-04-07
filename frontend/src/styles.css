@@ -1115,40 +1115,6 @@ button:disabled {
   line-height: 1.2;
 }
 
-.executive-message-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 12px;
-}
-
-.executive-message-card {
-  display: grid;
-  gap: 8px;
-}
-
-.executive-message-card.warning {
-  background:
-    linear-gradient(135deg, rgba(255, 154, 107, 0.14), transparent 48%),
-    var(--accent-primary);
-}
-
-.executive-message-card.positive {
-  background:
-    linear-gradient(135deg, rgba(67, 211, 139, 0.14), transparent 48%),
-    var(--accent-primary);
-}
-
-.executive-message-card.neutral {
-  background:
-    linear-gradient(135deg, rgba(77, 136, 255, 0.1), transparent 48%),
-    var(--accent-primary);
-}
-
-.executive-message-card strong {
-  font-size: 1.08rem;
-  line-height: 1.35;
-}
-
 .mini-card {
   padding: 18px;
 }
