@@ -438,8 +438,8 @@ export function DashboardSection({
                 <span>Mapa de calor</span>
               </div>
               <div className="dashboard-card-filter">
-                <label className="dashboard-card-select">
-                  <span>Filtro</span>
+                <label className="dashboard-card-filter-card">
+                  <span>Filtro ativo</span>
                   <select value={satisfactionView} onChange={(event) => setSatisfactionView(event.target.value)}>
                     <option value="all">Todas</option>
                     <option value="top">Melhores</option>
@@ -487,8 +487,8 @@ export function DashboardSection({
                 <span>Volume por tipo</span>
               </div>
               <div className="dashboard-card-filter">
-                <label className="dashboard-card-select">
-                  <span>Filtro</span>
+                <label className="dashboard-card-filter-card">
+                  <span>Filtro ativo</span>
                   <select value={developmentView} onChange={(event) => setDevelopmentView(event.target.value)}>
                     <option value="all">Todas</option>
                     <option value="top">Mais volume</option>
