@@ -38,6 +38,11 @@ export const DEFAULT_CYCLE_MODULE_AVAILABILITY = Object.freeze({
   "client-external": true
 });
 
+export const DEFAULT_TRANSVERSAL_CONFIG = Object.freeze({
+  defaultReviewersPerPerson: 1,
+  unitOverrides: {}
+});
+
 export const USER_ROLE_OPTIONS = ["admin", "hr", "manager", "employee", "compliance"];
 export const USER_STATUS_OPTIONS = ["active", "inactive"];
 export const EMPLOYMENT_TYPE_OPTIONS = ["internal", "consultant"];

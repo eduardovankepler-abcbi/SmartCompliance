@@ -133,7 +133,7 @@ assert.deepEqual(
   ).warnings,
   [
     "A pessoa sera cadastrada sem gestor direto definido.",
-    "Quem trabalha 100% home office nao participa do feedback indireto."
+    "Quem trabalha 100% home office nao participa do Feedback transversal."
   ],
   "Fluxo de pessoa deve alertar sobre gestor ausente e impacto do home office"
 );

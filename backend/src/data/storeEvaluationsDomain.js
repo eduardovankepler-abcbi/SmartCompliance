@@ -1,6 +1,7 @@
 import {
   CYCLE_STATUS,
   DEFAULT_CYCLE_MODULE_AVAILABILITY,
+  DEFAULT_TRANSVERSAL_CONFIG,
   DEFAULT_EVALUATION_LIBRARY_ID,
   DEFAULT_EVALUATION_LIBRARY_NAME,
   FEEDBACK_REQUEST_STATUS
@@ -20,14 +21,19 @@ export function prepareEvaluationCycle({
     libraryName: selectedLibrary?.name || DEFAULT_EVALUATION_LIBRARY_NAME,
     isEnabled: true,
     moduleAvailability: { ...DEFAULT_CYCLE_MODULE_AVAILABILITY },
+    transversalConfig: {
+      defaultReviewersPerPerson: DEFAULT_TRANSVERSAL_CONFIG.defaultReviewersPerPerson,
+      unitOverrides: {}
+    },
     status: CYCLE_STATUS.planning
   };
 }
 
-export function resolveCycleConfigUpdate(currentModuleAvailability, payload) {
+export function resolveCycleConfigUpdate(currentModuleAvailability, currentTransversalConfig, payload) {
   const nextIsEnabled =
     payload?.isEnabled === undefined ? undefined : Boolean(payload.isEnabled);
   let nextModuleAvailability = null;
+  let nextTransversalConfig = null;
 
   if (payload?.moduleAvailability !== undefined) {
     if (typeof payload.moduleAvailability !== "object" || payload.moduleAvailability === null) {
@@ -44,9 +50,50 @@ export function resolveCycleConfigUpdate(currentModuleAvailability, payload) {
     }
   }
 
+  if (payload?.transversalConfig !== undefined) {
+    if (typeof payload.transversalConfig !== "object" || payload.transversalConfig === null) {
+      throw new Error("transversalConfig precisa ser um objeto.");
+    }
+
+    const defaultReviewersPerPerson = Number(
+      payload.transversalConfig.defaultReviewersPerPerson ??
+        currentTransversalConfig?.defaultReviewersPerPerson ??
+        DEFAULT_TRANSVERSAL_CONFIG.defaultReviewersPerPerson
+    );
+    if (!Number.isInteger(defaultReviewersPerPerson) || defaultReviewersPerPerson < 1 || defaultReviewersPerPerson > 5) {
+      throw new Error("defaultReviewersPerPerson deve ser um inteiro entre 1 e 5.");
+    }
+
+    const rawOverrides =
+      payload.transversalConfig.unitOverrides ??
+      currentTransversalConfig?.unitOverrides ??
+      DEFAULT_TRANSVERSAL_CONFIG.unitOverrides;
+    if (typeof rawOverrides !== "object" || rawOverrides === null || Array.isArray(rawOverrides)) {
+      throw new Error("unitOverrides precisa ser um objeto.");
+    }
+
+    const normalizedOverrides = Object.fromEntries(
+      Object.entries(rawOverrides)
+        .map(([unit, value]) => [String(unit || "").trim(), Number(value)])
+        .filter(([unit]) => Boolean(unit))
+        .map(([unit, value]) => {
+          if (!Number.isInteger(value) || value < 1 || value > 5) {
+            throw new Error("Cada override de unidade deve ser um inteiro entre 1 e 5.");
+          }
+          return [unit, value];
+        })
+    );
+
+    nextTransversalConfig = {
+      defaultReviewersPerPerson,
+      unitOverrides: normalizedOverrides
+    };
+  }
+
   return {
     nextIsEnabled,
-    nextModuleAvailability
+    nextModuleAvailability,
+    nextTransversalConfig
   };
 }
 

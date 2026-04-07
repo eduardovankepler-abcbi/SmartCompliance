@@ -61,7 +61,7 @@ export function getPersonConsistencyMessages(
   }
 
   if (normalizeText(payload.workMode).toLowerCase() === "remote") {
-    warnings.push("Quem trabalha 100% home office nao participa do feedback indireto.");
+    warnings.push("Quem trabalha 100% home office nao participa do Feedback transversal.");
   }
 
   return { blocking, warnings };

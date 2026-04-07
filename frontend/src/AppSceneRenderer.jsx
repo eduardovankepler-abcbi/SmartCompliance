@@ -142,6 +142,8 @@ export function AppSceneRenderer(props) {
           handleCustomLibraryUpdate={props.handleCustomLibraryUpdate}
           handleCustomLibraryTemplateDownload={props.handleCustomLibraryTemplateDownload}
           handleCustomLibraryPublish={props.handleCustomLibraryPublish}
+          handleForceCrossFunctionalPairing={props.handleForceCrossFunctionalPairing}
+          handleBlockCrossFunctionalPairing={props.handleBlockCrossFunctionalPairing}
           handleCycleStatusChange={props.handleCycleStatusChange}
           handleCycleEnabledToggle={props.handleCycleEnabledToggle}
           handleCycleModuleToggle={props.handleCycleModuleToggle}
@@ -166,11 +168,17 @@ export function AppSceneRenderer(props) {
           setEvaluationOperationWorkUnitFilter={props.setEvaluationOperationWorkUnitFilter}
           setFeedbackRequestForm={props.setFeedbackRequestForm}
           setReceivedManagerFeedbackDraft={props.setReceivedManagerFeedbackDraft}
+          setTransversalOverrideForm={props.setTransversalOverrideForm}
           setSelectedAssignment={props.setSelectedAssignment}
           setShowEvaluationLibrary={props.setShowEvaluationLibrary}
           setStrengthsNote={props.setStrengthsNote}
           showEvaluationLibrary={props.showEvaluationLibrary}
           strengthsNote={props.strengthsNote}
+          transversalOverrideForm={props.transversalOverrideForm}
+          transversalConfigForm={props.transversalConfigForm}
+          setTransversalConfigForm={props.setTransversalConfigForm}
+          handleTransversalConfigSubmit={props.handleTransversalConfigSubmit}
+          handleTransversalUnitOverrideRemove={props.handleTransversalUnitOverrideRemove}
         />
       );
     case "Desenvolvimento":

@@ -143,6 +143,55 @@ export function createEvaluationsRouter(store) {
     }
   );
 
+  router.post(
+    "/cycles/:cycleId/transversal-pairings/force",
+    requireRoles("admin", "hr"),
+    async (req, res) => {
+      const { reviewerUserId, revieweePersonId, reason } = req.body || {};
+      if (!reviewerUserId || !revieweePersonId || !reason) {
+        return badRequest(res, "reviewerUserId, revieweePersonId e reason sao obrigatorios.");
+      }
+
+      try {
+        const structure = await store.forceCrossFunctionalPairing(
+          req.params.cycleId,
+          { reviewerUserId, revieweePersonId, reason },
+          req.auth.user
+        );
+        res.json(structure);
+      } catch (error) {
+        res
+          .status(400)
+          .json({ error: error.message || "Falha ao ajustar pareamento transversal." });
+      }
+    }
+  );
+
+  router.post(
+    "/cycles/:cycleId/transversal-pairings/:pairingId/block",
+    requireRoles("admin", "hr"),
+    async (req, res) => {
+      const { reason } = req.body || {};
+      if (!reason) {
+        return badRequest(res, "reason obrigatorio.");
+      }
+
+      try {
+        const structure = await store.blockCrossFunctionalPairing(
+          req.params.cycleId,
+          req.params.pairingId,
+          reason,
+          req.auth.user
+        );
+        res.json(structure);
+      } catch (error) {
+        res
+          .status(400)
+          .json({ error: error.message || "Falha ao bloquear pareamento transversal." });
+      }
+    }
+  );
+
   router.get("/assignments", async (req, res, next) => {
     try {
       res.json(await store.getEvaluationAssignmentsForUser(req.auth.user.id));

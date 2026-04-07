@@ -194,6 +194,10 @@ export default function App() {
     handleCustomLibraryImport,
     handleCustomLibraryUpdate,
     handleCustomLibraryPublish,
+    handleForceCrossFunctionalPairing,
+    handleBlockCrossFunctionalPairing,
+    handleTransversalConfigSubmit,
+    handleTransversalUnitOverrideRemove,
     handleCycleStatusChange,
     handleCycleEnabledToggle,
     handleCycleModuleToggle,
@@ -218,11 +222,15 @@ export default function App() {
     setEvaluationOperationWorkUnitFilter,
     setFeedbackRequestForm,
     setReceivedManagerFeedbackDraft,
+    setTransversalOverrideForm,
+    setTransversalConfigForm,
     setSelectedAssignment,
     setShowEvaluationLibrary,
     setStrengthsNote,
     showEvaluationLibrary,
-    strengthsNote
+    strengthsNote,
+    transversalOverrideForm,
+    transversalConfigForm
   } = useEvaluations({
     user,
     people,
@@ -559,6 +567,8 @@ export default function App() {
         handleCustomLibraryUpdate={handleCustomLibraryUpdate}
         handleCustomLibraryPublish={handleCustomLibraryPublish}
         handleCustomLibraryTemplateDownload={api.downloadCustomLibraryTemplate}
+        handleForceCrossFunctionalPairing={handleForceCrossFunctionalPairing}
+        handleBlockCrossFunctionalPairing={handleBlockCrossFunctionalPairing}
         handleCycleEnabledToggle={handleCycleEnabledToggle}
         handleCycleModuleToggle={handleCycleModuleToggle}
         handleCycleStatusChange={handleCycleStatusChange}
@@ -628,6 +638,7 @@ export default function App() {
         setIncidentForm={setIncidentForm}
         setPersonForm={setPersonForm}
         setReceivedManagerFeedbackDraft={setReceivedManagerFeedbackDraft}
+        setTransversalOverrideForm={setTransversalOverrideForm}
         setSelectedAssignment={setSelectedAssignment}
         setShowEvaluationLibrary={setShowEvaluationLibrary}
         setStrengthsNote={setStrengthsNote}
@@ -639,6 +650,11 @@ export default function App() {
         suggestedUserRole={suggestedUserRole}
         suggestedUserRoleReason={suggestedUserRoleReason}
         Textarea={Textarea}
+        transversalOverrideForm={transversalOverrideForm}
+        transversalConfigForm={transversalConfigForm}
+        setTransversalConfigForm={setTransversalConfigForm}
+        handleTransversalConfigSubmit={handleTransversalConfigSubmit}
+        handleTransversalUnitOverrideRemove={handleTransversalUnitOverrideRemove}
         UserAdminCard={UserAdminCard}
         userAuditEntries={userAuditEntries}
         userForm={userForm}

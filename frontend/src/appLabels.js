@@ -88,13 +88,13 @@ export function getEvaluationWorkspaceCopy(moduleKey, workspace = "respond") {
         "Solicite ou aguarde a aprovacao de fornecedores para este ciclo."
     },
     "cross-functional": {
-      heading: workspace === "insights" ? "Leitura de feedback indireto" : "Feedback indireto",
+      heading: workspace === "insights" ? "Leitura de feedback transversal" : "Feedback transversal",
       description:
         workspace === "insights"
-          ? "Leitura agregada de relacionamento, influencia e colaboracao entre areas."
-          : "Avalie soft skills, relacionamento e qualidade da interacao entre areas.",
-      responseTitle: "Responder feedback indireto",
-      submitLabel: "Enviar feedback indireto",
+          ? "Leitura confidencial da colaboracao transversal entre areas da mesma unidade."
+          : "Avalie a colaboracao observada entre areas da mesma unidade.",
+      responseTitle: "Responder feedback transversal",
+      submitLabel: "Enviar feedback transversal",
       evidenceLabel: "Sinais observados",
       strengthsLabel: "Fortes sinais de relacionamento",
       developmentLabel: "Oportunidades de interacao"

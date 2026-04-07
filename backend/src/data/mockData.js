@@ -823,7 +823,7 @@ export const evaluationLibrary = {
     "cross-functional": {
       id: "t3b",
       key: "cross-functional",
-      modelName: "Feedback indireto organizacional",
+      modelName: "Feedback transversal organizacional",
       description:
         "Questionario enxuto para percepcao indireta entre areas, com foco em colaboracao, postura, cultura e sinais observaveis no ambiente organizacional.",
       policy: {

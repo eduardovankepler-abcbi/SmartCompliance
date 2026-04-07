@@ -18,6 +18,16 @@ const FEEDBACK_ACKNOWLEDGEMENT_STATUS = Object.freeze({
   agreed: "agreed",
   disagreed: "disagreed"
 });
+const INITIAL_TRANSVERSAL_OVERRIDE_FORM = Object.freeze({
+  reviewerUserId: "",
+  revieweePersonId: "",
+  reason: ""
+});
+const INITIAL_TRANSVERSAL_CONFIG_FORM = Object.freeze({
+  defaultReviewersPerPerson: "1",
+  unitName: "",
+  unitReviewersPerPerson: "1"
+});
 
 function normalizeCycleModuleAvailability(value) {
   if (!value || typeof value !== "object") {
@@ -125,6 +135,14 @@ function buildFilteredCycleOperationsStructure(structure, filters) {
     0
   );
   const filteredRaters = filteredParticipants.flatMap((participant) => participant.raters || []);
+  const transversal = structure.transversal || {
+    eligible: [],
+    ineligible: [],
+    pairings: [],
+    exceptions: [],
+    config: { defaultReviewersPerPerson: 1, unitOverrides: {} },
+    indicators: {}
+  };
   const relationshipSummary = Object.entries(
     filteredRaters.reduce((summary, rater) => {
       summary[rater.relationshipType] = (summary[rater.relationshipType] || 0) + 1;
@@ -149,6 +167,24 @@ function buildFilteredCycleOperationsStructure(structure, filters) {
     },
     participants: filteredParticipants,
     delinquents: filteredDelinquents,
+    transversal: {
+      config: transversal.config || { defaultReviewersPerPerson: 1, unitOverrides: {} },
+      indicators: transversal.indicators || {},
+      eligible: (transversal.eligible || []).filter(
+        (person) =>
+          matchesOperationFilter(person.personWorkUnit, filters.workUnit) &&
+          matchesOperationFilter(person.personWorkMode, filters.workMode)
+      ),
+      ineligible: (transversal.ineligible || []).filter(
+        (person) =>
+          matchesOperationFilter(person.personWorkUnit, filters.workUnit) &&
+          matchesOperationFilter(person.personWorkMode, filters.workMode)
+      ),
+      pairings: (transversal.pairings || []).filter((pairing) =>
+        matchesOperationFilter(pairing.workUnit, filters.workUnit)
+      ),
+      exceptions: transversal.exceptions || []
+    },
     relationshipSummary
   };
 }
@@ -306,6 +342,12 @@ export function useEvaluations({
   const [customLibraryPublishForm, setCustomLibraryPublishForm] = useState(
     initialLibraryPublishForm
   );
+  const [transversalOverrideForm, setTransversalOverrideForm] = useState(
+    INITIAL_TRANSVERSAL_OVERRIDE_FORM
+  );
+  const [transversalConfigForm, setTransversalConfigForm] = useState(
+    INITIAL_TRANSVERSAL_CONFIG_FORM
+  );
   const individualResponses = responsesBundle?.individualResponses || [];
   const cycleAggregateResponses = responsesBundle?.cycleAggregateResponses || [];
   const activeCycle = useMemo(
@@ -316,6 +358,24 @@ export function useEvaluations({
     () => normalizeCycleModuleAvailability(activeCycle?.moduleAvailability),
     [activeCycle?.moduleAvailability]
   );
+  const activeTransversalConfig = useMemo(
+    () =>
+      activeCycle?.transversalConfig || {
+        defaultReviewersPerPerson: 1,
+        unitOverrides: {}
+      },
+    [activeCycle?.transversalConfig]
+  );
+
+  useEffect(() => {
+    setTransversalConfigForm({
+      defaultReviewersPerPerson: String(
+        activeTransversalConfig.defaultReviewersPerPerson || 1
+      ),
+      unitName: "",
+      unitReviewersPerPerson: "1"
+    });
+  }, [activeEvaluationCycleId, activeTransversalConfig.defaultReviewersPerPerson]);
 
   const feedbackRequestCycleOptions = useMemo(
     () => cycles.filter((cycle) => !["Encerrado", "Processado"].includes(cycle.status)),
@@ -762,6 +822,8 @@ export function useEvaluations({
     setReceivedManagerFeedbackDrafts({});
     setCustomLibraryDraft(null);
     setCustomLibraryPublishForm(initialLibraryPublishForm);
+    setTransversalOverrideForm(INITIAL_TRANSVERSAL_OVERRIDE_FORM);
+    setTransversalConfigForm(INITIAL_TRANSVERSAL_CONFIG_FORM);
   }
 
   async function handleCycleSubmit(event) {
@@ -857,6 +919,53 @@ export function useEvaluations({
     });
   }
 
+  async function handleTransversalConfigSubmit(event) {
+    event?.preventDefault?.();
+    if (!activeEvaluationCycleId) {
+      return;
+    }
+
+    const normalizedUnitName = String(transversalConfigForm.unitName || "").trim();
+    const nextConfig = {
+      defaultReviewersPerPerson: Number(transversalConfigForm.defaultReviewersPerPerson || 1),
+      unitOverrides: {
+        ...(activeTransversalConfig.unitOverrides || {})
+      }
+    };
+
+    if (normalizedUnitName) {
+      nextConfig.unitOverrides[normalizedUnitName] = Number(
+        transversalConfigForm.unitReviewersPerPerson || 1
+      );
+    }
+
+    await handleCycleConfigUpdate(activeEvaluationCycleId, {
+      transversalConfig: nextConfig
+    });
+
+    setTransversalConfigForm((current) => ({
+      ...current,
+      unitName: "",
+      unitReviewersPerPerson: "1"
+    }));
+    setEvaluationOperationNotice("Configuracao do Feedback transversal atualizada.");
+  }
+
+  async function handleTransversalUnitOverrideRemove(unitName) {
+    if (!activeEvaluationCycleId || !unitName) {
+      return;
+    }
+    const nextOverrides = { ...(activeTransversalConfig.unitOverrides || {}) };
+    delete nextOverrides[unitName];
+    await handleCycleConfigUpdate(activeEvaluationCycleId, {
+      transversalConfig: {
+        defaultReviewersPerPerson: activeTransversalConfig.defaultReviewersPerPerson || 1,
+        unitOverrides: nextOverrides
+      }
+    });
+    setEvaluationOperationNotice("Override de unidade removido.");
+  }
+
   async function handleAssignmentSubmit(event) {
     event.preventDefault();
 
@@ -947,6 +1056,46 @@ export function useEvaluations({
           ? `${result.notifiedAssignments} inadimplente(s) notificados no ciclo.`
           : "Nenhum inadimplente pendente para notificacao."
       );
+      await reloadData();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function handleForceCrossFunctionalPairing(event) {
+    event.preventDefault();
+    if (!activeEvaluationCycleId) {
+      return;
+    }
+
+    try {
+      setError("");
+      await api.forceCrossFunctionalPairing(activeEvaluationCycleId, transversalOverrideForm);
+      setEvaluationOperationNotice("Pareamento transversal ajustado com sucesso.");
+      setTransversalOverrideForm(INITIAL_TRANSVERSAL_OVERRIDE_FORM);
+      await reloadData();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function handleBlockCrossFunctionalPairing(pairingId) {
+    if (!activeEvaluationCycleId) {
+      return;
+    }
+
+    const reason =
+      typeof window !== "undefined"
+        ? window.prompt("Informe a justificativa para bloquear este pareamento:")
+        : "";
+    if (!String(reason || "").trim()) {
+      return;
+    }
+
+    try {
+      setError("");
+      await api.blockCrossFunctionalPairing(activeEvaluationCycleId, pairingId, reason);
+      setEvaluationOperationNotice("Pareamento transversal bloqueado com sucesso.");
       await reloadData();
     } catch (err) {
       setError(err.message);
@@ -1053,6 +1202,10 @@ export function useEvaluations({
     handleCustomLibraryUpdate,
     handleCustomLibraryTemplateDownload,
     handleCustomLibraryPublish,
+    handleForceCrossFunctionalPairing,
+    handleBlockCrossFunctionalPairing,
+    handleTransversalConfigSubmit,
+    handleTransversalUnitOverrideRemove,
     handleCycleStatusChange,
     handleCycleEnabledToggle,
     handleCycleModuleToggle,
@@ -1077,10 +1230,14 @@ export function useEvaluations({
     setEvaluationOperationWorkUnitFilter,
     setFeedbackRequestForm,
     setReceivedManagerFeedbackDraft,
+    setTransversalOverrideForm,
+    setTransversalConfigForm,
     setSelectedAssignment,
     setShowEvaluationLibrary,
     setStrengthsNote,
     showEvaluationLibrary,
-    strengthsNote
+    strengthsNote,
+    transversalOverrideForm,
+    transversalConfigForm
   };
 }

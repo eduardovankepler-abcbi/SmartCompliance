@@ -14,7 +14,7 @@ const evaluationModuleSlugMap = {
   leader: "lider",
   manager: "feedback-lider",
   peer: "feedback-direto",
-  "cross-functional": "feedback-indireto",
+  "cross-functional": "feedback-transversal",
   "client-internal": "cliente-interno",
   "client-external": "cliente-externo",
   self: "autoavaliacao"

@@ -172,6 +172,16 @@ export const api = {
     request(`/api/evaluations/cycles/${cycleId}/notify-delinquents`, {
       method: "POST"
     }),
+  forceCrossFunctionalPairing: (cycleId, payload) =>
+    request(`/api/evaluations/cycles/${cycleId}/transversal-pairings/force`, {
+      method: "POST",
+      body: JSON.stringify(payload)
+    }),
+  blockCrossFunctionalPairing: (cycleId, pairingId, reason) =>
+    request(`/api/evaluations/cycles/${cycleId}/transversal-pairings/${pairingId}/block`, {
+      method: "POST",
+      body: JSON.stringify({ reason })
+    }),
   updateEvaluationCycleStatus: (cycleId, status) =>
     request(`/api/evaluations/cycles/${cycleId}/status`, {
       method: "PATCH",

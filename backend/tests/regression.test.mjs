@@ -253,18 +253,18 @@ try {
   );
   assert.equal(
     crossFunctionalTemplateFallback.modelName,
-    "Feedback indireto organizacional",
-    "Feedback indireto deve usar template proprio"
+    "Feedback transversal organizacional",
+    "Feedback transversal deve usar template proprio"
   );
   assert.equal(
     crossFunctionalTemplateFallback.questions.length,
     14,
-    "Template indireto deve expor o conjunto enxuto de perguntas"
+    "Template transversal deve expor o conjunto enxuto de perguntas"
   );
   assert.equal(
     crossFunctionalTemplateFallback.policy.scale[0].label,
     "Muito insatisfeito",
-    "Template indireto deve usar escala de percepcao organizacional"
+    "Template transversal deve usar escala de percepcao organizacional"
   );
 
   const releasedCycles = await store.getEvaluationCycles();
@@ -878,6 +878,28 @@ try {
     },
     admin
   );
+  const managedCrossAreaPerson = await store.createPerson(
+    {
+      name: "Pessoa sob gestao cruzada",
+      roleTitle: "Analista de Consultoria",
+      area: "Consultoria",
+      workUnit: "Sao Paulo",
+      workMode: "onsite",
+      managerPersonId: employee.personId,
+      employmentType: "internal"
+    },
+    admin
+  );
+  const managedCrossAreaUser = await store.createUser(
+    {
+      personId: managedCrossAreaPerson.id,
+      email: "gestao.cruzada@demo.local",
+      password: "demo123",
+      roleKey: "employee",
+      status: "active"
+    },
+    admin
+  );
 
   const workContextCycle = await store.createEvaluationCycle(
     {
@@ -907,7 +929,7 @@ try {
   assert.equal(
     remoteParticipant.raters.some((rater) => rater.relationshipType === "cross-functional"),
     false,
-    "Pessoa 100% remota nao deve ser avaliada no feedback indireto"
+    "Pessoa 100% remota nao deve ser avaliada no Feedback transversal"
   );
   assert.equal(
     workContextStructure.participants.some((participant) =>
@@ -917,7 +939,7 @@ try {
       )
     ),
     false,
-    "Pessoa 100% remota nao deve avaliar no feedback indireto"
+    "Pessoa 100% remota nao deve avaliar no Feedback transversal"
   );
 
   const rioParticipant = workContextStructure.participants.find(
@@ -927,7 +949,121 @@ try {
   assert.equal(
     rioParticipant.raters.some((rater) => rater.relationshipType === "cross-functional"),
     false,
-    "Pessoa sem colegas da mesma unidade nao deve receber feedback indireto"
+    "Pessoa sem colegas da mesma unidade nao deve receber Feedback transversal"
+  );
+  assert.ok(
+    workContextStructure.transversal.eligible.some(
+      (person) => person.personId === employee.personId
+    ),
+    "Operacao do ciclo deve listar elegiveis do Feedback transversal"
+  );
+  assert.ok(
+    workContextStructure.transversal.ineligible.some(
+      (person) => person.personId === remotePerson.id
+    ),
+    "Operacao do ciclo deve listar pessoas sem pareamento elegivel"
+  );
+  assert.equal(
+    workContextStructure.participants
+      .find((participant) => participant.personId === employee.personId)
+      ?.raters.some(
+        (rater) =>
+          rater.relationshipType === "cross-functional" && rater.raterUserId === managedCrossAreaUser.id
+      ),
+    false,
+    "Feedback transversal nao deve parear gestor direto e liderado"
+  );
+
+  await store.createArea({ name: "Produto" }, admin);
+  await store.createArea({ name: "Suporte" }, admin);
+
+  const productPerson = await store.createPerson(
+    {
+      name: "Pessoa Produto Sao Paulo",
+      roleTitle: "Analista de Produto",
+      area: "Produto",
+      workUnit: "Sao Paulo",
+      workMode: "onsite",
+      managerPersonId: manager.personId,
+      employmentType: "internal"
+    },
+    admin
+  );
+  await store.createUser(
+    {
+      personId: productPerson.id,
+      email: "produto.sp@demo.local",
+      password: "demo123",
+      roleKey: "employee",
+      status: "active"
+    },
+    admin
+  );
+
+  const supportPerson = await store.createPerson(
+    {
+      name: "Pessoa Suporte Sao Paulo",
+      roleTitle: "Analista de Suporte",
+      area: "Suporte",
+      workUnit: "Sao Paulo",
+      workMode: "onsite",
+      managerPersonId: manager.personId,
+      employmentType: "internal"
+    },
+    admin
+  );
+  await store.createUser(
+    {
+      personId: supportPerson.id,
+      email: "suporte.sp@demo.local",
+      password: "demo123",
+      roleKey: "employee",
+      status: "active"
+    },
+    admin
+  );
+
+  const transversalConfigCycle = await store.createEvaluationCycle(
+    {
+      title: "Ciclo transversal parametrizado",
+      semesterLabel: "2026.4",
+      dueDate: "2026-12-15",
+      targetGroup: "Todos os colaboradores",
+      createdByUserId: admin.id
+    },
+    admin
+  );
+  await store.updateEvaluationCycleConfig(
+    transversalConfigCycle.id,
+    {
+      transversalConfig: {
+        defaultReviewersPerPerson: 2,
+        unitOverrides: {
+          "Sao Paulo": 2
+        }
+      }
+    },
+    admin
+  );
+  const transversalConfigStructure = await store.getEvaluationCycleParticipants(
+    transversalConfigCycle.id
+  );
+  assert.equal(
+    transversalConfigStructure.transversal.config.defaultReviewersPerPerson,
+    2,
+    "Configuracao transversal deve ficar persistida no ciclo"
+  );
+  assert.ok(
+    (transversalConfigStructure.transversal.pairings || []).some(
+      (pairing) =>
+        pairing.reviewerUserId === employee.id &&
+        pairing.revieweePersonId !== employee.personId
+    ),
+    "Pareamento transversal deve continuar gerando assignments apos configuracao"
+  );
+  assert.ok(
+    (transversalConfigStructure.transversal.indicators?.coverageRate || 0) > 0,
+    "Operacao do ciclo deve expor indicador historico/cobertura do Feedback transversal"
   );
 
   const employeeActor = await store.getUserById(employee.id);

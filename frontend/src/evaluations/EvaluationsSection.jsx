@@ -106,6 +106,10 @@ export function EvaluationsSection(props) {
     handleCustomLibraryUpdate,
     handleCustomLibraryTemplateDownload,
     handleCustomLibraryPublish,
+    handleForceCrossFunctionalPairing,
+    handleBlockCrossFunctionalPairing,
+    handleTransversalConfigSubmit,
+    handleTransversalUnitOverrideRemove,
     handleCycleStatusChange,
     handleCycleEnabledToggle,
     handleCycleModuleToggle,
@@ -127,8 +131,12 @@ export function EvaluationsSection(props) {
     setEvaluationOperationWorkUnitFilter,
     setFeedbackRequestForm,
     setReceivedManagerFeedbackDraft,
+    setTransversalConfigForm,
+    setTransversalOverrideForm,
     setShowEvaluationLibrary,
-    showEvaluationLibrary
+    showEvaluationLibrary,
+    transversalOverrideForm,
+    transversalConfigForm
   } = props;
   const SafeEvaluationInsightsPanel = EvaluationInsightsPanel || EmptyComponent;
   const SafeEvaluationLibraryPanel = EvaluationLibraryPanel || EmptyComponent;
@@ -595,6 +603,26 @@ export function EvaluationsSection(props) {
               <p className="mini-label">Inadimplentes</p>
               <strong>{operationsStructure?.compliance?.delinquentAssignments ?? 0}</strong>
             </div>
+            {activeEvaluationModuleMeta?.relationshipType === "cross-functional" ? (
+              <>
+                <div className="mini-card">
+                  <p className="mini-label">Elegiveis</p>
+                  <strong>{operationsStructure?.transversal?.eligible?.length ?? 0}</strong>
+                </div>
+                <div className="mini-card">
+                  <p className="mini-label">Sem pareamento</p>
+                  <strong>{operationsStructure?.transversal?.ineligible?.length ?? 0}</strong>
+                </div>
+                <div className="mini-card">
+                  <p className="mini-label">Cobertura</p>
+                  <strong>{operationsStructure?.transversal?.indicators?.coverageRate ?? 0}%</strong>
+                </div>
+                <div className="mini-card">
+                  <p className="mini-label">Pares repetidos</p>
+                  <strong>{operationsStructure?.transversal?.indicators?.repeatedPairings ?? 0}</strong>
+                </div>
+              </>
+            ) : null}
           </div>
           <div className="list-card">
             <div className="row">
@@ -622,6 +650,241 @@ export function EvaluationsSection(props) {
                 </div>
               ))}
             </div>
+          ) : null}
+          {activeEvaluationModuleMeta?.relationshipType === "cross-functional" ? (
+            <>
+              <form className="list-card" onSubmit={handleTransversalConfigSubmit}>
+                <div className="card-header">
+                  <strong>Configuracao do Feedback transversal</strong>
+                  <span>
+                    {operationsStructure?.transversal?.indicators?.previousCycleTitle
+                      ? `Historico: ${operationsStructure.transversal.indicators.previousCycleTitle}`
+                      : "Sem historico anterior"}
+                  </span>
+                </div>
+                <div className="dashboard-filter-grid">
+                  <SafeInput
+                    label="Avaliadores por pessoa"
+                    type="number"
+                    value={transversalConfigForm.defaultReviewersPerPerson}
+                    onChange={(value) =>
+                      setTransversalConfigForm((current) => ({
+                        ...current,
+                        defaultReviewersPerPerson: value
+                      }))
+                    }
+                  />
+                  <SafeInput
+                    label="Unidade para override"
+                    value={transversalConfigForm.unitName}
+                    onChange={(value) =>
+                      setTransversalConfigForm((current) => ({
+                        ...current,
+                        unitName: value
+                      }))
+                    }
+                  />
+                  <SafeInput
+                    label="Qtd. na unidade"
+                    type="number"
+                    value={transversalConfigForm.unitReviewersPerPerson}
+                    onChange={(value) =>
+                      setTransversalConfigForm((current) => ({
+                        ...current,
+                        unitReviewersPerPerson: value
+                      }))
+                    }
+                  />
+                </div>
+                <button className="primary-button" type="submit">
+                  Salvar configuracao
+                </button>
+                {Object.entries(
+                  operationsStructure?.transversal?.config?.unitOverrides || {}
+                ).length ? (
+                  <div className="stack-list">
+                    {Object.entries(operationsStructure.transversal.config.unitOverrides).map(
+                      ([unitName, value]) => (
+                        <article className="list-card compact-list-card" key={unitName}>
+                          <div className="row">
+                            <strong>{unitName}</strong>
+                            <button
+                              type="button"
+                              className="refresh"
+                              onClick={() => handleTransversalUnitOverrideRemove(unitName)}
+                            >
+                              Remover
+                            </button>
+                          </div>
+                          <p className="muted">{value} avaliador(es) por pessoa nessa unidade</p>
+                        </article>
+                      )
+                    )}
+                  </div>
+                ) : null}
+              </form>
+              {operationsStructure?.transversal?.pairings?.length ? (
+                <div className="stack-list">
+                  <div className="list-card">
+                    <strong>Pareamentos do Feedback transversal</strong>
+                  </div>
+                  <div className="metrics-grid">
+                    {operationsStructure.transversal.pairings.map((pairing) => (
+                      <article
+                        className="mini-card"
+                        key={`${pairing.reviewerUserId}:${pairing.revieweePersonId}`}
+                      >
+                        <div className="row">
+                          <strong>{pairing.reviewerName}</strong>
+                          {pairing.pairingId ? (
+                            <button
+                              type="button"
+                              className="refresh"
+                              onClick={() => handleBlockCrossFunctionalPairing(pairing.pairingId)}
+                            >
+                              Bloquear
+                            </button>
+                          ) : null}
+                        </div>
+                        <p className="muted">
+                          {pairing.reviewerArea} → {pairing.revieweeName}
+                        </p>
+                        <p className="muted">{pairing.revieweeArea}</p>
+                        <p className="muted">Unidade: {pairing.workUnit}</p>
+                      </article>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+              <div className="two-columns">
+                <div className="stack-list">
+                  <div className="list-card">
+                    <strong>Elegiveis</strong>
+                  </div>
+                  {(operationsStructure?.transversal?.eligible || []).length ? (
+                    (operationsStructure.transversal.eligible || []).map((person) => (
+                      <article className="list-card compact-list-card" key={person.personId}>
+                        <div className="row">
+                          <strong>{person.personName}</strong>
+                          <span className="badge">{person.candidateCount} opcoes</span>
+                        </div>
+                        <p className="muted">
+                          {person.personArea} · {person.personWorkUnit}
+                        </p>
+                        <p className="muted">
+                          Meta: {person.assignedCount || 0}/{person.targetCount || 0}
+                        </p>
+                        <p className="muted">
+                          Avalia: {(person.pairedRevieweeNames || []).join(", ") || "-"}
+                        </p>
+                        <p className="muted">
+                          Recebe de: {(person.pairedReviewerNames || []).join(", ") || "-"}
+                        </p>
+                      </article>
+                    ))
+                  ) : (
+                    <div className="list-card">
+                      <strong>Sem elegiveis no recorte</strong>
+                    </div>
+                  )}
+                </div>
+                <div className="stack-list">
+                  <div className="list-card">
+                    <strong>Sem pareamento elegivel</strong>
+                  </div>
+                  {(operationsStructure?.transversal?.ineligible || []).length ? (
+                    (operationsStructure.transversal.ineligible || []).map((person) => (
+                      <article className="list-card compact-list-card" key={person.personId}>
+                        <div className="row">
+                          <strong>{person.personName}</strong>
+                          <span className="badge">{getWorkModeLabel(person.personWorkMode)}</span>
+                        </div>
+                        <p className="muted">
+                          {person.personArea} · {person.personWorkUnit}
+                        </p>
+                        <p className="muted">
+                          Meta: {person.assignedCount || 0}/{person.targetCount || 0}
+                        </p>
+                        <p className="muted">{person.reason}</p>
+                      </article>
+                    ))
+                  ) : (
+                    <div className="list-card">
+                      <strong>Sem pendencias de pareamento</strong>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <form className="list-card" onSubmit={handleForceCrossFunctionalPairing}>
+                <div className="card-header">
+                  <strong>Forcar pareamento</strong>
+                  <span>Excecao auditada</span>
+                </div>
+                <SafeSelect
+                  label="Avaliador"
+                  value={transversalOverrideForm.reviewerUserId}
+                  options={(operationsStructure?.transversal?.eligible || [])
+                    .map((person) => person.reviewerUserId)
+                    .filter(Boolean)}
+                  renderLabel={(value) =>
+                    (operationsStructure?.transversal?.eligible || []).find(
+                      (person) => person.reviewerUserId === value
+                    )?.personName || value
+                  }
+                  onChange={(value) =>
+                    setTransversalOverrideForm((current) => ({
+                      ...current,
+                      reviewerUserId: value
+                    }))
+                  }
+                />
+                <SafeSelect
+                  label="Avaliado"
+                  value={transversalOverrideForm.revieweePersonId}
+                  options={(operationsStructure?.transversal?.eligible || []).map((person) => person.personId)}
+                  renderLabel={(value) =>
+                    (operationsStructure?.transversal?.eligible || []).find(
+                      (person) => person.personId === value
+                    )?.personName || value
+                  }
+                  onChange={(value) =>
+                    setTransversalOverrideForm((current) => ({
+                      ...current,
+                      revieweePersonId: value
+                    }))
+                  }
+                />
+                <SafeTextarea
+                  label="Justificativa"
+                  value={transversalOverrideForm.reason}
+                  rows={3}
+                  onChange={(value) =>
+                    setTransversalOverrideForm((current) => ({
+                      ...current,
+                      reason: value
+                    }))
+                  }
+                />
+                <button className="primary-button" type="submit">
+                  Salvar excecao
+                </button>
+              </form>
+              {(operationsStructure?.transversal?.exceptions || []).length ? (
+                <div className="stack-list">
+                  <div className="list-card">
+                    <strong>Excecoes registradas</strong>
+                  </div>
+                  {(operationsStructure.transversal.exceptions || []).map((item) => (
+                    <article className="list-card compact-list-card" key={item.id}>
+                      <div className="row">
+                        <strong>{item.actionType === "forced" ? "Pareamento forcado" : "Pareamento bloqueado"}</strong>
+                      </div>
+                      <p className="muted">{item.reason}</p>
+                    </article>
+                  ))}
+                </div>
+              ) : null}
+            </>
           ) : null}
           {operationsStructure?.delinquents?.length ? (
             <div className="stack-list">

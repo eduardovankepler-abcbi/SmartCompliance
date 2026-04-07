@@ -68,6 +68,7 @@ import {
   DEFAULT_EVALUATION_LIBRARY_DESCRIPTION,
   DEFAULT_EVALUATION_LIBRARY_ID,
   DEFAULT_EVALUATION_LIBRARY_NAME,
+  DEFAULT_TRANSVERSAL_CONFIG,
   DEFAULT_WORK_MODE,
   DEFAULT_WORK_UNIT,
   FEEDBACK_ACKNOWLEDGEMENT_STATUS,
@@ -289,6 +290,473 @@ function buildSameUnitCandidates(eligibleActors, actor) {
       candidate.id !== actor.id &&
       isSameWorkUnit(candidate.person, actor.person)
   );
+}
+
+function hasDirectManagementLink(leftPerson, rightPerson) {
+  return (
+    leftPerson?.managerPersonId === rightPerson?.id ||
+    rightPerson?.managerPersonId === leftPerson?.id
+  );
+}
+
+function getEligibleEvaluationActors(users, people) {
+  return users
+    .filter((user) => user.status === "active")
+    .map((user) => ({
+      ...user,
+      person: people.find((person) => person.id === user.personId)
+    }))
+    .filter(
+      (user) =>
+        user.person && !["admin", "hr", "compliance"].includes(user.roleKey)
+    );
+}
+
+function isCrossFunctionalBaseEligible(actor) {
+  return Boolean(actor?.person) && !isRemoteWorker(actor.person);
+}
+
+function isCrossFunctionalCandidate(reviewer, reviewee) {
+  return (
+    reviewer?.id !== reviewee?.id &&
+    isCrossFunctionalBaseEligible(reviewer) &&
+    isCrossFunctionalBaseEligible(reviewee) &&
+    isSameWorkUnit(reviewer.person, reviewee.person) &&
+    reviewer.person.area !== reviewee.person.area &&
+    !hasDirectManagementLink(reviewer.person, reviewee.person)
+  );
+}
+
+function hashDeterministic(value) {
+  return String(value || "").split("").reduce((acc, char) => {
+    return (acc * 31 + char.charCodeAt(0)) % 2147483647;
+  }, 7);
+}
+
+function getTransversalTargetForActor(actor, transversalConfig = DEFAULT_TRANSVERSAL_CONFIG) {
+  const normalizedUnit = normalizeWorkUnit(actor?.person?.workUnit);
+  const configuredValue =
+    transversalConfig?.unitOverrides?.[normalizedUnit] ??
+    transversalConfig?.defaultReviewersPerPerson ??
+    DEFAULT_TRANSVERSAL_CONFIG.defaultReviewersPerPerson;
+  const target = Number(configuredValue);
+  return Number.isInteger(target) && target >= 1
+    ? Math.min(target, 5)
+    : DEFAULT_TRANSVERSAL_CONFIG.defaultReviewersPerPerson;
+}
+
+function buildPriorPairKey(reviewerUserId, revieweePersonId) {
+  return `${reviewerUserId}::${revieweePersonId}`;
+}
+
+function buildCrossFunctionalPlan({
+  users,
+  people,
+  cycleId,
+  transversalConfig = DEFAULT_TRANSVERSAL_CONFIG,
+  priorPairings = []
+}) {
+  const eligibleActors = getEligibleEvaluationActors(users, people);
+  const actorByPersonId = new Map(eligibleActors.map((actor) => [actor.person.id, actor]));
+  const actorByUserId = new Map(eligibleActors.map((actor) => [actor.id, actor]));
+  const groupedByUnit = eligibleActors.reduce((acc, actor) => {
+    const unitKey = normalizeWorkUnit(actor.person?.workUnit).toLowerCase();
+    acc[unitKey] = acc[unitKey] || [];
+    acc[unitKey].push(actor);
+    return acc;
+  }, {});
+
+  const priorPairingKeys = new Set(
+    (priorPairings || [])
+      .filter((pairing) => !pairing?.blockedAt)
+      .map((pairing) => buildPriorPairKey(pairing.reviewerUserId, pairing.revieweePersonId))
+  );
+  const assignedRevieweesByReviewerId = new Map();
+  const reviewerIdsByRevieweePersonId = new Map();
+  const pairings = [];
+  const eligible = [];
+  const ineligible = [];
+
+  Object.values(groupedByUnit).forEach((unitActors) => {
+    const baseEligibleActors = unitActors.filter(isCrossFunctionalBaseEligible);
+    const targetByReviewerId = new Map(
+      baseEligibleActors.map((actor) => [actor.id, getTransversalTargetForActor(actor, transversalConfig)])
+    );
+    const candidateMap = new Map(
+      baseEligibleActors.map((actor) => [
+        actor.id,
+        baseEligibleActors
+          .filter((candidate) => isCrossFunctionalCandidate(actor, candidate))
+          .sort((left, right) => {
+            const leftRepeated = priorPairingKeys.has(buildPriorPairKey(actor.id, left.person.id)) ? 1 : 0;
+            const rightRepeated = priorPairingKeys.has(buildPriorPairKey(actor.id, right.person.id)) ? 1 : 0;
+            const leftHash = hashDeterministic(`${cycleId}:${actor.id}:${left.id}`);
+            const rightHash = hashDeterministic(`${cycleId}:${actor.id}:${right.id}`);
+            return (
+              leftRepeated - rightRepeated ||
+              leftHash - rightHash ||
+              left.person.area.localeCompare(right.person.area, "pt-BR") ||
+              left.person.name.localeCompare(right.person.name, "pt-BR")
+            );
+          })
+      ])
+    );
+
+    const maxAssignmentsForUnit = Math.max(
+      1,
+      ...baseEligibleActors.map((actor) => targetByReviewerId.get(actor.id) || 1)
+    );
+
+    for (let round = 0; round < maxAssignmentsForUnit; round += 1) {
+      const reviewerOrder = [...baseEligibleActors]
+        .filter((actor) => (assignedRevieweesByReviewerId.get(actor.id)?.length || 0) < (targetByReviewerId.get(actor.id) || 1))
+        .sort((left, right) => {
+          const leftAssigned = assignedRevieweesByReviewerId.get(left.id)?.length || 0;
+          const rightAssigned = assignedRevieweesByReviewerId.get(right.id)?.length || 0;
+          const leftCount = candidateMap.get(left.id)?.length || 0;
+          const rightCount = candidateMap.get(right.id)?.length || 0;
+          return (
+            leftAssigned - rightAssigned ||
+            leftCount - rightCount ||
+            hashDeterministic(`${cycleId}:${round}:${left.id}`) -
+              hashDeterministic(`${cycleId}:${round}:${right.id}`) ||
+            left.person.name.localeCompare(right.person.name, "pt-BR")
+          );
+        });
+
+      const matchedReviewees = new Map();
+      function tryAssign(reviewer, visited = new Set()) {
+        const existingRevieweeIds = new Set(assignedRevieweesByReviewerId.get(reviewer.id) || []);
+        const candidates = (candidateMap.get(reviewer.id) || []).filter(
+          (candidate) => !existingRevieweeIds.has(candidate.person.id)
+        );
+        for (const candidate of candidates) {
+          if (visited.has(candidate.id)) {
+            continue;
+          }
+          visited.add(candidate.id);
+
+          const currentReviewerId = matchedReviewees.get(candidate.id);
+          if (!currentReviewerId) {
+            matchedReviewees.set(candidate.id, reviewer.id);
+            return true;
+          }
+
+          const displacedReviewer = reviewerOrder.find((actor) => actor.id === currentReviewerId);
+          if (displacedReviewer && tryAssign(displacedReviewer, visited)) {
+            matchedReviewees.set(candidate.id, reviewer.id);
+            return true;
+          }
+        }
+        return false;
+      }
+
+      reviewerOrder.forEach((reviewer) => {
+        tryAssign(reviewer);
+      });
+
+      matchedReviewees.forEach((reviewerId, candidateUserId) => {
+        const reviewer = actorByUserId.get(reviewerId);
+        const reviewee = actorByUserId.get(candidateUserId);
+        if (!reviewer || !reviewee) {
+          return;
+        }
+        const reviewerAssignments = assignedRevieweesByReviewerId.get(reviewer.id) || [];
+        if (!reviewerAssignments.includes(reviewee.person.id)) {
+          reviewerAssignments.push(reviewee.person.id);
+          assignedRevieweesByReviewerId.set(reviewer.id, reviewerAssignments);
+        }
+        const revieweeReviewerIds = reviewerIdsByRevieweePersonId.get(reviewee.person.id) || [];
+        if (!revieweeReviewerIds.includes(reviewer.id)) {
+          revieweeReviewerIds.push(reviewer.id);
+          reviewerIdsByRevieweePersonId.set(reviewee.person.id, revieweeReviewerIds);
+        }
+      });
+    }
+
+    baseEligibleActors.forEach((actor) => {
+      const candidates = candidateMap.get(actor.id) || [];
+      const matchedRevieweeIds = assignedRevieweesByReviewerId.get(actor.id) || [];
+      const targetAssignments = targetByReviewerId.get(actor.id) || 1;
+
+      matchedRevieweeIds.forEach((matchedRevieweePersonId) => {
+        pairings.push({
+          reviewerUserId: actor.id,
+          revieweePersonId: matchedRevieweePersonId,
+          workUnit: normalizeWorkUnit(actor.person.workUnit)
+        });
+      });
+
+      const pairingReason =
+        !candidates.length
+          ? "Sem pares elegiveis na mesma unidade."
+          : !matchedRevieweeIds.length
+            ? "Sem pareamento balanceado disponivel na unidade."
+            : matchedRevieweeIds.length < targetAssignments
+              ? `Cobertura parcial: ${matchedRevieweeIds.length} de ${targetAssignments} previstos.`
+              : null;
+
+      const targetPayload = {
+        personId: actor.person.id,
+        personName: actor.person.name,
+        personArea: actor.person.area,
+        personWorkUnit: normalizeWorkUnit(actor.person.workUnit),
+        personWorkMode: normalizeWorkMode(actor.person.workMode),
+        candidateCount: candidates.length,
+        assignedCount: matchedRevieweeIds.length,
+        targetCount: targetAssignments
+      };
+
+      if (pairingReason) {
+        ineligible.push({
+          ...targetPayload,
+          reason: pairingReason
+        });
+      } else {
+        eligible.push({
+          ...targetPayload,
+          pairedRevieweePersonIds: matchedRevieweeIds
+        });
+      }
+    });
+
+    unitActors
+      .filter((actor) => !isCrossFunctionalBaseEligible(actor))
+      .forEach((actor) => {
+        ineligible.push({
+          personId: actor.person.id,
+          personName: actor.person.name,
+          personArea: actor.person.area,
+          personWorkUnit: normalizeWorkUnit(actor.person.workUnit),
+          personWorkMode: normalizeWorkMode(actor.person.workMode),
+          candidateCount: 0,
+          assignedCount: 0,
+          targetCount: 0,
+          reason: "Quem trabalha 100% home office nao participa do Feedback transversal."
+        });
+      });
+  });
+
+  return {
+    pairings,
+    eligible: eligible
+      .map((item) => {
+        const pairedRevieweeNames = (item.pairedRevieweePersonIds || [])
+          .map((personId) => actorByPersonId.get(personId)?.person?.name || "")
+          .filter(Boolean);
+        const pairedReviewerNames = (reviewerIdsByRevieweePersonId.get(item.personId) || [])
+          .map((reviewerUserId) => actorByUserId.get(reviewerUserId)?.person?.name || "")
+          .filter(Boolean);
+        return {
+          ...item,
+          pairedRevieweeName: pairedRevieweeNames[0] || "",
+          pairedRevieweeNames,
+          pairedReviewerName: pairedReviewerNames[0] || "",
+          pairedReviewerNames
+        };
+      })
+      .sort((left, right) => left.personName.localeCompare(right.personName, "pt-BR")),
+    ineligible: ineligible.sort((left, right) =>
+      left.personName.localeCompare(right.personName, "pt-BR")
+    )
+  };
+}
+
+function createCrossFunctionalPairingRecord({
+  pairing,
+  cycleId,
+  actorUser,
+  createId,
+  source = "automatic",
+  reason = "Pareamento automatico balanceado",
+  seed = null
+}) {
+  return {
+    id: createId("pairing"),
+    cycleId,
+    relationshipType: "cross-functional",
+    reviewerUserId: pairing.reviewerUserId,
+    revieweePersonId: pairing.revieweePersonId,
+    pairingSource: source,
+    pairingReason: reason,
+    seed,
+    createdAt: new Date().toISOString(),
+    createdByUserId: actorUser?.id || null,
+    blockedAt: null,
+    blockedByUserId: null
+  };
+}
+
+function createPairingExceptionRecord({
+  cycleId,
+  pairingId = null,
+  reviewerUserId,
+  previousRevieweePersonId = null,
+  nextRevieweePersonId = null,
+  actionType,
+  reason,
+  actorUser,
+  createId
+}) {
+  return {
+    id: createId("pairing_exception"),
+    cycleId,
+    pairingId,
+    actionType,
+    reviewerUserId,
+    previousRevieweePersonId,
+    nextRevieweePersonId,
+    reason,
+    actorUserId: actorUser?.id || null,
+    createdAt: new Date().toISOString()
+  };
+}
+
+function buildCrossFunctionalOperationView({
+  users,
+  people,
+  cycleId,
+  cycle = null,
+  cycles = [],
+  pairings = [],
+  exceptions = [],
+  allPairings = pairings
+}) {
+  const activeCycles = (cycles || []).map((item) => presentCycle(item));
+  const currentCycle =
+    cycle ||
+    activeCycles.find((item) => item.id === cycleId) ||
+    null;
+  const sortedCycles = [...activeCycles].sort((left, right) => {
+    const leftDate = parseDateValue(left?.dueDate)?.getTime() || 0;
+    const rightDate = parseDateValue(right?.dueDate)?.getTime() || 0;
+    return leftDate - rightDate;
+  });
+  const previousCycle = sortedCycles
+    .filter((item) => item.id !== cycleId)
+    .filter((item) => {
+      const currentDueDate = parseDateValue(currentCycle?.dueDate)?.getTime() || Number.MAX_SAFE_INTEGER;
+      const itemDueDate = parseDateValue(item?.dueDate)?.getTime() || 0;
+      return itemDueDate <= currentDueDate;
+    })
+    .at(-1);
+  const previousCyclePairings = (allPairings || []).filter((item) => item.cycleId === previousCycle?.id);
+  const computedPlan = buildCrossFunctionalPlan({
+    users,
+    people,
+    cycleId,
+    transversalConfig: currentCycle?.transversalConfig,
+    priorPairings: previousCyclePairings
+  });
+  const eligibleActors = getEligibleEvaluationActors(users, people);
+  const actorByPersonId = new Map(eligibleActors.map((actor) => [actor.person.id, actor]));
+  const actorByUserId = new Map(eligibleActors.map((actor) => [actor.id, actor]));
+  const storedPairings = pairings.length
+    ? pairings.map((pairing) => ({
+        reviewerUserId: pairing.reviewerUserId,
+        revieweePersonId: pairing.revieweePersonId,
+        workUnit:
+          normalizeWorkUnit(
+            actorByPersonId.get(pairing.revieweePersonId)?.person?.workUnit ||
+              actorByUserId.get(pairing.reviewerUserId)?.person?.workUnit
+          )
+      }))
+    : computedPlan.pairings;
+
+  const pairedRevieweesByReviewerPersonId = storedPairings.reduce((acc, pairing) => {
+    const reviewerPersonId =
+      actorByUserId.get(pairing.reviewerUserId)?.person?.id || pairing.reviewerUserId;
+    acc[reviewerPersonId] = acc[reviewerPersonId] || [];
+    acc[reviewerPersonId].push(pairing.revieweePersonId);
+    return acc;
+  }, {});
+  const reviewerIdsByRevieweePersonId = storedPairings.reduce((acc, pairing) => {
+    acc[pairing.revieweePersonId] = acc[pairing.revieweePersonId] || [];
+    acc[pairing.revieweePersonId].push(pairing.reviewerUserId);
+    return acc;
+  }, {});
+
+  const eligible = computedPlan.eligible.map((item) => {
+    const pairedRevieweePersonIds = pairedRevieweesByReviewerPersonId[item.personId] || [];
+    const pairedRevieweeNames = pairedRevieweePersonIds
+      .map((personId) => actorByPersonId.get(personId)?.person?.name || "")
+      .filter(Boolean);
+    const pairedReviewerNames = (reviewerIdsByRevieweePersonId[item.personId] || [])
+      .map((reviewerUserId) => actorByUserId.get(reviewerUserId)?.person?.name || "")
+      .filter(Boolean);
+    const actor = actorByPersonId.get(item.personId);
+    return {
+      ...item,
+      reviewerUserId: actor?.id || null,
+      pairedRevieweePersonIds,
+      pairedRevieweeName: pairedRevieweeNames[0] || "",
+      pairedRevieweeNames,
+      pairedReviewerName: pairedReviewerNames[0] || "",
+      pairedReviewerNames
+    };
+  });
+
+  const activeStoredPairings = (pairings || []).filter(
+    (item) => item.cycleId === cycleId && item.relationshipType === "cross-functional" && !item.blockedAt
+  );
+  const previousPairingKeys = new Set(
+    previousCyclePairings.map((item) => buildPriorPairKey(item.reviewerUserId, item.revieweePersonId))
+  );
+  const repeatedPairingsCount = activeStoredPairings.filter((item) =>
+    previousPairingKeys.has(buildPriorPairKey(item.reviewerUserId, item.revieweePersonId))
+  ).length;
+
+  return {
+    config: normalizeTransversalConfig(currentCycle?.transversalConfig),
+    indicators: {
+      totalPairings: storedPairings.length,
+      automaticPairings: activeStoredPairings.filter((item) => item.pairingSource !== "manual").length,
+      manualPairings: activeStoredPairings.filter((item) => item.pairingSource === "manual").length,
+      repeatedPairings: repeatedPairingsCount,
+      previousCycleTitle: previousCycle?.title || "",
+      coverageRate: eligible.length
+        ? Number(
+            (
+              eligible.reduce((acc, item) => acc + Math.min(item.assignedCount || 0, item.targetCount || 0), 0) /
+              eligible.reduce((acc, item) => acc + Math.max(item.targetCount || 0, 0), 0)
+            * 100
+            ).toFixed(1)
+          )
+        : 0
+    },
+    eligible,
+    ineligible: computedPlan.ineligible,
+    pairings: storedPairings.map((pairing) => {
+      const reviewer = actorByUserId.get(pairing.reviewerUserId);
+      const reviewee = people.find((item) => item.id === pairing.revieweePersonId);
+      const persistedPairing = pairings.find(
+        (item) =>
+          item.reviewerUserId === pairing.reviewerUserId &&
+          item.revieweePersonId === pairing.revieweePersonId &&
+          !item.blockedAt
+      );
+      return {
+        pairingId: persistedPairing?.id || null,
+        reviewerUserId: pairing.reviewerUserId,
+        reviewerPersonId: reviewer?.person?.id || null,
+        reviewerName: reviewer?.person?.name || "",
+        reviewerArea: reviewer?.person?.area || "",
+        revieweePersonId: pairing.revieweePersonId,
+        revieweeName: reviewee?.name || "",
+        revieweeArea: reviewee?.area || "",
+        workUnit: pairing.workUnit,
+        pairingSource: persistedPairing?.pairingSource || "automatic",
+        pairingReason: persistedPairing?.pairingReason || "Pareamento automatico balanceado"
+      };
+    }),
+    exceptions: exceptions
+      .filter((item) => item.cycleId === cycleId)
+      .sort((left, right) => {
+        const rightDate = right?.createdAt ? new Date(right.createdAt).getTime() : 0;
+        const leftDate = left?.createdAt ? new Date(left.createdAt).getTime() : 0;
+        return rightDate - leftDate;
+      })
+  };
 }
 
 function getPeopleWithSatisfactionScores(people) {
@@ -1015,6 +1483,44 @@ function normalizeCycleIsEnabled(value) {
   return true;
 }
 
+function normalizeTransversalConfig(value) {
+  const raw =
+    typeof value === "string"
+      ? (() => {
+          try {
+            return JSON.parse(value);
+          } catch (_error) {
+            return {};
+          }
+        })()
+      : value || {};
+
+  const defaultReviewersPerPerson = Number(
+    raw.defaultReviewersPerPerson ?? DEFAULT_TRANSVERSAL_CONFIG.defaultReviewersPerPerson
+  );
+  const safeDefault =
+    Number.isInteger(defaultReviewersPerPerson) && defaultReviewersPerPerson >= 1
+      ? Math.min(defaultReviewersPerPerson, 5)
+      : DEFAULT_TRANSVERSAL_CONFIG.defaultReviewersPerPerson;
+
+  const unitOverrides =
+    raw.unitOverrides && typeof raw.unitOverrides === "object" && !Array.isArray(raw.unitOverrides)
+      ? Object.fromEntries(
+          Object.entries(raw.unitOverrides)
+            .map(([unit, count]) => [String(unit || "").trim(), Number(count)])
+            .filter(
+              ([unit, count]) =>
+                Boolean(unit) && Number.isInteger(count) && count >= 1 && count <= 5
+            )
+        )
+      : {};
+
+  return {
+    defaultReviewersPerPerson: safeDefault,
+    unitOverrides
+  };
+}
+
 function isCycleRelationshipEnabled(cycle, relationshipType) {
   const resolvedCycle = presentCycle(cycle || {});
   if (!resolvedCycle.isEnabled) {
@@ -1034,6 +1540,9 @@ function presentCycle(row) {
     isEnabled: normalizeCycleIsEnabled(row.isEnabled),
     moduleAvailability: normalizeCycleModuleAvailability(
       row.moduleAvailability ?? row.enabledRelationshipsJson ?? row.enabledRelationships
+    ),
+    transversalConfig: normalizeTransversalConfig(
+      row.transversalConfig ?? row.transversalConfigJson
     )
   };
 }
@@ -1132,6 +1641,15 @@ function hasMysqlColumn(rows) {
   return Boolean(rows?.length);
 }
 
+async function hasMysqlTable(pool, tableName) {
+  try {
+    const [tables] = await pool.query(`SHOW TABLES LIKE '${tableName}'`);
+    return Boolean(tables?.length);
+  } catch (_error) {
+    return false;
+  }
+}
+
 async function detectMysqlCycleConfigSupport(pool) {
   try {
     const [enabledRows] = await pool.query(
@@ -1140,7 +1658,10 @@ async function detectMysqlCycleConfigSupport(pool) {
     const [relationshipsRows] = await pool.query(
       "SHOW COLUMNS FROM evaluation_cycles LIKE 'enabled_relationships_json'"
     );
-    return hasMysqlColumn(enabledRows) && hasMysqlColumn(relationshipsRows);
+    const [transversalRows] = await pool.query(
+      "SHOW COLUMNS FROM evaluation_cycles LIKE 'transversal_config_json'"
+    );
+    return hasMysqlColumn(enabledRows) && hasMysqlColumn(relationshipsRows) && hasMysqlColumn(transversalRows);
   } catch (_error) {
     return false;
   }
@@ -1159,8 +1680,7 @@ async function ensureMysqlColumns(pool, tableName, statements, detector) {
   }
 
   try {
-    const [tables] = await pool.query(`SHOW TABLES LIKE '${tableName}'`);
-    if (!tables?.length) {
+    if (!(await hasMysqlTable(pool, tableName))) {
       return false;
     }
   } catch (error) {
@@ -1183,13 +1703,38 @@ async function ensureMysqlColumns(pool, tableName, statements, detector) {
   return detector(pool);
 }
 
+async function ensureMysqlTables(pool, detector, statements) {
+  const supportsBefore = await detector(pool);
+  if (supportsBefore) {
+    return true;
+  }
+
+  const autoMigrateRaw = String(process.env.AUTO_MIGRATE_DB || "").trim().toLowerCase();
+  const autoMigrateDisabled = ["0", "false", "no", "off"].includes(autoMigrateRaw);
+  if (autoMigrateDisabled) {
+    return false;
+  }
+
+  for (const statement of statements) {
+    try {
+      await pool.query(statement);
+    } catch (error) {
+      console.warn("Database auto-migration failed", error);
+      break;
+    }
+  }
+
+  return detector(pool);
+}
+
 async function ensureMysqlCycleConfigSupport(pool) {
   return ensureMysqlColumns(
     pool,
     "evaluation_cycles",
     [
       "ALTER TABLE evaluation_cycles ADD COLUMN is_enabled BOOLEAN NOT NULL DEFAULT TRUE",
-      "ALTER TABLE evaluation_cycles ADD COLUMN enabled_relationships_json JSON NULL"
+      "ALTER TABLE evaluation_cycles ADD COLUMN enabled_relationships_json JSON NULL",
+      "ALTER TABLE evaluation_cycles ADD COLUMN transversal_config_json JSON NULL"
     ],
     detectMysqlCycleConfigSupport
   );
@@ -1275,6 +1820,55 @@ async function ensureMysqlAssignmentReminderSupport(pool) {
     ],
     detectMysqlAssignmentReminderSupport
   );
+}
+
+async function detectMysqlPairingSupport(pool) {
+  return (
+    (await hasMysqlTable(pool, "evaluation_pairings")) &&
+    (await hasMysqlTable(pool, "evaluation_pairing_exceptions"))
+  );
+}
+
+async function ensureMysqlPairingSupport(pool) {
+  return ensureMysqlTables(pool, detectMysqlPairingSupport, [
+    `CREATE TABLE IF NOT EXISTS evaluation_pairings (
+      id VARCHAR(36) PRIMARY KEY,
+      cycle_id VARCHAR(36) NOT NULL,
+      relationship_type VARCHAR(60) NOT NULL,
+      reviewer_user_id VARCHAR(36) NOT NULL,
+      reviewee_person_id VARCHAR(36) NOT NULL,
+      pairing_source VARCHAR(30) NOT NULL,
+      pairing_reason TEXT NOT NULL,
+      seed VARCHAR(120) NULL,
+      created_at DATETIME NOT NULL,
+      created_by_user_id VARCHAR(36) NULL,
+      blocked_at DATETIME NULL,
+      blocked_by_user_id VARCHAR(36) NULL,
+      FOREIGN KEY (cycle_id) REFERENCES evaluation_cycles(id),
+      FOREIGN KEY (reviewer_user_id) REFERENCES users(id),
+      FOREIGN KEY (reviewee_person_id) REFERENCES people(id),
+      FOREIGN KEY (created_by_user_id) REFERENCES users(id),
+      FOREIGN KEY (blocked_by_user_id) REFERENCES users(id)
+    )`,
+    `CREATE TABLE IF NOT EXISTS evaluation_pairing_exceptions (
+      id VARCHAR(36) PRIMARY KEY,
+      cycle_id VARCHAR(36) NOT NULL,
+      pairing_id VARCHAR(36) NULL,
+      action_type VARCHAR(40) NOT NULL,
+      reviewer_user_id VARCHAR(36) NOT NULL,
+      previous_reviewee_person_id VARCHAR(36) NULL,
+      next_reviewee_person_id VARCHAR(36) NULL,
+      reason TEXT NOT NULL,
+      actor_user_id VARCHAR(36) NOT NULL,
+      created_at DATETIME NOT NULL,
+      FOREIGN KEY (cycle_id) REFERENCES evaluation_cycles(id),
+      FOREIGN KEY (pairing_id) REFERENCES evaluation_pairings(id),
+      FOREIGN KEY (reviewer_user_id) REFERENCES users(id),
+      FOREIGN KEY (previous_reviewee_person_id) REFERENCES people(id),
+      FOREIGN KEY (next_reviewee_person_id) REFERENCES people(id),
+      FOREIGN KEY (actor_user_id) REFERENCES users(id)
+    )`
+  ]);
 }
 
 function enrichAssignment(db, assignment, customLibraries = []) {
@@ -1472,17 +2066,55 @@ function pushAssignment(assignments, nextAssignment) {
   }
 }
 
-function generateAssignments({ users, people, cycleId, dueDate }) {
-  const eligibleActors = users
-    .filter((user) => user.status === "active")
-    .map((user) => ({
-      ...user,
-      person: people.find((person) => person.id === user.personId)
-    }))
-    .filter(
-      (user) =>
-        user.person && !["admin", "hr", "compliance"].includes(user.roleKey)
-    );
+function removeCrossFunctionalAssignment(assignments, cycleId, reviewerUserId, revieweePersonId = null) {
+  for (let index = assignments.length - 1; index >= 0; index -= 1) {
+    const item = assignments[index];
+    if (
+      item.cycleId === cycleId &&
+      item.reviewerUserId === reviewerUserId &&
+      item.relationshipType === "cross-functional" &&
+      (revieweePersonId ? item.revieweePersonId === revieweePersonId : true)
+    ) {
+      assignments.splice(index, 1);
+    }
+  }
+}
+
+function upsertCrossFunctionalAssignment(assignments, {
+  cycleId,
+  reviewerUserId,
+  revieweePersonId,
+  dueDate
+}) {
+  removeCrossFunctionalAssignment(assignments, cycleId, reviewerUserId, revieweePersonId);
+  pushAssignment(assignments, {
+    id: createId("assignment"),
+    cycleId,
+    reviewerUserId,
+    revieweePersonId,
+    relationshipType: "cross-functional",
+    projectContext: "Colaboracao transversal entre areas",
+    collaborationContext:
+      "Feedback transversal gerado automaticamente para colaboracao entre areas da mesma unidade.",
+    status: "pending",
+    dueDate
+  });
+}
+
+function generateAssignments({ users, people, cycleId, dueDate, crossFunctionalPlan = null }) {
+  const eligibleActors = getEligibleEvaluationActors(users, people);
+  const resolvedCrossFunctionalPlan =
+    crossFunctionalPlan ||
+    buildCrossFunctionalPlan({
+      users,
+      people,
+      cycleId
+    });
+  const crossFunctionalPairsByReviewer = resolvedCrossFunctionalPlan.pairings.reduce((acc, pairing) => {
+    acc[pairing.reviewerUserId] = acc[pairing.reviewerUserId] || [];
+    acc[pairing.reviewerUserId].push(pairing);
+    return acc;
+  }, {});
 
   const assignments = [];
 
@@ -1492,12 +2124,6 @@ function generateAssignments({ users, people, cycleId, dueDate }) {
       (candidate) => candidate.person.area === actor.person.area
     );
     const anyPeerCandidates = eligibleActors.filter((candidate) => candidate.id !== actor.id);
-    const crossFunctionalCandidates = sameUnitCandidates.filter(
-      (candidate) =>
-        candidate.person.area !== actor.person.area &&
-        !isRemoteWorker(actor.person) &&
-        !isRemoteWorker(candidate.person)
-    );
     const internalClientCandidates = eligibleActors.filter(
       (candidate) =>
         candidate.id !== actor.id &&
@@ -1515,9 +2141,15 @@ function generateAssignments({ users, people, cycleId, dueDate }) {
     const managerPerson = getManagerPerson(people, actor.person);
     const managerUser = managerPerson ? getUserByPersonId(users, managerPerson.id) : null;
     const peerCandidate = sameAreaCandidates[0] || anyPeerCandidates[0] || null;
-    const crossFunctionalCandidate = crossFunctionalCandidates[0] || null;
+    const crossFunctionalCandidates = crossFunctionalPairsByReviewer[actor.id] || [];
+    const primaryCrossFunctionalCandidate = crossFunctionalCandidates[0] || null;
     const clientInternalCandidate =
-      internalClientCandidates[0] || crossFunctionalCandidate || peerCandidate || null;
+      internalClientCandidates[0] ||
+      (primaryCrossFunctionalCandidate
+        ? eligibleActors.find((candidate) => candidate.person.id === primaryCrossFunctionalCandidate.revieweePersonId)
+        : null) ||
+      peerCandidate ||
+      null;
     const clientExternalCandidate =
       actor.person.employmentType === "consultant"
         ? internalCandidates[0] || null
@@ -1575,20 +2207,20 @@ function generateAssignments({ users, people, cycleId, dueDate }) {
       });
     }
 
-    if (crossFunctionalCandidate) {
+    crossFunctionalCandidates.forEach((crossFunctionalCandidate) => {
       pushAssignment(assignments, {
         id: createId("assignment"),
         cycleId,
         reviewerUserId: actor.id,
-        revieweePersonId: crossFunctionalCandidate.person.id,
+        revieweePersonId: crossFunctionalCandidate.revieweePersonId,
         relationshipType: "cross-functional",
-        projectContext: "Interacao entre areas",
+        projectContext: "Colaboracao transversal entre areas",
         collaborationContext:
-          "Feedback cruzado gerado automaticamente para colaboracao intertimes.",
+          "Feedback transversal gerado automaticamente para colaboracao entre areas da mesma unidade.",
         status: "pending",
         dueDate
       });
-    }
+    });
 
     if (clientInternalCandidate) {
       pushAssignment(assignments, {
@@ -1742,8 +2374,24 @@ function hydrateCycleStructure(db, cycleId) {
   });
 }
 
+function rebuildCycleStructure(db, cycleId) {
+  db.cycleParticipants = (db.cycleParticipants || []).filter((item) => item.cycleId !== cycleId);
+  db.cycleRaters = (db.cycleRaters || []).filter((item) => item.cycleId !== cycleId);
+  hydrateCycleStructure(db, cycleId);
+}
+
 function presentCycleParticipantStructure(db, cycleId, customLibraries = []) {
   const cycle = presentCycle(db.cycles.find((item) => item.id === cycleId) || {});
+  const crossFunctionalOperation = buildCrossFunctionalOperationView({
+    users: db.users || [],
+    people: db.people || [],
+    cycleId,
+    cycle,
+    cycles: db.cycles || [],
+    pairings: (db.evaluationPairings || []).filter((item) => item.cycleId === cycleId),
+    exceptions: db.evaluationPairingExceptions || [],
+    allPairings: db.evaluationPairings || []
+  });
   const participantRows = (db.cycleParticipants || []).filter(
     (participant) => participant.cycleId === cycleId
   );
@@ -1810,12 +2458,14 @@ function presentCycleParticipantStructure(db, cycleId, customLibraries = []) {
       semesterLabel: cycle.semesterLabel,
       status: cycle.status,
       dueDate: cycle.dueDate,
+      transversalConfig: cycle.transversalConfig,
       participantCount: participants.length,
       raterCount: raterRows.length
     },
     compliance,
     delinquents,
     participants,
+    transversal: crossFunctionalOperation,
     relationshipSummary: Object.entries(
       raterRows.reduce((summary, rater) => {
         summary[rater.relationshipType] = (summary[rater.relationshipType] || 0) + 1;
@@ -2817,6 +3467,56 @@ async function fetchCycleAssignmentRows(
   }));
 }
 
+async function fetchCyclePairingRows(pool, cycleId = null) {
+  const [rows] = cycleId
+    ? await pool.query(
+        `SELECT id, cycle_id AS cycleId, relationship_type AS relationshipType,
+                reviewer_user_id AS reviewerUserId, reviewee_person_id AS revieweePersonId,
+                pairing_source AS pairingSource, pairing_reason AS pairingReason, seed,
+                created_at AS createdAt, created_by_user_id AS createdByUserId,
+                blocked_at AS blockedAt, blocked_by_user_id AS blockedByUserId
+         FROM evaluation_pairings
+         WHERE cycle_id = ?
+         ORDER BY created_at DESC`,
+        [cycleId]
+      )
+    : await pool.query(
+        `SELECT id, cycle_id AS cycleId, relationship_type AS relationshipType,
+                reviewer_user_id AS reviewerUserId, reviewee_person_id AS revieweePersonId,
+                pairing_source AS pairingSource, pairing_reason AS pairingReason, seed,
+                created_at AS createdAt, created_by_user_id AS createdByUserId,
+                blocked_at AS blockedAt, blocked_by_user_id AS blockedByUserId
+         FROM evaluation_pairings
+         ORDER BY cycle_id, created_at DESC`
+      );
+  return rows;
+}
+
+async function fetchCyclePairingExceptionRows(pool, cycleId = null) {
+  const [rows] = cycleId
+    ? await pool.query(
+        `SELECT id, cycle_id AS cycleId, pairing_id AS pairingId, action_type AS actionType,
+                reviewer_user_id AS reviewerUserId,
+                previous_reviewee_person_id AS previousRevieweePersonId,
+                next_reviewee_person_id AS nextRevieweePersonId,
+                reason, actor_user_id AS actorUserId, created_at AS createdAt
+         FROM evaluation_pairing_exceptions
+         WHERE cycle_id = ?
+         ORDER BY created_at DESC`,
+        [cycleId]
+      )
+    : await pool.query(
+        `SELECT id, cycle_id AS cycleId, pairing_id AS pairingId, action_type AS actionType,
+                reviewer_user_id AS reviewerUserId,
+                previous_reviewee_person_id AS previousRevieweePersonId,
+                next_reviewee_person_id AS nextRevieweePersonId,
+                reason, actor_user_id AS actorUserId, created_at AS createdAt
+         FROM evaluation_pairing_exceptions
+         ORDER BY cycle_id, created_at DESC`
+      );
+  return rows;
+}
+
 async function fetchCycleReportRows(pool, cycleId = null) {
   const [rows] = cycleId
     ? await pool.query(
@@ -2957,6 +3657,12 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
   }
   if (!Array.isArray(db.cycleReports)) {
     db.cycleReports = [];
+  }
+  if (!Array.isArray(db.evaluationPairings)) {
+    db.evaluationPairings = [];
+  }
+  if (!Array.isArray(db.evaluationPairingExceptions)) {
+    db.evaluationPairingExceptions = [];
   }
   if (!Array.isArray(db.developmentPlans)) {
     db.developmentPlans = [];
@@ -3442,12 +4148,33 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         selectedLibrary
       });
       db.cycles.unshift(cycle);
+      const crossFunctionalPlan = buildCrossFunctionalPlan({
+        users: db.users,
+        people: db.people,
+        cycleId: cycle.id,
+        transversalConfig: cycle.transversalConfig,
+        priorPairings: (db.evaluationPairings || []).filter((item) => item.relationshipType === "cross-functional")
+      });
+      db.evaluationPairings.unshift(
+        ...crossFunctionalPlan.pairings.map((pairing) =>
+          createCrossFunctionalPairingRecord({
+            pairing,
+            cycleId: cycle.id,
+            actorUser,
+            createId,
+            source: "automatic",
+            reason: "Pareamento automatico balanceado",
+            seed: cycle.id
+          })
+        )
+      );
 
       const generatedAssignments = generateAssignments({
         users: db.users,
         people: db.people,
         cycleId: cycle.id,
-        dueDate: cycle.dueDate
+        dueDate: cycle.dueDate,
+        crossFunctionalPlan
       });
       db.assignments.unshift(...generatedAssignments);
       hydrateCycleStructure(db, cycle.id);
@@ -3481,6 +4208,161 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
       }
 
       hydrateCycleStructure(db, cycleId);
+      return presentCycleParticipantStructure(db, cycleId, customLibraryState.published);
+    },
+    async blockCrossFunctionalPairing(cycleId, pairingId, reason, actorUser) {
+      const cycle = db.cycles.find((item) => item.id === cycleId);
+      if (!cycle) {
+        throw new Error("Ciclo de avaliacao nao encontrado.");
+      }
+      const normalizedReason = String(reason || "").trim();
+      if (!normalizedReason) {
+        throw new Error("Informe a justificativa da excecao.");
+      }
+
+      const pairing = db.evaluationPairings.find(
+        (item) =>
+          item.id === pairingId &&
+          item.cycleId === cycleId &&
+          item.relationshipType === "cross-functional"
+      );
+      if (!pairing || pairing.blockedAt) {
+        throw new Error("Pareamento transversal nao encontrado.");
+      }
+
+      const assignment = db.assignments.find(
+        (item) =>
+          item.cycleId === cycleId &&
+          item.reviewerUserId === pairing.reviewerUserId &&
+          item.revieweePersonId === pairing.revieweePersonId &&
+          item.relationshipType === "cross-functional"
+      );
+      if (assignment?.status === "submitted") {
+        throw new Error("Nao e possivel bloquear um pareamento ja respondido.");
+      }
+
+      pairing.blockedAt = new Date().toISOString();
+      pairing.blockedByUserId = actorUser.id;
+      removeCrossFunctionalAssignment(
+        db.assignments,
+        cycleId,
+        pairing.reviewerUserId,
+        pairing.revieweePersonId
+      );
+      db.evaluationPairingExceptions.unshift(
+        createPairingExceptionRecord({
+          cycleId,
+          pairingId,
+          reviewerUserId: pairing.reviewerUserId,
+          previousRevieweePersonId: pairing.revieweePersonId,
+          nextRevieweePersonId: null,
+          actionType: "blocked",
+          reason: normalizedReason,
+          actorUser,
+          createId
+        })
+      );
+      rebuildCycleStructure(db, cycleId);
+      pushAuditLog(db.auditLogs, {
+        category: AUDIT_CATEGORIES.cycle,
+        action: "pairing_blocked",
+        entityType: "cycle",
+        entityId: cycle.id,
+        entityLabel: cycle.title,
+        actorUser,
+        summary: "Pareamento transversal bloqueado",
+        detail: normalizedReason
+      });
+      return presentCycleParticipantStructure(db, cycleId, customLibraryState.published);
+    },
+    async forceCrossFunctionalPairing(cycleId, payload, actorUser) {
+      const cycle = db.cycles.find((item) => item.id === cycleId);
+      if (!cycle) {
+        throw new Error("Ciclo de avaliacao nao encontrado.");
+      }
+      const normalizedReason = String(payload?.reason || "").trim();
+      if (!normalizedReason) {
+        throw new Error("Informe a justificativa da excecao.");
+      }
+
+      const reviewer = db.users.find((item) => item.id === payload?.reviewerUserId && item.status === "active");
+      const reviewee = db.people.find((item) => item.id === payload?.revieweePersonId);
+      const reviewerPerson = reviewer
+        ? db.people.find((item) => item.id === reviewer.personId)
+        : null;
+
+      if (!reviewer || !reviewerPerson || !reviewee) {
+        throw new Error("Revisor ou avaliado nao encontrado.");
+      }
+      if (!isCrossFunctionalCandidate({ id: reviewer.id, person: reviewerPerson }, { id: reviewee.id, person: reviewee })) {
+        throw new Error("O pareamento informado nao atende as regras do Feedback transversal.");
+      }
+
+      const existingPairing = db.evaluationPairings.find(
+        (item) =>
+          item.cycleId === cycleId &&
+          item.relationshipType === "cross-functional" &&
+          item.reviewerUserId === reviewer.id &&
+          item.revieweePersonId === reviewee.id &&
+          !item.blockedAt
+      );
+      if (existingPairing) {
+        throw new Error("Esse pareamento transversal ja esta ativo no ciclo.");
+      }
+      const previousAssignment = db.assignments.find(
+        (item) =>
+          item.cycleId === cycleId &&
+          item.relationshipType === "cross-functional" &&
+          item.reviewerUserId === reviewer.id &&
+          item.revieweePersonId === reviewee.id
+      );
+      if (previousAssignment?.status === "submitted") {
+        throw new Error("Nao e possivel alterar um pareamento ja respondido.");
+      }
+
+      const newPairing = createCrossFunctionalPairingRecord({
+        pairing: {
+          reviewerUserId: reviewer.id,
+          revieweePersonId: reviewee.id
+        },
+        cycleId,
+        actorUser,
+        createId,
+        source: "manual",
+        reason: normalizedReason,
+        seed: cycle.id
+      });
+      db.evaluationPairings.unshift(newPairing);
+      upsertCrossFunctionalAssignment(db.assignments, {
+        cycleId,
+        reviewerUserId: reviewer.id,
+        revieweePersonId: reviewee.id,
+        dueDate: cycle.dueDate
+      });
+      db.evaluationPairingExceptions.unshift(
+        createPairingExceptionRecord({
+          cycleId,
+          pairingId: newPairing.id,
+          reviewerUserId: reviewer.id,
+          previousRevieweePersonId: null,
+          nextRevieweePersonId: reviewee.id,
+          actionType: "forced",
+          reason: normalizedReason,
+          actorUser,
+          createId
+        })
+      );
+      rebuildCycleStructure(db, cycleId);
+      pushAuditLog(db.auditLogs, {
+        category: AUDIT_CATEGORIES.cycle,
+        action: "pairing_forced",
+        entityType: "cycle",
+        entityId: cycle.id,
+        entityLabel: cycle.title,
+        actorUser,
+        summary: "Pareamento transversal ajustado",
+        detail: normalizedReason
+      });
       return presentCycleParticipantStructure(db, cycleId, customLibraryState.published);
     },
     async notifyCycleDelinquents(cycleId, actorUser) {
@@ -3570,7 +4452,11 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
       }
 
       const currentModuleAvailability = normalizeCycleModuleAvailability(cycle.moduleAvailability);
-      const cycleConfigUpdate = resolveCycleConfigUpdate(currentModuleAvailability, payload);
+      const cycleConfigUpdate = resolveCycleConfigUpdate(
+        currentModuleAvailability,
+        normalizeTransversalConfig(cycle.transversalConfig),
+        payload
+      );
 
       if (cycleConfigUpdate.nextIsEnabled !== undefined) {
         cycle.isEnabled = cycleConfigUpdate.nextIsEnabled;
@@ -3578,6 +4464,9 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
 
       if (cycleConfigUpdate.nextModuleAvailability) {
         cycle.moduleAvailability = cycleConfigUpdate.nextModuleAvailability;
+      }
+      if (cycleConfigUpdate.nextTransversalConfig) {
+        cycle.transversalConfig = cycleConfigUpdate.nextTransversalConfig;
       }
 
       pushAuditLog(db.auditLogs, {
@@ -4301,7 +5190,12 @@ function buildMysqlStore(
   pool,
   customLibraryState,
   anonymousResponseState,
-  { supportsCycleConfig, supportsFeedbackAcknowledgement, supportsAssignmentReminder } = {}
+  {
+    supportsCycleConfig,
+    supportsFeedbackAcknowledgement,
+    supportsAssignmentReminder,
+    supportsPairings
+  } = {}
 ) {
   return {
     async findUserByEmail(email) {
@@ -5173,6 +6067,7 @@ function buildMysqlStore(
         supportsCycleConfig
           ? `SELECT c.id, c.template_id AS templateId, c.title, c.semester_label AS semesterLabel,
                     c.status, c.is_enabled AS isEnabled, c.enabled_relationships_json AS enabledRelationshipsJson,
+                    c.transversal_config_json AS transversalConfigJson,
                     c.due_date AS dueDate, c.target_group AS targetGroup,
                     c.library_id AS libraryId, c.library_name AS libraryName,
                     COALESCE(c.library_name, t.name) AS modelName, c.created_by_user_id AS createdByUserId,
@@ -5185,6 +6080,7 @@ function buildMysqlStore(
              LEFT JOIN evaluation_cycle_raters cr ON cr.cycle_id = c.id
              LEFT JOIN evaluation_cycle_reports er ON er.cycle_id = c.id
              GROUP BY c.id, c.template_id, c.title, c.semester_label, c.status, c.is_enabled, c.enabled_relationships_json,
+                      c.transversal_config_json,
                       c.due_date, c.target_group, c.library_id, c.library_name, t.name, c.created_by_user_id
              ORDER BY c.due_date DESC`
           : `SELECT c.id, c.template_id AS templateId, c.title, c.semester_label AS semesterLabel,
@@ -5232,11 +6128,28 @@ function buildMysqlStore(
       });
       const users = await fetchUserRows(pool);
       const people = await fetchPeopleRows(pool);
+      const existingPairings = supportsPairings
+        ? await pool
+            .query(
+              `SELECT cycle_id AS cycleId, reviewer_user_id AS reviewerUserId, reviewee_person_id AS revieweePersonId, blocked_at AS blockedAt, relationship_type AS relationshipType
+               FROM evaluation_pairings
+               WHERE relationship_type = 'cross-functional'`
+            )
+            .then(([rows]) => rows)
+        : [];
+      const crossFunctionalPlan = buildCrossFunctionalPlan({
+        users,
+        people,
+        cycleId: cycle.id,
+        transversalConfig: cycle.transversalConfig,
+        priorPairings: existingPairings
+      });
       const generatedAssignments = generateAssignments({
         users,
         people,
         cycleId: cycle.id,
-        dueDate: cycle.dueDate
+        dueDate: cycle.dueDate,
+        crossFunctionalPlan
       });
       const generatedStructure = buildCycleParticipantsAndRaters({
         assignments: generatedAssignments,
@@ -5252,8 +6165,8 @@ function buildMysqlStore(
         if (supportsCycleConfig) {
           await connection.query(
             `INSERT INTO evaluation_cycles
-             (id, template_id, title, semester_label, status, is_enabled, enabled_relationships_json, due_date, target_group, created_by_user_id, library_id, library_name)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             (id, template_id, title, semester_label, status, is_enabled, enabled_relationships_json, transversal_config_json, due_date, target_group, created_by_user_id, library_id, library_name)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
               cycle.id,
               cycle.templateId,
@@ -5262,6 +6175,7 @@ function buildMysqlStore(
               cycle.status,
               1,
               null,
+              JSON.stringify(cycle.transversalConfig),
               cycle.dueDate,
               cycle.targetGroup,
               cycle.createdByUserId,
@@ -5307,6 +6221,39 @@ function buildMysqlStore(
               assignment.dueDate
             ]
           );
+        }
+
+        if (supportsPairings) {
+          for (const pairing of crossFunctionalPlan.pairings) {
+            const record = createCrossFunctionalPairingRecord({
+              pairing,
+              cycleId: cycle.id,
+              actorUser,
+              createId,
+              source: "automatic",
+              reason: "Pareamento automatico balanceado",
+              seed: cycle.id
+            });
+            await connection.query(
+              `INSERT INTO evaluation_pairings
+               (id, cycle_id, relationship_type, reviewer_user_id, reviewee_person_id, pairing_source, pairing_reason, seed, created_at, created_by_user_id, blocked_at, blocked_by_user_id)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              [
+                record.id,
+                record.cycleId,
+                record.relationshipType,
+                record.reviewerUserId,
+                record.revieweePersonId,
+                record.pairingSource,
+                record.pairingReason,
+                record.seed,
+                record.createdAt,
+                record.createdByUserId,
+                record.blockedAt,
+                record.blockedByUserId
+              ]
+            );
+          }
         }
 
         for (const participant of generatedStructure.participants) {
@@ -5368,6 +6315,8 @@ function buildMysqlStore(
       const [cycleRows] = await pool.query(
         `SELECT id, template_id AS templateId, title, semester_label AS semesterLabel,
                 status, due_date AS dueDate, target_group AS targetGroup,
+                is_enabled AS isEnabled, enabled_relationships_json AS enabledRelationshipsJson,
+                transversal_config_json AS transversalConfigJson,
                 library_id AS libraryId, library_name AS libraryName
          FROM evaluation_cycles
          WHERE id = ?
@@ -5379,12 +6328,14 @@ function buildMysqlStore(
         throw new Error("Ciclo de avaliacao nao encontrado.");
       }
 
-      const [people, users, participantRows, raterRows, assignmentRows] = await Promise.all([
+      const [people, users, participantRows, raterRows, assignmentRows, pairingRows, pairingExceptionRows] = await Promise.all([
         fetchPeopleRows(pool),
         fetchUserRows(pool),
         fetchCycleParticipantRows(pool, cycleId),
         fetchCycleRaterRows(pool, cycleId),
-        fetchCycleAssignmentRows(pool, cycleId, { supportsAssignmentReminder })
+        fetchCycleAssignmentRows(pool, cycleId, { supportsAssignmentReminder }),
+        supportsPairings ? fetchCyclePairingRows(pool, cycleId) : Promise.resolve([]),
+        supportsPairings ? fetchCyclePairingExceptionRows(pool, cycleId) : Promise.resolve([])
       ]);
 
       return presentCycleParticipantStructure(
@@ -5394,11 +6345,305 @@ function buildMysqlStore(
           users,
           assignments: assignmentRows,
           cycleParticipants: participantRows,
-          cycleRaters: raterRows
+          cycleRaters: raterRows,
+          evaluationPairings: pairingRows,
+          evaluationPairingExceptions: pairingExceptionRows
         },
         cycleId,
         customLibraryState.published
       );
+    },
+    async blockCrossFunctionalPairing(cycleId, pairingId, reason, actorUser) {
+      if (!supportsPairings) {
+        throw new Error("Este ambiente ainda nao suporta governanca de pareamentos.");
+      }
+      const normalizedReason = String(reason || "").trim();
+      if (!normalizedReason) {
+        throw new Error("Informe a justificativa da excecao.");
+      }
+
+      const [pairingRows] = await pool.query(
+        `SELECT id, reviewer_user_id AS reviewerUserId, reviewee_person_id AS revieweePersonId, blocked_at AS blockedAt
+         FROM evaluation_pairings
+         WHERE id = ? AND cycle_id = ? AND relationship_type = 'cross-functional'
+         LIMIT 1`,
+        [pairingId, cycleId]
+      );
+      const pairing = pairingRows[0];
+      if (!pairing || pairing.blockedAt) {
+        throw new Error("Pareamento transversal nao encontrado.");
+      }
+
+      const [assignmentRows] = await pool.query(
+        `SELECT id, status
+         FROM evaluation_assignments
+         WHERE cycle_id = ? AND reviewer_user_id = ? AND reviewee_person_id = ? AND relationship_type = 'cross-functional'
+         LIMIT 1`,
+        [cycleId, pairing.reviewerUserId, pairing.revieweePersonId]
+      );
+      if (assignmentRows[0]?.status === "submitted") {
+        throw new Error("Nao e possivel bloquear um pareamento ja respondido.");
+      }
+
+      const [cycleRows] = await pool.query(
+        `SELECT id, title FROM evaluation_cycles WHERE id = ? LIMIT 1`,
+        [cycleId]
+      );
+      if (!cycleRows[0]) {
+        throw new Error("Ciclo de avaliacao nao encontrado.");
+      }
+
+      const connection = await pool.getConnection();
+      try {
+        await connection.beginTransaction();
+        await connection.query(
+          `UPDATE evaluation_pairings
+           SET blocked_at = ?, blocked_by_user_id = ?
+           WHERE id = ?`,
+          [new Date().toISOString(), actorUser.id, pairingId]
+        );
+        await connection.query(
+          `DELETE FROM evaluation_assignments
+           WHERE cycle_id = ? AND reviewer_user_id = ? AND reviewee_person_id = ? AND relationship_type = 'cross-functional'`,
+          [cycleId, pairing.reviewerUserId, pairing.revieweePersonId]
+        );
+        const exceptionRecord = createPairingExceptionRecord({
+          cycleId,
+          pairingId,
+          reviewerUserId: pairing.reviewerUserId,
+          previousRevieweePersonId: pairing.revieweePersonId,
+          nextRevieweePersonId: null,
+          actionType: "blocked",
+          reason: normalizedReason,
+          actorUser,
+          createId
+        });
+        await connection.query(
+          `INSERT INTO evaluation_pairing_exceptions
+           (id, cycle_id, pairing_id, action_type, reviewer_user_id, previous_reviewee_person_id, next_reviewee_person_id, reason, actor_user_id, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            exceptionRecord.id,
+            exceptionRecord.cycleId,
+            exceptionRecord.pairingId,
+            exceptionRecord.actionType,
+            exceptionRecord.reviewerUserId,
+            exceptionRecord.previousRevieweePersonId,
+            exceptionRecord.nextRevieweePersonId,
+            exceptionRecord.reason,
+            exceptionRecord.actorUserId,
+            exceptionRecord.createdAt
+          ]
+        );
+
+        const [users, people, assignments] = await Promise.all([
+          fetchUserRows(connection),
+          fetchPeopleRows(connection),
+          fetchCycleAssignmentRows(connection, cycleId, { supportsAssignmentReminder })
+        ]);
+        const generatedStructure = buildCycleParticipantsAndRaters({
+          assignments,
+          users,
+          people,
+          cycleId
+        });
+        await connection.query(`DELETE FROM evaluation_cycle_raters WHERE cycle_id = ?`, [cycleId]);
+        await connection.query(`DELETE FROM evaluation_cycle_participants WHERE cycle_id = ?`, [cycleId]);
+        for (const participant of generatedStructure.participants) {
+          await connection.query(
+            `INSERT INTO evaluation_cycle_participants (id, cycle_id, person_id, status) VALUES (?, ?, ?, ?)`,
+            [participant.id, participant.cycleId, participant.personId, participant.status]
+          );
+        }
+        for (const rater of generatedStructure.raters) {
+          await connection.query(
+            `INSERT INTO evaluation_cycle_raters (id, cycle_id, participant_person_id, rater_user_id, relationship_type, status) VALUES (?, ?, ?, ?, ?, ?)`,
+            [rater.id, rater.cycleId, rater.participantPersonId, rater.raterUserId, rater.relationshipType, rater.status]
+          );
+        }
+        await insertAuditLog(connection, {
+          category: AUDIT_CATEGORIES.cycle,
+          action: "pairing_blocked",
+          entityType: "cycle",
+          entityId: cycleId,
+          entityLabel: cycleRows[0].title,
+          actorUser,
+          summary: "Pareamento transversal bloqueado",
+          detail: normalizedReason
+        });
+        await connection.commit();
+      } catch (error) {
+        await connection.rollback();
+        throw error;
+      } finally {
+        connection.release();
+      }
+      return this.getEvaluationCycleParticipants(cycleId);
+    },
+    async forceCrossFunctionalPairing(cycleId, payload, actorUser) {
+      if (!supportsPairings) {
+        throw new Error("Este ambiente ainda nao suporta governanca de pareamentos.");
+      }
+      const normalizedReason = String(payload?.reason || "").trim();
+      if (!normalizedReason) {
+        throw new Error("Informe a justificativa da excecao.");
+      }
+
+      const [users, people, cycleRows] = await Promise.all([
+        fetchUserRows(pool),
+        fetchPeopleRows(pool),
+        pool.query(`SELECT id, title, due_date AS dueDate FROM evaluation_cycles WHERE id = ? LIMIT 1`, [cycleId]).then(([rows]) => rows)
+      ]);
+      const cycle = cycleRows[0];
+      if (!cycle) {
+        throw new Error("Ciclo de avaliacao nao encontrado.");
+      }
+      const reviewer = users.find((item) => item.id === payload?.reviewerUserId && item.status === "active");
+      const reviewerPerson = reviewer ? people.find((item) => item.id === reviewer.personId) : null;
+      const reviewee = people.find((item) => item.id === payload?.revieweePersonId);
+      if (!reviewer || !reviewerPerson || !reviewee) {
+        throw new Error("Revisor ou avaliado nao encontrado.");
+      }
+      if (!isCrossFunctionalCandidate({ id: reviewer.id, person: reviewerPerson }, { id: reviewee.id, person: reviewee })) {
+        throw new Error("O pareamento informado nao atende as regras do Feedback transversal.");
+      }
+
+      const [previousPairingRows] = await pool.query(
+        `SELECT id, reviewee_person_id AS revieweePersonId
+         FROM evaluation_pairings
+         WHERE cycle_id = ? AND reviewer_user_id = ? AND reviewee_person_id = ? AND relationship_type = 'cross-functional' AND blocked_at IS NULL
+         LIMIT 1`,
+        [cycleId, reviewer.id, reviewee.id]
+      );
+      const [previousAssignmentRows] = await pool.query(
+        `SELECT id, status
+         FROM evaluation_assignments
+         WHERE cycle_id = ? AND reviewer_user_id = ? AND reviewee_person_id = ? AND relationship_type = 'cross-functional'
+         LIMIT 1`,
+        [cycleId, reviewer.id, reviewee.id]
+      );
+      if (previousPairingRows[0]) {
+        throw new Error("Esse pareamento transversal ja esta ativo no ciclo.");
+      }
+      if (previousAssignmentRows[0]?.status === "submitted") {
+        throw new Error("Nao e possivel alterar um pareamento ja respondido.");
+      }
+
+      const newPairing = createCrossFunctionalPairingRecord({
+        pairing: { reviewerUserId: reviewer.id, revieweePersonId: reviewee.id },
+        cycleId,
+        actorUser,
+        createId,
+        source: "manual",
+        reason: normalizedReason,
+        seed: cycleId
+      });
+      const exceptionRecord = createPairingExceptionRecord({
+        cycleId,
+        pairingId: newPairing.id,
+        reviewerUserId: reviewer.id,
+        previousRevieweePersonId: null,
+        nextRevieweePersonId: reviewee.id,
+        actionType: "forced",
+        reason: normalizedReason,
+        actorUser,
+        createId
+      });
+
+      const connection = await pool.getConnection();
+      try {
+        await connection.beginTransaction();
+        await connection.query(
+          `INSERT INTO evaluation_pairings
+           (id, cycle_id, relationship_type, reviewer_user_id, reviewee_person_id, pairing_source, pairing_reason, seed, created_at, created_by_user_id, blocked_at, blocked_by_user_id)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            newPairing.id,
+            newPairing.cycleId,
+            newPairing.relationshipType,
+            newPairing.reviewerUserId,
+            newPairing.revieweePersonId,
+            newPairing.pairingSource,
+            newPairing.pairingReason,
+            newPairing.seed,
+            newPairing.createdAt,
+            newPairing.createdByUserId,
+            newPairing.blockedAt,
+            newPairing.blockedByUserId
+          ]
+        );
+        await connection.query(
+          `INSERT INTO evaluation_pairing_exceptions
+           (id, cycle_id, pairing_id, action_type, reviewer_user_id, previous_reviewee_person_id, next_reviewee_person_id, reason, actor_user_id, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            exceptionRecord.id,
+            exceptionRecord.cycleId,
+            exceptionRecord.pairingId,
+            exceptionRecord.actionType,
+            exceptionRecord.reviewerUserId,
+            exceptionRecord.previousRevieweePersonId,
+            exceptionRecord.nextRevieweePersonId,
+            exceptionRecord.reason,
+            exceptionRecord.actorUserId,
+            exceptionRecord.createdAt
+          ]
+        );
+        await connection.query(
+          `INSERT INTO evaluation_assignments
+           (id, cycle_id, reviewer_user_id, reviewee_person_id, relationship_type, project_context, collaboration_context, status, due_date)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            createId("assignment"),
+            cycleId,
+            reviewer.id,
+            reviewee.id,
+            "cross-functional",
+            "Colaboracao transversal entre areas",
+            "Feedback transversal gerado automaticamente para colaboracao entre areas da mesma unidade.",
+            "pending",
+            cycle.dueDate
+          ]
+        );
+        const refreshedAssignments = await fetchCycleAssignmentRows(connection, cycleId, { supportsAssignmentReminder });
+        const generatedStructure = buildCycleParticipantsAndRaters({
+          assignments: refreshedAssignments,
+          users,
+          people,
+          cycleId
+        });
+        await connection.query(`DELETE FROM evaluation_cycle_raters WHERE cycle_id = ?`, [cycleId]);
+        await connection.query(`DELETE FROM evaluation_cycle_participants WHERE cycle_id = ?`, [cycleId]);
+        for (const participant of generatedStructure.participants) {
+          await connection.query(
+            `INSERT INTO evaluation_cycle_participants (id, cycle_id, person_id, status) VALUES (?, ?, ?, ?)`,
+            [participant.id, participant.cycleId, participant.personId, participant.status]
+          );
+        }
+        for (const rater of generatedStructure.raters) {
+          await connection.query(
+            `INSERT INTO evaluation_cycle_raters (id, cycle_id, participant_person_id, rater_user_id, relationship_type, status) VALUES (?, ?, ?, ?, ?, ?)`,
+            [rater.id, rater.cycleId, rater.participantPersonId, rater.raterUserId, rater.relationshipType, rater.status]
+          );
+        }
+        await insertAuditLog(connection, {
+          category: AUDIT_CATEGORIES.cycle,
+          action: "pairing_forced",
+          entityType: "cycle",
+          entityId: cycleId,
+          entityLabel: cycle.title,
+          actorUser,
+          summary: "Pareamento transversal ajustado",
+          detail: normalizedReason
+        });
+        await connection.commit();
+      } catch (error) {
+        await connection.rollback();
+        throw error;
+      } finally {
+        connection.release();
+      }
+      return this.getEvaluationCycleParticipants(cycleId);
     },
     async notifyCycleDelinquents(cycleId, actorUser) {
       const [cycleRows] = await pool.query(
@@ -5584,7 +6829,7 @@ function buildMysqlStore(
       }
 
       const [rows] = await pool.query(
-        `SELECT id, title, is_enabled AS isEnabled, enabled_relationships_json AS enabledRelationshipsJson
+        `SELECT id, title, is_enabled AS isEnabled, enabled_relationships_json AS enabledRelationshipsJson, transversal_config_json AS transversalConfigJson
          FROM evaluation_cycles
          WHERE id = ?
          LIMIT 1`,
@@ -5598,6 +6843,7 @@ function buildMysqlStore(
       const current = presentCycle(rows[0]);
       const cycleConfigUpdate = resolveCycleConfigUpdate(
         normalizeCycleModuleAvailability(current.moduleAvailability),
+        normalizeTransversalConfig(current.transversalConfig),
         payload
       );
       const nextIsEnabled =
@@ -5607,6 +6853,9 @@ function buildMysqlStore(
       const nextModuleAvailability =
         cycleConfigUpdate.nextModuleAvailability ||
         normalizeCycleModuleAvailability(current.moduleAvailability);
+      const nextTransversalConfig =
+        cycleConfigUpdate.nextTransversalConfig ||
+        normalizeTransversalConfig(current.transversalConfig);
 
       const connection = await pool.getConnection();
       try {
@@ -5614,9 +6863,14 @@ function buildMysqlStore(
 
         await connection.query(
           `UPDATE evaluation_cycles
-           SET is_enabled = ?, enabled_relationships_json = ?
+           SET is_enabled = ?, enabled_relationships_json = ?, transversal_config_json = ?
            WHERE id = ?`,
-          [nextIsEnabled ? 1 : 0, JSON.stringify(nextModuleAvailability), cycleId]
+          [
+            nextIsEnabled ? 1 : 0,
+            JSON.stringify(nextModuleAvailability),
+            JSON.stringify(nextTransversalConfig),
+            cycleId
+          ]
         );
 
         await insertAuditLog(connection, {
@@ -5641,6 +6895,7 @@ function buildMysqlStore(
       const [updatedRows] = await pool.query(
         `SELECT c.id, c.template_id AS templateId, c.title, c.semester_label AS semesterLabel,
                 c.status, c.is_enabled AS isEnabled, c.enabled_relationships_json AS enabledRelationshipsJson,
+                c.transversal_config_json AS transversalConfigJson,
                 c.due_date AS dueDate, c.target_group AS targetGroup,
                 c.library_id AS libraryId, c.library_name AS libraryName,
                 COALESCE(c.library_name, t.name) AS modelName, c.created_by_user_id AS createdByUserId
@@ -5662,7 +6917,7 @@ function buildMysqlStore(
                     a.reviewee_person_id AS revieweePersonId, a.relationship_type AS relationshipType,
                     a.project_context AS projectContext, a.collaboration_context AS collaborationContext,
                     a.status, a.due_date AS dueDate, c.title AS cycleTitle, c.semester_label AS semesterLabel,
-                    c.template_id AS templateId, c.status AS cycleStatus, c.is_enabled AS isEnabled, c.enabled_relationships_json AS enabledRelationshipsJson,
+                    c.template_id AS templateId, c.status AS cycleStatus, c.is_enabled AS isEnabled, c.enabled_relationships_json AS enabledRelationshipsJson, c.transversal_config_json AS transversalConfigJson,
                     c.library_id AS libraryId, c.library_name AS libraryName,
                     p.name AS revieweeName, p.area AS revieweeArea,
                     reviewer_person.name AS reviewerName, s.overall_score AS overallScore,
@@ -5705,7 +6960,7 @@ function buildMysqlStore(
                     a.reviewee_person_id AS revieweePersonId, a.relationship_type AS relationshipType,
                     a.project_context AS projectContext, a.collaboration_context AS collaborationContext,
                     a.status, a.due_date AS dueDate, c.title AS cycleTitle, c.semester_label AS semesterLabel,
-                    c.template_id AS templateId, c.status AS cycleStatus, c.is_enabled AS isEnabled, c.enabled_relationships_json AS enabledRelationshipsJson,
+                    c.template_id AS templateId, c.status AS cycleStatus, c.is_enabled AS isEnabled, c.enabled_relationships_json AS enabledRelationshipsJson, c.transversal_config_json AS transversalConfigJson,
                     c.library_id AS libraryId, c.library_name AS libraryName,
                     p.name AS revieweeName, p.area AS revieweeArea
              FROM evaluation_assignments a
@@ -5934,7 +7189,7 @@ function buildMysqlStore(
         if (payload.status === FEEDBACK_REQUEST_STATUS.approved) {
           if (supportsCycleConfig) {
             const [cycleConfigRows] = await connection.query(
-              `SELECT is_enabled AS isEnabled, enabled_relationships_json AS enabledRelationshipsJson
+              `SELECT is_enabled AS isEnabled, enabled_relationships_json AS enabledRelationshipsJson, transversal_config_json AS transversalConfigJson
                FROM evaluation_cycles
                WHERE id = ?
                LIMIT 1`,
@@ -6870,17 +8125,20 @@ export async function createStore() {
     supportsCycleConfig,
     supportsFeedbackAcknowledgement,
     _supportsPeopleWorkContext,
-    supportsAssignmentReminder
+    supportsAssignmentReminder,
+    supportsPairings
   ] =
     await Promise.all([
       ensureMysqlCycleConfigSupport(pool),
       ensureMysqlFeedbackAcknowledgementSupport(pool),
       ensureMysqlPeopleWorkContextSupport(pool),
-      ensureMysqlAssignmentReminderSupport(pool)
+      ensureMysqlAssignmentReminderSupport(pool),
+      ensureMysqlPairingSupport(pool)
     ]);
   return buildMysqlStore(pool, customLibraryState, anonymousResponseState, {
     supportsCycleConfig,
     supportsFeedbackAcknowledgement,
-    supportsAssignmentReminder
+    supportsAssignmentReminder,
+    supportsPairings
   });
 }

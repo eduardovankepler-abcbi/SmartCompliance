@@ -240,9 +240,9 @@ export const evaluationModules = [
   {
     key: "cross-functional",
     relationshipType: "cross-functional",
-    label: "Feedback Indireto",
-    audience: "Colega sem convivencia direta",
-    description: "Leitura de soft skills, relacionamento e interacao entre areas."
+    label: "Feedback Transversal",
+    audience: "Colaborador de outra area na mesma unidade",
+    description: "Leitura confidencial da colaboracao entre areas da mesma unidade."
   },
   {
     key: "client-internal",
