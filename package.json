@@ -11,6 +11,7 @@
     "dev:frontend": "npm --prefix frontend run dev",
     "start:backend": "npm --prefix backend run start",
     "build:frontend": "npm --prefix frontend run build",
+    "test:e2e": "npm --prefix frontend run e2e",
     "test": "npm --prefix backend run test && npm --prefix frontend run test",
     "verify": "npm run test && npm run build:frontend"
   }

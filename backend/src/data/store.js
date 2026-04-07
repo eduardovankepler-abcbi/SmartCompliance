@@ -2390,7 +2390,7 @@ function presentCycleParticipantStructure(db, cycleId, customLibraries = []) {
     cycles: db.cycles || [],
     pairings: (db.evaluationPairings || []).filter((item) => item.cycleId === cycleId),
     exceptions: db.evaluationPairingExceptions || [],
-    allPairings: db.evaluationPairings || []
+    allPairings: db.allPairings || db.evaluationPairings || []
   });
   const participantRows = (db.cycleParticipants || []).filter(
     (participant) => participant.cycleId === cycleId
@@ -6328,26 +6328,36 @@ function buildMysqlStore(
         throw new Error("Ciclo de avaliacao nao encontrado.");
       }
 
-      const [people, users, participantRows, raterRows, assignmentRows, pairingRows, pairingExceptionRows] = await Promise.all([
+      const [allCycleRows, people, users, participantRows, raterRows, assignmentRows, pairingRows, allPairingRows, pairingExceptionRows] = await Promise.all([
+        pool.query(
+          `SELECT id, template_id AS templateId, title, semester_label AS semesterLabel,
+                  status, due_date AS dueDate, target_group AS targetGroup,
+                  is_enabled AS isEnabled, enabled_relationships_json AS enabledRelationshipsJson,
+                  transversal_config_json AS transversalConfigJson,
+                  library_id AS libraryId, library_name AS libraryName
+           FROM evaluation_cycles`
+        ).then(([rows]) => rows),
         fetchPeopleRows(pool),
         fetchUserRows(pool),
         fetchCycleParticipantRows(pool, cycleId),
         fetchCycleRaterRows(pool, cycleId),
         fetchCycleAssignmentRows(pool, cycleId, { supportsAssignmentReminder }),
         supportsPairings ? fetchCyclePairingRows(pool, cycleId) : Promise.resolve([]),
+        supportsPairings ? fetchCyclePairingRows(pool) : Promise.resolve([]),
         supportsPairings ? fetchCyclePairingExceptionRows(pool, cycleId) : Promise.resolve([])
       ]);
 
       return presentCycleParticipantStructure(
         {
-          cycles: [cycleRows[0]],
+          cycles: allCycleRows,
           people,
           users,
           assignments: assignmentRows,
           cycleParticipants: participantRows,
           cycleRaters: raterRows,
           evaluationPairings: pairingRows,
-          evaluationPairingExceptions: pairingExceptionRows
+          evaluationPairingExceptions: pairingExceptionRows,
+          allPairings: allPairingRows
         },
         cycleId,
         customLibraryState.published

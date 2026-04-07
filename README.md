@@ -60,7 +60,20 @@ npm run dev:frontend
 npm run verify
 ```
 
-5. Para usar MySQL:
+5. Para validar a jornada real no navegador com E2E:
+
+```bash
+npm run test:e2e
+```
+
+Isso sobe backend + frontend localmente, abre o navegador headless do Playwright e cobre:
+
+- login por perfil
+- navegacao principal
+- avaliacao de satisfacao do colaborador
+- operacao e biblioteca de avaliacoes para RH
+
+6. Para usar MySQL:
 
 - Crie um banco no MySQL.
 - Execute o script `backend/db/schema.sql`.
@@ -94,7 +107,7 @@ O desenho do MVP segue uma abordagem híbrida:
 
 ## Estado atual
 
-O projeto já possui validação local por testes e build do frontend. Antes de cada nova rodada, use `npm run verify`.
+O projeto já possui validação local por testes, build do frontend e uma suíte E2E mínima. Antes de cada nova rodada, use `npm run verify` e, quando a mudança tocar a interface, `npm run test:e2e`.
 
 ## Publicação
 

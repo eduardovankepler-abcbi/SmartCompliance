@@ -429,10 +429,17 @@ export function DashboardSection({
               <h3>Panorama de clima</h3>
               <span>Leitura radial do sentimento agregado</span>
             </div>
-            <SafeDashboardDonut
-              items={dashboard?.donutMetrics || []}
-              emptyMessage="Sem indicadores suficientes para compor o panorama."
-            />
+            {(dashboard?.donutMetrics || []).length ? (
+              <div className="metrics-grid">
+                {(dashboard?.donutMetrics || []).filter(Boolean).map((item) => (
+                  <SafeDashboardDonut key={item.key || item.label} item={item} />
+                ))}
+              </div>
+            ) : (
+              <div className="list-card">
+                <strong>Sem indicadores suficientes para compor o panorama.</strong>
+              </div>
+            )}
           </div>
 
           <div className="card">
