@@ -855,13 +855,27 @@ button:disabled {
   min-width: 168px;
 }
 
-.dashboard-card-filter label {
+.dashboard-card-select {
+  display: grid;
+  gap: 6px;
   margin: 0;
 }
 
-.dashboard-card-filter select,
-.dashboard-card-filter input {
+.dashboard-card-select span {
+  color: var(--muted);
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.dashboard-card-select select {
   min-width: 0;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 9px 12px;
+  background: var(--accent-primary);
+  color: var(--text);
 }
 
 .dashboard-tools {

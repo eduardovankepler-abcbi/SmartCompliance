@@ -438,19 +438,14 @@ export function DashboardSection({
                 <span>Mapa de calor</span>
               </div>
               <div className="dashboard-card-filter">
-                <SafeSelect
-                  label="Filtro"
-                  value={satisfactionView}
-                  options={["all", "top", "critical"]}
-                  renderLabel={(value) =>
-                    ({
-                      all: "Todas",
-                      top: "Melhores",
-                      critical: "Menores notas"
-                    })[value] || value
-                  }
-                  onChange={setSatisfactionView}
-                />
+                <label className="dashboard-card-select">
+                  <span>Filtro</span>
+                  <select value={satisfactionView} onChange={(event) => setSatisfactionView(event.target.value)}>
+                    <option value="all">Todas</option>
+                    <option value="top">Melhores</option>
+                    <option value="critical">Menores notas</option>
+                  </select>
+                </label>
               </div>
             </div>
             <SafeHeatmapMatrixCard
@@ -492,19 +487,14 @@ export function DashboardSection({
                 <span>Volume por tipo</span>
               </div>
               <div className="dashboard-card-filter">
-                <SafeSelect
-                  label="Filtro"
-                  value={developmentView}
-                  options={["all", "top", "alpha"]}
-                  renderLabel={(value) =>
-                    ({
-                      all: "Todas",
-                      top: "Mais volume",
-                      alpha: "A-Z"
-                    })[value] || value
-                  }
-                  onChange={setDevelopmentView}
-                />
+                <label className="dashboard-card-select">
+                  <span>Filtro</span>
+                  <select value={developmentView} onChange={(event) => setDevelopmentView(event.target.value)}>
+                    <option value="all">Todas</option>
+                    <option value="top">Mais volume</option>
+                    <option value="alpha">A-Z</option>
+                  </select>
+                </label>
               </div>
             </div>
             <SafeHeatmapMatrixCard
