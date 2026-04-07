@@ -761,6 +761,18 @@ button:disabled {
   grid-column: span 8 !important;
 }
 
+.dashboard-insight-grid {
+  column-width: 320px;
+  column-gap: 14px;
+}
+
+.dashboard-insight-grid > .card {
+  display: inline-grid;
+  width: 100%;
+  margin: 0 0 14px;
+  break-inside: avoid;
+}
+
 .dashboard-visual-card,
 .dashboard-side-card {
   background:
@@ -1963,6 +1975,11 @@ button:disabled {
     grid-column: span 6 !important;
   }
 
+  .dashboard-insight-grid {
+    column-width: auto;
+    columns: 2;
+  }
+
   .two-columns {
     grid-template-columns: 1fr;
   }
@@ -2059,6 +2076,10 @@ button:disabled {
   .dashboard-board-grid > .card,
   .dashboard-board-featured {
     grid-column: auto !important;
+  }
+
+  .dashboard-insight-grid {
+    columns: 1;
   }
 
   .access-journey-grid {

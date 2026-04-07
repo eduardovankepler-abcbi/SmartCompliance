@@ -386,7 +386,9 @@ export function DashboardSection({
             ) : null}
           </>
         )}
+      </div>
 
+      <div className="card-span dashboard-insight-grid">
         {executiveComparisons.length ? (
           <div className="card dashboard-side-card">
             <div className="card-header">
