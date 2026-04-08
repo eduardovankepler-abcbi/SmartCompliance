@@ -1262,8 +1262,8 @@ button:disabled {
 }
 
 .compliance-intake-form {
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-  gap: 16px 18px;
+  grid-template-columns: 1fr;
+  gap: 18px;
 }
 
 .compliance-intake-form .card-header,
@@ -1272,16 +1272,40 @@ button:disabled {
   grid-column: 1 / -1;
 }
 
-.compliance-form-span-half {
-  grid-column: span 6;
+.compliance-report-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(320px, 0.9fr);
+  gap: 18px;
+  align-items: start;
 }
 
-.compliance-form-span-full {
-  grid-column: 1 / -1;
+.compliance-form-span-main,
+.compliance-form-span-sidebar {
+  display: grid;
+  gap: 16px;
 }
 
-.compliance-form-span-third {
-  grid-column: span 4;
+.compliance-intake-panel {
+  display: grid;
+  gap: 16px;
+  padding: 16px 18px 18px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(11, 18, 35, 0.45);
+}
+
+.compliance-panel-header {
+  padding-bottom: 0;
+}
+
+.compliance-panel-header h4 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.compliance-side-grid {
+  display: grid;
+  gap: 14px;
 }
 
 .development-intake-form,
@@ -3086,9 +3110,8 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 
-  .compliance-form-span-half,
-  .compliance-form-span-third {
-    grid-column: auto;
+  .compliance-report-grid {
+    grid-template-columns: 1fr;
   }
 
   .user-support-grid {

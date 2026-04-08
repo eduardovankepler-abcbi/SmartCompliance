@@ -23,12 +23,19 @@ export function ComplianceSection({
   setIncidentForm
 }) {
   const SafeIncidentQueueCard = IncidentQueueCard || EmptyComponent;
-  const SafeInput = Input || EmptyComponent;
-  const SafeSelect = Select || EmptyComponent;
-  const SafeTextarea = Textarea || EmptyComponent;
   const isOperationalCompliance = roleKey === "compliance";
   const shouldShowReporterLabel = incidentForm.anonymity === "identified";
   const shouldShowAssignedPerson = canManageIncidentQueue;
+  const filteredResponsibleOptions = incidentResponsibleOptions.filter(
+    (item) => item.value === "" || item.area === incidentForm.responsibleArea
+  );
+  const categoryOptions = [
+    "Conduta Impropria",
+    "Assedio",
+    "Conflito de interesse",
+    "Uso indevido de recurso",
+    "Fraude"
+  ];
 
   return (
     <section className="page-grid">
@@ -41,95 +48,130 @@ export function ComplianceSection({
               : "Canal estruturado de etica e conduta"}
           </span>
         </div>
-        <div className="compliance-form-span-half">
-          <SafeInput
-            label="Titulo"
-            value={incidentForm.title}
-            onChange={(value) => setIncidentForm({ ...incidentForm, title: value })}
-          />
-        </div>
-        <div className="compliance-form-span-half">
-          <SafeTextarea
-            label="Descricao"
-            rows={5}
-            value={incidentForm.description}
-            onChange={(value) => setIncidentForm({ ...incidentForm, description: value })}
-          />
-        </div>
-        <div className="compliance-form-span-third">
-          <SafeSelect
-            label="Categoria"
-            value={incidentForm.category}
-            options={[
-              "Conduta Impropria",
-              "Assedio",
-              "Conflito de interesse",
-              "Uso indevido de recurso",
-              "Fraude"
-            ]}
-            onChange={(value) => setIncidentForm({ ...incidentForm, category: value })}
-          />
-        </div>
-        <div className="compliance-form-span-third">
-          <SafeSelect
-            label="Classificacao inicial"
-            value={incidentForm.classification}
-            options={incidentClassificationOptions}
-            onChange={(value) => setIncidentForm({ ...incidentForm, classification: value })}
-          />
-        </div>
-        <div className="compliance-form-span-third">
-          <SafeSelect
-            label="Identificacao"
-            value={incidentForm.anonymity}
-            options={["anonymous", "identified"]}
-            renderLabel={(value) => (value === "anonymous" ? "Anonimo" : "Identificado")}
-            onChange={(value) => setIncidentForm({ ...incidentForm, anonymity: value })}
-          />
-        </div>
-        {shouldShowReporterLabel ? (
-          <div className="compliance-form-span-third">
-            <SafeInput
-              label="Nome do relator"
-              value={incidentForm.reporterLabel}
-              onChange={(value) => setIncidentForm({ ...incidentForm, reporterLabel: value })}
-            />
+        <div className="compliance-report-grid">
+          <div className="compliance-form-span-main">
+            <label className="field">
+              <span>Titulo</span>
+              <input
+                value={incidentForm.title}
+                onChange={(event) => setIncidentForm({ ...incidentForm, title: event.target.value })}
+              />
+            </label>
+            <label className="field">
+              <span>Descricao detalhada</span>
+              <textarea
+                rows={8}
+                value={incidentForm.description}
+                onChange={(event) => setIncidentForm({ ...incidentForm, description: event.target.value })}
+              />
+              <small className="field-helper">
+                Descreva o fato, onde aconteceu, quem foi impactado e qualquer contexto util para a triagem.
+              </small>
+            </label>
           </div>
-        ) : null}
-        <div className="compliance-form-span-third">
-          <SafeSelect
-            label="Area responsavel"
-            value={incidentForm.responsibleArea}
-            options={incidentAreaOptions.map((item) => item.value)}
-            renderLabel={(value) =>
-              incidentAreaOptions.find((item) => item.value === value)?.label || value
-            }
-            onChange={(value) =>
-              setIncidentForm({
-                ...incidentForm,
-                responsibleArea: value,
-                assignedPersonId:
-                  incidentResponsibleOptions.find((item) => item.area === value && item.isAreaManager)
-                    ?.value || ""
-              })
-            }
-          />
-        </div>
-        {shouldShowAssignedPerson ? (
-          <div className="compliance-form-span-third">
-            <SafeSelect
-              label="Responsavel inicial"
-              value={incidentForm.assignedPersonId}
-              options={incidentResponsibleOptions
-                .filter((item) => item.value === "" || item.area === incidentForm.responsibleArea)
-                .map((item) => item.value)}
-              renderLabel={(value) =>
-                incidentResponsibleOptions.find((item) => item.value === value)?.label || value
-              }
-              onChange={(value) => setIncidentForm({ ...incidentForm, assignedPersonId: value })}
-            />
+          <div className="compliance-form-span-sidebar">
+            <div className="compliance-intake-panel">
+              <div className="card-header compliance-panel-header">
+                <h4>Triagem inicial</h4>
+                <span>Classifique e encaminhe o relato</span>
+              </div>
+              <div className="compliance-side-grid">
+                <label className="field">
+                  <span>Categoria</span>
+                  <select
+                    value={incidentForm.category}
+                    onChange={(event) => setIncidentForm({ ...incidentForm, category: event.target.value })}
+                  >
+                    {categoryOptions.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="field">
+                  <span>Classificacao inicial</span>
+                  <select
+                    value={incidentForm.classification}
+                    onChange={(event) =>
+                      setIncidentForm({ ...incidentForm, classification: event.target.value })
+                    }
+                  >
+                    {incidentClassificationOptions.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="field">
+                  <span>Identificacao</span>
+                  <select
+                    value={incidentForm.anonymity}
+                    onChange={(event) => setIncidentForm({ ...incidentForm, anonymity: event.target.value })}
+                  >
+                    <option value="anonymous">Anonimo</option>
+                    <option value="identified">Identificado</option>
+                  </select>
+                </label>
+                {shouldShowReporterLabel ? (
+                  <label className="field">
+                    <span>Nome do relator</span>
+                    <input
+                      value={incidentForm.reporterLabel}
+                      onChange={(event) =>
+                        setIncidentForm({ ...incidentForm, reporterLabel: event.target.value })
+                      }
+                    />
+                  </label>
+                ) : null}
+                <label className="field">
+                  <span>Area responsavel</span>
+                  <select
+                    value={incidentForm.responsibleArea}
+                    onChange={(event) => {
+                      const nextArea = event.target.value;
+                      setIncidentForm({
+                        ...incidentForm,
+                        responsibleArea: nextArea,
+                        assignedPersonId:
+                          incidentResponsibleOptions.find(
+                            (item) => item.area === nextArea && item.isAreaManager
+                          )?.value || ""
+                      });
+                    }}
+                  >
+                    {incidentAreaOptions.map((item) => (
+                      <option key={item.value} value={item.value}>
+                        {item.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {shouldShowAssignedPerson ? (
+                  <label className="field">
+                    <span>Responsavel inicial</span>
+                    <select
+                      value={incidentForm.assignedPersonId}
+                      onChange={(event) =>
+                        setIncidentForm({ ...incidentForm, assignedPersonId: event.target.value })
+                      }
+                    >
+                      {filteredResponsibleOptions.map((item) => (
+                        <option key={item.value || "empty"} value={item.value}>
+                          {item.label}
+                        </option>
+                      ))}
+                    </select>
+                    <small className="field-helper">
+                      Defina quem recebe a triagem inicial dentro da area escolhida.
+                    </small>
+                  </label>
+                ) : null}
+              </div>
+            </div>
           </div>
-        ) : null}
+        </div>
         <button className="primary-button" type="submit">
           Registrar relato
         </button>
