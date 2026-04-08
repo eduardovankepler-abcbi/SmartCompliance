@@ -1276,6 +1276,10 @@ button:disabled {
   grid-column: span 6;
 }
 
+.compliance-form-span-full {
+  grid-column: 1 / -1;
+}
+
 .compliance-form-span-third {
   grid-column: span 4;
 }

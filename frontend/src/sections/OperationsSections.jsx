@@ -48,6 +48,14 @@ export function ComplianceSection({
             onChange={(value) => setIncidentForm({ ...incidentForm, title: value })}
           />
         </div>
+        <div className="compliance-form-span-half">
+          <SafeTextarea
+            label="Descricao"
+            rows={5}
+            value={incidentForm.description}
+            onChange={(value) => setIncidentForm({ ...incidentForm, description: value })}
+          />
+        </div>
         <div className="compliance-form-span-third">
           <SafeSelect
             label="Categoria"
@@ -77,14 +85,6 @@ export function ComplianceSection({
             options={["anonymous", "identified"]}
             renderLabel={(value) => (value === "anonymous" ? "Anonimo" : "Identificado")}
             onChange={(value) => setIncidentForm({ ...incidentForm, anonymity: value })}
-          />
-        </div>
-        <div className="compliance-form-span-full">
-          <SafeTextarea
-            label="Descricao"
-            rows={4}
-            value={incidentForm.description}
-            onChange={(value) => setIncidentForm({ ...incidentForm, description: value })}
           />
         </div>
         {shouldShowReporterLabel ? (
