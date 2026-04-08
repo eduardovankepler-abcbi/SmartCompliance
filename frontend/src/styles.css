@@ -1262,15 +1262,22 @@ button:disabled {
 }
 
 .compliance-intake-form {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(12, minmax(0, 1fr));
   gap: 16px 18px;
 }
 
 .compliance-intake-form .card-header,
 .compliance-intake-form .field-span-full,
-.compliance-intake-form textarea,
 .compliance-intake-form .primary-button {
   grid-column: 1 / -1;
+}
+
+.compliance-form-span-half {
+  grid-column: span 6;
+}
+
+.compliance-form-span-third {
+  grid-column: span 4;
 }
 
 .registry-form-grid {
@@ -3034,6 +3041,11 @@ button:disabled {
   .evaluation-question-controls,
   .evaluation-cycle-toolbar {
     grid-template-columns: 1fr;
+  }
+
+  .compliance-form-span-half,
+  .compliance-form-span-third {
+    grid-column: auto;
   }
 
   .evaluation-assignment-switcher {

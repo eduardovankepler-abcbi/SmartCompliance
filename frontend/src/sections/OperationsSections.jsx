@@ -41,78 +41,95 @@ export function ComplianceSection({
               : "Canal estruturado de etica e conduta"}
           </span>
         </div>
-        <SafeInput
-          label="Titulo"
-          value={incidentForm.title}
-          onChange={(value) => setIncidentForm({ ...incidentForm, title: value })}
-        />
-        <SafeSelect
-          label="Categoria"
-          value={incidentForm.category}
-          options={[
-            "Conduta Impropria",
-            "Assedio",
-            "Conflito de interesse",
-            "Uso indevido de recurso",
-            "Fraude"
-          ]}
-          onChange={(value) => setIncidentForm({ ...incidentForm, category: value })}
-        />
-        <SafeSelect
-          label="Classificacao inicial"
-          value={incidentForm.classification}
-          options={incidentClassificationOptions}
-          onChange={(value) => setIncidentForm({ ...incidentForm, classification: value })}
-        />
-        <SafeSelect
-          label="Identificacao"
-          value={incidentForm.anonymity}
-          options={["anonymous", "identified"]}
-          renderLabel={(value) => (value === "anonymous" ? "Anonimo" : "Identificado")}
-          onChange={(value) => setIncidentForm({ ...incidentForm, anonymity: value })}
-        />
-        {shouldShowReporterLabel ? (
+        <div className="compliance-form-span-half">
           <SafeInput
-            label="Nome do relator"
-            value={incidentForm.reporterLabel}
-            onChange={(value) => setIncidentForm({ ...incidentForm, reporterLabel: value })}
+            label="Titulo"
+            value={incidentForm.title}
+            onChange={(value) => setIncidentForm({ ...incidentForm, title: value })}
           />
-        ) : null}
-        <SafeSelect
-          label="Area responsavel"
-          value={incidentForm.responsibleArea}
-          options={incidentAreaOptions.map((item) => item.value)}
-          renderLabel={(value) =>
-            incidentAreaOptions.find((item) => item.value === value)?.label || value
-          }
-          onChange={(value) =>
-            setIncidentForm({
-              ...incidentForm,
-              responsibleArea: value,
-              assignedPersonId:
-                incidentResponsibleOptions.find((item) => item.area === value && item.isAreaManager)
-                  ?.value || ""
-            })
-          }
-        />
-        {shouldShowAssignedPerson ? (
+        </div>
+        <div className="compliance-form-span-half">
+          <SafeTextarea
+            label="Descricao"
+            rows={5}
+            value={incidentForm.description}
+            onChange={(value) => setIncidentForm({ ...incidentForm, description: value })}
+          />
+        </div>
+        <div className="compliance-form-span-third">
           <SafeSelect
-            label="Responsavel inicial"
-            value={incidentForm.assignedPersonId}
-            options={incidentResponsibleOptions
-              .filter((item) => item.value === "" || item.area === incidentForm.responsibleArea)
-              .map((item) => item.value)}
-            renderLabel={(value) =>
-              incidentResponsibleOptions.find((item) => item.value === value)?.label || value
-            }
-            onChange={(value) => setIncidentForm({ ...incidentForm, assignedPersonId: value })}
+            label="Categoria"
+            value={incidentForm.category}
+            options={[
+              "Conduta Impropria",
+              "Assedio",
+              "Conflito de interesse",
+              "Uso indevido de recurso",
+              "Fraude"
+            ]}
+            onChange={(value) => setIncidentForm({ ...incidentForm, category: value })}
           />
+        </div>
+        <div className="compliance-form-span-third">
+          <SafeSelect
+            label="Classificacao inicial"
+            value={incidentForm.classification}
+            options={incidentClassificationOptions}
+            onChange={(value) => setIncidentForm({ ...incidentForm, classification: value })}
+          />
+        </div>
+        <div className="compliance-form-span-third">
+          <SafeSelect
+            label="Identificacao"
+            value={incidentForm.anonymity}
+            options={["anonymous", "identified"]}
+            renderLabel={(value) => (value === "anonymous" ? "Anonimo" : "Identificado")}
+            onChange={(value) => setIncidentForm({ ...incidentForm, anonymity: value })}
+          />
+        </div>
+        {shouldShowReporterLabel ? (
+          <div className="compliance-form-span-third">
+            <SafeInput
+              label="Nome do relator"
+              value={incidentForm.reporterLabel}
+              onChange={(value) => setIncidentForm({ ...incidentForm, reporterLabel: value })}
+            />
+          </div>
         ) : null}
-        <SafeTextarea
-          label="Descricao"
-          value={incidentForm.description}
-          onChange={(value) => setIncidentForm({ ...incidentForm, description: value })}
-        />
+        <div className="compliance-form-span-third">
+          <SafeSelect
+            label="Area responsavel"
+            value={incidentForm.responsibleArea}
+            options={incidentAreaOptions.map((item) => item.value)}
+            renderLabel={(value) =>
+              incidentAreaOptions.find((item) => item.value === value)?.label || value
+            }
+            onChange={(value) =>
+              setIncidentForm({
+                ...incidentForm,
+                responsibleArea: value,
+                assignedPersonId:
+                  incidentResponsibleOptions.find((item) => item.area === value && item.isAreaManager)
+                    ?.value || ""
+              })
+            }
+          />
+        </div>
+        {shouldShowAssignedPerson ? (
+          <div className="compliance-form-span-third">
+            <SafeSelect
+              label="Responsavel inicial"
+              value={incidentForm.assignedPersonId}
+              options={incidentResponsibleOptions
+                .filter((item) => item.value === "" || item.area === incidentForm.responsibleArea)
+                .map((item) => item.value)}
+              renderLabel={(value) =>
+                incidentResponsibleOptions.find((item) => item.value === value)?.label || value
+              }
+              onChange={(value) => setIncidentForm({ ...incidentForm, assignedPersonId: value })}
+            />
+          </div>
+        ) : null}
         <button className="primary-button" type="submit">
           Registrar relato
         </button>
