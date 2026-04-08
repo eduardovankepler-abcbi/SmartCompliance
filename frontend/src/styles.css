@@ -1300,6 +1300,10 @@ button:disabled {
   align-items: start;
 }
 
+.user-support-grid.single-support-card {
+  grid-template-columns: 1fr;
+}
+
 .user-provision-form {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px 18px;

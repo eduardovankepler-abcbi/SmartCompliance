@@ -605,7 +605,7 @@ export function UsersSection({
         </div>
       </div>
 
-      <div className="user-support-grid card-span">
+      <div className={`user-support-grid card-span${userConsistency.warnings.length ? "" : " single-support-card"}`}>
         <div className="card compact-card">
           <div className="card-header">
             <h3>Passo a passo</h3>
