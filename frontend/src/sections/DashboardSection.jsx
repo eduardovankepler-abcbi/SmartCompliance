@@ -2,13 +2,24 @@ import { useState } from "react";
 
 const EmptyComponent = () => null;
 
+function DashboardCardHeader({ title, subtitle, tone = "neutral", eyebrow }) {
+  return (
+    <div className="card-header dashboard-card-header">
+      <div className="dashboard-card-heading">
+        {eyebrow ? <span className={`dashboard-card-eyebrow ${tone}`}>{eyebrow}</span> : null}
+        <h3>{title}</h3>
+      </div>
+      <span>{subtitle}</span>
+    </div>
+  );
+}
+
 export function DashboardSection({
   BarMetricRow,
   ColumnMetricCard,
   DashboardDonut,
   FunnelSeriesChart,
   HeatmapMatrixCard,
-  MetricCard,
   ResponseDistributionChartCard,
   Select,
   canFilterDashboardByArea,
@@ -19,11 +30,13 @@ export function DashboardSection({
   dashboardTimeGrouping,
   dashboardTimeGroupingLabel,
   dashboardTimeGroupingOptions,
+  onSectionChange,
   filteredDashboardEvaluationMix,
   filteredDashboardResponseDistributions,
   getAssignmentStatusLabel,
   getRelationshipDescription,
   getRelationshipLabel,
+  profileName,
   selectedDashboardCompositionMeta,
   setDashboardAreaFilter,
   setDashboardCompositionFilter,
@@ -36,7 +49,6 @@ export function DashboardSection({
   const SafeDashboardDonut = DashboardDonut || EmptyComponent;
   const SafeFunnelSeriesChart = FunnelSeriesChart || EmptyComponent;
   const SafeHeatmapMatrixCard = HeatmapMatrixCard || EmptyComponent;
-  const SafeMetricCard = MetricCard || EmptyComponent;
   const SafeResponseDistributionChartCard = ResponseDistributionChartCard || EmptyComponent;
   const SafeSelect = Select || EmptyComponent;
   const SafeTrendAreaChartCard = TrendAreaChartCard || EmptyComponent;
@@ -74,6 +86,12 @@ export function DashboardSection({
   const currentCompositionLabel =
     dashboardCompositionOptions.find((item) => item.value === dashboardCompositionFilter)?.label ||
     dashboardCompositionFilter;
+  const dashboardHeadline =
+    dashboard?.mode === "executive"
+      ? "Resumo estratégico da operação"
+      : dashboard?.mode === "team"
+        ? "Resumo estratégico da sua equipe"
+        : "Resumo estratégico do seu recorte";
   const focusPills = [
     { label: "Recorte", value: currentCompositionLabel, tone: "neutral" },
     {
@@ -87,12 +105,138 @@ export function DashboardSection({
       tone: "warning"
     }
   ];
+  const quickActions = [
+    {
+      key: "Avaliacoes",
+      label: "Novo ciclo",
+      detail: "Abrir operacao de avaliacoes",
+      tone: "primary"
+    },
+    {
+      key: "Compliance",
+      label: "Ver incidentes",
+      detail: "Acompanhar fila ativa",
+      tone: "success"
+    },
+    {
+      key: "Usuarios",
+      label: "Novo usuario",
+      detail: "Provisionar acesso",
+      tone: "secondary"
+    },
+    {
+      key: "Pessoas",
+      label: "Nova pessoa",
+      detail: "Atualizar estrutura",
+      tone: "accent"
+    }
+  ];
+  const topKpis = [
+    {
+      label: "Pessoas",
+      value: dashboard?.scopeSummary?.peopleCount ?? summary?.peopleCount ?? 0,
+      detail: "base ativa no recorte",
+      tone: "primary"
+    },
+    {
+      label: "Incidentes abertos",
+      value: summary?.openIncidents ?? 0,
+      detail: "casos em acompanhamento",
+      tone: "warning"
+    },
+    {
+      label: "Ciclos ativos",
+      value: summary?.activeEvaluationCycles ?? 0,
+      detail: "avaliacoes em andamento",
+      tone: "success"
+    },
+    {
+      label: "Assignments pendentes",
+      value: dashboard?.scopeSummary?.pendingAssignments ?? summary?.pendingAssignments ?? 0,
+      detail: "acoes aguardando conclusao",
+      tone: "accent"
+    }
+  ];
 
   return (
     <section className="page-grid dashboard-grid">
+      <div className="card card-span dashboard-command-card">
+        <div className="dashboard-command-hero">
+          <div className="dashboard-command-copy">
+            <p className="eyebrow">
+              {dashboard?.mode === "executive"
+                ? "Painel do administrador"
+                : dashboard?.mode === "team"
+                  ? "Painel gerencial"
+                  : "Painel individual"}
+            </p>
+            <h3>{`Ola, ${profileName || "time"}!`}</h3>
+            <p className="dashboard-command-headline">{dashboardHeadline}</p>
+            <p className="muted">
+              {dashboard?.notice ||
+                "Acompanhe cobertura, adesao, desenvolvimento e sinais do ciclo em uma leitura executiva mais objetiva."}
+            </p>
+          </div>
+          <div className="dashboard-command-meta">
+            <span className="badge">Painel {isExecutiveView ? "executivo" : "analitico"}</span>
+            <p className="muted">
+              {isExecutiveView
+                ? "Pronto para checkpoints, comites e leitura de prioridade."
+                : "Pronto para explorar distribuicao, cobertura e gargalos."}
+            </p>
+            <div className="dashboard-command-actions">
+              {quickActions.map((action) => (
+                <button
+                  key={action.key}
+                  type="button"
+                  className={`dashboard-quick-action ${action.tone}`}
+                  onClick={() => onSectionChange?.(action.key)}
+                >
+                  <span>{action.label}</span>
+                  <strong>{action.detail}</strong>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="dashboard-view-toggle dashboard-command-toggle">
+          <button
+            type="button"
+            className={
+              isExecutiveView ? "button-reset module-tab active" : "button-reset module-tab"
+            }
+            onClick={() => setDashboardViewMode("executive")}
+          >
+            <span className="module-tab-title">Leitura executiva</span>
+            <span className="module-tab-meta">Sintese para reunioes</span>
+          </button>
+          <button
+            type="button"
+            className={
+              !isExecutiveView ? "button-reset module-tab active" : "button-reset module-tab"
+            }
+            onClick={() => setDashboardViewMode("analytical")}
+          >
+            <span className="module-tab-title">Leitura analitica</span>
+            <span className="module-tab-meta">Exploracao detalhada</span>
+          </button>
+        </div>
+        <div className="dashboard-command-kpis">
+          {topKpis.map((item) => (
+            <article className={`dashboard-kpi-inline-card ${item.tone}`} key={item.label}>
+              <div className="dashboard-kpi-inline-copy">
+                <span>{item.label}</span>
+                <strong>{item.value}</strong>
+              </div>
+              <p>{item.detail}</p>
+            </article>
+          ))}
+        </div>
+      </div>
+
       <div className="card card-span dashboard-filter-card">
         <div className="card-header">
-          <h3>Painel de controle</h3>
+          <h3>Filtros do dashboard</h3>
           <span>Defina o contexto da leitura</span>
         </div>
         <div className="dashboard-filter-grid">
@@ -122,28 +266,6 @@ export function DashboardSection({
             onChange={setDashboardTimeGrouping}
           />
         </div>
-        <div className="dashboard-view-toggle">
-          <button
-            type="button"
-            className={
-              isExecutiveView ? "button-reset module-tab active" : "button-reset module-tab"
-            }
-            onClick={() => setDashboardViewMode("executive")}
-          >
-            <span className="module-tab-title">Leitura executiva</span>
-            <span className="module-tab-meta">Sintese para reunioes</span>
-          </button>
-          <button
-            type="button"
-            className={
-              !isExecutiveView ? "button-reset module-tab active" : "button-reset module-tab"
-            }
-            onClick={() => setDashboardViewMode("analytical")}
-          >
-            <span className="module-tab-title">Leitura analitica</span>
-            <span className="module-tab-meta">Exploracao detalhada</span>
-          </button>
-        </div>
         <div className="dashboard-focus-strip">
           {focusPills.map((item) => (
             <div className={`dashboard-focus-pill ${item.tone}`} key={item.label}>
@@ -154,56 +276,13 @@ export function DashboardSection({
         </div>
       </div>
 
-      <div className="hero-panel card-span">
-        <div className="dashboard-hero-copy">
-          <div>
-            <p className="eyebrow">
-              {dashboard?.mode === "executive"
-                ? "Visao executiva"
-                : dashboard?.mode === "team"
-                  ? "Visao gerencial"
-                  : "Visao pessoal"}
-            </p>
-            <h3>
-              {dashboard?.mode === "executive"
-                ? "Governanca, clima e desenvolvimento em uma unica leitura"
-                : dashboard?.mode === "team"
-                  ? "Sua equipe direta em foco, sem exposicao de outras areas"
-                  : "Seu recorte operacional do ciclo e da evolucao profissional"}
-            </h3>
-            <p className="muted">
-              {dashboard?.notice ||
-                "Acompanhe cobertura, adesao, desenvolvimento e sinais do ciclo em um painel unico."}
-            </p>
-          </div>
-          <div className="dashboard-hero-caption">
-            <span className="badge">Painel {isExecutiveView ? "executivo" : "analitico"}</span>
-            <p className="muted">
-              {isExecutiveView
-                ? "Leitura pronta para comites, checkpoints e tomada de decisao."
-                : "Leitura detalhada para explorar gargalos, distribuicao e cobertura."}
-            </p>
-          </div>
-        </div>
-        <div className="hero-panel-grid dashboard-kpi-strip">
-          <SafeMetricCard
-            label="Pessoas"
-            value={dashboard?.scopeSummary?.peopleCount ?? summary?.peopleCount}
-          />
-          <SafeMetricCard label="Incidentes abertos" value={summary?.openIncidents} />
-          <SafeMetricCard label="Ciclos ativos" value={summary?.activeEvaluationCycles} />
-          <SafeMetricCard
-            label="Assignments pendentes"
-            value={dashboard?.scopeSummary?.pendingAssignments ?? summary?.pendingAssignments}
-          />
-        </div>
-      </div>
-
-      <div className="card card-span">
-        <div className="card-header">
-          <h3>Leitura executiva do recorte</h3>
-          <span>Sintese orientada a decisao</span>
-        </div>
+      <div className="card card-span dashboard-executive-brief-card">
+        <DashboardCardHeader
+          eyebrow="Resumo"
+          title="Leitura executiva do recorte"
+          subtitle="Sintese orientada a decisao"
+          tone="primary"
+        />
         <div className="executive-brief-grid">
           {executiveHighlights.map((item) => (
             <article className="list-card executive-brief-card" key={item.title}>
@@ -217,10 +296,12 @@ export function DashboardSection({
 
       {storyCards.length ? (
         <div className="card card-span dashboard-story-card">
-          <div className="card-header">
-            <h3>Panorama por tema</h3>
-            <span>Governanca, avaliacoes, desenvolvimento e risco</span>
-          </div>
+          <DashboardCardHeader
+            eyebrow="Panorama"
+            title="Panorama por tema"
+            subtitle="Governanca, avaliacoes, desenvolvimento e risco"
+            tone="secondary"
+          />
           <div className="dashboard-story-grid">
             {storyCards.map((item) => (
               <article className={`list-card dashboard-story-tile ${item.tone}`} key={item.title}>
@@ -244,25 +325,41 @@ export function DashboardSection({
         </div>
       ) : null}
 
+      <div className="card-span dashboard-section-band summary">
+        <div className="dashboard-section-band-copy">
+          <span>Resumo</span>
+          <strong>
+            {isExecutiveView ? "Indicadores executivos do recorte" : "Indicadores analiticos do recorte"}
+          </strong>
+        </div>
+        <p>
+          {isExecutiveView
+            ? "KPIs consolidados para leitura rapida de performance, exposicao e cobertura."
+            : "Visao de base para aprofundar volume, distribuicao e variacoes do ciclo."}
+        </p>
+      </div>
+
       <div className="card card-span">
-        <div className="card-header">
-          <h3>
-            {dashboard?.mode === "executive"
+        <DashboardCardHeader
+          eyebrow="Kpis"
+          title={
+            dashboard?.mode === "executive"
               ? "Indicadores executivos"
               : dashboard?.mode === "team"
                 ? "Indicadores gerenciais"
-                : "Indicadores pessoais"}
-          </h3>
-          <span>
-            {isExecutiveView
+                : "Indicadores pessoais"
+          }
+          subtitle={
+            isExecutiveView
               ? "Leitura sintetica priorizada"
               : dashboard?.mode === "executive"
                 ? "Uso em reunioes e apresentacoes"
                 : dashboard?.mode === "team"
                   ? "Leitura da sua equipe direta"
-                  : "Leitura individual do semestre"}
-          </span>
-        </div>
+                  : "Leitura individual do semestre"
+          }
+          tone="neutral"
+        />
         <div className="metrics-grid">
           {dashboard?.cards?.map((item) => (
             <div className="mini-card highlight-card" key={item.label}>
@@ -274,6 +371,20 @@ export function DashboardSection({
         </div>
       </div>
 
+      <div className="card-span dashboard-section-band operations">
+        <div className="dashboard-section-band-copy">
+          <span>Operacao</span>
+          <strong>
+            {isExecutiveView ? "Cobertura, pulso e ritmo do ciclo" : "Distribuicao e cobertura do fluxo"}
+          </strong>
+        </div>
+        <p>
+          {isExecutiveView
+            ? "Blocos dedicados a cobertura, adesao e volume do periodo em andamento."
+            : "Leitura detalhada da distribuicao das respostas, funil e evolucao temporal."}
+        </p>
+      </div>
+
       <div
         className={`card-span dashboard-board-grid ${
           isExecutiveView ? "dashboard-board-grid-executive" : "dashboard-board-grid-analytical"
@@ -283,10 +394,12 @@ export function DashboardSection({
           <>
             {(dashboard?.donutMetrics || []).length ? (
               <div className="card dashboard-visual-card dashboard-board-featured">
-                <div className="card-header">
-                  <h3>Panorama de cobertura</h3>
-                  <span>Vista rapida do ciclo</span>
-                </div>
+                <DashboardCardHeader
+                  eyebrow="Cobertura"
+                  title="Panorama de cobertura"
+                  subtitle="Vista rapida do ciclo"
+                  tone="primary"
+                />
                 <div className="donut-grid">
                   {(dashboard?.donutMetrics || []).filter(Boolean).map((item) => (
                     <SafeDashboardDonut key={item.key || item.label} item={item} />
@@ -297,10 +410,12 @@ export function DashboardSection({
 
             {cycleTimelineItems.length ? (
               <div className="card dashboard-visual-card dashboard-board-featured">
-                <div className="card-header">
-                  <h3>Pulso do ciclo</h3>
-                  <span>Adesao por {dashboardTimeGroupingLabel.toLowerCase()}</span>
-                </div>
+                <DashboardCardHeader
+                  eyebrow="Pulso"
+                  title="Pulso do ciclo"
+                  subtitle={`Adesao por ${dashboardTimeGroupingLabel.toLowerCase()}`}
+                  tone="success"
+                />
                 <SafeTrendAreaChartCard
                   items={cycleTimelineItems}
                   valueKey="adherencePercentage"
@@ -313,10 +428,12 @@ export function DashboardSection({
 
             {cycleTimelineItems.length ? (
               <div className="card dashboard-visual-card">
-                <div className="card-header">
-                  <h3>Ritmo de distribuicao</h3>
-                  <span>Volume no tempo</span>
-                </div>
+                <DashboardCardHeader
+                  eyebrow="Ritmo"
+                  title="Ritmo de distribuicao"
+                  subtitle="Volume no tempo"
+                  tone="warning"
+                />
                 <SafeTrendAreaChartCard
                   items={cycleTimelineItems}
                   valueKey="totalAssignments"
@@ -330,14 +447,16 @@ export function DashboardSection({
         ) : (
           <>
             <div className="card dashboard-visual-card dashboard-board-featured dashboard-analytical-primary">
-              <div className="card-header">
-                <h3>Distribuicao das respostas</h3>
-                <span>
-                  {selectedDashboardCompositionMeta
+              <DashboardCardHeader
+                eyebrow="Analise"
+                title="Distribuicao das respostas"
+                subtitle={
+                  selectedDashboardCompositionMeta
                     ? `Perguntas e distribuicoes de ${selectedDashboardCompositionMeta.label}`
-                    : "Leitura consolidada por relacionamento"}
-                </span>
-              </div>
+                    : "Leitura consolidada por relacionamento"
+                }
+                tone="secondary"
+              />
               <div className="stack-list">
                 {filteredDashboardResponseDistributions.length ? (
                   filteredDashboardResponseDistributions.map((group) => (
@@ -370,10 +489,12 @@ export function DashboardSection({
 
             {funnelItems.length ? (
               <div className="card">
-                <div className="card-header">
-                  <h3>Funil do recorte</h3>
-                  <span>Cobertura do fluxo</span>
-                </div>
+                <DashboardCardHeader
+                  eyebrow="Fluxo"
+                  title="Funil do recorte"
+                  subtitle="Cobertura do fluxo"
+                  tone="neutral"
+                />
                 <SafeFunnelSeriesChart
                   items={funnelItems}
                   emptyMessage="Sem dados para compor o funil neste recorte."
@@ -387,10 +508,12 @@ export function DashboardSection({
                   funnelItems.length ? "" : "dashboard-board-featured"
                 }`}
               >
-                <div className="card-header">
-                  <h3>Volume por {dashboardTimeGroupingLabel.toLowerCase()}</h3>
-                  <span>Evolucao temporal</span>
-                </div>
+                <DashboardCardHeader
+                  eyebrow="Volume"
+                  title={`Volume por ${dashboardTimeGroupingLabel.toLowerCase()}`}
+                  subtitle="Evolucao temporal"
+                  tone="primary"
+                />
                 <SafeTrendAreaChartCard
                   items={cycleTimelineItems}
                   valueKey="totalAssignments"
@@ -404,6 +527,22 @@ export function DashboardSection({
         )}
       </div>
 
+      <div className="card-span dashboard-section-band insights">
+        <div className="dashboard-section-band-copy">
+          <span>Analise</span>
+          <strong>
+            {isExecutiveView
+              ? "Leituras complementares para a decisao"
+              : "Camadas de apoio para detalhamento do recorte"}
+          </strong>
+        </div>
+        <p>
+          {isExecutiveView
+            ? "Cards de apoio para interpretar satisfacao, assignments, desenvolvimento e variacoes."
+            : "Visoes complementares para composicao, adesao e sinais de comportamento do ciclo."}
+        </p>
+      </div>
+
       <div
         className={`card-span dashboard-insight-grid ${
           isExecutiveView ? "dashboard-insight-grid-executive" : "dashboard-insight-grid-analytical"
@@ -411,10 +550,12 @@ export function DashboardSection({
       >
         {assignmentStatusItems.length ? (
           <div className={`card dashboard-side-card ${isExecutiveView ? "dashboard-card-tall" : ""}`}>
-            <div className="card-header">
-              <h3>Status dos assignments</h3>
-              <span>Fluxo atual</span>
-            </div>
+            <DashboardCardHeader
+              eyebrow="Operacao"
+              title="Status dos assignments"
+              subtitle="Fluxo atual"
+              tone="warning"
+            />
             <div className="dashboard-column-grid">
               {assignmentStatusItems.map((item) => (
                 <SafeColumnMetricCard
@@ -434,6 +575,7 @@ export function DashboardSection({
           <div className={`card dashboard-side-card ${isExecutiveView ? "dashboard-card-tall" : ""}`}>
             <div className="card-header">
               <div>
+                <span className="dashboard-card-eyebrow secondary">Satisfacao</span>
                 <h3>Satisfacao por area</h3>
                 <span>Mapa de calor</span>
               </div>
@@ -460,10 +602,12 @@ export function DashboardSection({
 
         {isExecutiveView && executiveComparisons.length ? (
           <div className="card dashboard-side-card">
-            <div className="card-header">
-              <h3>Comparativos do periodo</h3>
-              <span>Variacoes relevantes</span>
-            </div>
+            <DashboardCardHeader
+              eyebrow="Comparativo"
+              title="Comparativos do periodo"
+              subtitle="Variacoes relevantes"
+              tone="accent"
+            />
             <div className="executive-comparison-grid">
               {executiveComparisons.map((item) => (
                 <article
@@ -483,6 +627,7 @@ export function DashboardSection({
           <div className="card dashboard-side-card">
             <div className="card-header">
               <div>
+                <span className="dashboard-card-eyebrow success">Desenvolvimento</span>
                 <h3>Desenvolvimento por trilha</h3>
                 <span>Volume por tipo</span>
               </div>
@@ -509,10 +654,12 @@ export function DashboardSection({
 
         {cycleTimelineItems.length ? (
           <div className="card dashboard-side-card">
-            <div className="card-header">
-              <h3>Adesao por {dashboardTimeGroupingLabel.toLowerCase()}</h3>
-              <span>Concluidas vs distribuidas</span>
-            </div>
+            <DashboardCardHeader
+              eyebrow="Adesao"
+              title={`Adesao por ${dashboardTimeGroupingLabel.toLowerCase()}`}
+              subtitle="Concluidas vs distribuidas"
+              tone="primary"
+            />
             <div className="bar-list">
               {cycleTimelineItems.map((item) => (
                 <SafeBarMetricRow
@@ -530,14 +677,16 @@ export function DashboardSection({
 
         {isExecutiveView ? null : evaluationMixItems.length ? (
           <div className="card dashboard-side-card">
-            <div className="card-header">
-              <h3>Composicao do ciclo</h3>
-              <span>
-                {selectedDashboardCompositionMeta
+            <DashboardCardHeader
+              eyebrow="Mix"
+              title="Composicao do ciclo"
+              subtitle={
+                selectedDashboardCompositionMeta
                   ? `Recorte de ${selectedDashboardCompositionMeta.label}`
-                  : "Mix de tipos de avaliacao"}
-              </span>
-            </div>
+                  : "Mix de tipos de avaliacao"
+              }
+              tone="secondary"
+            />
             <SafeHeatmapMatrixCard
               items={evaluationMixItems}
               getLabel={(item) => getRelationshipLabel(item.type)}

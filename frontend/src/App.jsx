@@ -508,6 +508,8 @@ export default function App() {
         dashboardTimeGroupingOptions={dashboardTimeGroupingOptions}
         DashboardDonut={DashboardDonut}
         HeatmapMatrixCard={HeatmapMatrixCard}
+        onSectionChange={setActiveSection}
+        profileName={user?.person?.name || "Usuario"}
         developmentAuditEntries={developmentAuditEntries}
         developmentForm={developmentForm}
         developmentEditablePeopleOptions={developmentEditablePeopleOptions}

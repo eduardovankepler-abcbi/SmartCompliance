@@ -46,6 +46,8 @@ export function AppSceneRenderer(props) {
           dashboardTimeGrouping={props.dashboardTimeGrouping}
           dashboardTimeGroupingLabel={props.dashboardTimeGroupingLabel}
           dashboardTimeGroupingOptions={props.dashboardTimeGroupingOptions}
+          onSectionChange={props.onSectionChange}
+          profileName={props.profileName}
           filteredDashboardEvaluationMix={props.filteredDashboardEvaluationMix}
           filteredDashboardResponseDistributions={props.filteredDashboardResponseDistributions}
           getAssignmentStatusLabel={props.getAssignmentStatusLabel}
