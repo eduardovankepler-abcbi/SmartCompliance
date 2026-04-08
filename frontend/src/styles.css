@@ -1589,6 +1589,19 @@ button:disabled {
   border-color: rgba(255, 108, 138, 0.2);
 }
 
+.dashboard-empty-relationship-state {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+  background: rgba(9, 14, 24, 0.28);
+}
+
+.dashboard-empty-relationship-state p {
+  margin: 0;
+}
+
 .dashboard-view-toggle {
   display: flex;
   gap: 8px;

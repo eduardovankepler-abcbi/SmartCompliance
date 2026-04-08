@@ -115,6 +115,17 @@ export function DashboardSection({
   const currentCompositionLabel =
     dashboardCompositionOptions.find((item) => item.value === dashboardCompositionFilter)?.label ||
     dashboardCompositionFilter;
+  const visibleRelationshipTypes = dashboardCompositionOptions
+    .map((item) => item.value)
+    .filter((value) => value !== "all");
+  const analyticalRelationshipItems = visibleRelationshipTypes.map((relationshipType) => ({
+    relationshipType,
+    summary:
+      evaluationResultsSummaryItems.find((item) => item.relationshipType === relationshipType) || null,
+    distribution:
+      filteredDashboardResponseDistributions.find((item) => item.relationshipType === relationshipType) ||
+      null
+  }));
   const dashboardHeadline =
     dashboard?.mode === "executive"
       ? "Resumo estratégico da operação"
@@ -494,23 +505,31 @@ export function DashboardSection({
                 tone="secondary"
               />
               <div className="stack-list">
-                {evaluationResultsSummaryItems.length ? (
+                {analyticalRelationshipItems.length ? (
                   <div className="list-card">
                     <div className="row">
                       <strong>Resumo macro por modalidade</strong>
                       <span className="badge">
-                        {evaluationResultsSummaryItems.length} modalidades
+                        {analyticalRelationshipItems.length} modalidades
                       </span>
                     </div>
                     <div className="dashboard-mode-summary-grid">
-                      {evaluationResultsSummaryItems.map((item) => (
+                      {analyticalRelationshipItems.map(({ relationshipType, summary }) => {
+                        const item = summary || {
+                          relationshipType,
+                          averageScoreLabel: "-",
+                          totalResponses: 0,
+                          adherencePercentage: 0,
+                          tone: "neutral"
+                        };
+                        return (
                         <article
                           className={`dashboard-mode-summary-card ${item.tone}`}
-                          key={item.relationshipType}
+                          key={relationshipType}
                         >
                           <div className="dashboard-mode-summary-head">
                             <span className={`dashboard-card-eyebrow ${item.tone}`}>
-                              {getRelationshipLabel(item.relationshipType)}
+                              {getRelationshipLabel(relationshipType)}
                             </span>
                             <strong>{item.averageScoreLabel}</strong>
                           </div>
@@ -519,22 +538,33 @@ export function DashboardSection({
                             <span>{item.adherencePercentage}% de adesao</span>
                           </div>
                         </article>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 ) : null}
 
-                {evaluationResultsSummaryItems.length ? (
+                {analyticalRelationshipItems.length ? (
                   <div className="list-card">
                     <div className="row">
                       <strong>Comparativo entre modalidades</strong>
                       <span className="muted">Media final e adesao</span>
                     </div>
                     <div className="dashboard-mode-comparison-list">
-                      {evaluationResultsSummaryItems.map((item) => (
-                        <div className="dashboard-mode-comparison-row" key={`comparison-${item.relationshipType}`}>
+                      {analyticalRelationshipItems.map(({ relationshipType, summary }) => {
+                        const item = summary || {
+                          relationshipType,
+                          totalResponses: 0,
+                          totalAssignments: 0,
+                          averageScore: 0,
+                          averageScoreLabel: "-",
+                          adherencePercentage: 0,
+                          tone: "neutral"
+                        };
+                        return (
+                        <div className="dashboard-mode-comparison-row" key={`comparison-${relationshipType}`}>
                           <div className="dashboard-mode-comparison-copy">
-                            <strong>{getRelationshipLabel(item.relationshipType)}</strong>
+                            <strong>{getRelationshipLabel(relationshipType)}</strong>
                             <span>
                               {item.totalResponses}/{item.totalAssignments || item.totalResponses} respostas
                             </span>
@@ -550,29 +580,32 @@ export function DashboardSection({
                             <span>{item.adherencePercentage}%</span>
                           </div>
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 ) : null}
 
-                {filteredDashboardResponseDistributions.length ? (
-                  filteredDashboardResponseDistributions.map((group) => (
-                    <div className="list-card" key={group.relationshipType}>
+                {analyticalRelationshipItems.length ? (
+                  analyticalRelationshipItems.map(({ relationshipType, distribution, summary }) => (
+                    <div className="list-card" key={relationshipType}>
                       {(() => {
-                        const dimensionSummary = buildDimensionSummary(group.questions || []);
-                        const selectedDimension = dimensionFilters[group.relationshipType] || "all";
+                        const dimensionSummary = buildDimensionSummary(distribution?.questions || []);
+                        const selectedDimension = dimensionFilters[relationshipType] || "all";
                         const filteredQuestions =
                           selectedDimension === "all"
-                            ? group.questions
-                            : group.questions.filter(
+                            ? distribution?.questions || []
+                            : (distribution?.questions || []).filter(
                                 (question) => question.dimensionTitle === selectedDimension
                               );
 
                         return (
                           <>
                             <div className="row">
-                              <strong>{getRelationshipLabel(group.relationshipType)}</strong>
-                              <span className="badge">{group.totalResponses} respostas</span>
+                              <strong>{getRelationshipLabel(relationshipType)}</strong>
+                              <span className="badge">
+                                {summary?.totalResponses || distribution?.totalResponses || 0} respostas
+                              </span>
                             </div>
                             {dimensionSummary.length ? (
                               <div className="dashboard-dimension-summary-block">
@@ -584,7 +617,7 @@ export function DashboardSection({
                                       value={selectedDimension}
                                       onChange={(event) =>
                                         setDimensionFilterForGroup(
-                                          group.relationshipType,
+                                          relationshipType,
                                           event.target.value
                                         )
                                       }
@@ -604,7 +637,7 @@ export function DashboardSection({
                                       className={`dashboard-dimension-summary-card ${item.tone} ${
                                         selectedDimension === item.dimensionTitle ? "active" : ""
                                       }`}
-                                      key={`${group.relationshipType}-${item.dimensionTitle}`}
+                                      key={`${relationshipType}-${item.dimensionTitle}`}
                                     >
                                       <span>{item.dimensionTitle}</span>
                                       <strong>{item.averageScoreLabel}</strong>
@@ -614,14 +647,25 @@ export function DashboardSection({
                                 </div>
                               </div>
                             ) : null}
-                            <div className="response-chart-grid">
-                              {filteredQuestions.map((question) => (
-                                <SafeResponseDistributionChartCard
-                                  key={question.questionId}
-                                  question={question}
-                                />
-                              ))}
-                            </div>
+                            {filteredQuestions.length ? (
+                              <div className="response-chart-grid">
+                                {filteredQuestions.map((question) => (
+                                  <SafeResponseDistributionChartCard
+                                    key={question.questionId}
+                                    question={question}
+                                  />
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="dashboard-empty-relationship-state">
+                                <strong>Sem detalhe analitico disponivel</strong>
+                                <p className="muted">
+                                  {summary?.totalResponses
+                                    ? "Esta modalidade ainda nao tem granularidade suficiente para abrir o nivel pergunta por pergunta."
+                                    : "Ainda nao existem respostas registradas para esta modalidade neste recorte."}
+                                </p>
+                              </div>
+                            )}
                           </>
                         );
                       })()}
