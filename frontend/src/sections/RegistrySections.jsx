@@ -275,6 +275,61 @@ export function PeopleSection({
               </form>
 
               <div className="people-support-grid">
+                <article className="list-card compact-list-card people-guide-card">
+                  <div className="card-header">
+                    <h3>Passo a passo</h3>
+                    <span>Fluxo assistido para evitar cadastros pela metade</span>
+                  </div>
+                  <div className="guide-step-grid">
+                    {peopleGuideSteps.map((step) => (
+                      <article className={`guide-step-card ${step.tone}`} key={step.title}>
+                        <strong>{step.title}</strong>
+                        <p className="muted">{step.description}</p>
+                      </article>
+                    ))}
+                  </div>
+                </article>
+
+                {personConsistency.blocking.length || personConsistency.warnings.length ? (
+                  <article className="list-card compact-list-card">
+                    <div className="card-header">
+                      <h3>Alertas do cadastro</h3>
+                      <span>Validacoes aplicadas antes de salvar a nova pessoa</span>
+                    </div>
+                    <div className="stack-list compact-stack">
+                      {personConsistency.blocking.map((message) => (
+                        <article className="guide-step-card current" key={`blocking-${message}`}>
+                          <strong>Bloqueio</strong>
+                          <p className="muted">{message}</p>
+                        </article>
+                      ))}
+                      {personConsistency.warnings.map((message) => (
+                        <article className="guide-step-card pending" key={`warning-${message}`}>
+                          <strong>Atencao</strong>
+                          <p className="muted">{message}</p>
+                        </article>
+                      ))}
+                    </div>
+                  </article>
+                ) : null}
+
+                {organizationalConsistencyAlerts.length ? (
+                  <article className="list-card compact-list-card">
+                    <div className="card-header">
+                      <h3>Pendencias da estrutura</h3>
+                      <span>Leitura rapida do que ainda merece ajuste no cadastro existente</span>
+                    </div>
+                    <div className="stack-list compact-stack">
+                      {organizationalConsistencyAlerts.slice(0, 5).map((message) => (
+                        <article className="guide-step-card pending" key={message}>
+                          <strong>Revisar</strong>
+                          <p className="muted">{message}</p>
+                        </article>
+                      ))}
+                    </div>
+                  </article>
+                ) : null}
+
                 <article className="list-card compact-list-card people-hierarchy-summary">
                   <div className="card-header">
                     <h3>Resumo da hierarquia</h3>
@@ -360,64 +415,6 @@ export function PeopleSection({
                   </button>
                 </form>
               </div>
-            </div>
-
-            <div className="stack-list compact-stack">
-              <article className="list-card compact-list-card">
-                <div className="card-header">
-                  <h3>Passo a passo</h3>
-                  <span>Fluxo assistido para evitar cadastros pela metade</span>
-                </div>
-                <div className="guide-step-grid">
-                  {peopleGuideSteps.map((step) => (
-                    <article className={`guide-step-card ${step.tone}`} key={step.title}>
-                      <strong>{step.title}</strong>
-                      <p className="muted">{step.description}</p>
-                    </article>
-                  ))}
-                </div>
-              </article>
-
-              {personConsistency.blocking.length || personConsistency.warnings.length ? (
-                <article className="list-card compact-list-card">
-                  <div className="card-header">
-                    <h3>Alertas do cadastro</h3>
-                    <span>Validacoes aplicadas antes de salvar a nova pessoa</span>
-                  </div>
-                  <div className="stack-list compact-stack">
-                    {personConsistency.blocking.map((message) => (
-                      <article className="guide-step-card current" key={`blocking-${message}`}>
-                        <strong>Bloqueio</strong>
-                        <p className="muted">{message}</p>
-                      </article>
-                    ))}
-                    {personConsistency.warnings.map((message) => (
-                      <article className="guide-step-card pending" key={`warning-${message}`}>
-                        <strong>Atencao</strong>
-                        <p className="muted">{message}</p>
-                      </article>
-                    ))}
-                  </div>
-                </article>
-              ) : null}
-
-              {organizationalConsistencyAlerts.length ? (
-                <article className="list-card compact-list-card">
-                  <div className="card-header">
-                    <h3>Pendencias da estrutura</h3>
-                    <span>Leitura rapida do que ainda merece ajuste no cadastro existente</span>
-                  </div>
-                  <div className="stack-list compact-stack">
-                    {organizationalConsistencyAlerts.slice(0, 5).map((message) => (
-                      <article className="guide-step-card pending" key={message}>
-                        <strong>Revisar</strong>
-                        <p className="muted">{message}</p>
-                      </article>
-                    ))}
-                  </div>
-                </article>
-              ) : null}
-
             </div>
           </div>
         </div>
