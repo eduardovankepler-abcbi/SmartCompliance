@@ -587,10 +587,18 @@ export function ApplauseSection({
   const SafeSelect = Select || EmptyComponent;
   const SafeTextarea = Textarea || EmptyComponent;
   const isEmployeeJourney = roleKey === "employee";
+  const selectedReceiver = applausePeopleOptions.find((item) => item.value === applauseForm.receiverPersonId);
+  const applauseCategoryOptions = [
+    "Colaboracao",
+    "Apoio em momento critico",
+    "Resolucao de problema",
+    "Postura exemplar",
+    "Compartilhamento de conhecimento"
+  ];
 
   return (
     <section className="page-grid">
-      <form className="card compact-card admin-form-card" onSubmit={handleApplauseSubmit}>
+      <form className="card compact-card admin-form-card applause-intake-form card-span" onSubmit={handleApplauseSubmit}>
         <div className="card-header">
           <h3>{isEmployeeJourney ? "Reconhecer alguem" : "Novo Aplause"}</h3>
           <span>
@@ -599,43 +607,56 @@ export function ApplauseSection({
               : "Reconhecimento formal com contexto obrigatorio"}
           </span>
         </div>
-        <SafeSelect
-          label="Quem recebe"
-          value={applauseForm.receiverPersonId}
-          options={applausePeopleOptions.map((item) => item.value)}
-          renderLabel={(value) =>
-            applausePeopleOptions.find((item) => item.value === value)?.label || value
-          }
-          onChange={(value) => setApplauseForm({ ...applauseForm, receiverPersonId: value })}
-        />
-        <SafeSelect
-          label="Categoria"
-          value={applauseForm.category}
-          options={[
-            "Colaboracao",
-            "Apoio em momento critico",
-            "Resolucao de problema",
-            "Postura exemplar",
-            "Compartilhamento de conhecimento"
-          ]}
-          onChange={(value) => setApplauseForm({ ...applauseForm, category: value })}
-        />
-        <SafeInput
-          label="Impacto"
-          value={applauseForm.impact}
-          onChange={(value) => setApplauseForm({ ...applauseForm, impact: value })}
-        />
-        <SafeTextarea
-          label="Contexto"
-          value={applauseForm.contextNote}
-          onChange={(value) => setApplauseForm({ ...applauseForm, contextNote: value })}
-        />
+        <div className="applause-intake-grid">
+          <div className="applause-intake-main">
+            <SafeSelect
+              label="Quem recebe"
+              value={applauseForm.receiverPersonId}
+              options={applausePeopleOptions.map((item) => item.value)}
+              renderLabel={(value) =>
+                applausePeopleOptions.find((item) => item.value === value)?.label || value
+              }
+              helper="Escolha a pessoa que deve receber o reconhecimento."
+              onChange={(value) => setApplauseForm({ ...applauseForm, receiverPersonId: value })}
+            />
+            <SafeInput
+              label="Impacto gerado"
+              placeholder="Ex.: destravou entrega critica do cliente"
+              helper="Resuma em uma frase o efeito concreto da atitude reconhecida."
+              value={applauseForm.impact}
+              onChange={(value) => setApplauseForm({ ...applauseForm, impact: value })}
+            />
+            <SafeTextarea
+              label="Contexto objetivo"
+              rows={6}
+              helper="Explique o que aconteceu, quando ocorreu e por que esse comportamento merece destaque."
+              value={applauseForm.contextNote}
+              onChange={(value) => setApplauseForm({ ...applauseForm, contextNote: value })}
+            />
+          </div>
+          <div className="applause-intake-side">
+            <div className="applause-highlight-card">
+              <p className="mini-label">Reconhecimento em foco</p>
+              <strong>{selectedReceiver?.label || "Selecione quem recebe"}</strong>
+              <p className="muted">
+                Registre um reconhecimento com impacto claro para reforcar a cultura que queremos repetir.
+              </p>
+            </div>
+            <SafeSelect
+              label="Categoria"
+              value={applauseForm.category}
+              options={applauseCategoryOptions}
+              helper="Escolha o tipo de contribuicao que melhor representa esse reconhecimento."
+              onChange={(value) => setApplauseForm({ ...applauseForm, category: value })}
+            />
+          </div>
+        </div>
         <button className="primary-button" type="submit">
           Registrar Aplause
         </button>
       </form>
 
-      <div className="card compact-card">
+      <div className="card compact-card card-span">
         <div className="card-header">
           <h3>{isEmployeeJourney ? "Historico de reconhecimentos" : "Reconhecimentos"}</h3>
           <span>

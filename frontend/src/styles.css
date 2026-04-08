@@ -1314,6 +1314,38 @@ button:disabled {
   gap: 16px 18px;
 }
 
+.applause-intake-form {
+  grid-template-columns: 1fr;
+  gap: 18px;
+}
+
+.applause-intake-form .card-header,
+.applause-intake-form .primary-button {
+  grid-column: 1 / -1;
+}
+
+.applause-intake-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.8fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.applause-intake-main,
+.applause-intake-side {
+  display: grid;
+  gap: 16px;
+}
+
+.applause-highlight-card {
+  display: grid;
+  gap: 10px;
+  padding: 16px 18px;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background: rgba(11, 18, 35, 0.45);
+}
+
 .development-intake-form .card-header,
 .development-intake-form .primary-button,
 .development-plan-form .card-header,
@@ -3104,6 +3136,7 @@ button:disabled {
   .compliance-intake-form,
   .development-intake-form,
   .development-plan-form,
+  .applause-intake-grid,
   .user-provision-form,
   .evaluation-question-controls,
   .evaluation-cycle-toolbar {
