@@ -423,7 +423,7 @@ export function PeopleSection({
         </div>
       ) : null}
 
-      <div className="card compact-card">
+      <div className="card compact-card card-span">
         <div className="card-header">
           <h3>Estrutura de pessoas</h3>
           <span>
@@ -472,32 +472,6 @@ export function PeopleSection({
                     personAccessStateById[person.id]?.user
                   )}
                 </p>
-              </article>
-            )
-          )}
-        </div>
-      </div>
-
-      <div className="card compact-card">
-        <div className="card-header">
-          <h3>Areas e liderancas</h3>
-          <span>
-            {canManagePeopleRegistry
-              ? "A area passa a ser um cadastro minimo e a lideranca vem das pessoas"
-              : "Perfis visiveis dentro do seu escopo"}
-          </span>
-        </div>
-        <div className="stack-list compact-stack">
-          {areas.map((area) =>
-            canManagePeopleRegistry ? (
-              <SafeAreaAdminCard key={area.id} area={area} onSave={handleAreaUpdate} />
-            ) : (
-              <article className="list-card compact-list-card" key={area.id}>
-                <div className="row">
-                  <strong>{area.name}</strong>
-                  <span className="badge">{area.peopleCount} pessoas</span>
-                </div>
-                <p className="muted">Lider atual da area: {area.managerName || "Nao definido"}</p>
               </article>
             )
           )}
