@@ -1267,24 +1267,9 @@ button:disabled {
 }
 
 .compliance-intake-form .card-header,
-.compliance-intake-summary,
 .compliance-intake-form .field-span-full,
 .compliance-intake-form .primary-button {
   grid-column: 1 / -1;
-}
-
-.compliance-intake-summary {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
-}
-
-.compliance-intake-summary .mini-card {
-  min-height: 92px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding: 16px 18px;
 }
 
 .compliance-form-span-half {
@@ -3100,10 +3085,6 @@ button:disabled {
   .compliance-form-span-half,
   .compliance-form-span-third {
     grid-column: auto;
-  }
-
-  .compliance-intake-summary {
-    grid-template-columns: 1fr;
   }
 
   .user-support-grid {

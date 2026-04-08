@@ -41,33 +41,11 @@ export function ComplianceSection({
               : "Canal estruturado de etica e conduta"}
           </span>
         </div>
-        <div className="compliance-intake-summary">
-          <article className="mini-card">
-            <p className="mini-label">Canal protegido</p>
-            <strong>{incidentForm.anonymity === "anonymous" ? "Relato anonimo" : "Relato identificado"}</strong>
-          </article>
-          <article className="mini-card">
-            <p className="mini-label">Triagem inicial</p>
-            <strong>{incidentForm.classification || "Defina a classificacao"}</strong>
-          </article>
-          <article className="mini-card">
-            <p className="mini-label">Encaminhamento</p>
-            <strong>{incidentForm.responsibleArea || "Escolha a area responsavel"}</strong>
-          </article>
-        </div>
         <div className="compliance-form-span-half">
           <SafeInput
             label="Titulo"
             value={incidentForm.title}
             onChange={(value) => setIncidentForm({ ...incidentForm, title: value })}
-          />
-        </div>
-        <div className="compliance-form-span-half">
-          <SafeTextarea
-            label="Descricao"
-            rows={4}
-            value={incidentForm.description}
-            onChange={(value) => setIncidentForm({ ...incidentForm, description: value })}
           />
         </div>
         <div className="compliance-form-span-third">
@@ -99,6 +77,14 @@ export function ComplianceSection({
             options={["anonymous", "identified"]}
             renderLabel={(value) => (value === "anonymous" ? "Anonimo" : "Identificado")}
             onChange={(value) => setIncidentForm({ ...incidentForm, anonymity: value })}
+          />
+        </div>
+        <div className="compliance-form-span-full">
+          <SafeTextarea
+            label="Descricao"
+            rows={4}
+            value={incidentForm.description}
+            onChange={(value) => setIncidentForm({ ...incidentForm, description: value })}
           />
         </div>
         {shouldShowReporterLabel ? (
