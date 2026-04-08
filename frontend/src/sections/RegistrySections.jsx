@@ -172,106 +172,195 @@ export function PeopleSection({
             <span>Pessoas passam a ser o centro do cadastro organizacional</span>
           </div>
           <div className="people-flow-grid">
-            <form
-              className="list-card compact-list-card admin-form-card people-primary-form"
-              onSubmit={handlePersonSubmit}
-            >
-              <div className="card-header">
-                <h3>Nova pessoa</h3>
-                <span>Defina a hierarquia da pessoa em um unico fluxo</span>
-              </div>
-              <SafeInput
-                label="Nome"
-                placeholder="Ex.: Maria Clara Souza"
-                value={personForm.name}
-                onChange={(value) => setPersonForm({ ...personForm, name: value })}
-              />
-              <SafeInput
-                label="Cargo"
-                placeholder="Ex.: Analista de Compliance"
-                value={personForm.roleTitle}
-                onChange={(value) => setPersonForm({ ...personForm, roleTitle: value })}
-              />
-              <SafeSelect
-                label="Area"
-                value={personForm.area}
-                options={areaOptions.map((item) => item.value)}
-                renderLabel={(value) => areaOptions.find((item) => item.value === value)?.label || value}
-                disabled={!hasRegisteredAreas}
-                onChange={(value) => setPersonForm({ ...personForm, area: value })}
-              />
-              <SafeSelect
-                label="Gestor direto"
-                value={personForm.managerPersonId}
-                options={managerOptions.map((item) => item.value)}
-                renderLabel={(value) =>
-                  managerOptions.find((item) => item.value === value)?.label || value
-                }
-                helper="Escolha a pessoa que acompanha a rotina e aprova as entregas diretas deste colaborador."
-                onChange={(value) => setPersonForm({ ...personForm, managerPersonId: value })}
-              />
-              <SafeSelect
-                label="Lider da area"
-                value={personForm.isAreaManager}
-                options={["no", "yes"]}
-                renderLabel={(value) => (value === "yes" ? "Sim" : "Nao")}
-                helper="Use esta opcao apenas quando a pessoa for a lider atual da area selecionada."
-                onChange={(value) => setPersonForm({ ...personForm, isAreaManager: value })}
-              />
-              <SafeInput
-                label="Unidade de trabalho"
-                helper="Use o nome da base/unidade para organizar as avaliacoes entre pares."
-                placeholder="Ex.: Sao Paulo"
-                value={personForm.workUnit}
-                onChange={(value) => setPersonForm({ ...personForm, workUnit: value })}
-              />
-              <SafeSelect
-                label="Modalidade"
-                value={personForm.workMode}
-                options={workModeOptions}
-                renderLabel={(value) =>
-                  value === "onsite"
-                    ? "Presencial"
-                    : value === "remote"
-                      ? "100% Home Office"
-                      : "Hibrido"
-                }
-                onChange={(value) => setPersonForm({ ...personForm, workMode: value })}
-              />
-              <SafeSelect
-                label="Vinculo"
-                value={personForm.employmentType}
-                options={["internal", "consultant"]}
-                renderLabel={(value) => (value === "internal" ? "Interno" : "Consultor")}
-                onChange={(value) => setPersonForm({ ...personForm, employmentType: value })}
-              />
-              <button className="primary-button" type="submit" disabled={!isPersonReadyToSave}>
-                Cadastrar pessoa
-              </button>
-              <button
-                className="refresh"
-                type="button"
-                disabled={!isPersonReadyToSave}
-                onClick={() => handlePersonSubmitAndCreateUser()}
+            <div className="stack-list compact-stack people-main-stack">
+              <form
+                className="list-card compact-list-card admin-form-card people-primary-form"
+                onSubmit={handlePersonSubmit}
               >
-                Salvar e criar usuario
-              </button>
-              {!hasRegisteredAreas ? (
-                <small className="field-helper form-guidance-error">
-                  Cadastre a primeira area para liberar o cadastro completo da pessoa.
-                </small>
-              ) : personConsistency.blocking.length ? (
-                <small className="field-helper form-guidance-error">
-                  {personConsistency.blocking[0]}
-                </small>
-              ) : personValidationError ? (
-                <small className="field-helper form-guidance-error">{personValidationError}</small>
-              ) : (
-                <small className="field-helper form-guidance-success">
-                  Estrutura pronta para salvar. Se quiser, siga direto para a criacao do usuario.
-                </small>
-              )}
-            </form>
+                <div className="card-header">
+                  <h3>Nova pessoa</h3>
+                  <span>Defina a hierarquia da pessoa em um unico fluxo</span>
+                </div>
+                <SafeInput
+                  label="Nome"
+                  placeholder="Ex.: Maria Clara Souza"
+                  value={personForm.name}
+                  onChange={(value) => setPersonForm({ ...personForm, name: value })}
+                />
+                <SafeInput
+                  label="Cargo"
+                  placeholder="Ex.: Analista de Compliance"
+                  value={personForm.roleTitle}
+                  onChange={(value) => setPersonForm({ ...personForm, roleTitle: value })}
+                />
+                <SafeSelect
+                  label="Area"
+                  value={personForm.area}
+                  options={areaOptions.map((item) => item.value)}
+                  renderLabel={(value) => areaOptions.find((item) => item.value === value)?.label || value}
+                  disabled={!hasRegisteredAreas}
+                  onChange={(value) => setPersonForm({ ...personForm, area: value })}
+                />
+                <SafeSelect
+                  label="Gestor direto"
+                  value={personForm.managerPersonId}
+                  options={managerOptions.map((item) => item.value)}
+                  renderLabel={(value) =>
+                    managerOptions.find((item) => item.value === value)?.label || value
+                  }
+                  helper="Escolha a pessoa que acompanha a rotina e aprova as entregas diretas deste colaborador."
+                  onChange={(value) => setPersonForm({ ...personForm, managerPersonId: value })}
+                />
+                <SafeSelect
+                  label="Lider da area"
+                  value={personForm.isAreaManager}
+                  options={["no", "yes"]}
+                  renderLabel={(value) => (value === "yes" ? "Sim" : "Nao")}
+                  helper="Use esta opcao apenas quando a pessoa for a lider atual da area selecionada."
+                  onChange={(value) => setPersonForm({ ...personForm, isAreaManager: value })}
+                />
+                <SafeInput
+                  label="Unidade de trabalho"
+                  helper="Use o nome da base/unidade para organizar as avaliacoes entre pares."
+                  placeholder="Ex.: Sao Paulo"
+                  value={personForm.workUnit}
+                  onChange={(value) => setPersonForm({ ...personForm, workUnit: value })}
+                />
+                <SafeSelect
+                  label="Modalidade"
+                  value={personForm.workMode}
+                  options={workModeOptions}
+                  renderLabel={(value) =>
+                    value === "onsite"
+                      ? "Presencial"
+                      : value === "remote"
+                        ? "100% Home Office"
+                        : "Hibrido"
+                  }
+                  onChange={(value) => setPersonForm({ ...personForm, workMode: value })}
+                />
+                <SafeSelect
+                  label="Vinculo"
+                  value={personForm.employmentType}
+                  options={["internal", "consultant"]}
+                  renderLabel={(value) => (value === "internal" ? "Interno" : "Consultor")}
+                  onChange={(value) => setPersonForm({ ...personForm, employmentType: value })}
+                />
+                <button className="primary-button" type="submit" disabled={!isPersonReadyToSave}>
+                  Cadastrar pessoa
+                </button>
+                <button
+                  className="refresh"
+                  type="button"
+                  disabled={!isPersonReadyToSave}
+                  onClick={() => handlePersonSubmitAndCreateUser()}
+                >
+                  Salvar e criar usuario
+                </button>
+                {!hasRegisteredAreas ? (
+                  <small className="field-helper form-guidance-error">
+                    Cadastre a primeira area para liberar o cadastro completo da pessoa.
+                  </small>
+                ) : personConsistency.blocking.length ? (
+                  <small className="field-helper form-guidance-error">
+                    {personConsistency.blocking[0]}
+                  </small>
+                ) : personValidationError ? (
+                  <small className="field-helper form-guidance-error">{personValidationError}</small>
+                ) : (
+                  <small className="field-helper form-guidance-success">
+                    Estrutura pronta para salvar. Se quiser, siga direto para a criacao do usuario.
+                  </small>
+                )}
+              </form>
+
+              <div className="people-support-grid">
+                <article className="list-card compact-list-card people-hierarchy-summary">
+                  <div className="card-header">
+                    <h3>Resumo da hierarquia</h3>
+                    <span>Leitura imediata da estrutura que sera criada</span>
+                  </div>
+                  <div className="hierarchy-summary-grid">
+                    <div className="mini-card">
+                      <p className="mini-label">Area</p>
+                      <strong>{selectedArea?.name || "Selecione uma area"}</strong>
+                    </div>
+                    <div className="mini-card">
+                      <p className="mini-label">Gestor direto</p>
+                      <strong>{selectedManager}</strong>
+                    </div>
+                    <div className="mini-card">
+                      <p className="mini-label">Lider da area</p>
+                      <strong>{hierarchyLeadLabel}</strong>
+                    </div>
+                    <div className="mini-card">
+                      <p className="mini-label">Modalidade</p>
+                      <strong>
+                        {personForm.workMode === "onsite"
+                          ? "Presencial"
+                          : personForm.workMode === "remote"
+                            ? "100% Home Office"
+                            : "Hibrido"}
+                      </strong>
+                    </div>
+                  </div>
+                  <div className="stack-list compact-stack">
+                    <article className="compact-list-card hierarchy-step-card">
+                      <strong>1. Area</strong>
+                      <p className="muted">Cadastre a area apenas se ela ainda nao existir.</p>
+                    </article>
+                    <article className="compact-list-card hierarchy-step-card">
+                      <strong>2. Pessoa</strong>
+                      <p className="muted">Defina area, gestor direto, unidade, modalidade e vinculo.</p>
+                    </article>
+                    <article className="compact-list-card hierarchy-step-card">
+                      <strong>3. Lideranca</strong>
+                      <p className="muted">
+                        Use o campo de lider da area para definir a responsavel atual pela area.
+                      </p>
+                    </article>
+                    <article className="compact-list-card hierarchy-step-card">
+                      <strong>4. Acesso</strong>
+                      <p className="muted">Crie o usuario depois que a estrutura da pessoa estiver pronta.</p>
+                    </article>
+                  </div>
+                </article>
+
+                <article className="list-card compact-list-card">
+                  <div className="card-header">
+                    <h3>Jornada de acesso</h3>
+                    <span>Feche a estrutura da pessoa e siga para o usuario sem perder o contexto</span>
+                  </div>
+                  <div className="stack-list compact-stack">
+                    <article className="compact-list-card hierarchy-step-card">
+                      <strong>Estrutura pronta</strong>
+                      <p className="muted">Quando a pessoa ja tiver area, gestor direto, unidade e modalidade.</p>
+                    </article>
+                    <article className="compact-list-card hierarchy-step-card">
+                      <strong>Acesso pendente</strong>
+                      <p className="muted">Use o botao de criar usuario para concluir o provisionamento logo em seguida.</p>
+                    </article>
+                  </div>
+                </article>
+
+                <form className="list-card compact-list-card admin-form-card" onSubmit={handleAreaSubmit}>
+                  <div className="card-header">
+                    <h3>Nova area</h3>
+                    <span>Cadastre a area primeiro e volte para concluir a hierarquia pela pessoa.</span>
+                  </div>
+                  <SafeInput
+                    label="Nome da area"
+                    placeholder="Ex.: Tecnologia"
+                    value={areaForm.name}
+                    onChange={(value) => setAreaForm({ ...areaForm, name: value })}
+                    helper="A lideranca da area sera definida no cadastro da pessoa."
+                  />
+                  <button className="primary-button" type="submit">
+                    Cadastrar area
+                  </button>
+                </form>
+              </div>
+            </div>
 
             <div className="stack-list compact-stack">
               <article className="list-card compact-list-card">
@@ -329,90 +418,6 @@ export function PeopleSection({
                 </article>
               ) : null}
 
-              <article className="list-card compact-list-card people-hierarchy-summary">
-                <div className="card-header">
-                  <h3>Resumo da hierarquia</h3>
-                  <span>Leitura imediata da estrutura que sera criada</span>
-                </div>
-                <div className="hierarchy-summary-grid">
-                  <div className="mini-card">
-                    <p className="mini-label">Area</p>
-                    <strong>{selectedArea?.name || "Selecione uma area"}</strong>
-                  </div>
-                  <div className="mini-card">
-                    <p className="mini-label">Gestor direto</p>
-                    <strong>{selectedManager}</strong>
-                  </div>
-                  <div className="mini-card">
-                    <p className="mini-label">Lider da area</p>
-                    <strong>{hierarchyLeadLabel}</strong>
-                  </div>
-                  <div className="mini-card">
-                    <p className="mini-label">Modalidade</p>
-                    <strong>
-                      {personForm.workMode === "onsite"
-                        ? "Presencial"
-                        : personForm.workMode === "remote"
-                          ? "100% Home Office"
-                          : "Hibrido"}
-                    </strong>
-                  </div>
-                </div>
-                <div className="stack-list compact-stack">
-                  <article className="compact-list-card hierarchy-step-card">
-                    <strong>1. Area</strong>
-                    <p className="muted">Cadastre a area apenas se ela ainda nao existir.</p>
-                  </article>
-                  <article className="compact-list-card hierarchy-step-card">
-                    <strong>2. Pessoa</strong>
-                    <p className="muted">Defina area, gestor direto, unidade, modalidade e vinculo.</p>
-                  </article>
-                  <article className="compact-list-card hierarchy-step-card">
-                    <strong>3. Lideranca</strong>
-                    <p className="muted">
-                      Use o campo de lider da area para definir a responsavel atual pela area.
-                    </p>
-                  </article>
-                  <article className="compact-list-card hierarchy-step-card">
-                    <strong>4. Acesso</strong>
-                    <p className="muted">Crie o usuario depois que a estrutura da pessoa estiver pronta.</p>
-                  </article>
-                </div>
-              </article>
-
-              <article className="list-card compact-list-card">
-                <div className="card-header">
-                  <h3>Jornada de acesso</h3>
-                  <span>Feche a estrutura da pessoa e siga para o usuario sem perder o contexto</span>
-                </div>
-                <div className="stack-list compact-stack">
-                  <article className="compact-list-card hierarchy-step-card">
-                    <strong>Estrutura pronta</strong>
-                    <p className="muted">Quando a pessoa ja tiver area, gestor direto, unidade e modalidade.</p>
-                  </article>
-                  <article className="compact-list-card hierarchy-step-card">
-                    <strong>Acesso pendente</strong>
-                    <p className="muted">Use o botao de criar usuario para concluir o provisionamento logo em seguida.</p>
-                  </article>
-                </div>
-              </article>
-
-              <form className="list-card compact-list-card admin-form-card" onSubmit={handleAreaSubmit}>
-                <div className="card-header">
-                  <h3>Nova area</h3>
-                  <span>Cadastre a area primeiro e volte para concluir a hierarquia pela pessoa.</span>
-                </div>
-                <SafeInput
-                  label="Nome da area"
-                  placeholder="Ex.: Tecnologia"
-                  value={areaForm.name}
-                  onChange={(value) => setAreaForm({ ...areaForm, name: value })}
-                  helper="A lideranca da area sera definida no cadastro da pessoa."
-                />
-                <button className="primary-button" type="submit">
-                  Cadastrar area
-                </button>
-              </form>
             </div>
           </div>
         </div>

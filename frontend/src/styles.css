@@ -1275,6 +1275,21 @@ button:disabled {
   align-items: start;
 }
 
+.people-main-stack {
+  gap: 18px;
+}
+
+.people-support-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  align-items: start;
+}
+
+.people-support-grid > .people-hierarchy-summary {
+  grid-column: 1 / -1;
+}
+
 .people-primary-form {
   gap: 10px;
 }
@@ -2967,6 +2982,10 @@ button:disabled {
   }
 
   .people-flow-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .people-support-grid {
     grid-template-columns: 1fr;
   }
 
