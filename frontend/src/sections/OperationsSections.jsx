@@ -41,6 +41,20 @@ export function ComplianceSection({
               : "Canal estruturado de etica e conduta"}
           </span>
         </div>
+        <div className="compliance-intake-summary">
+          <article className="mini-card">
+            <p className="mini-label">Canal protegido</p>
+            <strong>{incidentForm.anonymity === "anonymous" ? "Relato anonimo" : "Relato identificado"}</strong>
+          </article>
+          <article className="mini-card">
+            <p className="mini-label">Triagem inicial</p>
+            <strong>{incidentForm.classification || "Defina a classificacao"}</strong>
+          </article>
+          <article className="mini-card">
+            <p className="mini-label">Encaminhamento</p>
+            <strong>{incidentForm.responsibleArea || "Escolha a area responsavel"}</strong>
+          </article>
+        </div>
         <div className="compliance-form-span-half">
           <SafeInput
             label="Titulo"
@@ -51,7 +65,7 @@ export function ComplianceSection({
         <div className="compliance-form-span-half">
           <SafeTextarea
             label="Descricao"
-            rows={5}
+            rows={4}
             value={incidentForm.description}
             onChange={(value) => setIncidentForm({ ...incidentForm, description: value })}
           />
