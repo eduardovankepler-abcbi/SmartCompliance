@@ -99,6 +99,11 @@ export function DashboardSection({
   const isExecutiveView = dashboardViewMode === "executive";
   const assignmentStatusItems = dashboard?.assignmentStatus || [];
   const cycleTimelineItems = dashboard?.cycleTimeline || [];
+  const latestCyclePeriod = cycleTimelineItems[0] || null;
+  const pendingAssignmentsItem =
+    assignmentStatusItems.find((item) => item.status === "pending") || null;
+  const submittedAssignmentsItem =
+    assignmentStatusItems.find((item) => item.status === "submitted") || null;
   const satisfactionByAreaItems = dashboard?.satisfactionByArea || [];
   const developmentByTypeItems = dashboard?.developmentByType || [];
   const evaluationMixItems = filteredDashboardEvaluationMix || [];
@@ -180,6 +185,44 @@ export function DashboardSection({
       label: "Nova pessoa",
       detail: "Atualizar estrutura",
       tone: "accent"
+    }
+  ];
+  const laggingEvaluationSummary = [...evaluationResultsSummaryItems]
+    .filter((item) => (item.totalAssignments || 0) > 0 || (item.totalResponses || 0) > 0)
+    .sort((left, right) => {
+      const leftAdherence = Number(left.adherencePercentage || 0);
+      const rightAdherence = Number(right.adherencePercentage || 0);
+      if (leftAdherence !== rightAdherence) {
+        return leftAdherence - rightAdherence;
+      }
+      return Number(left.averageScore || 0) - Number(right.averageScore || 0);
+    })[0];
+  const rhythmInsightTitle = laggingEvaluationSummary
+    ? `Gargalo em ${getRelationshipLabel(laggingEvaluationSummary.relationshipType)}`
+    : "Fluxo sem gargalo dominante";
+  const rhythmInsightDetail = laggingEvaluationSummary
+    ? `${laggingEvaluationSummary.adherencePercentage}% de adesao com ${laggingEvaluationSummary.totalResponses}/${laggingEvaluationSummary.totalAssignments || laggingEvaluationSummary.totalResponses} respostas no recorte.`
+    : "Os indicadores do ciclo estao equilibrados dentro do recorte atual.";
+  const rhythmMiniMetrics = [
+    {
+      label: "Distribuidos",
+      value: latestCyclePeriod ? latestCyclePeriod.totalAssignments : 0,
+      detail: latestCyclePeriod ? latestCyclePeriod.label : "recorte"
+    },
+    {
+      label: "Respondidos",
+      value: latestCyclePeriod ? latestCyclePeriod.totalResponses : 0,
+      detail: submittedAssignmentsItem ? `${submittedAssignmentsItem.percentage}% do total` : "sem retorno"
+    },
+    {
+      label: "Pendentes",
+      value: latestCyclePeriod ? latestCyclePeriod.pendingAssignments : pendingAssignmentsItem?.total || 0,
+      detail: pendingAssignmentsItem ? `${pendingAssignmentsItem.percentage}% do total` : "sem fila"
+    },
+    {
+      label: "Conversao",
+      value: `${latestCyclePeriod ? latestCyclePeriod.adherencePercentage : 0}%`,
+      detail: `adesao em ${latestCyclePeriod?.label || "andamento"}`
     }
   ];
   const topKpis = [
@@ -499,6 +542,20 @@ export function DashboardSection({
                   formatter={(value) => String(value)}
                   detailFormatter={(item) => `${item.totalResponses} respostas`}
                 />
+                <div className="dashboard-rhythm-metrics">
+                  {rhythmMiniMetrics.map((item) => (
+                    <article className="dashboard-rhythm-metric-card" key={item.label}>
+                      <span>{item.label}</span>
+                      <strong>{item.value}</strong>
+                      <p>{item.detail}</p>
+                    </article>
+                  ))}
+                </div>
+                <div className="dashboard-rhythm-insight">
+                  <span className="dashboard-card-eyebrow warning">Insight operacional</span>
+                  <strong>{rhythmInsightTitle}</strong>
+                  <p>{rhythmInsightDetail}</p>
+                </div>
               </div>
             ) : null}
           </>
