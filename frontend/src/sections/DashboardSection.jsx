@@ -126,6 +126,13 @@ export function DashboardSection({
       filteredDashboardResponseDistributions.find((item) => item.relationshipType === relationshipType) ||
       null
   }));
+  const selectedAnalyticalRelationshipType =
+    dashboardCompositionFilter === "all"
+      ? analyticalRelationshipItems[0]?.relationshipType || "all"
+      : dashboardCompositionFilter;
+  const selectedAnalyticalRelationship = analyticalRelationshipItems.find(
+    (item) => item.relationshipType === selectedAnalyticalRelationshipType
+  );
   const dashboardHeadline =
     dashboard?.mode === "executive"
       ? "Resumo estratégico da operação"
@@ -586,10 +593,10 @@ export function DashboardSection({
                   </div>
                 ) : null}
 
-                {analyticalRelationshipItems.length ? (
-                  analyticalRelationshipItems.map(({ relationshipType, distribution, summary }) => (
-                    <div className="list-card" key={relationshipType}>
-                      {(() => {
+                {selectedAnalyticalRelationship ? (
+                  <div className="list-card" key={selectedAnalyticalRelationship.relationshipType}>
+                    {(() => {
+                        const { relationshipType, distribution, summary } = selectedAnalyticalRelationship;
                         const dimensionSummary = buildDimensionSummary(distribution?.questions || []);
                         const selectedDimension = dimensionFilters[relationshipType] || "all";
                         const filteredQuestions =
@@ -602,7 +609,21 @@ export function DashboardSection({
                         return (
                           <>
                             <div className="row">
-                              <strong>{getRelationshipLabel(relationshipType)}</strong>
+                              <label className="dashboard-card-filter-card dashboard-relationship-filter-card">
+                                <span>Avaliacao</span>
+                                <select
+                                  value={selectedAnalyticalRelationshipType}
+                                  onChange={(event) =>
+                                    setDashboardCompositionFilter(event.target.value)
+                                  }
+                                >
+                                  {visibleRelationshipTypes.map((type) => (
+                                    <option key={type} value={type}>
+                                      {getRelationshipLabel(type)}
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
                               <span className="badge">
                                 {summary?.totalResponses || distribution?.totalResponses || 0} respostas
                               </span>
@@ -669,8 +690,7 @@ export function DashboardSection({
                           </>
                         );
                       })()}
-                    </div>
-                  ))
+                  </div>
                 ) : (
                   <div className="list-card">
                     <strong>Sem respostas para o filtro aplicado</strong>
