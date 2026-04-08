@@ -550,7 +550,7 @@ export function UsersSection({
 
   return (
     <section className="page-grid">
-      <div className="card compact-card">
+      <div className="card compact-card card-span">
         <div className="card-header">
           <h3>Jornada de acesso</h3>
           <span>Visualize quem ja concluiu o acesso e quem ainda depende de provisionamento</span>
@@ -605,39 +605,41 @@ export function UsersSection({
         </div>
       </div>
 
-      <div className="card compact-card">
-        <div className="card-header">
-          <h3>Passo a passo</h3>
-          <span>Provisionamento assistido para reduzir retrabalho na criacao de acessos</span>
-        </div>
-        <div className="guide-step-grid">
-          {userGuideSteps.map((step) => (
-            <article className={`guide-step-card ${step.tone}`} key={step.title}>
-              <strong>{step.title}</strong>
-              <p className="muted">{step.description}</p>
-            </article>
-          ))}
-        </div>
-      </div>
-
-      {userConsistency.warnings.length ? (
+      <div className="user-support-grid card-span">
         <div className="card compact-card">
           <div className="card-header">
-            <h3>Alertas do acesso</h3>
-            <span>Conferencias de coerencia antes de criar ou ajustar o usuario</span>
+            <h3>Passo a passo</h3>
+            <span>Provisionamento assistido para reduzir retrabalho na criacao de acessos</span>
           </div>
-          <div className="stack-list compact-stack">
-            {userConsistency.warnings.map((message) => (
-              <article className="guide-step-card pending" key={message}>
-                <strong>Atencao</strong>
-                <p className="muted">{message}</p>
+          <div className="guide-step-grid">
+            {userGuideSteps.map((step) => (
+              <article className={`guide-step-card ${step.tone}`} key={step.title}>
+                <strong>{step.title}</strong>
+                <p className="muted">{step.description}</p>
               </article>
             ))}
           </div>
         </div>
-      ) : null}
 
-      <form className="card compact-card admin-form-card" onSubmit={handleUserSubmit}>
+        {userConsistency.warnings.length ? (
+          <div className="card compact-card">
+            <div className="card-header">
+              <h3>Alertas do acesso</h3>
+              <span>Conferencias de coerencia antes de criar ou ajustar o usuario</span>
+            </div>
+            <div className="stack-list compact-stack">
+              {userConsistency.warnings.map((message) => (
+                <article className="guide-step-card pending" key={message}>
+                  <strong>Atencao</strong>
+                  <p className="muted">{message}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </div>
+
+      <form className="card compact-card admin-form-card user-provision-form card-span" onSubmit={handleUserSubmit}>
         <div className="card-header">
           <h3>Novo usuario</h3>
           <span>Crie o acesso depois que a pessoa ja estiver posicionada na hierarquia</span>
@@ -727,7 +729,7 @@ export function UsersSection({
         )}
       </form>
 
-      <div className="card compact-card">
+      <div className="card compact-card card-span">
         <div className="card-header">
           <h3>Usuarios ativos e inativos</h3>
           <span>Acompanhe o perfil de acesso com contexto de hierarquia e area</span>
