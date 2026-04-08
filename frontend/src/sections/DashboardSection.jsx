@@ -14,6 +14,33 @@ function DashboardCardHeader({ title, subtitle, tone = "neutral", eyebrow }) {
   );
 }
 
+function DashboardFilterSelectCard({ label, value, options, onChange, renderLabel }) {
+  return (
+    <label className="dashboard-filter-select-card">
+      <span>{label}</span>
+      <div className="dashboard-filter-select-wrap">
+        <select value={value} onChange={(event) => onChange(event.target.value)}>
+          {options.map((option) => (
+            <option key={option} value={option}>
+              {renderLabel ? renderLabel(option) : option}
+            </option>
+          ))}
+        </select>
+        <svg viewBox="0 0 20 20" aria-hidden="true">
+          <path
+            d="m5 7 5 6 5-6"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </div>
+    </label>
+  );
+}
+
 export function DashboardSection({
   BarMetricRow,
   ColumnMetricCard,
@@ -50,7 +77,6 @@ export function DashboardSection({
   const SafeFunnelSeriesChart = FunnelSeriesChart || EmptyComponent;
   const SafeHeatmapMatrixCard = HeatmapMatrixCard || EmptyComponent;
   const SafeResponseDistributionChartCard = ResponseDistributionChartCard || EmptyComponent;
-  const SafeSelect = Select || EmptyComponent;
   const SafeTrendAreaChartCard = TrendAreaChartCard || EmptyComponent;
   const [dashboardViewMode, setDashboardViewMode] = useState("executive");
   const [satisfactionView, setSatisfactionView] = useState("all");
@@ -240,8 +266,8 @@ export function DashboardSection({
           <span>Defina o contexto da leitura</span>
         </div>
         <div className="dashboard-filter-grid">
-          <SafeSelect
-            label="Elemento da composicao do ciclo"
+          <DashboardFilterSelectCard
+            label="Recorte"
             value={dashboardCompositionFilter}
             options={dashboardCompositionOptions.map((item) => item.value)}
             renderLabel={(value) =>
@@ -249,15 +275,15 @@ export function DashboardSection({
             }
             onChange={setDashboardCompositionFilter}
           />
-          <SafeSelect
-            label="Area / Setor"
+          <DashboardFilterSelectCard
+            label="Area"
             value={dashboardAreaFilter}
             options={["all", ...((canFilterDashboardByArea && dashboard?.areaOptions) || [])]}
             renderLabel={(value) => (value === "all" ? "Todas as areas e setores" : value)}
             onChange={setDashboardAreaFilter}
           />
-          <SafeSelect
-            label="Consolidar ciclos por"
+          <DashboardFilterSelectCard
+            label="Consolidacao"
             value={dashboardTimeGrouping}
             options={dashboardTimeGroupingOptions.map((item) => item.value)}
             renderLabel={(value) =>
