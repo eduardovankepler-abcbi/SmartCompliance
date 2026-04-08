@@ -568,7 +568,6 @@ export function DevelopmentSection({
 export function ApplauseSection({
   ApplauseAdminCard,
   Input,
-  Select,
   Textarea,
   auditEntries,
   applauseEntries,
@@ -584,7 +583,6 @@ export function ApplauseSection({
 }) {
   const SafeApplauseAdminCard = ApplauseAdminCard || EmptyComponent;
   const SafeInput = Input || EmptyComponent;
-  const SafeSelect = Select || EmptyComponent;
   const SafeTextarea = Textarea || EmptyComponent;
   const isEmployeeJourney = roleKey === "employee";
   const selectedReceiver = applausePeopleOptions.find((item) => item.value === applauseForm.receiverPersonId);
@@ -610,23 +608,40 @@ export function ApplauseSection({
         <div className="applause-intake-grid">
           <div className="applause-intake-main">
             <div className="applause-intake-toolbar">
-              <SafeSelect
-                label="Quem recebe"
-                value={applauseForm.receiverPersonId}
-                options={applausePeopleOptions.map((item) => item.value)}
-                renderLabel={(value) =>
-                  applausePeopleOptions.find((item) => item.value === value)?.label || value
-                }
-                helper="Escolha a pessoa que deve receber o reconhecimento."
-                onChange={(value) => setApplauseForm({ ...applauseForm, receiverPersonId: value })}
-              />
-              <SafeSelect
-                label="Contexto do reconhecimento"
-                value={applauseForm.category}
-                options={applauseCategoryOptions}
-                helper="Escolha o tipo de contribuicao que melhor representa esse reconhecimento."
-                onChange={(value) => setApplauseForm({ ...applauseForm, category: value })}
-              />
+              <label className="field">
+                <span>Quem recebe</span>
+                <select
+                  value={applauseForm.receiverPersonId}
+                  onChange={(event) =>
+                    setApplauseForm({ ...applauseForm, receiverPersonId: event.target.value })
+                  }
+                >
+                  {applausePeopleOptions.map((item) => (
+                    <option key={item.value} value={item.value}>
+                      {item.label}
+                    </option>
+                  ))}
+                </select>
+                <small className="field-helper">
+                  Escolha a pessoa que deve receber o reconhecimento.
+                </small>
+              </label>
+              <label className="field">
+                <span>Contexto do reconhecimento</span>
+                <select
+                  value={applauseForm.category}
+                  onChange={(event) => setApplauseForm({ ...applauseForm, category: event.target.value })}
+                >
+                  {applauseCategoryOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+                <small className="field-helper">
+                  Escolha o tipo de contribuicao que melhor representa esse reconhecimento.
+                </small>
+              </label>
             </div>
             <SafeInput
               label="Impacto gerado"
