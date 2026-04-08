@@ -609,16 +609,25 @@ export function ApplauseSection({
         </div>
         <div className="applause-intake-grid">
           <div className="applause-intake-main">
-            <SafeSelect
-              label="Quem recebe"
-              value={applauseForm.receiverPersonId}
-              options={applausePeopleOptions.map((item) => item.value)}
-              renderLabel={(value) =>
-                applausePeopleOptions.find((item) => item.value === value)?.label || value
-              }
-              helper="Escolha a pessoa que deve receber o reconhecimento."
-              onChange={(value) => setApplauseForm({ ...applauseForm, receiverPersonId: value })}
-            />
+            <div className="applause-intake-toolbar">
+              <SafeSelect
+                label="Quem recebe"
+                value={applauseForm.receiverPersonId}
+                options={applausePeopleOptions.map((item) => item.value)}
+                renderLabel={(value) =>
+                  applausePeopleOptions.find((item) => item.value === value)?.label || value
+                }
+                helper="Escolha a pessoa que deve receber o reconhecimento."
+                onChange={(value) => setApplauseForm({ ...applauseForm, receiverPersonId: value })}
+              />
+              <SafeSelect
+                label="Contexto do reconhecimento"
+                value={applauseForm.category}
+                options={applauseCategoryOptions}
+                helper="Escolha o tipo de contribuicao que melhor representa esse reconhecimento."
+                onChange={(value) => setApplauseForm({ ...applauseForm, category: value })}
+              />
+            </div>
             <SafeInput
               label="Impacto gerado"
               placeholder="Ex.: destravou entrega critica do cliente"
@@ -642,13 +651,13 @@ export function ApplauseSection({
                 Registre um reconhecimento com impacto claro para reforcar a cultura que queremos repetir.
               </p>
             </div>
-            <SafeSelect
-              label="Categoria"
-              value={applauseForm.category}
-              options={applauseCategoryOptions}
-              helper="Escolha o tipo de contribuicao que melhor representa esse reconhecimento."
-              onChange={(value) => setApplauseForm({ ...applauseForm, category: value })}
-            />
+            <div className="applause-guidance-card">
+              <p className="mini-label">Como registrar bem</p>
+              <strong>{applauseForm.category || "Defina um contexto objetivo"}</strong>
+              <p className="muted">
+                Diga o que a pessoa fez, qual foi o impacto concreto e por que esse comportamento merece ser repetido.
+              </p>
+            </div>
           </div>
         </div>
         <button className="primary-button" type="submit">
