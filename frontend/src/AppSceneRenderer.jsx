@@ -49,6 +49,7 @@ export function AppSceneRenderer(props) {
           onSectionChange={props.onSectionChange}
           profileName={props.profileName}
           filteredDashboardEvaluationMix={props.filteredDashboardEvaluationMix}
+          filteredDashboardEvaluationResultsSummary={props.filteredDashboardEvaluationResultsSummary}
           filteredDashboardResponseDistributions={props.filteredDashboardResponseDistributions}
           getAssignmentStatusLabel={props.getAssignmentStatusLabel}
           getRelationshipDescription={props.getRelationshipDescription}

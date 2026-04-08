@@ -59,6 +59,7 @@ export function DashboardSection({
   dashboardTimeGroupingOptions,
   onSectionChange,
   filteredDashboardEvaluationMix,
+  filteredDashboardEvaluationResultsSummary,
   filteredDashboardResponseDistributions,
   getAssignmentStatusLabel,
   getRelationshipDescription,
@@ -81,6 +82,7 @@ export function DashboardSection({
   const [dashboardViewMode, setDashboardViewMode] = useState("executive");
   const [satisfactionView, setSatisfactionView] = useState("all");
   const [developmentView, setDevelopmentView] = useState("all");
+  const [dimensionFilters, setDimensionFilters] = useState({});
   const executiveHighlights = buildExecutiveHighlights({
     dashboard,
     dashboardAreaFilter,
@@ -100,6 +102,7 @@ export function DashboardSection({
   const satisfactionByAreaItems = dashboard?.satisfactionByArea || [];
   const developmentByTypeItems = dashboard?.developmentByType || [];
   const evaluationMixItems = filteredDashboardEvaluationMix || [];
+  const evaluationResultsSummaryItems = filteredDashboardEvaluationResultsSummary || [];
   const funnelItems = dashboard?.funnelMetrics || [];
   const filteredSatisfactionByAreaItems = getFilteredSatisfactionItems(
     satisfactionByAreaItems,
@@ -183,6 +186,13 @@ export function DashboardSection({
       tone: "accent"
     }
   ];
+
+  function setDimensionFilterForGroup(relationshipType, nextValue) {
+    setDimensionFilters((current) => ({
+      ...current,
+      [relationshipType]: nextValue
+    }));
+  }
 
   return (
     <section className="page-grid dashboard-grid">
@@ -475,30 +485,146 @@ export function DashboardSection({
             <div className="card dashboard-visual-card dashboard-board-featured dashboard-analytical-primary">
               <DashboardCardHeader
                 eyebrow="Analise"
-                title="Distribuicao das respostas"
+                title="Resultado por modalidade"
                 subtitle={
                   selectedDashboardCompositionMeta
-                    ? `Perguntas e distribuicoes de ${selectedDashboardCompositionMeta.label}`
-                    : "Leitura consolidada por relacionamento"
+                    ? `Visao macro e detalhamento de ${selectedDashboardCompositionMeta.label}`
+                    : "Visao consolidada e drilldown por modalidade"
                 }
                 tone="secondary"
               />
               <div className="stack-list">
+                {evaluationResultsSummaryItems.length ? (
+                  <div className="list-card">
+                    <div className="row">
+                      <strong>Resumo macro por modalidade</strong>
+                      <span className="badge">
+                        {evaluationResultsSummaryItems.length} modalidades
+                      </span>
+                    </div>
+                    <div className="dashboard-mode-summary-grid">
+                      {evaluationResultsSummaryItems.map((item) => (
+                        <article
+                          className={`dashboard-mode-summary-card ${item.tone}`}
+                          key={item.relationshipType}
+                        >
+                          <div className="dashboard-mode-summary-head">
+                            <span className={`dashboard-card-eyebrow ${item.tone}`}>
+                              {getRelationshipLabel(item.relationshipType)}
+                            </span>
+                            <strong>{item.averageScoreLabel}</strong>
+                          </div>
+                          <div className="dashboard-mode-summary-metrics">
+                            <span>{item.totalResponses} respostas</span>
+                            <span>{item.adherencePercentage}% de adesao</span>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                {evaluationResultsSummaryItems.length ? (
+                  <div className="list-card">
+                    <div className="row">
+                      <strong>Comparativo entre modalidades</strong>
+                      <span className="muted">Media final e adesao</span>
+                    </div>
+                    <div className="dashboard-mode-comparison-list">
+                      {evaluationResultsSummaryItems.map((item) => (
+                        <div className="dashboard-mode-comparison-row" key={`comparison-${item.relationshipType}`}>
+                          <div className="dashboard-mode-comparison-copy">
+                            <strong>{getRelationshipLabel(item.relationshipType)}</strong>
+                            <span>
+                              {item.totalResponses}/{item.totalAssignments || item.totalResponses} respostas
+                            </span>
+                          </div>
+                          <div className="dashboard-mode-comparison-bar">
+                            <div
+                              className={`dashboard-mode-comparison-fill ${item.tone}`}
+                              style={{ width: `${item.averageScore ? (item.averageScore / 5) * 100 : 0}%` }}
+                            />
+                          </div>
+                          <div className="dashboard-mode-comparison-values">
+                            <strong>{item.averageScoreLabel}</strong>
+                            <span>{item.adherencePercentage}%</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
                 {filteredDashboardResponseDistributions.length ? (
                   filteredDashboardResponseDistributions.map((group) => (
                     <div className="list-card" key={group.relationshipType}>
-                      <div className="row">
-                        <strong>{getRelationshipLabel(group.relationshipType)}</strong>
-                        <span className="badge">{group.totalResponses} respostas</span>
-                      </div>
-                      <div className="response-chart-grid">
-                        {group.questions.map((question) => (
-                          <SafeResponseDistributionChartCard
-                            key={question.questionId}
-                            question={question}
-                          />
-                        ))}
-                      </div>
+                      {(() => {
+                        const dimensionSummary = buildDimensionSummary(group.questions || []);
+                        const selectedDimension = dimensionFilters[group.relationshipType] || "all";
+                        const filteredQuestions =
+                          selectedDimension === "all"
+                            ? group.questions
+                            : group.questions.filter(
+                                (question) => question.dimensionTitle === selectedDimension
+                              );
+
+                        return (
+                          <>
+                            <div className="row">
+                              <strong>{getRelationshipLabel(group.relationshipType)}</strong>
+                              <span className="badge">{group.totalResponses} respostas</span>
+                            </div>
+                            {dimensionSummary.length ? (
+                              <div className="dashboard-dimension-summary-block">
+                                <div className="dashboard-dimension-summary-head">
+                                  <strong>Leitura por dimensão</strong>
+                                  <label className="dashboard-card-filter-card dashboard-dimension-filter-card">
+                                    <span>Dimensão</span>
+                                    <select
+                                      value={selectedDimension}
+                                      onChange={(event) =>
+                                        setDimensionFilterForGroup(
+                                          group.relationshipType,
+                                          event.target.value
+                                        )
+                                      }
+                                    >
+                                      <option value="all">Todas</option>
+                                      {dimensionSummary.map((item) => (
+                                        <option key={item.dimensionTitle} value={item.dimensionTitle}>
+                                          {item.dimensionTitle}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </label>
+                                </div>
+                                <div className="dashboard-dimension-summary-grid">
+                                  {dimensionSummary.map((item) => (
+                                    <article
+                                      className={`dashboard-dimension-summary-card ${item.tone} ${
+                                        selectedDimension === item.dimensionTitle ? "active" : ""
+                                      }`}
+                                      key={`${group.relationshipType}-${item.dimensionTitle}`}
+                                    >
+                                      <span>{item.dimensionTitle}</span>
+                                      <strong>{item.averageScoreLabel}</strong>
+                                      <p>{item.questionCount} perguntas</p>
+                                    </article>
+                                  ))}
+                                </div>
+                              </div>
+                            ) : null}
+                            <div className="response-chart-grid">
+                              {filteredQuestions.map((question) => (
+                                <SafeResponseDistributionChartCard
+                                  key={question.questionId}
+                                  question={question}
+                                />
+                              ))}
+                            </div>
+                          </>
+                        );
+                      })()}
                     </div>
                   ))
                 ) : (
@@ -725,6 +851,51 @@ export function DashboardSection({
       </div>
     </section>
   );
+}
+
+function buildDimensionSummary(questions) {
+  return Object.values(
+    (questions || []).reduce((acc, question) => {
+      const averageScore =
+        (question.options || []).reduce(
+          (sum, option) => sum + Number(option.value || 0) * (Number(option.percentage || 0) / 100),
+          0
+        ) || 0;
+      const entry = acc[question.dimensionTitle] || {
+        dimensionTitle: question.dimensionTitle || "Sem dimensão",
+        scores: [],
+        questionCount: 0
+      };
+      entry.scores.push(averageScore);
+      entry.questionCount += 1;
+      acc[question.dimensionTitle] = entry;
+      return acc;
+    }, {})
+  )
+    .map((entry) => {
+      const averageScore = entry.scores.length
+        ? Number((entry.scores.reduce((sum, value) => sum + value, 0) / entry.scores.length).toFixed(2))
+        : null;
+      return {
+        dimensionTitle: entry.dimensionTitle,
+        questionCount: entry.questionCount,
+        averageScore,
+        averageScoreLabel: averageScore === null ? "-" : averageScore.toFixed(1),
+        tone:
+          averageScore === null
+            ? "neutral"
+            : averageScore >= 4.3
+              ? "positive"
+              : averageScore >= 3.7
+                ? "warning"
+                : "critical"
+      };
+    })
+    .sort((left, right) => {
+      const leftScore = left.averageScore === null ? -1 : left.averageScore;
+      const rightScore = right.averageScore === null ? -1 : right.averageScore;
+      return rightScore - leftScore || left.dimensionTitle.localeCompare(right.dimensionTitle, "pt-BR");
+    });
 }
 
 function buildExecutiveHighlights({

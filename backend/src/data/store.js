@@ -2669,6 +2669,72 @@ function buildEvaluationMixSeries(assignments) {
     .sort((left, right) => right.total - left.total);
 }
 
+function buildEvaluationResultsSummarySeries(assignments, responses) {
+  const groupedAssignments = assignments.reduce((acc, assignment) => {
+    const entry = acc[assignment.relationshipType] || {
+      relationshipType: assignment.relationshipType,
+      totalAssignments: 0,
+      totalResponses: 0,
+      scores: []
+    };
+    entry.totalAssignments += 1;
+    acc[assignment.relationshipType] = entry;
+    return acc;
+  }, {});
+
+  for (const response of responses) {
+    const entry = groupedAssignments[response.relationshipType] || {
+      relationshipType: response.relationshipType,
+      totalAssignments: 0,
+      totalResponses: 0,
+      scores: []
+    };
+    entry.totalResponses += 1;
+    if (Number.isFinite(Number(response.overallScore))) {
+      entry.scores.push(Number(response.overallScore));
+    }
+    groupedAssignments[response.relationshipType] = entry;
+  }
+
+  return Object.values(groupedAssignments)
+    .map((entry) => {
+      const averageScore = entry.scores.length
+        ? Number(average(entry.scores).toFixed(2))
+        : null;
+      const adherencePercentage = calculatePercentage(
+        entry.totalResponses,
+        entry.totalAssignments || entry.totalResponses
+      );
+
+      return {
+        relationshipType: entry.relationshipType,
+        totalAssignments: entry.totalAssignments,
+        totalResponses: entry.totalResponses,
+        adherencePercentage,
+        averageScore,
+        averageScoreLabel: averageScore === null ? "-" : averageScore.toFixed(1),
+        tone:
+          averageScore === null
+            ? "neutral"
+            : averageScore >= 4.3
+              ? "positive"
+              : averageScore >= 3.7
+                ? "warning"
+                : "critical"
+      };
+    })
+    .filter(
+      (item) =>
+        !isAnonymousRelationship(item.relationshipType) ||
+        item.totalResponses >= MIN_ANONYMOUS_AGGREGATE_RESPONSES
+    )
+    .sort((left, right) => {
+      const leftScore = left.averageScore === null ? -1 : left.averageScore;
+      const rightScore = right.averageScore === null ? -1 : right.averageScore;
+      return rightScore - leftScore || right.totalResponses - left.totalResponses;
+    });
+}
+
 function buildAssignmentStatusSeries(assignments) {
   const labelMap = {
     pending: "Pendentes",
@@ -2910,6 +2976,7 @@ function buildDashboardPayload({
     evaluationHighlights,
     responseDistributions: buildQuestionDistributions(responses),
     evaluationMix: buildEvaluationMixSeries(assignments),
+    evaluationResultsSummary: buildEvaluationResultsSummarySeries(assignments, responses),
     assignmentStatus: buildAssignmentStatusSeries(assignments),
     developmentByType: buildDevelopmentByTypeSeries(developmentRecords),
     cycleTimeline: buildCycleTimelineSeries({

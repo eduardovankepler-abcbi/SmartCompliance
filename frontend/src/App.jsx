@@ -147,6 +147,7 @@ export default function App() {
     dashboardTimeGroupingLabel,
     dashboardTimeGroupingOptions,
     filteredDashboardEvaluationMix,
+    filteredDashboardEvaluationResultsSummary,
     filteredDashboardResponseDistributions,
     selectedDashboardCompositionMeta
   } = useDashboardInsights({
@@ -545,6 +546,7 @@ export default function App() {
         filteredAggregateResponses={filteredAggregateResponses}
         filteredAssignments={filteredAssignments}
         filteredDashboardEvaluationMix={filteredDashboardEvaluationMix}
+        filteredDashboardEvaluationResultsSummary={filteredDashboardEvaluationResultsSummary}
         filteredDashboardResponseDistributions={filteredDashboardResponseDistributions}
         filteredDevelopmentPlans={filteredDevelopmentPlans}
         filteredDevelopmentRecords={filteredDevelopmentRecords}

@@ -67,6 +67,20 @@ export function useDashboardInsights({
     return dashboard.evaluationMix.filter((item) => item.type === dashboardCompositionFilter);
   }, [dashboard, dashboardCompositionFilter]);
 
+  const filteredDashboardEvaluationResultsSummary = useMemo(() => {
+    if (!dashboard?.evaluationResultsSummary) {
+      return [];
+    }
+
+    if (dashboardCompositionFilter === "all") {
+      return dashboard.evaluationResultsSummary;
+    }
+
+    return dashboard.evaluationResultsSummary.filter(
+      (item) => item.relationshipType === dashboardCompositionFilter
+    );
+  }, [dashboard, dashboardCompositionFilter]);
+
   const filteredDashboardResponseDistributions = useMemo(() => {
     if (!dashboard?.responseDistributions) {
       return [];
@@ -117,6 +131,7 @@ export function useDashboardInsights({
     dashboardTimeGroupingLabel,
     dashboardTimeGroupingOptions,
     filteredDashboardEvaluationMix,
+    filteredDashboardEvaluationResultsSummary,
     filteredDashboardResponseDistributions,
     selectedDashboardCompositionMeta
   };
