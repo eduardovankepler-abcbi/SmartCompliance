@@ -485,7 +485,7 @@ export function DashboardSection({
             ) : null}
 
             {cycleTimelineItems.length ? (
-              <div className="card dashboard-visual-card">
+              <div className="card dashboard-visual-card dashboard-board-tall">
                 <DashboardCardHeader
                   eyebrow="Ritmo"
                   title="Ritmo de distribuicao"

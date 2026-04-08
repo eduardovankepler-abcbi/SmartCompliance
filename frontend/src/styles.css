@@ -980,6 +980,11 @@ button:disabled {
   grid-column: span 8 !important;
 }
 
+.dashboard-board-tall {
+  grid-row: span 2;
+  align-self: stretch;
+}
+
 .dashboard-board-grid-analytical .dashboard-analytical-primary {
   grid-column: 1 / -1 !important;
 }
@@ -2852,6 +2857,10 @@ button:disabled {
     grid-column: span 3;
   }
 
+  .dashboard-board-tall {
+    grid-row: span 1;
+  }
+
   .dashboard-insight-grid {
     grid-template-columns: repeat(6, minmax(0, 1fr));
   }
@@ -3020,6 +3029,10 @@ button:disabled {
     grid-column: span 4;
   }
 
+  .dashboard-board-tall {
+    grid-row: span 1;
+  }
+
   .dashboard-insight-grid {
     grid-template-columns: repeat(8, minmax(0, 1fr));
   }
@@ -3089,6 +3102,10 @@ button:disabled {
   .dashboard-board-grid > .card,
   .dashboard-board-featured {
     grid-column: auto !important;
+  }
+
+  .dashboard-board-tall {
+    grid-row: auto;
   }
 
   .dashboard-insight-grid {
