@@ -32,7 +32,7 @@ export function ComplianceSection({
 
   return (
     <section className="page-grid">
-      <form className="card compact-card admin-form-card" onSubmit={handleIncidentSubmit}>
+      <form className="card card-span compact-card admin-form-card compliance-intake-form" onSubmit={handleIncidentSubmit}>
         <div className="card-header">
           <h3>{isOperationalCompliance ? "Registrar novo caso" : "Novo relato"}</h3>
           <span>
@@ -118,7 +118,7 @@ export function ComplianceSection({
         </button>
       </form>
 
-      <div className="card compact-card">
+      <div className="card card-span compact-card">
         <div className="card-header">
           <h3>Fila de tratamento</h3>
           <span>

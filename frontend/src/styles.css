@@ -1261,6 +1261,18 @@ button:disabled {
   grid-column: 1 / -1;
 }
 
+.compliance-intake-form {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 18px;
+}
+
+.compliance-intake-form .card-header,
+.compliance-intake-form .field-span-full,
+.compliance-intake-form textarea,
+.compliance-intake-form .primary-button {
+  grid-column: 1 / -1;
+}
+
 .registry-form-grid {
   display: grid;
   grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
@@ -3018,6 +3030,7 @@ button:disabled {
   }
 
   .evaluation-cycle-grid,
+  .compliance-intake-form,
   .evaluation-question-controls,
   .evaluation-cycle-toolbar {
     grid-template-columns: 1fr;
