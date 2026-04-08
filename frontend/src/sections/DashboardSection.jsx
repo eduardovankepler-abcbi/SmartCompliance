@@ -126,9 +126,13 @@ export function DashboardSection({
       filteredDashboardResponseDistributions.find((item) => item.relationshipType === relationshipType) ||
       null
   }));
+  const preferredAnalyticalRelationshipType =
+    analyticalRelationshipItems.find(
+      (item) => (item.distribution?.questions || []).length || (item.summary?.totalResponses || 0) > 0
+    )?.relationshipType || analyticalRelationshipItems[0]?.relationshipType || "all";
   const selectedAnalyticalRelationshipType =
     dashboardCompositionFilter === "all"
-      ? analyticalRelationshipItems[0]?.relationshipType || "all"
+      ? preferredAnalyticalRelationshipType
       : dashboardCompositionFilter;
   const selectedAnalyticalRelationship = analyticalRelationshipItems.find(
     (item) => item.relationshipType === selectedAnalyticalRelationshipType
