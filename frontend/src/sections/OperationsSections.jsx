@@ -276,7 +276,7 @@ export function DevelopmentSection({
         ) : null}
       </div>
 
-      <form className="card compact-card admin-form-card" onSubmit={handleDevelopmentSubmit}>
+      <form className="card card-span compact-card admin-form-card development-intake-form" onSubmit={handleDevelopmentSubmit}>
         <div className="card-header">
           <h3>{isEmployeeJourney ? "Registrar marco" : "Novo registro"}</h3>
           <span>
@@ -335,7 +335,7 @@ export function DevelopmentSection({
         </button>
       </form>
 
-      <form className="card compact-card admin-form-card" onSubmit={handleDevelopmentPlanSubmit}>
+      <form className="card card-span compact-card admin-form-card development-plan-form" onSubmit={handleDevelopmentPlanSubmit}>
         <div className="card-header">
           <h3>{isEmployeeJourney ? "Meu PDI" : "Novo PDI"}</h3>
           <span>
@@ -408,7 +408,7 @@ export function DevelopmentSection({
       </form>
 
       {!isEmployeeJourney ? (
-        <div className="card compact-card">
+        <div className="card card-span compact-card">
           <div className="card-header">
             <h3>Mapa do recorte</h3>
             <span>Leitura resumida por pessoa</span>
