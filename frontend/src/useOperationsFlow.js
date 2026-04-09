@@ -2,6 +2,21 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "./api";
 import { emptyApplause, emptyIncident } from "./appConfig.js";
 
+function buildApplausePayload(form) {
+  const occasionPrefix = form.occasion ? `[Ocasiao: ${form.occasion}] ` : "";
+  const normalizedContext = (form.contextNote || "").trim();
+  const contextNote = normalizedContext.startsWith("[Ocasiao:")
+    ? normalizedContext
+    : `${occasionPrefix}${normalizedContext}`.trim();
+
+  return {
+    receiverPersonId: form.receiverPersonId,
+    category: form.category,
+    impact: form.impact,
+    contextNote
+  };
+}
+
 export function useOperationsFlow({
   areas,
   auditTrail,
@@ -118,7 +133,7 @@ export function useOperationsFlow({
 
     try {
       setError("");
-      await api.createApplauseEntry(applauseForm);
+      await api.createApplauseEntry(buildApplausePayload(applauseForm));
       setApplauseForm((current) => ({
         ...emptyApplause,
         receiverPersonId: current.receiverPersonId

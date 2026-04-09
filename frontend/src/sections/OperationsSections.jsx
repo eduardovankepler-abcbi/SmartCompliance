@@ -593,6 +593,15 @@ export function ApplauseSection({
     "Postura exemplar",
     "Compartilhamento de conhecimento"
   ];
+  const applauseOccasionOptions = [
+    "Projeto",
+    "Reuniao",
+    "Entrega critica",
+    "Suporte ao time",
+    "Treinamento",
+    "Atendimento ao cliente",
+    "Outro"
+  ];
 
   return (
     <section className="page-grid">
@@ -624,6 +633,22 @@ export function ApplauseSection({
                 </select>
                 <small className="field-helper">
                   Escolha a pessoa que deve receber o reconhecimento.
+                </small>
+              </label>
+              <label className="field">
+                <span>Ocasiao</span>
+                <select
+                  value={applauseForm.occasion || "Projeto"}
+                  onChange={(event) => setApplauseForm({ ...applauseForm, occasion: event.target.value })}
+                >
+                  {applauseOccasionOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+                <small className="field-helper">
+                  Indique em que contexto esse reconhecimento aconteceu.
                 </small>
               </label>
               <label className="field">
@@ -670,7 +695,7 @@ export function ApplauseSection({
               <p className="mini-label">Como registrar bem</p>
               <strong>{applauseForm.category || "Defina um contexto objetivo"}</strong>
               <p className="muted">
-                Diga o que a pessoa fez, qual foi o impacto concreto e por que esse comportamento merece ser repetido.
+                {applauseForm.occasion || "Projeto"} · Diga o que a pessoa fez, qual foi o impacto concreto e por que esse comportamento merece ser repetido.
               </p>
             </div>
           </div>

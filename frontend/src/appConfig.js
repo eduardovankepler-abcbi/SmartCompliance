@@ -97,6 +97,7 @@ export const emptyFeedbackRequest = {
 export const emptyApplause = {
   receiverPersonId: "",
   category: "Colaboracao",
+  occasion: "Projeto",
   impact: "",
   contextNote: ""
 };
