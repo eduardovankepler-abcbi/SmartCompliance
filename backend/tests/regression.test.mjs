@@ -1164,6 +1164,106 @@ try {
     "Cadastro de competencias deve ficar disponivel para governanca do 360"
   );
 
+  const learningIntegrationResponse = await sendJson(
+    baseUrl,
+    "/api/development/integrations/learning-events",
+    {
+      headers: getAuthHeader(hr.id),
+      body: {
+        sourceSystem: "LMS Corporativo",
+        events: [
+          {
+            externalId: "course-001",
+            personEmail: "colaborador1@demo.local",
+            title: "Gestao de riscos aplicada",
+            providerName: "Academia Corporativa",
+            status: "completed",
+            completedAt: "2026-04-12",
+            workloadHours: 8,
+            competencyKey: "risk-management"
+          }
+        ]
+      }
+    }
+  );
+  assert.equal(
+    learningIntegrationResponse.response.status,
+    202,
+    "RH deve conseguir receber eventos de cursos e treinamentos"
+  );
+  assert.equal(
+    learningIntegrationResponse.payload.accepted,
+    1,
+    "Integracao deve enfileirar o evento recebido"
+  );
+  assert.equal(
+    learningIntegrationResponse.payload.events[0].processingStatus,
+    "ready_for_review",
+    "Evento com email conhecido deve ficar pronto para revisao"
+  );
+
+  const appliedLearningIntegrationResponse = await sendJson(
+    baseUrl,
+    `/api/development/integrations/learning-events/${learningIntegrationResponse.payload.events[0].id}/apply`,
+    {
+      headers: getAuthHeader(hr.id),
+      body: {
+        reviewNote: "Aplicacao validada pela regressao"
+      }
+    }
+  );
+  assert.equal(
+    appliedLearningIntegrationResponse.response.status,
+    200,
+    "RH deve conseguir aplicar curso concluido no Desenvolvimento"
+  );
+  assert.equal(
+    appliedLearningIntegrationResponse.payload.event.processingStatus,
+    "applied",
+    "Evento aplicado deve registrar status de processamento"
+  );
+  assert.equal(
+    appliedLearningIntegrationResponse.payload.event.appliedEntityType,
+    "development_record",
+    "Curso concluido deve virar registro de desenvolvimento"
+  );
+
+  const developmentRecordsAfterIntegration = await fetchJson(
+    baseUrl,
+    "/api/development/records",
+    getAuthHeader(hr.id)
+  );
+  assert.ok(
+    developmentRecordsAfterIntegration.payload.some(
+      (record) => record.title === "Gestao de riscos aplicada"
+    ),
+    "Curso aplicado deve aparecer nos registros de desenvolvimento"
+  );
+
+  const employeeLearningIntegrationResponse = await sendJson(
+    baseUrl,
+    "/api/development/integrations/learning-events",
+    {
+      headers: getAuthHeader(employee.id),
+      body: {
+        sourceSystem: "LMS Corporativo",
+        events: [
+          {
+            externalId: "course-002",
+            personEmail: "colaborador1@demo.local",
+            title: "Curso sem permissao",
+            status: "completed"
+          }
+        ]
+      }
+    }
+  );
+  assert.equal(
+    employeeLearningIntegrationResponse.response.status,
+    403,
+    "Colaborador nao deve alimentar integracoes de aprendizagem"
+  );
+
   console.log("Backend regression tests passed.");
 } finally {
   await new Promise((resolve, reject) => {

@@ -1,8 +1,43 @@
 import { Router } from "express";
+import { requireRoles } from "../auth/middleware.js";
 import { badRequest } from "./helpers.js";
 
 export function createDevelopmentRouter(store) {
   const router = Router();
+
+  router.get("/integrations/learning-events", requireRoles("admin", "hr"), async (req, res, next) => {
+    try {
+      res.json(await store.getLearningIntegrationEvents(req.auth.user));
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.post("/integrations/learning-events", requireRoles("admin", "hr"), async (req, res) => {
+    try {
+      const result = await store.ingestLearningIntegrationEvents(req.body, req.auth.user);
+      res.status(202).json(result);
+    } catch (error) {
+      res.status(400).json({
+        error: error.message || "Falha ao receber cursos e treinamentos da integracao."
+      });
+    }
+  });
+
+  router.post("/integrations/learning-events/:eventId/apply", requireRoles("admin", "hr"), async (req, res) => {
+    try {
+      const result = await store.applyLearningIntegrationEvent(
+        req.params.eventId,
+        req.body || {},
+        req.auth.user
+      );
+      res.json(result);
+    } catch (error) {
+      res.status(400).json({
+        error: error.message || "Falha ao aplicar curso ou treinamento da integracao."
+      });
+    }
+  });
 
   router.get("/records", async (req, res, next) => {
     try {

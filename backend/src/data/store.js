@@ -3,6 +3,7 @@ import mysql from "mysql2/promise";
 import path from "path";
 import { fileURLToPath } from "url";
 import { env } from "../config/env.js";
+import { normalizeLearningIntegrationPayload } from "../services/learningIntegrations.js";
 import { evaluationLibrary, questionTemplate, seed } from "./mockData.js";
 import {
   assertIncidentCreatePayload,
@@ -1871,6 +1872,88 @@ async function ensureMysqlPairingSupport(pool) {
   ]);
 }
 
+async function detectMysqlLearningIntegrationSupport(pool) {
+  try {
+    const hasTable = await hasMysqlTable(pool, "learning_integration_events");
+    if (!hasTable) {
+      return false;
+    }
+
+    const [entityTypeRows] = await pool.query(
+      "SHOW COLUMNS FROM learning_integration_events LIKE 'applied_entity_type'"
+    );
+    const [entityIdRows] = await pool.query(
+      "SHOW COLUMNS FROM learning_integration_events LIKE 'applied_entity_id'"
+    );
+    const [appliedAtRows] = await pool.query(
+      "SHOW COLUMNS FROM learning_integration_events LIKE 'applied_at'"
+    );
+    const [reviewNoteRows] = await pool.query(
+      "SHOW COLUMNS FROM learning_integration_events LIKE 'review_note'"
+    );
+    return (
+      hasMysqlColumn(entityTypeRows) &&
+      hasMysqlColumn(entityIdRows) &&
+      hasMysqlColumn(appliedAtRows) &&
+      hasMysqlColumn(reviewNoteRows)
+    );
+  } catch (_error) {
+    return false;
+  }
+}
+
+async function ensureMysqlLearningIntegrationSupport(pool) {
+  const hasTable = await ensureMysqlTables(
+    pool,
+    async (mysqlPool) => hasMysqlTable(mysqlPool, "learning_integration_events"),
+    [
+      `CREATE TABLE IF NOT EXISTS learning_integration_events (
+      id VARCHAR(36) PRIMARY KEY,
+      source_system VARCHAR(120) NOT NULL,
+      external_id VARCHAR(160) NOT NULL,
+      person_email VARCHAR(180) NOT NULL,
+      person_document VARCHAR(80) NULL,
+      person_id VARCHAR(36) NULL,
+      event_type VARCHAR(80) NOT NULL,
+      title VARCHAR(220) NOT NULL,
+      provider_name VARCHAR(160) NOT NULL,
+      status VARCHAR(40) NOT NULL,
+      occurred_at DATE NULL,
+      workload_hours DECIMAL(8,2) NOT NULL DEFAULT 0,
+      competency_key VARCHAR(120) NULL,
+      suggested_action VARCHAR(80) NOT NULL,
+      processing_status VARCHAR(40) NOT NULL,
+      applied_entity_type VARCHAR(80) NULL,
+      applied_entity_id VARCHAR(36) NULL,
+      applied_at DATETIME NULL,
+      review_note TEXT NULL,
+      raw_payload_json JSON NULL,
+      created_at DATETIME NOT NULL,
+      created_by_user_id VARCHAR(36) NULL,
+      FOREIGN KEY (person_id) REFERENCES people(id),
+      FOREIGN KEY (created_by_user_id) REFERENCES users(id),
+      UNIQUE KEY unique_learning_event (source_system, external_id)
+    )`
+    ]
+  );
+
+  if (!hasTable) {
+    return false;
+  }
+
+  return ensureMysqlColumns(
+    pool,
+    "learning_integration_events",
+    [
+      "ALTER TABLE learning_integration_events ADD COLUMN applied_entity_type VARCHAR(80) NULL",
+      "ALTER TABLE learning_integration_events ADD COLUMN applied_entity_id VARCHAR(36) NULL",
+      "ALTER TABLE learning_integration_events ADD COLUMN applied_at DATETIME NULL",
+      "ALTER TABLE learning_integration_events ADD COLUMN review_note TEXT NULL"
+    ],
+    detectMysqlLearningIntegrationSupport
+  );
+}
+
 function enrichAssignment(db, assignment, customLibraries = []) {
   const cycle = db.cycles.find((item) => item.id === assignment.cycleId);
   const presentedCycle = presentCycle(cycle || {});
@@ -1960,6 +2043,118 @@ function enrichSubmission(db, submission, customLibraries = []) {
     revieweeAcknowledgementNote: submission.revieweeAcknowledgementNote || "",
     revieweeAcknowledgedAt: submission.revieweeAcknowledgedAt || null,
     answers
+  };
+}
+
+function presentLearningIntegrationEvent(event, people = []) {
+  const person = people.find((item) => item.id === event.personId);
+  return {
+    ...event,
+    personName: person?.name || "",
+    processingStatus:
+      event.processingStatus || (event.personId ? "ready_for_review" : "needs_review")
+  };
+}
+
+function buildLearningIntegrationEventRows(payload, people, users, actorUser) {
+  const { sourceSystem, events } = normalizeLearningIntegrationPayload(payload);
+  const createdAt = new Date().toISOString();
+
+  return events.map((event) => {
+    const user = users.find((item) => String(item.email || "").toLowerCase() === event.personEmail);
+    const person = people.find((item) => item.id === user?.personId);
+
+    return {
+      id: createId("learning_event"),
+      ...event,
+      sourceSystem,
+      personId: person?.id || null,
+      processingStatus: person ? "ready_for_review" : "needs_review",
+      createdAt,
+      createdByUserId: actorUser?.id || null
+    };
+  });
+}
+
+function formatDateOnly(value = new Date()) {
+  const parsed = parseDateValue(value) || new Date();
+  return parsed.toISOString().slice(0, 10);
+}
+
+function addDaysAsDateOnly(value, days) {
+  const parsed = parseDateValue(value) || new Date();
+  parsed.setDate(parsed.getDate() + days);
+  return formatDateOnly(parsed);
+}
+
+function resolveLearningIntegrationCompetency(event, competencies = [], requestedCompetencyId = null) {
+  if (requestedCompetencyId) {
+    return competencies.find((item) => item.id === requestedCompetencyId) || null;
+  }
+
+  const competencyKey = String(event.competencyKey || "").trim().toLowerCase();
+  if (!competencyKey) {
+    return null;
+  }
+
+  return (
+    competencies.find((item) => String(item.key || "").trim().toLowerCase() === competencyKey) ||
+    null
+  );
+}
+
+function buildLearningIntegrationApplicationPayload(event, payload = {}, competencies = []) {
+  const competency = resolveLearningIntegrationCompetency(event, competencies, payload.competencyId);
+  const personId = payload.personId || event.personId;
+
+  if (!personId) {
+    throw new Error("Evento precisa estar conciliado com uma pessoa antes da aplicacao.");
+  }
+
+  if (event.processingStatus === "applied") {
+    throw new Error("Evento de aprendizagem ja aplicado.");
+  }
+
+  if (event.suggestedAction === "development_record_candidate") {
+    const notes = [
+      `Origem: ${event.sourceSystem}`,
+      `Evento externo: ${event.externalId}`,
+      event.workloadHours ? `Carga horaria: ${event.workloadHours}h` : "",
+      event.competencyKey ? `Competencia/eixo: ${event.competencyKey}` : "",
+      payload.notes || ""
+    ]
+      .filter(Boolean)
+      .join(" | ");
+
+    return {
+      entityType: "development_record",
+      payload: {
+        personId,
+        recordType: payload.recordType || "Certificacao",
+        title: payload.title || event.title,
+        providerName: payload.providerName || event.providerName,
+        completedAt: payload.completedAt || event.occurredAt || formatDateOnly(),
+        skillSignal: payload.skillSignal || competency?.name || event.competencyKey || event.title,
+        notes
+      }
+    };
+  }
+
+  return {
+    entityType: "development_plan",
+    payload: {
+      personId,
+      cycleId: payload.cycleId || null,
+      competencyId: competency?.id || null,
+      focusTitle: payload.focusTitle || event.title,
+      actionText:
+        payload.actionText ||
+        `Concluir ou aplicar o aprendizado de ${event.title} (${event.providerName}).`,
+      dueDate: payload.dueDate || event.occurredAt || addDaysAsDateOnly(new Date(), 30),
+      expectedEvidence:
+        payload.expectedEvidence ||
+        "Conclusao do treinamento e aplicacao pratica documentada no PDI."
+    }
   };
 }
 
@@ -3617,6 +3812,30 @@ async function fetchDevelopmentPlanRows(pool) {
   return rows;
 }
 
+async function fetchLearningIntegrationEventRows(pool) {
+  const [rows] = await pool.query(
+    `SELECT id, source_system AS sourceSystem, external_id AS externalId,
+            person_email AS personEmail, person_document AS personDocument, person_id AS personId,
+            event_type AS eventType, title, provider_name AS providerName, status,
+            occurred_at AS occurredAt, workload_hours AS workloadHours, competency_key AS competencyKey,
+            suggested_action AS suggestedAction, processing_status AS processingStatus,
+            applied_entity_type AS appliedEntityType, applied_entity_id AS appliedEntityId,
+            applied_at AS appliedAt, review_note AS reviewNote,
+            raw_payload_json AS rawPayloadJson, created_at AS createdAt,
+            created_by_user_id AS createdByUserId
+     FROM learning_integration_events
+     ORDER BY created_at DESC`
+  );
+  return rows.map((row) => ({
+    ...row,
+    workloadHours: Number(row.workloadHours || 0),
+    rawPayload:
+      typeof row.rawPayloadJson === "string"
+        ? JSON.parse(row.rawPayloadJson)
+        : row.rawPayloadJson || {}
+  }));
+}
+
 async function fetchMysqlResponses(
   pool,
   customLibraries = [],
@@ -3733,6 +3952,9 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
   }
   if (!Array.isArray(db.developmentPlans)) {
     db.developmentPlans = [];
+  }
+  if (!Array.isArray(db.learningIntegrationEvents)) {
+    db.learningIntegrationEvents = [];
   }
   db.cycles.forEach((cycle) => hydrateCycleStructure(db, cycle.id));
 
@@ -5026,6 +5248,88 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         personName: person?.name || ""
       };
     },
+    async getLearningIntegrationEvents(actorUser) {
+      if (!isOrgWideUser(actorUser)) {
+        throw new Error("Perfil sem permissao para visualizar integracoes de aprendizagem.");
+      }
+
+      return db.learningIntegrationEvents.map((event) =>
+        presentLearningIntegrationEvent(event, db.people)
+      );
+    },
+    async ingestLearningIntegrationEvents(payload, actorUser) {
+      if (!isOrgWideUser(actorUser)) {
+        throw new Error("Perfil sem permissao para receber integracoes de aprendizagem.");
+      }
+
+      const rows = buildLearningIntegrationEventRows(payload, db.people, db.users, actorUser);
+      const existingKeys = new Set(
+        db.learningIntegrationEvents.map((item) => `${item.sourceSystem}:${item.externalId}`)
+      );
+      const accepted = rows.filter((row) => !existingKeys.has(`${row.sourceSystem}:${row.externalId}`));
+
+      db.learningIntegrationEvents.unshift(...accepted);
+      pushAuditLog(db.auditLogs, {
+        category: AUDIT_CATEGORIES.development,
+        action: "imported",
+        entityType: "learning_integration_event",
+        entityId: accepted[0]?.id || rows[0]?.id || "learning_integration",
+        entityLabel: payload.sourceSystem || "Integracao de aprendizagem",
+        actorUser,
+        summary: `${accepted.length} eventos de aprendizagem recebidos de ${payload.sourceSystem || "sistema externo"}`,
+        detail: `${accepted.filter((item) => item.processingStatus === "ready_for_review").length} prontos para revisao · ${accepted.filter((item) => item.processingStatus === "needs_review").length} exigem conciliacao`
+      });
+
+      return {
+        sourceSystem: payload.sourceSystem,
+        received: rows.length,
+        accepted: accepted.length,
+        duplicates: rows.length - accepted.length,
+        events: accepted.map((event) => presentLearningIntegrationEvent(event, db.people))
+      };
+    },
+    async applyLearningIntegrationEvent(eventId, payload, actorUser) {
+      if (!isOrgWideUser(actorUser)) {
+        throw new Error("Perfil sem permissao para aplicar integracoes de aprendizagem.");
+      }
+
+      const event = db.learningIntegrationEvents.find((item) => item.id === eventId);
+      if (!event) {
+        throw new Error("Evento de aprendizagem nao encontrado.");
+      }
+
+      const application = buildLearningIntegrationApplicationPayload(
+        event,
+        payload,
+        db.competencies
+      );
+      const appliedEntity =
+        application.entityType === "development_record"
+          ? await this.createDevelopmentRecord(application.payload, actorUser)
+          : await this.createDevelopmentPlan(application.payload, actorUser);
+
+      event.processingStatus = "applied";
+      event.appliedEntityType = application.entityType;
+      event.appliedEntityId = appliedEntity.id;
+      event.appliedAt = new Date().toISOString();
+      event.reviewNote = String(payload?.reviewNote || "").trim();
+
+      pushAuditLog(db.auditLogs, {
+        category: AUDIT_CATEGORIES.development,
+        action: "applied",
+        entityType: "learning_integration_event",
+        entityId: event.id,
+        entityLabel: event.title,
+        actorUser,
+        summary: `Evento de aprendizagem aplicado em ${application.entityType === "development_record" ? "desenvolvimento" : "PDI"}`,
+        detail: `${event.sourceSystem} · ${event.externalId} · ${appliedEntity.id}`
+      });
+
+      return {
+        event: presentLearningIntegrationEvent(event, db.people),
+        appliedEntity
+      };
+    },
     async getDevelopmentPlans(actorUser) {
       const actorPersonId = actorUser.person?.id || actorUser.personId;
       const plans = db.developmentPlans.map((item) =>
@@ -5261,7 +5565,8 @@ function buildMysqlStore(
     supportsCycleConfig,
     supportsFeedbackAcknowledgement,
     supportsAssignmentReminder,
-    supportsPairings
+    supportsPairings,
+    supportsLearningIntegrations
   } = {}
 ) {
   return {
@@ -7853,6 +8158,160 @@ function buildMysqlStore(
         personName: person?.name || ""
       };
     },
+    async getLearningIntegrationEvents(actorUser) {
+      if (!isOrgWideUser(actorUser)) {
+        throw new Error("Perfil sem permissao para visualizar integracoes de aprendizagem.");
+      }
+
+      if (!supportsLearningIntegrations) {
+        return [];
+      }
+
+      const [rows, people] = await Promise.all([
+        fetchLearningIntegrationEventRows(pool),
+        fetchPeopleRows(pool)
+      ]);
+
+      return rows.map((event) => presentLearningIntegrationEvent(event, people));
+    },
+    async ingestLearningIntegrationEvents(payload, actorUser) {
+      if (!isOrgWideUser(actorUser)) {
+        throw new Error("Perfil sem permissao para receber integracoes de aprendizagem.");
+      }
+
+      if (!supportsLearningIntegrations) {
+        throw new Error("Fila de integracao de aprendizagem indisponivel no banco atual.");
+      }
+
+      const [people, users] = await Promise.all([fetchPeopleRows(pool), fetchUserRows(pool)]);
+      const rows = buildLearningIntegrationEventRows(payload, people, users, actorUser);
+      const accepted = [];
+
+      for (const row of rows) {
+        const [result] = await pool.query(
+          `INSERT IGNORE INTO learning_integration_events
+           (id, source_system, external_id, person_email, person_document, person_id, event_type,
+            title, provider_name, status, occurred_at, workload_hours, competency_key, suggested_action,
+            processing_status, raw_payload_json, created_at, created_by_user_id)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            row.id,
+            row.sourceSystem,
+            row.externalId,
+            row.personEmail,
+            row.personDocument || null,
+            row.personId,
+            row.eventType,
+            row.title,
+            row.providerName,
+            row.status,
+            row.occurredAt || null,
+            row.workloadHours,
+            row.competencyKey || null,
+            row.suggestedAction,
+            row.processingStatus,
+            JSON.stringify(row.rawPayload || {}),
+            row.createdAt,
+            row.createdByUserId
+          ]
+        );
+
+        if (result.affectedRows) {
+          accepted.push(row);
+        }
+      }
+
+      await insertAuditLog(pool, {
+        category: AUDIT_CATEGORIES.development,
+        action: "imported",
+        entityType: "learning_integration_event",
+        entityId: accepted[0]?.id || rows[0]?.id || "learning_integration",
+        entityLabel: payload.sourceSystem || "Integracao de aprendizagem",
+        actorUser,
+        summary: `${accepted.length} eventos de aprendizagem recebidos de ${payload.sourceSystem || "sistema externo"}`,
+        detail: `${accepted.filter((item) => item.processingStatus === "ready_for_review").length} prontos para revisao · ${accepted.filter((item) => item.processingStatus === "needs_review").length} exigem conciliacao`
+      });
+
+      return {
+        sourceSystem: payload.sourceSystem,
+        received: rows.length,
+        accepted: accepted.length,
+        duplicates: rows.length - accepted.length,
+        events: accepted.map((event) => presentLearningIntegrationEvent(event, people))
+      };
+    },
+    async applyLearningIntegrationEvent(eventId, payload, actorUser) {
+      if (!isOrgWideUser(actorUser)) {
+        throw new Error("Perfil sem permissao para aplicar integracoes de aprendizagem.");
+      }
+
+      if (!supportsLearningIntegrations) {
+        throw new Error("Fila de integracao de aprendizagem indisponivel no banco atual.");
+      }
+
+      const [events, people, competencies] = await Promise.all([
+        fetchLearningIntegrationEventRows(pool),
+        fetchPeopleRows(pool),
+        fetchCompetencyRows(pool)
+      ]);
+      const event = events.find((item) => item.id === eventId);
+      if (!event) {
+        throw new Error("Evento de aprendizagem nao encontrado.");
+      }
+
+      const application = buildLearningIntegrationApplicationPayload(
+        event,
+        payload,
+        competencies
+      );
+      const appliedEntity =
+        application.entityType === "development_record"
+          ? await this.createDevelopmentRecord(application.payload, actorUser)
+          : await this.createDevelopmentPlan(application.payload, actorUser);
+      const appliedAt = new Date().toISOString();
+      const reviewNote = String(payload?.reviewNote || "").trim();
+
+      await pool.query(
+        `UPDATE learning_integration_events
+         SET processing_status = ?, applied_entity_type = ?, applied_entity_id = ?,
+             applied_at = ?, review_note = ?
+         WHERE id = ?`,
+        [
+          "applied",
+          application.entityType,
+          appliedEntity.id,
+          appliedAt,
+          reviewNote || null,
+          eventId
+        ]
+      );
+
+      await insertAuditLog(pool, {
+        category: AUDIT_CATEGORIES.development,
+        action: "applied",
+        entityType: "learning_integration_event",
+        entityId: event.id,
+        entityLabel: event.title,
+        actorUser,
+        summary: `Evento de aprendizagem aplicado em ${application.entityType === "development_record" ? "desenvolvimento" : "PDI"}`,
+        detail: `${event.sourceSystem} · ${event.externalId} · ${appliedEntity.id}`
+      });
+
+      return {
+        event: presentLearningIntegrationEvent(
+          {
+            ...event,
+            processingStatus: "applied",
+            appliedEntityType: application.entityType,
+            appliedEntityId: appliedEntity.id,
+            appliedAt,
+            reviewNote
+          },
+          people
+        ),
+        appliedEntity
+      };
+    },
     async getDevelopmentPlans(actorUser) {
       const actorPersonId = actorUser.person?.id || actorUser.personId;
       const [plans, people, cycles, competencies] = await Promise.all([
@@ -8204,19 +8663,22 @@ export async function createStore() {
     supportsFeedbackAcknowledgement,
     _supportsPeopleWorkContext,
     supportsAssignmentReminder,
-    supportsPairings
+    supportsPairings,
+    supportsLearningIntegrations
   ] =
     await Promise.all([
       ensureMysqlCycleConfigSupport(pool),
       ensureMysqlFeedbackAcknowledgementSupport(pool),
       ensureMysqlPeopleWorkContextSupport(pool),
       ensureMysqlAssignmentReminderSupport(pool),
-      ensureMysqlPairingSupport(pool)
+      ensureMysqlPairingSupport(pool),
+      ensureMysqlLearningIntegrationSupport(pool)
     ]);
   return buildMysqlStore(pool, customLibraryState, anonymousResponseState, {
     supportsCycleConfig,
     supportsFeedbackAcknowledgement,
     supportsAssignmentReminder,
-    supportsPairings
+    supportsPairings,
+    supportsLearningIntegrations
   });
 }

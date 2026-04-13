@@ -291,6 +291,34 @@ CREATE TABLE IF NOT EXISTS development_plans (
   FOREIGN KEY (created_by_user_id) REFERENCES users(id)
 );
 
+CREATE TABLE IF NOT EXISTS learning_integration_events (
+  id VARCHAR(36) PRIMARY KEY,
+  source_system VARCHAR(120) NOT NULL,
+  external_id VARCHAR(160) NOT NULL,
+  person_email VARCHAR(180) NOT NULL,
+  person_document VARCHAR(80),
+  person_id VARCHAR(36),
+  event_type VARCHAR(80) NOT NULL,
+  title VARCHAR(220) NOT NULL,
+  provider_name VARCHAR(160) NOT NULL,
+  status VARCHAR(40) NOT NULL,
+  occurred_at DATE,
+  workload_hours DECIMAL(8,2) NOT NULL DEFAULT 0,
+  competency_key VARCHAR(120),
+  suggested_action VARCHAR(80) NOT NULL,
+  processing_status VARCHAR(40) NOT NULL,
+  applied_entity_type VARCHAR(80),
+  applied_entity_id VARCHAR(36),
+  applied_at DATETIME,
+  review_note TEXT,
+  raw_payload_json JSON,
+  created_at DATETIME NOT NULL,
+  created_by_user_id VARCHAR(36),
+  UNIQUE KEY unique_learning_event (source_system, external_id),
+  FOREIGN KEY (person_id) REFERENCES people(id),
+  FOREIGN KEY (created_by_user_id) REFERENCES users(id)
+);
+
 CREATE TABLE IF NOT EXISTS audit_logs (
   id VARCHAR(36) PRIMARY KEY,
   category VARCHAR(60) NOT NULL,
