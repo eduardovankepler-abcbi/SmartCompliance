@@ -121,6 +121,7 @@ export default function App() {
     evaluationLibrary,
     feedbackRequests,
     incidents,
+    learningIntegrationEvents,
     loading,
     people,
     receivedManagerFeedback,
@@ -137,6 +138,7 @@ export default function App() {
     canReceiveManagerFeedback,
     canViewResponses,
     canViewUsersAdmin,
+    canViewOrganizationDevelopment,
     dashboardAreaFilter,
     dashboardTimeGrouping,
     setError
@@ -308,6 +310,9 @@ export default function App() {
     handleDevelopmentPlanUpdate,
     handleDevelopmentSubmit,
     handleDevelopmentUpdate,
+    handleLearningIntegrationApply,
+    learningIntegrationEventsForReview,
+    learningIntegrationSummary,
     resetDevelopmentFlow,
     setActiveDevelopmentView,
     setDevelopmentForm,
@@ -321,6 +326,7 @@ export default function App() {
     cycles,
     developmentPlans,
     developmentRecords,
+    learningIntegrationEvents,
     people,
     reloadData,
     setError,
@@ -527,6 +533,8 @@ export default function App() {
         developmentRecordTypes={developmentRecordTypes}
         developmentViewLabels={developmentViewLabels}
         developmentViewOptions={developmentViewOptions}
+        learningIntegrationEventsForReview={learningIntegrationEventsForReview}
+        learningIntegrationSummary={learningIntegrationSummary}
         DevelopmentPlanAdminCard={DevelopmentPlanAdminCard}
         DevelopmentRecordAdminCard={DevelopmentRecordAdminCard}
         evaluationAuditEntries={evaluationAuditEntries}
@@ -584,6 +592,7 @@ export default function App() {
         handleDevelopmentPlanUpdate={handleDevelopmentPlanUpdate}
         handleDevelopmentSubmit={handleDevelopmentSubmit}
         handleDevelopmentUpdate={handleDevelopmentUpdate}
+        handleLearningIntegrationApply={handleLearningIntegrationApply}
         handleFeedbackProviderToggle={handleFeedbackProviderToggle}
         handleFeedbackRequestReview={handleFeedbackRequestReview}
         handleFeedbackRequestSubmit={handleFeedbackRequestSubmit}

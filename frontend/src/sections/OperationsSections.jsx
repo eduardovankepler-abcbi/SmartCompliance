@@ -249,6 +249,8 @@ export function DevelopmentSection({
   developmentEditablePeopleOptions,
   developmentViewLabels,
   developmentViewOptions,
+  learningIntegrationEventsForReview = [],
+  learningIntegrationSummary = null,
   filteredDevelopmentRecords,
   formatDate,
   getDevelopmentTrackLabel,
@@ -256,6 +258,7 @@ export function DevelopmentSection({
   handleDevelopmentPlanUpdate,
   handleDevelopmentSubmit,
   handleDevelopmentUpdate,
+  handleLearningIntegrationApply,
   roleKey,
   setActiveDevelopmentView,
   setDevelopmentForm,
@@ -272,6 +275,7 @@ export function DevelopmentSection({
   const showDevelopmentMetrics = !isEmployeeJourney;
   const showDevelopmentPersonSelect = developmentFormPeopleOptions.length > 1;
   const showDevelopmentPlanPersonSelect = developmentPlanPeopleOptions.length > 1;
+  const showLearningIntegrations = Boolean(learningIntegrationSummary);
 
   return (
     <section className="page-grid">
@@ -317,6 +321,64 @@ export function DevelopmentSection({
           </div>
         ) : null}
       </div>
+
+      {showLearningIntegrations ? (
+        <div className="card card-span compact-card learning-integration-panel">
+          <div className="card-header">
+            <h3>Integrações de aprendizagem</h3>
+            <span>Revisão antes de atualizar Desenvolvimento e PDI</span>
+          </div>
+          <div className="metrics-grid">
+            <SafeMetricCard label="Na fila" value={learningIntegrationSummary.pending} />
+            <SafeMetricCard label="Prontos" value={learningIntegrationSummary.ready} />
+            <SafeMetricCard label="Exigem revisão" value={learningIntegrationSummary.needsReview} />
+            <SafeMetricCard label="Aplicados" value={learningIntegrationSummary.applied} />
+          </div>
+          <div className="learning-integration-grid">
+            {learningIntegrationEventsForReview.length ? (
+              learningIntegrationEventsForReview.slice(0, 6).map((item) => {
+                const targetLabel =
+                  item.suggestedAction === "development_record_candidate"
+                    ? "Desenvolvimento"
+                    : "PDI";
+                const canApply = item.processingStatus === "ready_for_review";
+
+                return (
+                  <article className="list-card learning-integration-card" key={item.id}>
+                    <div className="row">
+                      <strong>{item.title}</strong>
+                      <span className={canApply ? "badge success" : "badge danger"}>
+                        {canApply ? "Pronto" : "Revisar"}
+                      </span>
+                    </div>
+                    <p className="muted">
+                      {item.personName || item.personEmail} · {item.providerName} · {targetLabel}
+                    </p>
+                    <p className="muted">
+                      {item.sourceSystem} · {item.workloadHours || 0}h · {item.competencyKey || "sem competencia"}
+                    </p>
+                    <button
+                      className="secondary-button"
+                      disabled={!canApply}
+                      type="button"
+                      onClick={() => handleLearningIntegrationApply(item.id)}
+                    >
+                      {canApply ? `Aplicar em ${targetLabel}` : "Aguardando conciliação"}
+                    </button>
+                  </article>
+                );
+              })
+            ) : (
+              <div className="list-card">
+                <strong>Fila limpa</strong>
+                <p className="muted">
+                  Cursos e treinamentos importados aparecerão aqui antes da aplicação.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : null}
 
       <form className="card card-span compact-card admin-form-card development-intake-form" onSubmit={handleDevelopmentSubmit}>
         <div className="card-header">

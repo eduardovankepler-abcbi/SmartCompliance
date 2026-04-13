@@ -247,6 +247,12 @@ export const api = {
     }),
   getDevelopmentRecords: () => request("/api/development/records"),
   getDevelopmentPlans: () => request("/api/development/plans"),
+  getLearningIntegrationEvents: () => request("/api/development/integrations/learning-events"),
+  applyLearningIntegrationEvent: (eventId, payload = {}) =>
+    request(`/api/development/integrations/learning-events/${eventId}/apply`, {
+      method: "POST",
+      body: JSON.stringify(payload)
+    }),
   createDevelopmentRecord: (payload) =>
     request("/api/development/records", {
       method: "POST",

@@ -16,6 +16,7 @@ export function useDevelopmentFlow({
   cycles,
   developmentPlans,
   developmentRecords,
+  learningIntegrationEvents,
   people,
   reloadData,
   setError,
@@ -253,6 +254,25 @@ export function useDevelopmentFlow({
     [auditTrail]
   );
 
+  const learningIntegrationEventsForReview = useMemo(
+    () =>
+      (learningIntegrationEvents || []).filter(
+        (event) => (event.processingStatus || "") !== "applied"
+      ),
+    [learningIntegrationEvents]
+  );
+
+  const learningIntegrationSummary = useMemo(() => {
+    const events = learningIntegrationEvents || [];
+    return {
+      total: events.length,
+      pending: learningIntegrationEventsForReview.length,
+      ready: events.filter((event) => event.processingStatus === "ready_for_review").length,
+      needsReview: events.filter((event) => event.processingStatus === "needs_review").length,
+      applied: events.filter((event) => event.processingStatus === "applied").length
+    };
+  }, [learningIntegrationEvents, learningIntegrationEventsForReview]);
+
   useEffect(() => {
     if (!developmentViewOptions.some((view) => view.key === activeDevelopmentView)) {
       setActiveDevelopmentView(developmentViewOptions[0]?.key || "personal");
@@ -357,6 +377,16 @@ export function useDevelopmentFlow({
     }
   }
 
+  async function handleLearningIntegrationApply(eventId) {
+    try {
+      setError("");
+      await api.applyLearningIntegrationEvent(eventId);
+      await reloadData();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
   function resetDevelopmentFlow() {
     setActiveDevelopmentView("personal");
     setDevelopmentForm(emptyDevelopment);
@@ -383,6 +413,9 @@ export function useDevelopmentFlow({
     handleDevelopmentPlanUpdate,
     handleDevelopmentSubmit,
     handleDevelopmentUpdate,
+    handleLearningIntegrationApply,
+    learningIntegrationEventsForReview,
+    learningIntegrationSummary,
     resetDevelopmentFlow,
     setActiveDevelopmentView,
     setDevelopmentForm,

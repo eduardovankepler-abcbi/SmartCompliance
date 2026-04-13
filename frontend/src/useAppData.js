@@ -15,6 +15,7 @@ export function useAppData({
   canReceiveManagerFeedback,
   canViewResponses,
   canViewUsersAdmin,
+  canViewOrganizationDevelopment,
   dashboardAreaFilter,
   dashboardTimeGrouping,
   setError
@@ -37,6 +38,7 @@ export function useAppData({
   const [applauseEntries, setApplauseEntries] = useState([]);
   const [developmentRecords, setDevelopmentRecords] = useState([]);
   const [developmentPlans, setDevelopmentPlans] = useState([]);
+  const [learningIntegrationEvents, setLearningIntegrationEvents] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const resetData = useCallback(() => {
@@ -58,6 +60,7 @@ export function useAppData({
     setApplauseEntries([]);
     setDevelopmentRecords([]);
     setDevelopmentPlans([]);
+    setLearningIntegrationEvents([]);
     setLoading(false);
   }, []);
 
@@ -94,7 +97,8 @@ export function useAppData({
         api.getFeedbackRequests(),
         api.getApplauseEntries(),
         api.getDevelopmentRecords(),
-        api.getDevelopmentPlans()
+        api.getDevelopmentPlans(),
+        canViewOrganizationDevelopment ? api.getLearningIntegrationEvents() : Promise.resolve([])
       ];
 
       if (canViewUsersAdmin) {
@@ -122,9 +126,10 @@ export function useAppData({
         nextFeedbackRequests,
         nextApplause,
         nextDevelopment,
-        nextDevelopmentPlans
+        nextDevelopmentPlans,
+        nextLearningIntegrationEvents
       ] = result;
-      let resultIndex = 16;
+      let resultIndex = 17;
       const nextUsers = canViewUsersAdmin ? result[resultIndex++] : [];
       const nextResponses = canViewResponses ? result[resultIndex] : emptyResponsesBundle;
 
@@ -145,6 +150,7 @@ export function useAppData({
       setApplauseEntries(nextApplause);
       setDevelopmentRecords(nextDevelopment);
       setDevelopmentPlans(nextDevelopmentPlans);
+      setLearningIntegrationEvents(nextLearningIntegrationEvents);
       setResponsesBundle(nextResponses);
     } catch (err) {
       setError(err.message);
@@ -158,6 +164,7 @@ export function useAppData({
     canReceiveManagerFeedback,
     canViewResponses,
     canViewUsersAdmin,
+    canViewOrganizationDevelopment,
     dashboardAreaFilter,
     dashboardTimeGrouping,
     resetData,
@@ -188,6 +195,7 @@ export function useAppData({
     feedbackRequests,
     incidents,
     loading,
+    learningIntegrationEvents,
     people,
     receivedManagerFeedback,
     reloadData,

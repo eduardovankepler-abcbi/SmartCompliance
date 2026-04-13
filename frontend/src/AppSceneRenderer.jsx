@@ -213,6 +213,8 @@ export function AppSceneRenderer(props) {
           developmentEditablePeopleOptions={props.developmentEditablePeopleOptions}
           developmentViewLabels={props.developmentViewLabels}
           developmentViewOptions={props.developmentViewOptions}
+          learningIntegrationEventsForReview={props.learningIntegrationEventsForReview}
+          learningIntegrationSummary={props.learningIntegrationSummary}
           filteredDevelopmentRecords={props.filteredDevelopmentRecords}
           formatDate={props.formatDate}
           getDevelopmentTrackLabel={props.getDevelopmentTrackLabel}
@@ -220,6 +222,7 @@ export function AppSceneRenderer(props) {
           handleDevelopmentPlanUpdate={props.handleDevelopmentPlanUpdate}
           handleDevelopmentSubmit={props.handleDevelopmentSubmit}
           handleDevelopmentUpdate={props.handleDevelopmentUpdate}
+          handleLearningIntegrationApply={props.handleLearningIntegrationApply}
           roleKey={props.roleKey}
           setActiveDevelopmentView={props.setActiveDevelopmentView}
           setDevelopmentForm={props.setDevelopmentForm}
