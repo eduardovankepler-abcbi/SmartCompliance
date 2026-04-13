@@ -3991,6 +3991,12 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
   db.cycles.forEach((cycle) => hydrateCycleStructure(db, cycle.id));
 
   return {
+    async checkHealth() {
+      await pool.query("SELECT 1");
+      return {
+        database: "ok"
+      };
+    },
     async findUserByEmail(email) {
       return db.users.find((item) => item.email.toLowerCase() === email.toLowerCase()) || null;
     },

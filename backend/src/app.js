@@ -34,11 +34,22 @@ export function createApp(store) {
   });
   app.use(express.json({ limit: "50kb" }));
 
-  app.get("/health", (_req, res) => {
-    res.json({
-      status: "ok",
-      storageMode: env.storageMode
-    });
+  app.get("/health", async (_req, res) => {
+    try {
+      const storeHealth = store.checkHealth ? await store.checkHealth() : {};
+      res.json({
+        status: "ok",
+        storageMode: env.storageMode,
+        ...storeHealth
+      });
+    } catch (error) {
+      console.error("Health check failed", error);
+      res.status(503).json({
+        status: "degraded",
+        storageMode: env.storageMode,
+        database: "unavailable"
+      });
+    }
   });
 
   app.use("/api/auth", createAuthRouter(store));

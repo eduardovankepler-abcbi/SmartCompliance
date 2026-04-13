@@ -7,8 +7,8 @@ export const hashPassword = (value) =>
   crypto.createHash("sha256").update(value).digest("hex");
 
 export function safeCompare(left, right) {
-  const leftBuffer = Buffer.from(left || "", "utf8");
-  const rightBuffer = Buffer.from(right || "", "utf8");
+  const leftBuffer = Buffer.from(String(left || ""), "utf8");
+  const rightBuffer = Buffer.from(String(right || ""), "utf8");
 
   if (leftBuffer.length !== rightBuffer.length) {
     return false;
@@ -22,8 +22,12 @@ export function verifyPasswordHash(storedHash, password) {
     return false;
   }
 
-  if (storedHash.startsWith("pbkdf2$")) {
-    const [, iterationsRaw, salt, expectedHash] = storedHash.split("$");
+  const normalizedHash = Buffer.isBuffer(storedHash)
+    ? storedHash.toString("utf8")
+    : String(storedHash);
+
+  if (normalizedHash.startsWith("pbkdf2$")) {
+    const [, iterationsRaw, salt, expectedHash] = normalizedHash.split("$");
     const iterations = Number(iterationsRaw);
     if (!iterations || !salt || !expectedHash) {
       return false;
@@ -36,5 +40,5 @@ export function verifyPasswordHash(storedHash, password) {
     return safeCompare(derivedHash, expectedHash);
   }
 
-  return safeCompare(hashPassword(password), storedHash);
+  return safeCompare(hashPassword(password), normalizedHash);
 }
