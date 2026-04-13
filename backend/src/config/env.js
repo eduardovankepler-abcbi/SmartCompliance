@@ -22,8 +22,14 @@ function buildCorsOriginOption() {
   const canonical = process.env.CORS_ORIGIN;
   const legacy = process.env.CORS_ORIGINS;
 
-  const configured = canonical ? [canonical] : legacy ? parseCsv(legacy) : [];
-  const originRules = configured.length ? configured : ["http://localhost:5173"];
+  const configured = canonical ? parseCsv(canonical) : legacy ? parseCsv(legacy) : [];
+  const originRules = configured.length
+    ? configured
+    : [
+        "http://localhost:5173",
+        "https://smart-compliance-frontend.vercel.app",
+        "https://smart-compliance-frontend*.vercel.app"
+      ];
   const matchers = originRules.map((rule) =>
     rule.includes("*") ? wildcardToRegex(rule) : rule
   );
