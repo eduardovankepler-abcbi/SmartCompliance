@@ -25,6 +25,7 @@ export function useDevelopmentFlow({
   const [activeDevelopmentView, setActiveDevelopmentView] = useState("personal");
   const [developmentForm, setDevelopmentForm] = useState(emptyDevelopment);
   const [developmentPlanForm, setDevelopmentPlanForm] = useState(emptyDevelopmentPlan);
+  const [learningIntegrationDrafts, setLearningIntegrationDrafts] = useState({});
 
   const developmentPeopleOptions = useMemo(() => {
     const peopleOptions = people.map((person) => ({ value: person.id, label: person.name }));
@@ -273,6 +274,35 @@ export function useDevelopmentFlow({
     };
   }, [learningIntegrationEvents, learningIntegrationEventsForReview]);
 
+  const learningIntegrationPeopleOptions = useMemo(
+    () => people.map((person) => ({ value: person.id, label: person.name })),
+    [people]
+  );
+
+  const learningIntegrationReviewItems = useMemo(
+    () =>
+      learningIntegrationEventsForReview.map((event) => {
+        const mappedCompetency =
+          competencies.find(
+            (competency) =>
+              String(competency.key || "").toLowerCase() ===
+              String(event.competencyKey || "").toLowerCase()
+          )?.id || "";
+        const draft = learningIntegrationDrafts[event.id] || {};
+
+        return {
+          ...event,
+          reviewDraft: {
+            personId: draft.personId ?? event.personId ?? "",
+            competencyId: draft.competencyId ?? mappedCompetency,
+            reviewNote: draft.reviewNote ?? "",
+            dueDate: draft.dueDate ?? ""
+          }
+        };
+      }),
+    [competencies, learningIntegrationDrafts, learningIntegrationEventsForReview]
+  );
+
   useEffect(() => {
     if (!developmentViewOptions.some((view) => view.key === activeDevelopmentView)) {
       setActiveDevelopmentView(developmentViewOptions[0]?.key || "personal");
@@ -377,10 +407,31 @@ export function useDevelopmentFlow({
     }
   }
 
+  function setLearningIntegrationDraft(eventId, patch) {
+    setLearningIntegrationDrafts((current) => ({
+      ...current,
+      [eventId]: {
+        ...(current[eventId] || {}),
+        ...patch
+      }
+    }));
+  }
+
   async function handleLearningIntegrationApply(eventId) {
+    const draft = learningIntegrationDrafts[eventId] || {};
     try {
       setError("");
-      await api.applyLearningIntegrationEvent(eventId);
+      await api.applyLearningIntegrationEvent(eventId, {
+        personId: draft.personId || undefined,
+        competencyId: draft.competencyId || undefined,
+        dueDate: draft.dueDate || undefined,
+        reviewNote: draft.reviewNote || undefined
+      });
+      setLearningIntegrationDrafts((current) => {
+        const next = { ...current };
+        delete next[eventId];
+        return next;
+      });
       await reloadData();
     } catch (err) {
       setError(err.message);
@@ -414,11 +465,13 @@ export function useDevelopmentFlow({
     handleDevelopmentSubmit,
     handleDevelopmentUpdate,
     handleLearningIntegrationApply,
-    learningIntegrationEventsForReview,
+    learningIntegrationPeopleOptions,
+    learningIntegrationReviewItems,
     learningIntegrationSummary,
     resetDevelopmentFlow,
     setActiveDevelopmentView,
     setDevelopmentForm,
+    setLearningIntegrationDraft,
     setDevelopmentPlanForm
   };
 }

@@ -213,7 +213,8 @@ export function AppSceneRenderer(props) {
           developmentEditablePeopleOptions={props.developmentEditablePeopleOptions}
           developmentViewLabels={props.developmentViewLabels}
           developmentViewOptions={props.developmentViewOptions}
-          learningIntegrationEventsForReview={props.learningIntegrationEventsForReview}
+          learningIntegrationPeopleOptions={props.learningIntegrationPeopleOptions}
+          learningIntegrationReviewItems={props.learningIntegrationReviewItems}
           learningIntegrationSummary={props.learningIntegrationSummary}
           filteredDevelopmentRecords={props.filteredDevelopmentRecords}
           formatDate={props.formatDate}
@@ -226,6 +227,7 @@ export function AppSceneRenderer(props) {
           roleKey={props.roleKey}
           setActiveDevelopmentView={props.setActiveDevelopmentView}
           setDevelopmentForm={props.setDevelopmentForm}
+          setLearningIntegrationDraft={props.setLearningIntegrationDraft}
           setDevelopmentPlanForm={props.setDevelopmentPlanForm}
         />
       );

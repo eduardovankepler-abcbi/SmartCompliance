@@ -1383,6 +1383,15 @@ button:disabled {
   align-content: start;
 }
 
+.learning-integration-review-fields {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
 .secondary-button {
   width: 100%;
   border: 1px solid var(--line);

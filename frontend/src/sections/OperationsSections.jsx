@@ -249,7 +249,8 @@ export function DevelopmentSection({
   developmentEditablePeopleOptions,
   developmentViewLabels,
   developmentViewOptions,
-  learningIntegrationEventsForReview = [],
+  learningIntegrationPeopleOptions = [],
+  learningIntegrationReviewItems = [],
   learningIntegrationSummary = null,
   filteredDevelopmentRecords,
   formatDate,
@@ -262,6 +263,7 @@ export function DevelopmentSection({
   roleKey,
   setActiveDevelopmentView,
   setDevelopmentForm,
+  setLearningIntegrationDraft,
   setDevelopmentPlanForm
 }) {
   const SafeDevelopmentPlanAdminCard = DevelopmentPlanAdminCard || EmptyComponent;
@@ -335,13 +337,13 @@ export function DevelopmentSection({
             <SafeMetricCard label="Aplicados" value={learningIntegrationSummary.applied} />
           </div>
           <div className="learning-integration-grid">
-            {learningIntegrationEventsForReview.length ? (
-              learningIntegrationEventsForReview.slice(0, 6).map((item) => {
+            {learningIntegrationReviewItems.length ? (
+              learningIntegrationReviewItems.slice(0, 6).map((item) => {
                 const targetLabel =
                   item.suggestedAction === "development_record_candidate"
                     ? "Desenvolvimento"
                     : "PDI";
-                const canApply = item.processingStatus === "ready_for_review";
+                const canApply = Boolean(item.reviewDraft.personId);
 
                 return (
                   <article className="list-card learning-integration-card" key={item.id}>
@@ -357,13 +359,57 @@ export function DevelopmentSection({
                     <p className="muted">
                       {item.sourceSystem} · {item.workloadHours || 0}h · {item.competencyKey || "sem competencia"}
                     </p>
+                    <div className="learning-integration-review-fields">
+                      <SafeSelect
+                        label="Pessoa"
+                        value={item.reviewDraft.personId}
+                        options={learningIntegrationPeopleOptions.map((person) => person.value)}
+                        renderLabel={(value) =>
+                          learningIntegrationPeopleOptions.find((person) => person.value === value)
+                            ?.label || value
+                        }
+                        onChange={(value) =>
+                          setLearningIntegrationDraft(item.id, { personId: value })
+                        }
+                      />
+                      <SafeSelect
+                        label="Competencia"
+                        value={item.reviewDraft.competencyId}
+                        options={developmentPlanCompetencyOptions.map((option) => option.value)}
+                        renderLabel={(value) =>
+                          developmentPlanCompetencyOptions.find((option) => option.value === value)
+                            ?.label || value
+                        }
+                        onChange={(value) =>
+                          setLearningIntegrationDraft(item.id, { competencyId: value })
+                        }
+                      />
+                      {item.suggestedAction === "development_plan_candidate" ? (
+                        <SafeInput
+                          label="Prazo sugerido"
+                          type="date"
+                          value={item.reviewDraft.dueDate}
+                          onChange={(value) =>
+                            setLearningIntegrationDraft(item.id, { dueDate: value })
+                          }
+                        />
+                      ) : null}
+                      <SafeTextarea
+                        label="Nota de revisão"
+                        rows={2}
+                        value={item.reviewDraft.reviewNote}
+                        onChange={(value) =>
+                          setLearningIntegrationDraft(item.id, { reviewNote: value })
+                        }
+                      />
+                    </div>
                     <button
                       className="secondary-button"
                       disabled={!canApply}
                       type="button"
                       onClick={() => handleLearningIntegrationApply(item.id)}
                     >
-                      {canApply ? `Aplicar em ${targetLabel}` : "Aguardando conciliação"}
+                      {canApply ? `Aplicar em ${targetLabel}` : "Selecione uma pessoa"}
                     </button>
                   </article>
                 );

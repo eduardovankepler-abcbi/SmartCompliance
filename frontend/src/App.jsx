@@ -311,11 +311,13 @@ export default function App() {
     handleDevelopmentSubmit,
     handleDevelopmentUpdate,
     handleLearningIntegrationApply,
-    learningIntegrationEventsForReview,
+    learningIntegrationPeopleOptions,
+    learningIntegrationReviewItems,
     learningIntegrationSummary,
     resetDevelopmentFlow,
     setActiveDevelopmentView,
     setDevelopmentForm,
+    setLearningIntegrationDraft,
     setDevelopmentPlanForm
   } = useDevelopmentFlow({
     auditTrail,
@@ -533,7 +535,8 @@ export default function App() {
         developmentRecordTypes={developmentRecordTypes}
         developmentViewLabels={developmentViewLabels}
         developmentViewOptions={developmentViewOptions}
-        learningIntegrationEventsForReview={learningIntegrationEventsForReview}
+        learningIntegrationPeopleOptions={learningIntegrationPeopleOptions}
+        learningIntegrationReviewItems={learningIntegrationReviewItems}
         learningIntegrationSummary={learningIntegrationSummary}
         DevelopmentPlanAdminCard={DevelopmentPlanAdminCard}
         DevelopmentRecordAdminCard={DevelopmentRecordAdminCard}
@@ -647,6 +650,7 @@ export default function App() {
         setDashboardCompositionFilter={setDashboardCompositionFilter}
         setDashboardTimeGrouping={setDashboardTimeGrouping}
         setDevelopmentForm={setDevelopmentForm}
+        setLearningIntegrationDraft={setLearningIntegrationDraft}
         setDevelopmentNote={setDevelopmentNote}
         setDevelopmentPlanForm={setDevelopmentPlanForm}
         setEvaluationOperationWorkModeFilter={setEvaluationOperationWorkModeFilter}
