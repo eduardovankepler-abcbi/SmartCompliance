@@ -1779,7 +1779,14 @@ async function detectMysqlPeopleWorkContextSupport(pool) {
   try {
     const [unitRows] = await pool.query("SHOW COLUMNS FROM people LIKE 'work_unit'");
     const [modeRows] = await pool.query("SHOW COLUMNS FROM people LIKE 'work_mode'");
-    return hasMysqlColumn(unitRows) && hasMysqlColumn(modeRows);
+    const [employmentRows] = await pool.query("SHOW COLUMNS FROM people LIKE 'employment_type'");
+    const [satisfactionRows] = await pool.query("SHOW COLUMNS FROM people LIKE 'satisfaction_score'");
+    return (
+      hasMysqlColumn(unitRows) &&
+      hasMysqlColumn(modeRows) &&
+      hasMysqlColumn(employmentRows) &&
+      hasMysqlColumn(satisfactionRows)
+    );
   } catch (_error) {
     return false;
   }
@@ -1791,7 +1798,9 @@ async function ensureMysqlPeopleWorkContextSupport(pool) {
     "people",
     [
       `ALTER TABLE people ADD COLUMN work_unit VARCHAR(120) NOT NULL DEFAULT '${DEFAULT_WORK_UNIT}'`,
-      `ALTER TABLE people ADD COLUMN work_mode VARCHAR(30) NOT NULL DEFAULT '${DEFAULT_WORK_MODE}'`
+      `ALTER TABLE people ADD COLUMN work_mode VARCHAR(30) NOT NULL DEFAULT '${DEFAULT_WORK_MODE}'`,
+      "ALTER TABLE people ADD COLUMN employment_type VARCHAR(40) NOT NULL DEFAULT 'internal'",
+      "ALTER TABLE people ADD COLUMN satisfaction_score DECIMAL(4,2) NOT NULL DEFAULT 0"
     ],
     detectMysqlPeopleWorkContextSupport
   );
