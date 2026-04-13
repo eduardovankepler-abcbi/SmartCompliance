@@ -304,13 +304,6 @@ export function DevelopmentSection({
               >
                 <p className="mini-label">{view.label}</p>
                 <strong>{view.description}</strong>
-                <p className="muted">
-                  {view.key === "team"
-                    ? "Gestor acompanha apenas reportes diretos."
-                    : view.key === "organization"
-                      ? "RH e administracao acompanham a organizacao."
-                      : "Cada usuario visualiza o proprio historico."}
-                </p>
               </button>
             ))}
           </div>
