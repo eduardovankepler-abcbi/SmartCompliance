@@ -3579,8 +3579,8 @@ function mapMysqlPersonRow(row) {
     workMode: row.workMode || DEFAULT_WORK_MODE,
     managerPersonId: row.managerPersonId || null,
     managerName: row.managerName,
-    employmentType: row.employmentType,
-    satisfactionScore: row.satisfactionScore
+    employmentType: row.employmentType || "internal",
+    satisfactionScore: row.satisfactionScore || 0
   };
 }
 
@@ -3610,21 +3610,44 @@ async function fetchPeopleRows(pool) {
       throw error;
     }
 
-    const [rows] = await pool.query(
-      `SELECT p.id, p.name, p.role_title AS roleTitle, p.area,
-              p.manager_person_id AS managerPersonId, manager.name AS managerName,
-              p.employment_type AS employmentType, p.satisfaction_score AS satisfactionScore
-       FROM people p
-       LEFT JOIN people manager ON manager.id = p.manager_person_id
-       ORDER BY p.name`
-    );
-    return rows.map((row) =>
-      mapMysqlPersonRow({
-        ...row,
-        workUnit: DEFAULT_WORK_UNIT,
-        workMode: DEFAULT_WORK_MODE
-      })
-    );
+    try {
+      const [rows] = await pool.query(
+        `SELECT p.id, p.name, p.role_title AS roleTitle, p.area,
+                p.manager_person_id AS managerPersonId, manager.name AS managerName,
+                p.employment_type AS employmentType, p.satisfaction_score AS satisfactionScore
+         FROM people p
+         LEFT JOIN people manager ON manager.id = p.manager_person_id
+         ORDER BY p.name`
+      );
+      return rows.map((row) =>
+        mapMysqlPersonRow({
+          ...row,
+          workUnit: DEFAULT_WORK_UNIT,
+          workMode: DEFAULT_WORK_MODE
+        })
+      );
+    } catch (fallbackError) {
+      if (fallbackError?.code !== "ER_BAD_FIELD_ERROR" && fallbackError?.errno !== 1054) {
+        throw fallbackError;
+      }
+
+      const [rows] = await pool.query(
+        `SELECT p.id, p.name, p.role_title AS roleTitle, p.area,
+                p.manager_person_id AS managerPersonId, manager.name AS managerName
+         FROM people p
+         LEFT JOIN people manager ON manager.id = p.manager_person_id
+         ORDER BY p.name`
+      );
+      return rows.map((row) =>
+        mapMysqlPersonRow({
+          ...row,
+          workUnit: DEFAULT_WORK_UNIT,
+          workMode: DEFAULT_WORK_MODE,
+          employmentType: "internal",
+          satisfactionScore: 0
+        })
+      );
+    }
   }
 }
 
@@ -5591,18 +5614,36 @@ function buildMysqlStore(
       return rows[0] || null;
     },
     async getUserById(userId) {
-      const [rows] = await pool.query(
-        `SELECT u.id, u.email, u.role_key AS roleKey, u.status,
-                p.id AS personId, p.name, p.role_title AS roleTitle, p.area,
-                p.manager_person_id AS managerPersonId, manager.name AS managerName,
-                p.employment_type AS employmentType
-         FROM users u
-         JOIN people p ON p.id = u.person_id
-         LEFT JOIN people manager ON manager.id = p.manager_person_id
-         WHERE u.id = ?
-         LIMIT 1`,
-        [userId]
-      );
+      let rows;
+      try {
+        [rows] = await pool.query(
+          `SELECT u.id, u.email, u.role_key AS roleKey, u.status,
+                  p.id AS personId, p.name, p.role_title AS roleTitle, p.area,
+                  p.manager_person_id AS managerPersonId, manager.name AS managerName,
+                  p.employment_type AS employmentType
+           FROM users u
+           JOIN people p ON p.id = u.person_id
+           LEFT JOIN people manager ON manager.id = p.manager_person_id
+           WHERE u.id = ?
+           LIMIT 1`,
+          [userId]
+        );
+      } catch (error) {
+        if (error?.code !== "ER_BAD_FIELD_ERROR" && error?.errno !== 1054) {
+          throw error;
+        }
+        [rows] = await pool.query(
+          `SELECT u.id, u.email, u.role_key AS roleKey, u.status,
+                  p.id AS personId, p.name, p.role_title AS roleTitle, p.area,
+                  p.manager_person_id AS managerPersonId, manager.name AS managerName
+           FROM users u
+           JOIN people p ON p.id = u.person_id
+           LEFT JOIN people manager ON manager.id = p.manager_person_id
+           WHERE u.id = ?
+           LIMIT 1`,
+          [userId]
+        );
+      }
 
       if (!rows[0]) {
         return null;
@@ -5620,7 +5661,7 @@ function buildMysqlStore(
           area: rows[0].area,
           managerPersonId: rows[0].managerPersonId || null,
           managerName: rows[0].managerName,
-          employmentType: rows[0].employmentType
+          employmentType: rows[0].employmentType || "internal"
         }
       };
     },
