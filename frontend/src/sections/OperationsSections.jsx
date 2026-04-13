@@ -610,7 +610,7 @@ export function ApplauseSection({
           <h3>{isEmployeeJourney ? "Reconhecer alguem" : "Novo Aplause"}</h3>
           <span>
             {isEmployeeJourney
-              ? "Reconhecimento rapido com contexto objetivo"
+              ? "Reconhecimento rapido com descricao objetiva"
               : "Reconhecimento formal com contexto obrigatorio"}
           </span>
         </div>
@@ -636,7 +636,7 @@ export function ApplauseSection({
                 </small>
               </label>
               <label className="field">
-                <span>Ocasiao</span>
+                <span>Contexto</span>
                 <select
                   value={applauseForm.occasion || "Projeto"}
                   onChange={(event) => setApplauseForm({ ...applauseForm, occasion: event.target.value })}
@@ -648,11 +648,11 @@ export function ApplauseSection({
                   ))}
                 </select>
                 <small className="field-helper">
-                  Indique em que contexto esse reconhecimento aconteceu.
+                  Indique o ambiente em que esse reconhecimento aconteceu.
                 </small>
               </label>
               <label className="field">
-                <span>Contexto do reconhecimento</span>
+                <span>Tipo de reconhecimento</span>
                 <select
                   value={applauseForm.category}
                   onChange={(event) => setApplauseForm({ ...applauseForm, category: event.target.value })}
@@ -676,7 +676,7 @@ export function ApplauseSection({
               onChange={(value) => setApplauseForm({ ...applauseForm, impact: value })}
             />
             <SafeTextarea
-              label="Contexto objetivo"
+              label="Descricao do reconhecimento"
               rows={6}
               helper="Explique o que aconteceu, quando ocorreu e por que esse comportamento merece destaque."
               value={applauseForm.contextNote}
@@ -693,7 +693,7 @@ export function ApplauseSection({
             </div>
             <div className="applause-guidance-card">
               <p className="mini-label">Como registrar bem</p>
-              <strong>{applauseForm.category || "Defina um contexto objetivo"}</strong>
+              <strong>{applauseForm.category || "Defina o tipo de reconhecimento"}</strong>
               <p className="muted">
                 {applauseForm.occasion || "Projeto"} · Diga o que a pessoa fez, qual foi o impacto concreto e por que esse comportamento merece ser repetido.
               </p>

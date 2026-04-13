@@ -3,9 +3,9 @@ import { api } from "./api";
 import { emptyApplause, emptyIncident } from "./appConfig.js";
 
 function buildApplausePayload(form) {
-  const occasionPrefix = form.occasion ? `[Ocasiao: ${form.occasion}] ` : "";
+  const occasionPrefix = form.occasion ? `[Contexto: ${form.occasion}] ` : "";
   const normalizedContext = (form.contextNote || "").trim();
-  const contextNote = normalizedContext.startsWith("[Ocasiao:")
+  const contextNote = normalizedContext.startsWith("[Ocasiao:") || normalizedContext.startsWith("[Contexto:")
     ? normalizedContext
     : `${occasionPrefix}${normalizedContext}`.trim();
 
