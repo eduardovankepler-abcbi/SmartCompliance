@@ -61,17 +61,32 @@ export function createAuthRouter(store) {
 
       loginAttempts.delete(clientKey);
 
-      const token = createToken({
-        userId: user.id,
-        roleKey: user.roleKey
-      });
+      let token;
+      try {
+        token = createToken({
+          userId: user.id,
+          roleKey: user.roleKey
+        });
+      } catch (error) {
+        error.authStage = "issue_token";
+        throw error;
+      }
 
       res.json({
         token,
         user
       });
     } catch (error) {
-      next(error);
+      console.error("Login failed", {
+        stage: error.authStage || "unknown",
+        code: error.code,
+        errno: error.errno,
+        message: error.message
+      });
+      res.status(500).json({
+        error: "Erro interno ao processar login.",
+        code: error.authStage ? `auth_${error.authStage}` : "auth_internal"
+      });
     }
   });
 

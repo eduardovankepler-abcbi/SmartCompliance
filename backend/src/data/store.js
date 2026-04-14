@@ -5677,11 +5677,32 @@ function buildMysqlStore(
       };
     },
     async authenticateUser(email, password) {
-      const user = await this.findUserByEmail(email);
-      if (!user || user.status !== "active" || !verifyPasswordHash(user.passwordHash, password)) {
+      let user;
+      try {
+        user = await this.findUserByEmail(email);
+      } catch (error) {
+        error.authStage = "find_user";
+        throw error;
+      }
+
+      let passwordMatches = false;
+      try {
+        passwordMatches = Boolean(user && verifyPasswordHash(user.passwordHash, password));
+      } catch (error) {
+        error.authStage = "verify_password";
+        throw error;
+      }
+
+      if (!user || user.status !== "active" || !passwordMatches) {
         return null;
       }
-      return this.getUserById(user.id);
+
+      try {
+        return await this.getUserById(user.id);
+      } catch (error) {
+        error.authStage = "load_profile";
+        throw error;
+      }
     },
     async getAreas(actorUser) {
       const [areas, people] = await Promise.all([fetchAreaRows(pool), fetchPeopleRows(pool)]);
