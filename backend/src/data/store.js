@@ -3992,9 +3992,8 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
 
   return {
     async checkHealth() {
-      await pool.query("SELECT 1");
       return {
-        database: "ok"
+        database: "memory"
       };
     },
     async findUserByEmail(email) {
@@ -5608,6 +5607,12 @@ function buildMysqlStore(
   } = {}
 ) {
   return {
+    async checkHealth() {
+      await pool.query("SELECT 1");
+      return {
+        database: "ok"
+      };
+    },
     async findUserByEmail(email) {
       const [rows] = await pool.query(
         `SELECT u.id, u.person_id AS personId, u.email, u.password_hash AS passwordHash,
