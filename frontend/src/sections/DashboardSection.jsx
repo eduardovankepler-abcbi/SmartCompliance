@@ -80,6 +80,7 @@ export function DashboardSection({
   const SafeResponseDistributionChartCard = ResponseDistributionChartCard || EmptyComponent;
   const SafeTrendAreaChartCard = TrendAreaChartCard || EmptyComponent;
   const [dashboardViewMode, setDashboardViewMode] = useState("executive");
+  const [dashboardAnalyticalTheme, setDashboardAnalyticalTheme] = useState("evaluations");
   const [satisfactionView, setSatisfactionView] = useState("all");
   const [developmentView, setDevelopmentView] = useState("all");
   const [dimensionFilters, setDimensionFilters] = useState({});
@@ -109,6 +110,9 @@ export function DashboardSection({
   const evaluationMixItems = filteredDashboardEvaluationMix || [];
   const evaluationResultsSummaryItems = filteredDashboardEvaluationResultsSummary || [];
   const funnelItems = dashboard?.funnelMetrics || [];
+  const donutMetrics = dashboard?.donutMetrics || [];
+  const developmentCoverageMetric = donutMetrics.find((item) => item.key === "development");
+  const applauseCoverageMetric = donutMetrics.find((item) => item.key === "applause");
   const filteredSatisfactionByAreaItems = getFilteredSatisfactionItems(
     satisfactionByAreaItems,
     satisfactionView
@@ -262,6 +266,28 @@ export function DashboardSection({
     developmentByTypeItems,
     getRelationshipLabel
   });
+  const analyticalThemes = [
+    {
+      key: "evaluations",
+      label: "Avaliacoes",
+      detail: `${evaluationResultsSummaryItems.length} modalidades`
+    },
+    {
+      key: "compliance",
+      label: "Compliance",
+      detail: `${summary?.openIncidents ?? 0} incidentes abertos`
+    },
+    {
+      key: "development",
+      label: "Desenvolvimento",
+      detail: `${dashboard?.scopeSummary?.developmentRecords ?? 0} registros`
+    },
+    {
+      key: "applause",
+      label: "Aplause",
+      detail: `${dashboard?.scopeSummary?.applauseEntries ?? 0} reconhecimentos`
+    }
+  ];
 
   function setDimensionFilterForGroup(relationshipType, nextValue) {
     setDimensionFilters((current) => ({
@@ -410,6 +436,26 @@ export function DashboardSection({
               ))}
             </div>
           </div>
+        </div>
+      ) : null}
+
+      {!isExecutiveView ? (
+        <div className="card-span dashboard-analytical-nav">
+          {analyticalThemes.map((theme) => (
+            <button
+              key={theme.key}
+              type="button"
+              className={
+                dashboardAnalyticalTheme === theme.key
+                  ? "button-reset dashboard-analytical-tab active"
+                  : "button-reset dashboard-analytical-tab"
+              }
+              onClick={() => setDashboardAnalyticalTheme(theme.key)}
+            >
+              <strong>{theme.label}</strong>
+              <span>{theme.detail}</span>
+            </button>
+          ))}
         </div>
       ) : null}
 
@@ -603,6 +649,7 @@ export function DashboardSection({
           </>
         ) : (
           <>
+            {dashboardAnalyticalTheme === "evaluations" ? (
             <div className="card dashboard-visual-card dashboard-board-featured dashboard-analytical-primary">
               <DashboardCardHeader
                 eyebrow="Analise"
@@ -805,8 +852,128 @@ export function DashboardSection({
                 )}
               </div>
             </div>
+            ) : null}
 
-            {funnelItems.length ? (
+            {dashboardAnalyticalTheme === "compliance" ? (
+              <div className="card dashboard-visual-card dashboard-board-featured dashboard-analytical-primary dashboard-theme-drilldown-card">
+                <DashboardCardHeader
+                  eyebrow="Compliance"
+                  title="Risco e fila de tratamento"
+                  subtitle="Leitura operacional do recorte"
+                  tone="warning"
+                />
+                <div className="dashboard-theme-summary-grid">
+                  <article className="dashboard-theme-metric-card critical">
+                    <span>Incidentes abertos</span>
+                    <strong>{summary?.openIncidents ?? 0}</strong>
+                    <p>Casos que exigem acompanhamento ou encerramento.</p>
+                  </article>
+                  <article className="dashboard-theme-metric-card neutral">
+                    <span>Pessoas no recorte</span>
+                    <strong>{dashboard?.scopeSummary?.peopleCount ?? summary?.peopleCount ?? 0}</strong>
+                    <p>Base considerada para leitura de exposicao e cultura.</p>
+                  </article>
+                  <article className="dashboard-theme-metric-card warning">
+                    <span>Assignments pendentes</span>
+                    <strong>{dashboard?.scopeSummary?.pendingAssignments ?? 0}</strong>
+                    <p>Pendencias podem atrasar sinais de risco do ciclo.</p>
+                  </article>
+                </div>
+                <div className="dashboard-theme-action-row">
+                  <p className="muted">
+                    Use este drilldown para sair do indicador e tratar a fila real de compliance.
+                  </p>
+                  <button
+                    type="button"
+                    className="dashboard-quick-action success"
+                    onClick={() => onSectionChange?.("Compliance")}
+                  >
+                    <span>Abrir modulo</span>
+                    <strong>Ver incidentes</strong>
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
+            {dashboardAnalyticalTheme === "development" ? (
+              <div className="card dashboard-visual-card dashboard-board-featured dashboard-analytical-primary dashboard-theme-drilldown-card">
+                <DashboardCardHeader
+                  eyebrow="Desenvolvimento"
+                  title="Cobertura e trilhas de PDI"
+                  subtitle="Evolucao profissional do recorte"
+                  tone="success"
+                />
+                <div className="dashboard-theme-split">
+                  {developmentCoverageMetric ? (
+                    <SafeDashboardDonut item={developmentCoverageMetric} />
+                  ) : null}
+                  <div className="dashboard-theme-summary-grid">
+                    <article className="dashboard-theme-metric-card positive">
+                      <span>Registros</span>
+                      <strong>{dashboard?.scopeSummary?.developmentRecords ?? 0}</strong>
+                      <p>Marcos, cursos, certificacoes e PDIs no recorte.</p>
+                    </article>
+                    <article className="dashboard-theme-metric-card neutral">
+                      <span>Trilhas</span>
+                      <strong>{developmentByTypeItems.length}</strong>
+                      <p>Tipos de desenvolvimento com volume registrado.</p>
+                    </article>
+                  </div>
+                </div>
+                {developmentByTypeItems.length ? (
+                  <SafeHeatmapMatrixCard
+                    items={filteredDevelopmentByTypeItems}
+                    getLabel={(item) => item.type}
+                    getValue={(item) => Number(item.total || 0)}
+                    getDetail={(item) => `${item.percentage}% do recorte`}
+                    toneSeed="development"
+                  />
+                ) : null}
+              </div>
+            ) : null}
+
+            {dashboardAnalyticalTheme === "applause" ? (
+              <div className="card dashboard-visual-card dashboard-board-featured dashboard-analytical-primary dashboard-theme-drilldown-card">
+                <DashboardCardHeader
+                  eyebrow="Aplause"
+                  title="Reconhecimento e cultura"
+                  subtitle="Sinais positivos do recorte"
+                  tone="accent"
+                />
+                <div className="dashboard-theme-split">
+                  {applauseCoverageMetric ? (
+                    <SafeDashboardDonut item={applauseCoverageMetric} />
+                  ) : null}
+                  <div className="dashboard-theme-summary-grid">
+                    <article className="dashboard-theme-metric-card positive">
+                      <span>Reconhecimentos</span>
+                      <strong>{dashboard?.scopeSummary?.applauseEntries ?? 0}</strong>
+                      <p>Registros validados considerados no recorte atual.</p>
+                    </article>
+                    <article className="dashboard-theme-metric-card neutral">
+                      <span>Cobertura</span>
+                      <strong>{applauseCoverageMetric ? `${applauseCoverageMetric.percentage}%` : "-"}</strong>
+                      <p>Pessoas reconhecidas dentro da base filtrada.</p>
+                    </article>
+                  </div>
+                </div>
+                <div className="dashboard-theme-action-row">
+                  <p className="muted">
+                    Aprofunde quando quiser entender quais comportamentos estao sendo reforcados.
+                  </p>
+                  <button
+                    type="button"
+                    className="dashboard-quick-action accent"
+                    onClick={() => onSectionChange?.("Aplause")}
+                  >
+                    <span>Abrir modulo</span>
+                    <strong>Ver reconhecimentos</strong>
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
+            {dashboardAnalyticalTheme === "evaluations" && funnelItems.length ? (
               <div className="card">
                 <DashboardCardHeader
                   eyebrow="Fluxo"
@@ -821,7 +988,7 @@ export function DashboardSection({
               </div>
             ) : null}
 
-            {cycleTimelineItems.length ? (
+            {dashboardAnalyticalTheme === "evaluations" && cycleTimelineItems.length ? (
               <div
                 className={`card dashboard-visual-card ${
                   funnelItems.length ? "" : "dashboard-board-featured"
@@ -867,7 +1034,8 @@ export function DashboardSection({
           isExecutiveView ? "dashboard-insight-grid-executive" : "dashboard-insight-grid-analytical"
         }`}
       >
-        {assignmentStatusItems.length ? (
+        {assignmentStatusItems.length &&
+        (isExecutiveView || dashboardAnalyticalTheme === "evaluations") ? (
           <div className={`card dashboard-side-card ${isExecutiveView ? "dashboard-card-tall" : ""}`}>
             <DashboardCardHeader
               eyebrow="Operacao"
@@ -890,7 +1058,8 @@ export function DashboardSection({
           </div>
         ) : null}
 
-        {satisfactionByAreaItems.length ? (
+        {satisfactionByAreaItems.length &&
+        (isExecutiveView || dashboardAnalyticalTheme === "evaluations") ? (
           <div className={`card dashboard-side-card ${isExecutiveView ? "dashboard-card-tall" : ""}`}>
             <div className="card-header">
               <div>
@@ -942,7 +1111,8 @@ export function DashboardSection({
           </div>
         ) : null}
 
-        {developmentByTypeItems.length ? (
+        {developmentByTypeItems.length &&
+        (isExecutiveView || dashboardAnalyticalTheme === "development") ? (
           <div className="card dashboard-side-card">
             <div className="card-header">
               <div>
@@ -971,7 +1141,8 @@ export function DashboardSection({
           </div>
         ) : null}
 
-        {cycleTimelineItems.length ? (
+        {cycleTimelineItems.length &&
+        (isExecutiveView || dashboardAnalyticalTheme === "evaluations") ? (
           <div className="card dashboard-side-card">
             <DashboardCardHeader
               eyebrow="Adesao"
@@ -994,7 +1165,7 @@ export function DashboardSection({
           </div>
         ) : null}
 
-        {isExecutiveView ? null : evaluationMixItems.length ? (
+        {isExecutiveView ? null : dashboardAnalyticalTheme === "evaluations" && evaluationMixItems.length ? (
           <div className="card dashboard-side-card">
             <DashboardCardHeader
               eyebrow="Mix"
