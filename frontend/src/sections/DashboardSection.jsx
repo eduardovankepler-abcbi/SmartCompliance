@@ -82,6 +82,7 @@ export function DashboardSection({
   const [dashboardViewMode, setDashboardViewMode] = useState("executive");
   const [dashboardAnalyticalTheme, setDashboardAnalyticalTheme] = useState("evaluations");
   const [satisfactionView, setSatisfactionView] = useState("all");
+  const [satisfactionQuestionAreaFilter, setSatisfactionQuestionAreaFilter] = useState("all");
   const [developmentView, setDevelopmentView] = useState("all");
   const [dimensionFilters, setDimensionFilters] = useState({});
   const executiveHighlights = buildExecutiveHighlights({
@@ -116,6 +117,15 @@ export function DashboardSection({
   const performanceHealth = dashboard?.performanceHealth || null;
   const performanceDistributionItems = performanceHealth?.distribution || [];
   const performanceAreaHighlights = performanceHealth?.areaHighlights || [];
+  const satisfactionQuestionAnalyticsItems = dashboard?.satisfactionQuestionAnalytics || [];
+  const satisfactionQuestionAreaOptions = getSatisfactionQuestionAreaOptions(
+    satisfactionQuestionAnalyticsItems
+  );
+  const resolvedSatisfactionQuestionAreaFilter = satisfactionQuestionAreaOptions.includes(
+    satisfactionQuestionAreaFilter
+  )
+    ? satisfactionQuestionAreaFilter
+    : "all";
   const filteredSatisfactionByAreaItems = getFilteredSatisfactionItems(
     satisfactionByAreaItems,
     satisfactionView
@@ -149,6 +159,12 @@ export function DashboardSection({
   const selectedAnalyticalRelationship = analyticalRelationshipItems.find(
     (item) => item.relationshipType === selectedAnalyticalRelationshipType
   );
+  const isSatisfactionAnalyticsSelected = selectedAnalyticalRelationshipType === "company";
+  const satisfactionQuestionTrendItems = satisfactionQuestionAnalyticsItems
+    .map((question) =>
+      getSatisfactionQuestionAreaView(question, resolvedSatisfactionQuestionAreaFilter)
+    )
+    .filter((question) => question.totalAnswers > 0);
   const dashboardHeadline =
     dashboard?.mode === "executive"
       ? "Resumo estratégico da operação"
@@ -786,6 +802,80 @@ export function DashboardSection({
                                 {summary?.totalResponses || distribution?.totalResponses || 0} respostas
                               </span>
                             </div>
+                            {isSatisfactionAnalyticsSelected ? (
+                              <div className="dashboard-satisfaction-analytics-panel">
+                                <div className="dashboard-dimension-summary-head">
+                                  <div>
+                                    <strong>Satisfacao por pergunta</strong>
+                                    <p className="muted">
+                                      Compare a opiniao dos colaboradores por ciclo, semestre,
+                                      trimestre ou ano.
+                                    </p>
+                                  </div>
+                                  <label className="dashboard-card-filter-card dashboard-dimension-filter-card">
+                                    <span>Area</span>
+                                    <select
+                                      value={resolvedSatisfactionQuestionAreaFilter}
+                                      onChange={(event) =>
+                                        setSatisfactionQuestionAreaFilter(event.target.value)
+                                      }
+                                    >
+                                      {satisfactionQuestionAreaOptions.map((area) => (
+                                        <option key={area} value={area}>
+                                          {area === "all" ? "Todas" : area}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </label>
+                                </div>
+                                {satisfactionQuestionTrendItems.length ? (
+                                  <div className="dashboard-satisfaction-question-grid">
+                                    {satisfactionQuestionTrendItems.map((question) => (
+                                      <article
+                                        className="dashboard-satisfaction-question-card"
+                                        key={`${question.questionId}-${resolvedSatisfactionQuestionAreaFilter}`}
+                                      >
+                                        <div className="dashboard-satisfaction-question-head">
+                                          <div>
+                                            <span className="dashboard-card-eyebrow secondary">
+                                              {question.dimensionTitle || "Satisfacao"}
+                                            </span>
+                                            <strong>{question.latestScoreLabel}/5</strong>
+                                          </div>
+                                          <div className="dashboard-satisfaction-question-meta">
+                                            <span>{question.totalAnswers} respostas</span>
+                                            {question.trendDelta !== null ? (
+                                              <b className={question.trendDelta >= 0 ? "positive" : "warning"}>
+                                                {question.trendDelta > 0 ? "+" : ""}
+                                                {formatSatisfactionScore(question.trendDelta)}
+                                              </b>
+                                            ) : null}
+                                          </div>
+                                        </div>
+                                        <p className="muted dashboard-satisfaction-question-prompt">
+                                          {question.questionPrompt}
+                                        </p>
+                                        <SafeTrendAreaChartCard
+                                          items={question.periods}
+                                          valueKey="averageScore"
+                                          labelKey="label"
+                                          formatter={formatSatisfactionScore}
+                                          detailFormatter={(item) => `${item.totalAnswers} resp.`}
+                                        />
+                                      </article>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div className="dashboard-empty-relationship-state">
+                                    <strong>Sem respostas para esta area</strong>
+                                    <p className="muted">
+                                      Ajuste o filtro de area ou aguarde novas respostas da
+                                      avaliacao de satisfacao.
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+                            ) : null}
                             {dimensionSummary.length ? (
                               <div className="dashboard-dimension-summary-block">
                                 <div className="dashboard-dimension-summary-head">
@@ -826,7 +916,7 @@ export function DashboardSection({
                                 </div>
                               </div>
                             ) : null}
-                            {filteredQuestions.length ? (
+                            {!isSatisfactionAnalyticsSelected && filteredQuestions.length ? (
                               <div className="response-chart-grid">
                                 {filteredQuestions.map((question) => (
                                   <SafeResponseDistributionChartCard
@@ -835,7 +925,7 @@ export function DashboardSection({
                                   />
                                 ))}
                               </div>
-                            ) : (
+                            ) : !isSatisfactionAnalyticsSelected ? (
                               <div className="dashboard-empty-relationship-state">
                                 <strong>Sem detalhe analitico disponivel</strong>
                                 <p className="muted">
@@ -844,7 +934,7 @@ export function DashboardSection({
                                     : "Ainda nao existem respostas registradas para esta modalidade neste recorte."}
                                 </p>
                               </div>
-                            )}
+                            ) : null}
                           </>
                         );
                       })()}
@@ -1617,6 +1707,64 @@ function getFilteredSatisfactionItems(items, mode) {
       .slice(0, 4);
   }
   return safeItems;
+}
+
+function getSatisfactionQuestionAreaOptions(items) {
+  const areas = new Set();
+  (items || []).forEach((question) => {
+    (question.areas || []).forEach((area) => {
+      if (area.area) {
+        areas.add(area.area);
+      }
+    });
+  });
+
+  return ["all", ...[...areas].sort((left, right) => left.localeCompare(right, "pt-BR"))];
+}
+
+function getSatisfactionQuestionAreaView(question, areaFilter) {
+  if (areaFilter === "all") {
+    return {
+      ...question,
+      latestScoreLabel: question.latestScoreLabel || question.averageScoreLabel || "-",
+      periods: question.periods || [],
+      trendDelta: question.trendDelta ?? null
+    };
+  }
+
+  const area = (question.areas || []).find((item) => item.area === areaFilter);
+  if (!area) {
+    return {
+      ...question,
+      totalAnswers: 0,
+      averageScore: 0,
+      averageScoreLabel: "-",
+      latestScoreLabel: "-",
+      periods: [],
+      trendDelta: null
+    };
+  }
+
+  const latestPeriod = area.periods?.[area.periods.length - 1] || null;
+  const previousPeriod = area.periods?.[area.periods.length - 2] || null;
+
+  return {
+    ...question,
+    totalAnswers: area.totalAnswers,
+    averageScore: area.averageScore,
+    averageScoreLabel: area.averageScoreLabel,
+    latestScoreLabel: latestPeriod?.averageScoreLabel || area.averageScoreLabel,
+    periods: area.periods || [],
+    trendDelta:
+      latestPeriod && previousPeriod
+        ? Number((latestPeriod.averageScore - previousPeriod.averageScore).toFixed(1))
+        : null
+  };
+}
+
+function formatSatisfactionScore(value) {
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? numericValue.toFixed(1) : "-";
 }
 
 function getFilteredDevelopmentItems(items, mode) {

@@ -2052,6 +2052,11 @@ function enrichSubmission(db, submission, customLibraries = []) {
       ).toFixed(2)
     ),
     reviewerName: reviewerPerson?.name || "",
+    reviewerArea: reviewerPerson?.area || "",
+    respondentArea:
+      assignment?.relationshipType === "company"
+        ? reviewerPerson?.area || reviewee?.area || ""
+        : reviewee?.area || "",
     revieweeName:
       assignment?.relationshipType === "company" ? "Empresa" : reviewee?.name || "",
     revieweeArea:
@@ -3299,6 +3304,14 @@ function getCyclePeriodMeta(cycle, timeGrouping = "semester") {
   const quarter = Math.floor(month / 3) + 1;
   const semester = month < 6 ? 1 : 2;
 
+  if (timeGrouping === "cycle") {
+    return {
+      key: cycle?.id || cycle?.semesterLabel || cycle?.title || "Sem ciclo",
+      label: cycle?.title || cycle?.semesterLabel || "Sem ciclo",
+      sortValue: cycleDate && !Number.isNaN(cycleDate.getTime()) ? cycleDate.getTime() : year || 0
+    };
+  }
+
   if (timeGrouping === "year") {
     return {
       key: String(year || cycle?.semesterLabel || cycle?.title || "Sem data"),
@@ -3320,6 +3333,160 @@ function getCyclePeriodMeta(cycle, timeGrouping = "semester") {
     label: year ? `${year}.${semester}` : cycle?.semesterLabel || cycle?.title || "Sem data",
     sortValue: (year || 0) * 10 + semester
   };
+}
+
+function buildSatisfactionQuestionAnalytics({ cycles, responses, timeGrouping = "semester" }) {
+  const cyclesById = new Map(cycles.map((cycle) => [cycle.id, cycle]));
+  const companyResponses = responses.filter((response) => response.relationshipType === "company");
+  const groupedQuestions = {};
+
+  for (const response of companyResponses) {
+    const cycle = cyclesById.get(response.cycleId);
+    if (!cycle) {
+      continue;
+    }
+
+    const period = getCyclePeriodMeta(cycle, timeGrouping);
+    const respondentArea =
+      response.respondentArea || response.reviewerArea || response.revieweeArea || "Sem area";
+
+    for (const answer of response.answers || []) {
+      const score = Number(answer.score);
+      if (!Number.isFinite(score)) {
+        continue;
+      }
+
+      const questionDefinition = findQuestionDefinition(answer.questionId);
+      if (questionDefinition?.scaleProfile && questionDefinition.scaleProfile !== "satisfaction") {
+        continue;
+      }
+
+      const questionEntry = groupedQuestions[answer.questionId] || {
+        questionId: answer.questionId,
+        questionPrompt: answer.questionPrompt || questionDefinition?.prompt || "",
+        dimensionTitle: answer.dimensionTitle || questionDefinition?.dimensionTitle || "",
+        totalAnswers: 0,
+        scores: [],
+        distribution: {
+          1: 0,
+          2: 0,
+          3: 0,
+          4: 0,
+          5: 0
+        },
+        periods: {},
+        areas: {}
+      };
+
+      const scoreKey = String(score);
+      questionEntry.totalAnswers += 1;
+      questionEntry.scores.push(score);
+      questionEntry.distribution[scoreKey] = (questionEntry.distribution[scoreKey] || 0) + 1;
+
+      const periodEntry = questionEntry.periods[period.key] || {
+        periodKey: period.key,
+        label: period.label,
+        sortValue: period.sortValue,
+        totalAnswers: 0,
+        scores: []
+      };
+      periodEntry.totalAnswers += 1;
+      periodEntry.scores.push(score);
+      questionEntry.periods[period.key] = periodEntry;
+
+      const areaEntry = questionEntry.areas[respondentArea] || {
+        area: respondentArea,
+        totalAnswers: 0,
+        scores: [],
+        periods: {}
+      };
+      areaEntry.totalAnswers += 1;
+      areaEntry.scores.push(score);
+
+      const areaPeriodEntry = areaEntry.periods[period.key] || {
+        periodKey: period.key,
+        label: period.label,
+        sortValue: period.sortValue,
+        totalAnswers: 0,
+        scores: []
+      };
+      areaPeriodEntry.totalAnswers += 1;
+      areaPeriodEntry.scores.push(score);
+      areaEntry.periods[period.key] = areaPeriodEntry;
+      questionEntry.areas[respondentArea] = areaEntry;
+
+      groupedQuestions[answer.questionId] = questionEntry;
+    }
+  }
+
+  function presentPeriod(entry) {
+    const averageScore = entry.scores.length
+      ? Number(average(entry.scores).toFixed(2))
+      : 0;
+    return {
+      periodKey: entry.periodKey,
+      label: entry.label,
+      sortValue: entry.sortValue,
+      totalAnswers: entry.totalAnswers,
+      averageScore,
+      averageScoreLabel: averageScore ? averageScore.toFixed(1) : "-"
+    };
+  }
+
+  return Object.values(groupedQuestions)
+    .filter((question) => question.totalAnswers >= MIN_ANONYMOUS_AGGREGATE_RESPONSES)
+    .map((question) => {
+      const averageScore = Number(average(question.scores).toFixed(2));
+      const periods = Object.values(question.periods)
+        .map(presentPeriod)
+        .sort((left, right) => left.sortValue - right.sortValue);
+      const latestPeriod = periods[periods.length - 1] || null;
+      const previousPeriod = periods[periods.length - 2] || null;
+
+      return {
+        questionId: question.questionId,
+        questionPrompt: question.questionPrompt,
+        dimensionTitle: question.dimensionTitle,
+        totalAnswers: question.totalAnswers,
+        averageScore,
+        averageScoreLabel: averageScore.toFixed(1),
+        latestScoreLabel: latestPeriod?.averageScoreLabel || averageScore.toFixed(1),
+        trendDelta:
+          latestPeriod && previousPeriod
+            ? Number((latestPeriod.averageScore - previousPeriod.averageScore).toFixed(1))
+            : null,
+        periods,
+        options: Object.entries(question.distribution).map(([value, total]) => ({
+          value: Number(value),
+          label: evaluationLibrary.scale.find((item) => item.value === Number(value))?.label || value,
+          total,
+          percentage: question.totalAnswers
+            ? Number(((total / question.totalAnswers) * 100).toFixed(1))
+            : 0
+        })),
+        areas: Object.values(question.areas)
+          .filter((area) => area.totalAnswers >= MIN_ANONYMOUS_AGGREGATE_RESPONSES)
+          .map((area) => {
+            const areaAverageScore = Number(average(area.scores).toFixed(2));
+            return {
+              area: area.area,
+              totalAnswers: area.totalAnswers,
+              averageScore: areaAverageScore,
+              averageScoreLabel: areaAverageScore.toFixed(1),
+              periods: Object.values(area.periods)
+                .map(presentPeriod)
+                .sort((left, right) => left.sortValue - right.sortValue)
+            };
+          })
+          .sort((left, right) => left.area.localeCompare(right.area, "pt-BR"))
+      };
+    })
+    .sort((left, right) =>
+      String(left.dimensionTitle || left.questionPrompt).localeCompare(
+        String(right.dimensionTitle || right.questionPrompt),
+        "pt-BR"
+      )
+    );
 }
 
 function buildCycleTimelineSeries({ cycles, assignments, responses, timeGrouping = "semester" }) {
@@ -3504,6 +3671,11 @@ function buildDashboardPayload({
       }
     ],
     satisfactionByArea: buildSatisfactionByAreaSeries(people),
+    satisfactionQuestionAnalytics: buildSatisfactionQuestionAnalytics({
+      cycles,
+      responses,
+      timeGrouping
+    }),
     evaluationHighlights,
     responseDistributions: buildQuestionDistributions(responses),
     evaluationMix: buildEvaluationMixSeries(assignments),
@@ -4209,7 +4381,8 @@ async function fetchMysqlResponses(
               s.development_note AS developmentNote, s.reviewee_acknowledgement_status AS revieweeAcknowledgementStatus,
               s.reviewee_acknowledgement_note AS revieweeAcknowledgementNote,
               s.reviewee_acknowledged_at AS revieweeAcknowledgedAt, s.submitted_at AS submittedAt,
-              reviewer_person.name AS reviewerName, reviewee.name AS revieweeName,
+              reviewer_person.name AS reviewerName, reviewer_person.area AS reviewerArea,
+              reviewee.name AS revieweeName,
               reviewee.area AS revieweeArea, reviewee.manager_person_id AS revieweeManagerPersonId,
               reviewee_manager.name AS revieweeManagerName,
               a.relationship_type AS relationshipType
@@ -4224,7 +4397,8 @@ async function fetchMysqlResponses(
               s.reviewer_user_id AS reviewerUserId, s.reviewee_person_id AS revieweePersonId,
               s.overall_score AS overallScore, s.strengths_note AS strengthsNote,
               s.development_note AS developmentNote, s.submitted_at AS submittedAt,
-              reviewer_person.name AS reviewerName, reviewee.name AS revieweeName,
+              reviewer_person.name AS reviewerName, reviewer_person.area AS reviewerArea,
+              reviewee.name AS revieweeName,
               reviewee.area AS revieweeArea, reviewee.manager_person_id AS revieweeManagerPersonId,
               reviewee_manager.name AS revieweeManagerName,
               a.relationship_type AS relationshipType
@@ -4248,6 +4422,10 @@ async function fetchMysqlResponses(
 
   return submissions.map((submission) => ({
     ...submission,
+    respondentArea:
+      submission.relationshipType === "company"
+        ? submission.reviewerArea || submission.revieweeArea || ""
+        : submission.revieweeArea || "",
     revieweeName: submission.relationshipType === "company" ? "Empresa" : submission.revieweeName,
     revieweeArea:
       submission.relationshipType === "company" ? "Institucional" : submission.revieweeArea,

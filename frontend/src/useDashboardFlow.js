@@ -48,6 +48,7 @@ export function useDashboardInsights({
 
   const dashboardTimeGroupingOptions = useMemo(
     () => [
+      { value: "cycle", label: "Ciclo" },
       { value: "semester", label: "Semestre" },
       { value: "quarter", label: "Trimestre" },
       { value: "year", label: "Ano" }

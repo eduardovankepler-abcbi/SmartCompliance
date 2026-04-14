@@ -99,6 +99,16 @@ try {
     Array.isArray(adminDashboard.payload.cycleTimeline),
     "Dashboard deve retornar consolidado temporal"
   );
+  assert.ok(
+    Array.isArray(adminDashboard.payload.satisfactionQuestionAnalytics),
+    "Dashboard deve retornar leitura de satisfacao por pergunta"
+  );
+  assert.ok(
+    adminDashboard.payload.satisfactionQuestionAnalytics.every(
+      (question) => Array.isArray(question.periods) && Array.isArray(question.areas)
+    ),
+    "Leitura de satisfacao deve permitir comparacao temporal e filtro por area"
+  );
 
   const employeeAudit = await fetchJson(
     baseUrl,
