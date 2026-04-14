@@ -1651,6 +1651,20 @@ async function hasMysqlTable(pool, tableName) {
   }
 }
 
+async function getMysqlMissingColumns(pool, tableName, expectedColumns) {
+  try {
+    if (!(await hasMysqlTable(pool, tableName))) {
+      return expectedColumns;
+    }
+
+    const [columns] = await pool.query(`SHOW COLUMNS FROM ${tableName}`);
+    const existing = new Set(columns.map((column) => column.Field));
+    return expectedColumns.filter((column) => !existing.has(column));
+  } catch (_error) {
+    return expectedColumns;
+  }
+}
+
 async function detectMysqlCycleConfigSupport(pool) {
   try {
     const [enabledRows] = await pool.query(
@@ -5609,20 +5623,39 @@ function buildMysqlStore(
   return {
     async checkHealth() {
       await pool.query("SELECT 1");
+      const missingUserColumns = await getMysqlMissingColumns(pool, "users", [
+        "id",
+        "person_id",
+        "email",
+        "password_hash",
+        "role_key",
+        "status"
+      ]);
       return {
-        database: "ok"
+        database: "ok",
+        usersTable: missingUserColumns.length === 0 ? "ok" : "incomplete",
+        missingUserColumns
       };
     },
     async findUserByEmail(email) {
-      const [rows] = await pool.query(
-        `SELECT u.id, u.person_id AS personId, u.email, u.password_hash AS passwordHash,
-                u.role_key AS roleKey, u.status
-         FROM users u
-         WHERE u.email = ?
-         LIMIT 1`,
-        [email]
-      );
-      return rows[0] || null;
+      try {
+        const [rows] = await pool.query(
+          `SELECT u.id, u.person_id AS personId, u.email, u.password_hash AS passwordHash,
+                  u.role_key AS roleKey, u.status
+           FROM users u
+           WHERE u.email = ?
+           LIMIT 1`,
+          [email]
+        );
+        return rows[0] || null;
+      } catch (error) {
+        if (error?.code === "ER_NO_SUCH_TABLE" || error?.errno === 1146) {
+          error.authStage = "find_user_table_missing";
+        } else if (error?.code === "ER_BAD_FIELD_ERROR" || error?.errno === 1054) {
+          error.authStage = "find_user_columns";
+        }
+        throw error;
+      }
     },
     async getUserById(userId) {
       let rows;
@@ -5681,7 +5714,7 @@ function buildMysqlStore(
       try {
         user = await this.findUserByEmail(email);
       } catch (error) {
-        error.authStage = "find_user";
+        error.authStage = error.authStage || "find_user";
         throw error;
       }
 
