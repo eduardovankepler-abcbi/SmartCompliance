@@ -113,6 +113,9 @@ export function DashboardSection({
   const donutMetrics = dashboard?.donutMetrics || [];
   const developmentCoverageMetric = donutMetrics.find((item) => item.key === "development");
   const applauseCoverageMetric = donutMetrics.find((item) => item.key === "applause");
+  const performanceHealth = dashboard?.performanceHealth || null;
+  const performanceDistributionItems = performanceHealth?.distribution || [];
+  const performanceAreaHighlights = performanceHealth?.areaHighlights || [];
   const filteredSatisfactionByAreaItems = getFilteredSatisfactionItems(
     satisfactionByAreaItems,
     satisfactionView
@@ -231,9 +234,9 @@ export function DashboardSection({
   ];
   const topKpis = [
     {
-      label: "Pessoas",
-      value: dashboard?.scopeSummary?.peopleCount ?? summary?.peopleCount ?? 0,
-      detail: "base ativa no recorte",
+      label: "Saude 360",
+      value: performanceHealth ? `${performanceHealth.averageScoreLabel}/10` : "-",
+      detail: performanceHealth?.confidenceLabel || "sem leitura agregada",
       tone: "primary"
     },
     {
@@ -271,6 +274,11 @@ export function DashboardSection({
       key: "evaluations",
       label: "Avaliacoes",
       detail: `${evaluationResultsSummaryItems.length} modalidades`
+    },
+    {
+      key: "performance",
+      label: "Desempenho 360",
+      detail: performanceHealth ? `${performanceHealth.averageScoreLabel}/10` : "sem leitura"
     },
     {
       key: "compliance",
@@ -852,6 +860,85 @@ export function DashboardSection({
                 )}
               </div>
             </div>
+            ) : null}
+
+            {dashboardAnalyticalTheme === "performance" ? (
+              <div className="card dashboard-visual-card dashboard-board-featured dashboard-analytical-primary dashboard-theme-drilldown-card">
+                <DashboardCardHeader
+                  eyebrow="Desempenho 360"
+                  title="Saude de performance"
+                  subtitle="Leitura agregada e privada"
+                  tone="primary"
+                />
+                {performanceHealth ? (
+                  <>
+                    <div className="dashboard-theme-split">
+                      <article className={`dashboard-performance-score-card ${performanceHealth.tone}`}>
+                        <span>Resultado agregado</span>
+                        <strong>{performanceHealth.averageScoreLabel}/10</strong>
+                        <p>{performanceHealth.confidenceLabel}</p>
+                        <small>
+                          {performanceHealth.reviewCount} leituras consideradas
+                          {performanceHealth.partialReadings
+                            ? ` · ${performanceHealth.partialReadings} em consolidacao`
+                            : ""}
+                        </small>
+                      </article>
+                      <div className="dashboard-theme-summary-grid">
+                        {performanceDistributionItems.map((item) => (
+                          <article
+                            className={`dashboard-theme-metric-card ${item.tone}`}
+                            key={item.label}
+                          >
+                            <span>{item.label}</span>
+                            <strong>{item.total}</strong>
+                            <p>{item.percentage}% do recorte</p>
+                          </article>
+                        ))}
+                      </div>
+                    </div>
+                    {performanceAreaHighlights.length ? (
+                      <div className="dashboard-dimension-summary-block">
+                        <div className="dashboard-dimension-summary-head">
+                          <strong>Prioridades por area</strong>
+                          <span className="muted">Leitura agregada, sem expor notas individuais</span>
+                        </div>
+                        <div className="dashboard-dimension-summary-grid">
+                          {performanceAreaHighlights.map((item) => (
+                            <article
+                              className={`dashboard-dimension-summary-card ${item.tone}`}
+                              key={item.area}
+                            >
+                              <span>{item.area}</span>
+                              <strong>{item.scoreLabel}/10</strong>
+                              <p>{item.peopleCount} leituras</p>
+                            </article>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                    <div className="dashboard-theme-action-row">
+                      <p className="muted">{performanceHealth.guidance}</p>
+                      <button
+                        type="button"
+                        className="dashboard-quick-action primary"
+                        onClick={() => onSectionChange?.("Desenvolvimento")}
+                      >
+                        <span>Abrir modulo</span>
+                        <strong>Ver direcionamentos</strong>
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="dashboard-empty-relationship-state">
+                    <strong>Sem leitura 360 agregada</strong>
+                    <p className="muted">
+                      Quando houver respostas suficientes, este painel mostrara apenas sinais
+                      agregados de performance e direcionamento.
+                    </p>
+                  </div>
+                )}
+              </div>
             ) : null}
 
             {dashboardAnalyticalTheme === "compliance" ? (

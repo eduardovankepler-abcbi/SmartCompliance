@@ -3046,6 +3046,100 @@ function buildPerformance360Reviews({ people, cycles, responses, actorUser }) {
     .sort((a, b) => (b.semesterLabel || "").localeCompare(a.semesterLabel || ""));
 }
 
+function getPerformanceHealthTone(score10) {
+  if (!Number.isFinite(Number(score10))) {
+    return "neutral";
+  }
+
+  if (score10 >= 7.5) {
+    return "positive";
+  }
+
+  if (score10 >= 6) {
+    return "warning";
+  }
+
+  return "critical";
+}
+
+function buildPerformanceHealthSummary(reviews = []) {
+  const scoredReviews = reviews.filter((review) => Number.isFinite(Number(review.score10)));
+  if (!scoredReviews.length) {
+    return null;
+  }
+
+  const averageScore10 = Number(average(scoredReviews.map((review) => Number(review.score10))).toFixed(1));
+  const distributionSeed = {
+    consistent: scoredReviews.filter((review) => Number(review.score10) >= 7.5).length,
+    evolving: scoredReviews.filter(
+      (review) => Number(review.score10) >= 6 && Number(review.score10) < 7.5
+    ).length,
+    support: scoredReviews.filter((review) => Number(review.score10) < 6).length
+  };
+  const areaHighlights = Object.values(
+    scoredReviews.reduce((acc, review) => {
+      const area = review.personArea || "Sem area";
+      const entry = acc[area] || {
+        area,
+        scores: []
+      };
+      entry.scores.push(Number(review.score10));
+      acc[area] = entry;
+      return acc;
+    }, {})
+  )
+    .map((entry) => {
+      const score10 = Number(average(entry.scores).toFixed(1));
+      return {
+        area: entry.area,
+        score10,
+        scoreLabel: score10.toFixed(1),
+        peopleCount: entry.scores.length,
+        tone: getPerformanceHealthTone(score10)
+      };
+    })
+    .sort((left, right) => left.score10 - right.score10)
+    .slice(0, 4);
+
+  return {
+    averageScore10,
+    averageScoreLabel: averageScore10.toFixed(1),
+    reviewCount: scoredReviews.length,
+    partialReadings: scoredReviews.filter((review) => review.isPartial).length,
+    confidenceLabel: scoredReviews.some((review) => review.isPartial)
+      ? "Leitura em consolidacao"
+      : "Leitura consolidada",
+    tone: getPerformanceHealthTone(averageScore10),
+    distribution: [
+      {
+        label: "Consistente",
+        total: distributionSeed.consistent,
+        percentage: calculatePercentage(distributionSeed.consistent, scoredReviews.length),
+        tone: "positive"
+      },
+      {
+        label: "Em evolucao",
+        total: distributionSeed.evolving,
+        percentage: calculatePercentage(distributionSeed.evolving, scoredReviews.length),
+        tone: "warning"
+      },
+      {
+        label: "Direcionamento",
+        total: distributionSeed.support,
+        percentage: calculatePercentage(distributionSeed.support, scoredReviews.length),
+        tone: "critical"
+      }
+    ],
+    areaHighlights,
+    guidance:
+      averageScore10 < 6
+        ? "Priorize planos de direcionamento com linguagem de desenvolvimento, nao de alarme."
+        : averageScore10 < 7.5
+          ? "O recorte pede ajustes focalizados e acompanhamento leve de progresso."
+          : "O recorte esta saudavel; mantenha rituais de feedback e desenvolvimento."
+  };
+}
+
 function calculatePercentage(value, total) {
   if (!total) {
     return 0;
@@ -3323,7 +3417,8 @@ function buildDashboardPayload({
   evaluationHighlights,
   availableAreas = [],
   selectedArea = null,
-  timeGrouping = "semester"
+  timeGrouping = "semester",
+  performanceActorUser = null
 }) {
   const submittedAssignments = assignments.filter((item) => item.status === "submitted").length;
   const pendingAssignments = assignments.filter((item) => item.status === "pending").length;
@@ -3331,6 +3426,15 @@ function buildDashboardPayload({
   const avgSatisfaction = averageSatisfactionScore(people);
   const peopleWithDevelopment = new Set(developmentRecords.map((item) => item.personId)).size;
   const peopleWithApplause = new Set(applauseEntries.map((item) => item.receiverPersonId)).size;
+  const performanceReviews = performanceActorUser
+    ? buildPerformance360Reviews({
+        people,
+        cycles,
+        responses,
+        actorUser: performanceActorUser
+      })
+    : [];
+  const performanceHealth = buildPerformanceHealthSummary(performanceReviews);
 
   return {
     mode,
@@ -3404,6 +3508,7 @@ function buildDashboardPayload({
     responseDistributions: buildQuestionDistributions(responses),
     evaluationMix: buildEvaluationMixSeries(assignments),
     evaluationResultsSummary: buildEvaluationResultsSummarySeries(assignments, responses),
+    performanceHealth,
     assignmentStatus: buildAssignmentStatusSeries(assignments),
     developmentByType: buildDevelopmentByTypeSeries(developmentRecords),
     cycleTimeline: buildCycleTimelineSeries({
@@ -5748,6 +5853,7 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
           availableAreas,
           selectedArea: options.area,
           timeGrouping,
+          performanceActorUser: isAdminUser(actorUser) ? actorUser : null,
           evaluationHighlights: [
             "Leitura consolidada pronta para ritos executivos e comites.",
             "Filtro por area ajuda a comparar recortes sem expor detalhes indevidos.",
@@ -5787,6 +5893,7 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
           developmentRecords: teamDevelopment,
           responses: teamResponses,
           timeGrouping,
+          performanceActorUser: actorUser,
           evaluationHighlights: [
             "Voce acompanha somente sua equipe direta.",
             "Respostas confidenciais continuam agregadas quando aplicavel.",
@@ -5817,6 +5924,7 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         developmentRecords: myDevelopmentRecords,
         responses: personalResponses,
         timeGrouping,
+        performanceActorUser: null,
         evaluationHighlights: [
           "Seu dashboard mostra apenas dados pessoais e agregados permitidos.",
           "Respostas confidenciais de lideranca e empresa entram somente em leitura agregada.",
@@ -8923,6 +9031,7 @@ function buildMysqlStore(
           availableAreas,
           selectedArea: options.area,
           timeGrouping,
+          performanceActorUser: isAdminUser(actorUser) ? actorUser : null,
           evaluationHighlights: [
             "Leitura consolidada pronta para ritos executivos e comites.",
             "Filtro por area ajuda a comparar recortes sem expor detalhes indevidos.",
@@ -8957,6 +9066,7 @@ function buildMysqlStore(
           ),
           responses: responses.filter((item) => visiblePersonIds.has(item.revieweePersonId)),
           timeGrouping,
+          performanceActorUser: actorUser,
           evaluationHighlights: [
             "Voce acompanha somente sua equipe direta.",
             "Respostas confidenciais continuam agregadas quando aplicavel.",
@@ -8979,6 +9089,7 @@ function buildMysqlStore(
         developmentRecords: developmentRows.filter((item) => item.personId === actorUser.person.id),
         responses: responses.filter((item) => item.reviewerUserId === actorUser.id),
         timeGrouping,
+        performanceActorUser: null,
         evaluationHighlights: [
           "Seu dashboard mostra apenas dados pessoais e agregados permitidos.",
           "Respostas confidenciais de lideranca e empresa entram somente em leitura agregada.",
