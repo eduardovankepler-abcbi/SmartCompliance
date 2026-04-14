@@ -332,6 +332,47 @@ try {
   });
   assert.ok(managerSubmission.id, "Envio de feedback do lider deve gerar submission");
 
+  const employeePerformance = await fetchJson(
+    baseUrl,
+    "/api/evaluations/performance-360",
+    getAuthHeader(managerRevieweeEmployee.id)
+  );
+  assert.equal(
+    employeePerformance.response.status,
+    200,
+    "Colaborador deve acessar a propria avaliacao 360"
+  );
+  assert.ok(
+    employeePerformance.payload.every((item) => item.personId === managerRevieweeEmployee.personId),
+    "Colaborador deve visualizar somente a propria performance"
+  );
+
+  const managerPerformance = await fetchJson(
+    baseUrl,
+    "/api/evaluations/performance-360",
+    getAuthHeader(manager.id)
+  );
+  assert.equal(
+    managerPerformance.response.status,
+    200,
+    "Gestor deve acessar performance da propria equipe"
+  );
+  assert.ok(
+    managerPerformance.payload.some((item) => item.personId === managerRevieweeEmployee.personId),
+    "Gestor deve visualizar a performance do reporte direto"
+  );
+
+  const hrPerformance = await fetchJson(
+    baseUrl,
+    "/api/evaluations/performance-360",
+    getAuthHeader(hr.id)
+  );
+  assert.equal(
+    hrPerformance.response.status,
+    403,
+    "RH nao deve acessar a nota individual de performance 360"
+  );
+
   const employeeReceivedFeedback = await fetchJson(
     baseUrl,
     "/api/evaluations/received-feedback",

@@ -134,6 +134,7 @@ export function AppSceneRenderer(props) {
           filteredFeedbackRequests={props.filteredFeedbackRequests}
           filteredIndividualResponses={props.filteredIndividualResponses}
           filteredReceivedManagerFeedback={props.filteredReceivedManagerFeedback}
+          performance360Reviews={props.performance360Reviews}
           formatDate={props.formatDate}
           getCycleStatusDescription={props.getCycleStatusDescription}
           getFeedbackRequestStatusLabel={props.getFeedbackRequestStatusLabel}

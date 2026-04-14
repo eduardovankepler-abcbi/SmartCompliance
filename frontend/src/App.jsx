@@ -124,6 +124,7 @@ export default function App() {
     learningIntegrationEvents,
     loading,
     people,
+    performance360Reviews,
     receivedManagerFeedback,
     reloadData,
     resetData,
@@ -137,6 +138,7 @@ export default function App() {
     canViewDashboard,
     canReceiveManagerFeedback,
     canViewResponses,
+    canViewPerformance360: capabilities.canViewPerformance360,
     canViewUsersAdmin,
     canViewOrganizationDevelopment,
     dashboardAreaFilter,
@@ -538,6 +540,7 @@ export default function App() {
         learningIntegrationPeopleOptions={learningIntegrationPeopleOptions}
         learningIntegrationReviewItems={learningIntegrationReviewItems}
         learningIntegrationSummary={learningIntegrationSummary}
+        performance360Reviews={performance360Reviews}
         DevelopmentPlanAdminCard={DevelopmentPlanAdminCard}
         DevelopmentRecordAdminCard={DevelopmentRecordAdminCard}
         evaluationAuditEntries={evaluationAuditEntries}

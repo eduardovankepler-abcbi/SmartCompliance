@@ -2837,6 +2837,215 @@ function buildQuestionDistributions(responses) {
   );
 }
 
+const PERFORMANCE_360_WEIGHTS = {
+  manager: 0.4,
+  peer: 0.25,
+  self: 0.2,
+  "cross-functional": 0.15
+};
+
+const PERFORMANCE_360_LABELS = {
+  manager: "Feedback do lider",
+  peer: "Feedback direto",
+  self: "Autoavaliacao",
+  "cross-functional": "Feedback transversal"
+};
+
+function getPerformanceGuidance(score10, focusAreas) {
+  const focusText = focusAreas.length
+    ? `Priorize ${focusAreas.map((item) => item.dimensionTitle).join(" e ")}.`
+    : "Priorize uma conversa objetiva para definir um proximo passo pratico.";
+
+  if (score10 < 6) {
+    return {
+      tone: "support",
+      title: "Plano de direcionamento recomendado",
+      summary:
+        "A leitura indica oportunidade de cuidado e desenvolvimento, sem carater punitivo.",
+      nextStep: `${focusText} Transforme a leitura em um PDI curto, com evidencias simples e revisao combinada.`
+    };
+  }
+
+  if (score10 < 7.5) {
+    return {
+      tone: "attention",
+      title: "Ajustes focalizados",
+      summary:
+        "A performance esta em evolucao e pode ganhar consistencia com foco em poucos comportamentos.",
+      nextStep: `${focusText} Combine uma acao pequena para as proximas semanas e acompanhe o progresso.`
+    };
+  }
+
+  return {
+    tone: "positive",
+    title: "Consolidar pontos fortes",
+    summary:
+      "A leitura mostra boa consistencia. O melhor caminho e preservar os pontos fortes e seguir refinando.",
+    nextStep: focusAreas.length
+      ? `${focusText} Use esses pontos como oportunidade de refinamento, nao como alerta.`
+      : "Mantenha rituais de feedback e registre aprendizados que possam ser replicados."
+  };
+}
+
+function buildPerformanceDevelopmentPlanSuggestion(score10, focusAreas) {
+  const primaryFocus = focusAreas[0]?.dimensionTitle || "desenvolvimento individual";
+  const secondaryFocus = focusAreas[1]?.dimensionTitle || "acompanhamento";
+  const actionText =
+    score10 < 6
+      ? `Definir com o gestor uma acao de melhoria para ${primaryFocus}, com check-in quinzenal e evidencia simples de evolucao.`
+      : score10 < 7.5
+        ? `Escolher uma acao focalizada para fortalecer ${primaryFocus} e observar impacto em ${secondaryFocus}.`
+        : `Registrar uma boa pratica em ${primaryFocus} e compartilhar aprendizados que possam ajudar o time.`;
+
+  return {
+    focusTitle: `Direcionamento em ${primaryFocus}`,
+    actionText,
+    expectedEvidence:
+      "Evidencia combinada entre colaborador e gestor, como entrega revisada, feedback recebido ou aprendizado aplicado.",
+    cadence: score10 < 6 ? "Revisao quinzenal" : "Revisao mensal"
+  };
+}
+
+function getPerformanceConfidenceLabel(availableWeight) {
+  if (availableWeight >= 1) {
+    return "Leitura consolidada";
+  }
+
+  if (availableWeight >= 0.6) {
+    return "Leitura em consolidacao";
+  }
+
+  return "Leitura parcial";
+}
+
+function buildPerformance360Reviews({ people, cycles, responses, actorUser }) {
+  if (!actorUser?.person?.id || !["admin", "manager", "employee"].includes(actorUser.roleKey)) {
+    return [];
+  }
+
+  const eligibleResponses = responses.filter(
+    (response) =>
+      PERFORMANCE_360_WEIGHTS[response.relationshipType] &&
+      Number.isFinite(Number(response.overallScore)) &&
+      response.revieweePersonId
+  );
+
+  const visiblePersonIds = new Set();
+  if (isAdminUser(actorUser)) {
+    people.forEach((person) => visiblePersonIds.add(person.id));
+  } else if (isManagerUser(actorUser)) {
+    visiblePersonIds.add(actorUser.person.id);
+    getTeamPeople(people, actorUser.person.id).forEach((person) => visiblePersonIds.add(person.id));
+  } else {
+    visiblePersonIds.add(actorUser.person.id);
+  }
+
+  const groups = eligibleResponses.reduce((acc, response) => {
+    if (!visiblePersonIds.has(response.revieweePersonId)) {
+      return acc;
+    }
+    const key = `${response.revieweePersonId}:${response.cycleId || "sem-ciclo"}`;
+    const group = acc[key] || [];
+    group.push(response);
+    acc[key] = group;
+    return acc;
+  }, {});
+
+  return Object.entries(groups)
+    .map(([key, groupResponses]) => {
+      const [personId, cycleId] = key.split(":");
+      const person = people.find((item) => item.id === personId);
+      const cycle = cycles.find((item) => item.id === cycleId);
+      const components = Object.entries(PERFORMANCE_360_WEIGHTS)
+        .map(([relationshipType, weight]) => {
+          const relationshipResponses = groupResponses.filter(
+            (response) => response.relationshipType === relationshipType
+          );
+          const scores = relationshipResponses.map((response) => Number(response.overallScore));
+          if (!scores.length) {
+            return {
+              relationshipType,
+              label: PERFORMANCE_360_LABELS[relationshipType],
+              weightPercent: Math.round(weight * 100),
+              responseCount: 0,
+              score10: null
+            };
+          }
+
+          return {
+            relationshipType,
+            label: PERFORMANCE_360_LABELS[relationshipType],
+            weightPercent: Math.round(weight * 100),
+            responseCount: scores.length,
+            score10: Number((average(scores) * 2).toFixed(1))
+          };
+        });
+
+      const scoredComponents = components.filter((component) =>
+        Number.isFinite(Number(component.score10))
+      );
+      const availableWeight = scoredComponents.reduce(
+        (total, component) =>
+          total + PERFORMANCE_360_WEIGHTS[component.relationshipType],
+        0
+      );
+      const score10 = availableWeight
+        ? Number(
+            (
+              scoredComponents.reduce(
+                (total, component) =>
+                  total +
+                  Number(component.score10) *
+                    PERFORMANCE_360_WEIGHTS[component.relationshipType],
+                0
+              ) / availableWeight
+            ).toFixed(1)
+          )
+        : null;
+
+      const dimensionAverages = Object.values(
+        groupResponses
+          .flatMap((response) => response.answers || [])
+          .filter((answer) => Number.isFinite(Number(answer.score)) && answer.dimensionTitle)
+          .reduce((acc, answer) => {
+            const entry = acc[answer.dimensionTitle] || {
+              dimensionTitle: answer.dimensionTitle,
+              scores: []
+            };
+            entry.scores.push(Number(answer.score) * 2);
+            acc[answer.dimensionTitle] = entry;
+            return acc;
+          }, {})
+      )
+        .map((entry) => ({
+          dimensionTitle: entry.dimensionTitle,
+          score10: Number(average(entry.scores).toFixed(1))
+        }))
+        .sort((a, b) => a.score10 - b.score10);
+      const focusAreas = dimensionAverages.slice(0, 2);
+
+      return {
+        personId,
+        personName: person?.name || "Colaborador",
+        personArea: person?.area || "",
+        managerPersonId: person?.managerPersonId || null,
+        cycleId,
+        cycleTitle: cycle?.title || "Ciclo sem titulo",
+        semesterLabel: cycle?.semesterLabel || "",
+        score10,
+        confidenceLabel: getPerformanceConfidenceLabel(availableWeight),
+        isPartial: availableWeight < 1,
+        guidance: getPerformanceGuidance(score10 || 0, focusAreas),
+        developmentPlanSuggestion: buildPerformanceDevelopmentPlanSuggestion(
+          score10 || 0,
+          focusAreas
+        ),
+        visibility: "Visivel apenas para o colaborador, seu gestor direto e admin."
+      };
+    })
+    .sort((a, b) => (b.semesterLabel || "").localeCompare(a.semesterLabel || ""));
+}
+
 function calculatePercentage(value, total) {
   if (!total) {
     return 0;
@@ -4859,6 +5068,16 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         buildResponsesBundle,
         cycles: db.cycles,
         cycleReports: db.cycleReports.map((item) => presentCycleReportSnapshot(item))
+      });
+    },
+    async getPerformance360Reviews(actorUser) {
+      return buildPerformance360Reviews({
+        people: db.people,
+        cycles: db.cycles.map((cycle) => presentCycle(cycle)),
+        responses: db.submissions.map((item) =>
+          enrichSubmission(db, item, customLibraryState.published)
+        ),
+        actorUser
       });
     },
     async getReceivedManagerFeedback(actorUser) {
@@ -7504,6 +7723,22 @@ function buildMysqlStore(
         buildResponsesBundle,
         cycles,
         cycleReports
+      });
+    },
+    async getPerformance360Reviews(actorUser) {
+      const [people, cycles, responses] = await Promise.all([
+        fetchPeopleRows(pool),
+        this.getEvaluationCycles(),
+        fetchMysqlResponses(pool, customLibraryState.published, {
+          supportsFeedbackAcknowledgement
+        })
+      ]);
+
+      return buildPerformance360Reviews({
+        people,
+        cycles,
+        responses,
+        actorUser
       });
     },
     async getReceivedManagerFeedback(actorUser) {

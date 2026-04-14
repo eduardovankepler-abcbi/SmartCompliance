@@ -232,6 +232,18 @@ export function createEvaluationsRouter(store) {
   });
 
   router.get(
+    "/performance-360",
+    requireRoles("admin", "manager", "employee"),
+    async (req, res, next) => {
+      try {
+        res.json(await store.getPerformance360Reviews(req.auth.user));
+      } catch (error) {
+        next(error);
+      }
+    }
+  );
+
+  router.get(
     "/responses",
     requireRoles("admin", "manager"),
     async (req, res, next) => {

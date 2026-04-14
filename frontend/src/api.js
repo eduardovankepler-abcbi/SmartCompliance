@@ -282,5 +282,6 @@ export const api = {
       params.set("timeGrouping", timeGrouping);
     }
     return request(`/api/dashboards/overview${params.toString() ? `?${params.toString()}` : ""}`);
-  }
+  },
+  getPerformance360Reviews: () => request("/api/evaluations/performance-360")
 };

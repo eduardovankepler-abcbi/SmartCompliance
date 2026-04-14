@@ -2742,6 +2742,37 @@ button:disabled {
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
 }
 
+.performance-360-card {
+  background:
+    linear-gradient(135deg, rgba(67, 211, 139, 0.08), transparent 45%),
+    var(--accent-primary);
+}
+
+.performance-360-grid {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.performance-360-review {
+  gap: 14px;
+}
+
+.performance-360-review.support {
+  border-color: rgba(255, 154, 107, 0.32);
+}
+
+.performance-360-review.attention {
+  border-color: rgba(255, 190, 92, 0.32);
+}
+
+.performance-360-review.positive {
+  border-color: rgba(67, 211, 139, 0.32);
+}
+
+.performance-360-score {
+  color: var(--text);
+  font-size: 1.5rem;
+}
+
 .evaluation-comparison-list {
   gap: 8px;
 }

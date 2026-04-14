@@ -59,6 +59,58 @@ function getWorkModeLabel(value) {
   }
 }
 
+function Performance360Panel({ reviews = [], isIndividualJourney }) {
+  if (!reviews.length) {
+    return null;
+  }
+
+  const featuredReviews = isIndividualJourney ? reviews.slice(0, 1) : reviews.slice(0, 4);
+
+  return (
+    <div className="card card-span performance-360-card">
+      <div className="card-header">
+        <div>
+          <h3>Avaliacao 360</h3>
+          <span>Performance como desenvolvimento</span>
+        </div>
+        <span className="badge">1 a 10</span>
+      </div>
+      <div className="metrics-grid performance-360-grid">
+        {featuredReviews.map((review) => (
+          <article className={`mini-card performance-360-review ${review.guidance?.tone || ""}`} key={`${review.personId}:${review.cycleId}`}>
+            <div className="row">
+              <div>
+                <p className="mini-label">{review.semesterLabel || review.cycleTitle}</p>
+                <strong>{isIndividualJourney ? "Minha leitura" : review.personName}</strong>
+              </div>
+              <strong className="performance-360-score">{review.score10 ?? "-"} / 10</strong>
+            </div>
+            <p className="muted">
+              {review.isPartial
+                ? `${review.confidenceLabel || "Leitura parcial"} enquanto o ciclo ainda esta recebendo respostas.`
+                : review.confidenceLabel || "Leitura consolidada do ciclo."}
+            </p>
+            <div className="list-card compact-list-card">
+              <strong>{review.guidance?.title}</strong>
+              <p className="muted">{review.guidance?.summary}</p>
+              <p>{review.guidance?.nextStep}</p>
+            </div>
+            {review.developmentPlanSuggestion ? (
+              <div className="list-card compact-list-card">
+                <p className="mini-label">Plano sugerido</p>
+                <strong>{review.developmentPlanSuggestion.focusTitle}</strong>
+                <p>{review.developmentPlanSuggestion.actionText}</p>
+                <p className="muted">{review.developmentPlanSuggestion.expectedEvidence}</p>
+              </div>
+            ) : null}
+            <p className="muted">{review.visibility}</p>
+          </article>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function EvaluationsSection(props) {
   const {
     Input,
@@ -98,6 +150,7 @@ export function EvaluationsSection(props) {
     filteredReceivedManagerFeedback,
     filteredEvaluationCycleStructure,
     filteredFeedbackRequests,
+    performance360Reviews,
     formatDate,
     getCycleStatusDescription,
     getFeedbackRequestStatusLabel,
@@ -282,6 +335,13 @@ export function EvaluationsSection(props) {
           </div>
         ) : null}
       </div>
+
+      {(isIndividualJourney || isInsightsWorkspace) ? (
+        <Performance360Panel
+          reviews={performance360Reviews}
+          isIndividualJourney={isIndividualJourney}
+        />
+      ) : null}
 
       <SafeEvaluationInsightsPanel
         Select={Select}

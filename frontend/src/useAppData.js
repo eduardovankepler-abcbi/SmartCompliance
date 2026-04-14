@@ -14,6 +14,7 @@ export function useAppData({
   canViewDashboard,
   canReceiveManagerFeedback,
   canViewResponses,
+  canViewPerformance360,
   canViewUsersAdmin,
   canViewOrganizationDevelopment,
   dashboardAreaFilter,
@@ -35,6 +36,7 @@ export function useAppData({
   const [receivedManagerFeedback, setReceivedManagerFeedback] = useState([]);
   const [feedbackRequests, setFeedbackRequests] = useState([]);
   const [responsesBundle, setResponsesBundle] = useState(emptyResponsesBundle);
+  const [performance360Reviews, setPerformance360Reviews] = useState([]);
   const [applauseEntries, setApplauseEntries] = useState([]);
   const [developmentRecords, setDevelopmentRecords] = useState([]);
   const [developmentPlans, setDevelopmentPlans] = useState([]);
@@ -57,6 +59,7 @@ export function useAppData({
     setReceivedManagerFeedback([]);
     setFeedbackRequests([]);
     setResponsesBundle(emptyResponsesBundle);
+    setPerformance360Reviews([]);
     setApplauseEntries([]);
     setDevelopmentRecords([]);
     setDevelopmentPlans([]);
@@ -95,6 +98,7 @@ export function useAppData({
         api.getEvaluationAssignments(),
         canReceiveManagerFeedback ? api.getReceivedManagerFeedback() : Promise.resolve([]),
         api.getFeedbackRequests(),
+        canViewPerformance360 ? api.getPerformance360Reviews() : Promise.resolve([]),
         api.getApplauseEntries(),
         api.getDevelopmentRecords(),
         api.getDevelopmentPlans(),
@@ -124,12 +128,13 @@ export function useAppData({
         nextAssignments,
         nextReceivedManagerFeedback,
         nextFeedbackRequests,
+        nextPerformance360Reviews,
         nextApplause,
         nextDevelopment,
         nextDevelopmentPlans,
         nextLearningIntegrationEvents
       ] = result;
-      let resultIndex = 17;
+      let resultIndex = 18;
       const nextUsers = canViewUsersAdmin ? result[resultIndex++] : [];
       const nextResponses = canViewResponses ? result[resultIndex] : emptyResponsesBundle;
 
@@ -147,6 +152,7 @@ export function useAppData({
       setAssignments(nextAssignments);
       setReceivedManagerFeedback(nextReceivedManagerFeedback);
       setFeedbackRequests(nextFeedbackRequests);
+      setPerformance360Reviews(nextPerformance360Reviews);
       setApplauseEntries(nextApplause);
       setDevelopmentRecords(nextDevelopment);
       setDevelopmentPlans(nextDevelopmentPlans);
@@ -163,6 +169,7 @@ export function useAppData({
     canViewDashboard,
     canReceiveManagerFeedback,
     canViewResponses,
+    canViewPerformance360,
     canViewUsersAdmin,
     canViewOrganizationDevelopment,
     dashboardAreaFilter,
@@ -197,6 +204,7 @@ export function useAppData({
     loading,
     learningIntegrationEvents,
     people,
+    performance360Reviews,
     receivedManagerFeedback,
     reloadData,
     resetData,
