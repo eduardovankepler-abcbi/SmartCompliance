@@ -251,6 +251,17 @@ export function DashboardSection({
       tone: "accent"
     }
   ];
+  const priorityActions = buildDashboardPriorityActions({
+    dashboard,
+    summary,
+    dashboardAreaFilter,
+    dashboardTimeGroupingLabel,
+    laggingEvaluationSummary,
+    pendingAssignmentsItem,
+    satisfactionByAreaItems,
+    developmentByTypeItems,
+    getRelationshipLabel
+  });
 
   function setDimensionFilterForGroup(relationshipType, nextValue) {
     setDimensionFilters((current) => ({
@@ -322,17 +333,6 @@ export function DashboardSection({
             <span className="module-tab-meta">Exploracao detalhada</span>
           </button>
         </div>
-        <div className="dashboard-command-kpis">
-          {topKpis.map((item) => (
-            <article className={`dashboard-kpi-inline-card ${item.tone}`} key={item.label}>
-              <div className="dashboard-kpi-inline-copy">
-                <span>{item.label}</span>
-                <strong>{item.value}</strong>
-              </div>
-              <p>{item.detail}</p>
-            </article>
-          ))}
-        </div>
       </div>
 
       <div className="card card-span dashboard-filter-card">
@@ -377,6 +377,43 @@ export function DashboardSection({
         </div>
       </div>
 
+      {isExecutiveView ? (
+        <div className="card card-span dashboard-decision-card">
+          <DashboardCardHeader
+            eyebrow="Decisao"
+            title="Central de prioridades"
+            subtitle="O que merece atencao agora"
+            tone="primary"
+          />
+          <div className="dashboard-decision-layout">
+            <div className="dashboard-decision-kpis">
+              {topKpis.map((item) => (
+                <article className={`dashboard-kpi-inline-card ${item.tone}`} key={item.label}>
+                  <div className="dashboard-kpi-inline-copy">
+                    <span>{item.label}</span>
+                    <strong>{item.value}</strong>
+                  </div>
+                  <p>{item.detail}</p>
+                </article>
+              ))}
+            </div>
+            <div className="dashboard-priority-queue">
+              {priorityActions.map((item) => (
+                <article className={`dashboard-priority-card ${item.tone}`} key={item.title}>
+                  <div>
+                    <p className="mini-label">{item.label}</p>
+                    <strong>{item.title}</strong>
+                  </div>
+                  <p className="muted">{item.detail}</p>
+                  <span>{item.action}</span>
+                </article>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {!isExecutiveView ? (
       <div className="card card-span dashboard-executive-brief-card">
         <DashboardCardHeader
           eyebrow="Resumo"
@@ -394,8 +431,9 @@ export function DashboardSection({
           ))}
         </div>
       </div>
+      ) : null}
 
-      {storyCards.length ? (
+      {!isExecutiveView && storyCards.length ? (
         <div className="card card-span dashboard-story-card">
           <DashboardCardHeader
             eyebrow="Panorama"
@@ -426,6 +464,7 @@ export function DashboardSection({
         </div>
       ) : null}
 
+      {!isExecutiveView ? (
       <div className="card-span dashboard-section-band summary">
         <div className="dashboard-section-band-copy">
           <span>Resumo</span>
@@ -439,7 +478,9 @@ export function DashboardSection({
             : "Visao de base para aprofundar volume, distribuicao e variacoes do ciclo."}
         </p>
       </div>
+      ) : null}
 
+      {!isExecutiveView ? (
       <div className="card card-span">
         <DashboardCardHeader
           eyebrow="Kpis"
@@ -471,6 +512,7 @@ export function DashboardSection({
           ))}
         </div>
       </div>
+      ) : null}
 
       <div className="card-span dashboard-section-band operations">
         <div className="dashboard-section-band-copy">
@@ -1147,6 +1189,99 @@ function buildExecutiveComparisons({ dashboard, dashboardTimeGroupingLabel }) {
   }
 
   return comparisons.slice(0, 4);
+}
+
+function buildDashboardPriorityActions({
+  dashboard,
+  summary,
+  dashboardAreaFilter,
+  dashboardTimeGroupingLabel,
+  laggingEvaluationSummary,
+  pendingAssignmentsItem,
+  satisfactionByAreaItems,
+  developmentByTypeItems,
+  getRelationshipLabel
+}) {
+  const priorities = [];
+  const areaLabel = dashboardAreaFilter === "all" ? "todas as areas" : dashboardAreaFilter;
+  const pendingAssignments =
+    dashboard?.scopeSummary?.pendingAssignments ??
+    summary?.pendingAssignments ??
+    pendingAssignmentsItem?.total ??
+    0;
+  const openIncidents = summary?.openIncidents ?? 0;
+  const peopleCount = dashboard?.scopeSummary?.peopleCount ?? summary?.peopleCount ?? 0;
+  const developmentRecords = dashboard?.scopeSummary?.developmentRecords ?? 0;
+  const lowestArea = [...(satisfactionByAreaItems || [])].sort(
+    (left, right) => Number(left.score || 0) - Number(right.score || 0)
+  )[0];
+  const topDevelopment = [...(developmentByTypeItems || [])].sort(
+    (left, right) => Number(right.total || 0) - Number(left.total || 0)
+  )[0];
+
+  if (pendingAssignments > 0) {
+    priorities.push({
+      label: "Ciclo",
+      title: `${pendingAssignments} assignments pendentes`,
+      detail: `Pendencias ainda abertas no recorte de ${areaLabel}.`,
+      action: "Acione a operacao de avaliacoes antes de ampliar analises.",
+      tone: "warning"
+    });
+  }
+
+  if (openIncidents > 0) {
+    priorities.push({
+      label: "Compliance",
+      title: `${openIncidents} incidentes em aberto`,
+      detail: "Risco operacional que pode demandar acompanhamento fora do ciclo.",
+      action: "Revise a fila de tratamento e responsaveis.",
+      tone: "critical"
+    });
+  }
+
+  if (laggingEvaluationSummary) {
+    priorities.push({
+      label: "Avaliacao",
+      title: `Gargalo em ${getRelationshipLabel(laggingEvaluationSummary.relationshipType)}`,
+      detail: `${laggingEvaluationSummary.adherencePercentage}% de adesao em ${dashboardTimeGroupingLabel.toLowerCase()}.`,
+      action: "Priorize comunicacao e acompanhamento neste submodulo.",
+      tone: "warning"
+    });
+  }
+
+  if (lowestArea) {
+    priorities.push({
+      label: "Satisfacao",
+      title: `${lowestArea.area} pede leitura de contexto`,
+      detail: `${lowestArea.score} de media agregada com ${lowestArea.peopleCount} pessoa(s).`,
+      action: "Use a analitica para separar sinal consistente de amostra pequena.",
+      tone: Number(lowestArea.score || 0) < 4 ? "critical" : "neutral"
+    });
+  }
+
+  if (peopleCount && developmentRecords < peopleCount) {
+    priorities.push({
+      label: "Desenvolvimento",
+      title: "Cobertura de desenvolvimento incompleta",
+      detail: `${developmentRecords}/${peopleCount} pessoas com historico registrado no recorte.`,
+      action: topDevelopment
+        ? `Trilha mais frequente: ${topDevelopment.type}.`
+        : "Estimule registros de PDI e marcos recentes.",
+      tone: "neutral"
+    });
+  }
+
+  if (!priorities.length) {
+    priorities.push({
+      label: "Operacao",
+      title: "Sem urgencia dominante",
+      detail: "O recorte atual nao apresenta gargalo claro nos indicadores principais.",
+      action: "Use a leitura analitica apenas para refinamento e acompanhamento.",
+      tone: "positive"
+    });
+  }
+
+  return priorities.slice(0, 4);
 }
 
 function buildDashboardStoryCards({ dashboard, summary, dashboardAreaFilter, dashboardTimeGroupingLabel }) {
