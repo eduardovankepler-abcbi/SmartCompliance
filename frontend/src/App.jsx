@@ -301,6 +301,7 @@ export default function App() {
     developmentFormPeopleOptions,
     developmentHighlights,
     developmentMetrics,
+    developmentPerformanceSummary,
     developmentPlanCompetencyOptions,
     developmentPlanCycleOptions,
     developmentPlanForm,
@@ -332,6 +333,7 @@ export default function App() {
     developmentRecords,
     learningIntegrationEvents,
     people,
+    performance360Reviews,
     reloadData,
     setError,
     user
@@ -528,6 +530,7 @@ export default function App() {
         developmentFormPeopleOptions={developmentFormPeopleOptions}
         developmentHighlights={developmentHighlights}
         developmentMetrics={developmentMetrics}
+        developmentPerformanceSummary={developmentPerformanceSummary}
         developmentNote={developmentNote}
         developmentPlanCompetencyOptions={developmentPlanCompetencyOptions}
         developmentPlanCycleOptions={developmentPlanCycleOptions}

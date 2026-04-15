@@ -2,6 +2,55 @@ import { AuditTrailPanel } from "../components/AuditTrailPanel";
 
 const EmptyComponent = () => null;
 
+function DevelopmentPerformanceSummaryCard({ summary }) {
+  if (!summary) {
+    return null;
+  }
+
+  const scoreValue = Number(summary.scoreLabel?.replace?.("/10", "") || 0);
+  const scorePercentage = Number.isFinite(scoreValue) ? Math.min(Math.max(scoreValue * 10, 0), 100) : 0;
+
+  return (
+    <div className={`development-performance-panel ${summary.tone || "neutral"}`}>
+      <div className="development-performance-main">
+        <span>{summary.eyebrow}</span>
+        <strong>{summary.title}</strong>
+        <p>{summary.guidance}</p>
+      </div>
+      <div className="development-performance-score">
+        <span>Índice</span>
+        <strong>{summary.scoreLabel}</strong>
+        <p>{summary.detail}</p>
+        <div className="development-performance-bar" aria-hidden="true">
+          <span style={{ width: `${scorePercentage}%` }} />
+        </div>
+      </div>
+      {summary.rows?.length ? (
+        <div className="development-performance-breakdown">
+          {summary.rows.slice(0, 4).map((item) => (
+            <article className={`development-performance-row ${item.tone}`} key={item.personId || item.area || item.label}>
+              <span>{item.area || item.label}</span>
+              <strong>{item.scoreLabel}/10</strong>
+              <p>{item.peopleCount ? `${item.peopleCount} colaboradores` : item.detail}</p>
+            </article>
+          ))}
+        </div>
+      ) : null}
+      {summary.distribution?.length && summary.mode !== "personal" ? (
+        <div className="development-performance-distribution">
+          {summary.distribution.map((item) => (
+            <article className={`development-performance-row ${item.tone}`} key={item.key}>
+              <span>{item.label}</span>
+              <strong>{item.total}</strong>
+              <p>{item.percentage}% do recorte</p>
+            </article>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function ComplianceSection({
   IncidentQueueCard,
   Input,
@@ -243,6 +292,7 @@ export function DevelopmentSection({
   developmentFormPeopleOptions,
   developmentHighlights,
   developmentMetrics,
+  developmentPerformanceSummary,
   developmentPlans,
   developmentRecordTypes,
   developmentEditablePlanPeopleOptions,
@@ -289,6 +339,7 @@ export function DevelopmentSection({
               "Acompanhamento de evolucao academica e profissional"}
           </span>
         </div>
+        <DevelopmentPerformanceSummaryCard summary={developmentPerformanceSummary} />
         {showDevelopmentViews ? (
           <div className="module-grid">
             {developmentViewOptions.map((view) => (

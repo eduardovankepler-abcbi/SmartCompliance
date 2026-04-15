@@ -7,6 +7,198 @@ import {
   emptyDevelopmentPlan
 } from "./appConfig.js";
 
+function getPerformanceTone(score10) {
+  if (!Number.isFinite(Number(score10))) {
+    return "neutral";
+  }
+
+  if (score10 >= 7.5) {
+    return "positive";
+  }
+
+  if (score10 >= 6) {
+    return "warning";
+  }
+
+  return "critical";
+}
+
+function getAverageScore(reviews) {
+  const scores = (reviews || [])
+    .map((review) => Number(review.score10))
+    .filter((score) => Number.isFinite(score));
+
+  if (!scores.length) {
+    return null;
+  }
+
+  return Number((scores.reduce((total, score) => total + score, 0) / scores.length).toFixed(1));
+}
+
+function getLatestReviewByPerson(reviews) {
+  const latestByPerson = new Map();
+
+  (reviews || [])
+    .filter((review) => review?.personId && Number.isFinite(Number(review.score10)))
+    .forEach((review) => {
+      if (!latestByPerson.has(review.personId)) {
+        latestByPerson.set(review.personId, review);
+      }
+    });
+
+  return latestByPerson;
+}
+
+function buildDistribution(reviews) {
+  const total = reviews.length || 0;
+  const buckets = [
+    {
+      key: "consistent",
+      label: "Consistente",
+      total: reviews.filter((review) => Number(review.score10) >= 7.5).length,
+      tone: "positive"
+    },
+    {
+      key: "evolving",
+      label: "Em evolução",
+      total: reviews.filter(
+        (review) => Number(review.score10) >= 6 && Number(review.score10) < 7.5
+      ).length,
+      tone: "warning"
+    },
+    {
+      key: "support",
+      label: "Direcionamento",
+      total: reviews.filter((review) => Number(review.score10) < 6).length,
+      tone: "critical"
+    }
+  ];
+
+  return buckets.map((bucket) => ({
+    ...bucket,
+    percentage: total ? Math.round((bucket.total / total) * 100) : 0
+  }));
+}
+
+function buildAreaRows(reviews) {
+  const grouped = (reviews || []).reduce((acc, review) => {
+    const area = review.personArea || "Sem área";
+    const entry = acc[area] || {
+      area,
+      reviews: []
+    };
+    entry.reviews.push(review);
+    acc[area] = entry;
+    return acc;
+  }, {});
+
+  return Object.values(grouped)
+    .map((entry) => {
+      const score10 = getAverageScore(entry.reviews);
+      return {
+        area: entry.area,
+        score10,
+        scoreLabel: score10 === null ? "-" : score10.toFixed(1),
+        peopleCount: entry.reviews.length,
+        tone: getPerformanceTone(score10)
+      };
+    })
+    .sort((left, right) => Number(left.score10 ?? 99) - Number(right.score10 ?? 99));
+}
+
+function buildDevelopmentPerformanceSummary({ activeDevelopmentView, people, reviews, user }) {
+  if (!user?.person?.id) {
+    return null;
+  }
+
+  const latestByPerson = getLatestReviewByPerson(reviews);
+  const latestReviews = [...latestByPerson.values()];
+
+  if (activeDevelopmentView === "organization") {
+    const score10 = getAverageScore(latestReviews);
+    return {
+      mode: "organization",
+      title: "Desempenho por área",
+      eyebrow: "Visão macro",
+      scoreLabel: score10 === null ? "-" : `${score10.toFixed(1)}/10`,
+      detail: latestReviews.length
+        ? `${latestReviews.length} colaboradores com leitura 360`
+        : "Sem leituras 360 suficientes",
+      tone: getPerformanceTone(score10),
+      guidance:
+        score10 === null
+          ? "Assim que houver leituras suficientes, o painel indicará áreas que precisam de apoio."
+          : "Use esta visão para priorizar suporte preventivo por área.",
+      rows: buildAreaRows(latestReviews),
+      distribution: buildDistribution(latestReviews)
+    };
+  }
+
+  if (activeDevelopmentView === "team") {
+    const teamPersonIds = new Set(
+      (people || [])
+        .filter((person) => person.managerPersonId === user.person.id)
+        .map((person) => person.id)
+    );
+    const teamReviews = latestReviews.filter((review) => teamPersonIds.has(review.personId));
+    const score10 = getAverageScore(teamReviews);
+
+    return {
+      mode: "team",
+      title: "Desempenho da equipe",
+      eyebrow: "Gestão direta",
+      scoreLabel: score10 === null ? "-" : `${score10.toFixed(1)}/10`,
+      detail: teamReviews.length
+        ? `${teamReviews.length} colaboradores com leitura 360`
+        : "Sem leituras 360 suficientes na equipe",
+      tone: getPerformanceTone(score10),
+      guidance:
+        score10 === null
+          ? "Quando a equipe tiver leituras suficientes, o painel apoiará seus direcionamentos."
+          : "Acompanhe sinais individuais e coletivos sem expor a fórmula de cálculo.",
+      rows: teamReviews
+        .map((review) => ({
+          personId: review.personId,
+          label: review.personName,
+          score10: Number(review.score10),
+          scoreLabel: Number(review.score10).toFixed(1),
+          detail: review.confidenceLabel,
+          tone: getPerformanceTone(review.score10)
+        }))
+        .sort((left, right) => left.score10 - right.score10),
+      distribution: buildDistribution(teamReviews)
+    };
+  }
+
+  const personalReview = latestByPerson.get(user.person.id);
+  const score10 = Number(personalReview?.score10);
+
+  return {
+    mode: "personal",
+    title: "Meu índice de desempenho",
+    eyebrow: "Leitura privada",
+    scoreLabel: Number.isFinite(score10) ? `${score10.toFixed(1)}/10` : "-",
+    detail: personalReview?.confidenceLabel || "Sem leitura 360 suficiente",
+    tone: getPerformanceTone(score10),
+    guidance:
+      personalReview?.guidance?.nextStep ||
+      "Quando houver leitura suficiente, seu índice aparecerá aqui com direcionamento de desenvolvimento.",
+    rows: personalReview
+      ? [
+          {
+            personId: personalReview.personId,
+            label: personalReview.cycleTitle,
+            score10,
+            scoreLabel: score10.toFixed(1),
+            detail: personalReview.semesterLabel || "Ciclo atual",
+            tone: getPerformanceTone(score10)
+          }
+        ]
+      : [],
+    distribution: []
+  };
+}
+
 export function useDevelopmentFlow({
   auditTrail,
   canManageDevelopmentScope,
@@ -18,6 +210,7 @@ export function useDevelopmentFlow({
   developmentRecords,
   learningIntegrationEvents,
   people,
+  performance360Reviews,
   reloadData,
   setError,
   user
@@ -250,6 +443,17 @@ export function useDevelopmentFlow({
     [activeDevelopmentRecords]
   );
 
+  const developmentPerformanceSummary = useMemo(
+    () =>
+      buildDevelopmentPerformanceSummary({
+        activeDevelopmentView,
+        people,
+        reviews: performance360Reviews,
+        user
+      }),
+    [activeDevelopmentView, people, performance360Reviews, user]
+  );
+
   const developmentAuditEntries = useMemo(
     () => auditTrail.filter((item) => item.category === "development"),
     [auditTrail]
@@ -453,6 +657,7 @@ export function useDevelopmentFlow({
     developmentFormPeopleOptions,
     developmentHighlights,
     developmentMetrics,
+    developmentPerformanceSummary,
     developmentPlanCompetencyOptions,
     developmentPlanCycleOptions,
     developmentPlanForm,

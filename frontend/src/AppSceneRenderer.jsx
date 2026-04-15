@@ -208,6 +208,7 @@ export function AppSceneRenderer(props) {
           developmentFormPeopleOptions={props.developmentFormPeopleOptions}
           developmentHighlights={props.developmentHighlights}
           developmentMetrics={props.developmentMetrics}
+          developmentPerformanceSummary={props.developmentPerformanceSummary}
           developmentPlans={props.filteredDevelopmentPlans}
           developmentRecordTypes={props.developmentRecordTypes}
           developmentEditablePlanPeopleOptions={props.developmentEditablePlanPeopleOptions}
