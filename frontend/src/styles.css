@@ -944,6 +944,57 @@ button:disabled {
     rgba(8, 13, 23, 0.5);
 }
 
+.dashboard-performance-action-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.dashboard-performance-action-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.dashboard-performance-action-card {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.025), transparent 56%),
+    rgba(8, 13, 23, 0.56);
+}
+
+.dashboard-performance-action-card span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.dashboard-performance-action-card strong {
+  font-size: 1.02rem;
+  line-height: 1.28;
+}
+
+.dashboard-performance-action-card p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.dashboard-performance-action-card.positive {
+  border-color: rgba(67, 211, 139, 0.2);
+}
+
+.dashboard-performance-action-card.warning {
+  border-color: rgba(255, 157, 99, 0.22);
+}
+
+.dashboard-performance-action-card.critical {
+  border-color: rgba(255, 108, 138, 0.26);
+}
+
 .dashboard-performance-score-card {
   display: grid;
   align-content: center;

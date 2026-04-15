@@ -114,6 +114,11 @@ try {
       Array.isArray(adminDashboard.payload.performanceHealth.areaSeries),
     "Dashboard deve retornar desempenho 360 macro por area quando houver dados"
   );
+  assert.ok(
+    adminDashboard.payload.performanceHealth === null ||
+      Array.isArray(adminDashboard.payload.performanceHealth.recommendations),
+    "Dashboard deve retornar recomendacoes profilaticas agregadas quando houver dados"
+  );
 
   const employeeAudit = await fetchJson(
     baseUrl,

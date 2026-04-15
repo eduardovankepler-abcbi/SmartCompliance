@@ -118,6 +118,7 @@ export function DashboardSection({
   const performanceDistributionItems = performanceHealth?.distribution || [];
   const performanceAreaHighlights = performanceHealth?.areaHighlights || [];
   const performanceAreaSeries = performanceHealth?.areaSeries || [];
+  const performanceRecommendations = performanceHealth?.recommendations || [];
   const satisfactionQuestionAnalyticsItems = dashboard?.satisfactionQuestionAnalytics || [];
   const satisfactionQuestionAreaOptions = getSatisfactionQuestionAreaOptions(
     satisfactionQuestionAnalyticsItems
@@ -1028,6 +1029,26 @@ export function DashboardSection({
                         </div>
                       </div>
                     ) : null}
+                    {performanceRecommendations.length ? (
+                      <div className="dashboard-performance-action-panel">
+                        <div className="dashboard-dimension-summary-head">
+                          <strong>Ações profiláticas</strong>
+                          <span className="muted">Recomendações agregadas e não punitivas</span>
+                        </div>
+                        <div className="dashboard-performance-action-grid">
+                          {performanceRecommendations.map((item) => (
+                            <article
+                              className={`dashboard-performance-action-card ${item.tone}`}
+                              key={item.key}
+                            >
+                              <span>{item.title}</span>
+                              <strong>{item.detail}</strong>
+                              <p>{item.action}</p>
+                            </article>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
                     <div className="dashboard-theme-action-row">
                       <p className="muted">{performanceHealth.guidance}</p>
                       <button
@@ -1304,6 +1325,29 @@ export function DashboardSection({
                   percentage={item.percentage}
                   toneKey={`executive-performance-${item.tone}-${item.area}`}
                 />
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {isExecutiveView && performanceRecommendations.length ? (
+          <div className="card dashboard-side-card dashboard-performance-action-panel">
+            <DashboardCardHeader
+              eyebrow="Profilaxia"
+              title="Ações recomendadas"
+              subtitle="Intervenção preventiva"
+              tone="warning"
+            />
+            <div className="dashboard-performance-action-grid">
+              {performanceRecommendations.map((item) => (
+                <article
+                  className={`dashboard-performance-action-card ${item.tone}`}
+                  key={`executive-${item.key}`}
+                >
+                  <span>{item.title}</span>
+                  <strong>{item.detail}</strong>
+                  <p>{item.action}</p>
+                </article>
               ))}
             </div>
           </div>

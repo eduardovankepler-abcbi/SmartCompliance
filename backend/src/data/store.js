@@ -3067,6 +3067,57 @@ function getPerformanceHealthTone(score10) {
   return "critical";
 }
 
+function buildPerformanceRecommendations({ averageScore10, distributionSeed, areaSeries, reviewCount }) {
+  const recommendations = [];
+  const lowestArea = areaSeries[0] || null;
+
+  if (lowestArea && lowestArea.tone !== "positive") {
+    recommendations.push({
+      key: "area-support",
+      title: `Apoiar ${lowestArea.area}`,
+      detail: `${lowestArea.scoreLabel}/10 em ${lowestArea.peopleCount} leituras agregadas.`,
+      action:
+        "Abrir escuta breve com lideranca da area e transformar sinais recorrentes em PDI coletivo.",
+      tone: lowestArea.tone
+    });
+  }
+
+  if (distributionSeed.support > 0) {
+    recommendations.push({
+      key: "support-plans",
+      title: "Direcionamento sem alarme",
+      detail: `${distributionSeed.support} leituras pedem acompanhamento mais proximo.`,
+      action:
+        "Priorizar planos curtos, com evidencias simples e revisao combinada entre gestor e colaborador.",
+      tone: "critical"
+    });
+  }
+
+  if (distributionSeed.evolving > distributionSeed.consistent) {
+    recommendations.push({
+      key: "evolving-cohort",
+      title: "Consolidar grupo em evolucao",
+      detail: `${distributionSeed.evolving} leituras estao em faixa intermediaria.`,
+      action:
+        "Reforcar rituais de feedback, clareza de expectativas e acompanhamento leve de progresso.",
+      tone: "warning"
+    });
+  }
+
+  if (!recommendations.length) {
+    recommendations.push({
+      key: "maintain-rituals",
+      title: "Manter cadencia saudável",
+      detail: `${reviewCount} leituras indicam recorte estavel, com media ${averageScore10.toFixed(1)}/10.`,
+      action:
+        "Preservar rituais de feedback e usar Aplause/Desenvolvimento para sustentar os pontos fortes.",
+      tone: "positive"
+    });
+  }
+
+  return recommendations.slice(0, 3);
+}
+
 function buildPerformanceHealthSummary(reviews = []) {
   const scoredReviews = reviews.filter((review) => Number.isFinite(Number(review.score10)));
   if (!scoredReviews.length) {
@@ -3106,6 +3157,12 @@ function buildPerformanceHealthSummary(reviews = []) {
     })
     .sort((left, right) => left.score10 - right.score10);
   const areaHighlights = areaSeries.slice(0, 4);
+  const recommendations = buildPerformanceRecommendations({
+    averageScore10,
+    distributionSeed,
+    areaSeries,
+    reviewCount: scoredReviews.length
+  });
 
   return {
     averageScore10,
@@ -3140,6 +3197,7 @@ function buildPerformanceHealthSummary(reviews = []) {
     areaHighlights,
     lowestArea: areaSeries[0] || null,
     highestArea: areaSeries[areaSeries.length - 1] || null,
+    recommendations,
     guidance:
       averageScore10 < 6
         ? "Priorize planos de direcionamento com linguagem de desenvolvimento, nao de alarme."
