@@ -2303,7 +2303,10 @@ export const seed = {
       status: "active",
       createdByUserId: "u6",
       createdAt: "2026-03-20T09:00:00.000Z",
-      archivedAt: null
+      archivedAt: null,
+      progressStatus: "not_started",
+      progressNote: "",
+      progressUpdatedAt: null
     }
   ],
   auditLogs: [

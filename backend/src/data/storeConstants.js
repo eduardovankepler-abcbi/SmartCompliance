@@ -49,6 +49,12 @@ export const EMPLOYMENT_TYPE_OPTIONS = ["internal", "consultant"];
 export const COMPETENCY_STATUS_OPTIONS = ["active", "inactive"];
 export const DEVELOPMENT_RECORD_STATUS_OPTIONS = ["active", "archived"];
 export const DEVELOPMENT_PLAN_STATUS_OPTIONS = ["active", "completed", "archived"];
+export const DEVELOPMENT_PLAN_PROGRESS_STATUS_OPTIONS = [
+  "not_started",
+  "in_progress",
+  "blocked",
+  "done"
+];
 export const APPLAUSE_STATUS_OPTIONS = ["Validado", "Em revisao", "Arquivado"];
 
 export const FEEDBACK_REQUEST_STATUS = {

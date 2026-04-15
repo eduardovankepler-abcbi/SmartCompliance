@@ -273,6 +273,11 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify(payload)
     }),
+  updateDevelopmentPlanProgress: (planId, payload) =>
+    request(`/api/development/plans/${planId}/progress`, {
+      method: "PATCH",
+      body: JSON.stringify(payload)
+    }),
   getDashboardOverview: (area = null, timeGrouping = "semester") => {
     const params = new URLSearchParams();
     if (area) {

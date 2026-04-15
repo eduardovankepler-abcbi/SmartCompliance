@@ -204,6 +204,7 @@ export function AppSceneRenderer(props) {
           developmentPlanCycleOptions={props.developmentPlanCycleOptions}
           developmentPlanCompetencyOptions={props.developmentPlanCompetencyOptions}
           developmentPlanPeopleOptions={props.developmentPlanPeopleOptions}
+          developmentPlanProgressStatusOptions={props.developmentPlanProgressStatusOptions}
           developmentPlanStatusOptions={props.developmentPlanStatusOptions}
           developmentFormPeopleOptions={props.developmentFormPeopleOptions}
           developmentHighlights={props.developmentHighlights}
@@ -222,6 +223,7 @@ export function AppSceneRenderer(props) {
           formatDate={props.formatDate}
           getDevelopmentTrackLabel={props.getDevelopmentTrackLabel}
           handleDevelopmentPlanSubmit={props.handleDevelopmentPlanSubmit}
+          handleDevelopmentPlanProgressUpdate={props.handleDevelopmentPlanProgressUpdate}
           handleDevelopmentPlanUpdate={props.handleDevelopmentPlanUpdate}
           handleDevelopmentSubmit={props.handleDevelopmentSubmit}
           handleDevelopmentUpdate={props.handleDevelopmentUpdate}

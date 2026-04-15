@@ -186,6 +186,12 @@ export const developmentRecordTypes = [
 
 export const academicDevelopmentTypes = new Set(["Graduacao", "Pos-graduacao", "MBA"]);
 export const developmentPlanStatusOptions = ["active", "completed", "archived"];
+export const developmentPlanProgressStatusOptions = [
+  "not_started",
+  "in_progress",
+  "blocked",
+  "done"
+];
 
 export const developmentViewLabels = {
   personal: {

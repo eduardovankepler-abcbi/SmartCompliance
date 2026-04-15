@@ -288,6 +288,7 @@ export function DevelopmentSection({
   developmentPlanCycleOptions,
   developmentPlanCompetencyOptions,
   developmentPlanPeopleOptions,
+  developmentPlanProgressStatusOptions = [],
   developmentPlanStatusOptions,
   developmentFormPeopleOptions,
   developmentHighlights,
@@ -305,6 +306,7 @@ export function DevelopmentSection({
   filteredDevelopmentRecords,
   formatDate,
   getDevelopmentTrackLabel,
+  handleDevelopmentPlanProgressUpdate,
   handleDevelopmentPlanSubmit,
   handleDevelopmentPlanUpdate,
   handleDevelopmentSubmit,
@@ -328,6 +330,7 @@ export function DevelopmentSection({
   const showDevelopmentPersonSelect = developmentFormPeopleOptions.length > 1;
   const showDevelopmentPlanPersonSelect = developmentPlanPeopleOptions.length > 1;
   const showLearningIntegrations = Boolean(learningIntegrationSummary);
+  const canStructureDevelopmentPlan = ["admin", "hr", "manager"].includes(roleKey);
 
   return (
     <section className="page-grid">
@@ -529,77 +532,90 @@ export function DevelopmentSection({
         </button>
       </form>
 
-      <form className="card card-span compact-card admin-form-card development-plan-form" onSubmit={handleDevelopmentPlanSubmit}>
-        <div className="card-header">
-          <h3>{isEmployeeJourney ? "Meu PDI" : "Novo PDI"}</h3>
-          <span>
-            {activeDevelopmentView === "team"
-              ? "Plano de desenvolvimento para reportes diretos"
-              : activeDevelopmentView === "organization"
-                ? "Plano estruturado para pessoas da organizacao"
-                : "Plano de desenvolvimento individual com acao e evidencia"}
-          </span>
+      {!canStructureDevelopmentPlan ? (
+        <div className="card card-span compact-card development-plan-readonly-note">
+          <div className="card-header">
+            <h3>{isEmployeeJourney ? "Meu PDI" : "PDI"}</h3>
+            <span>Plano definido pelo gestor</span>
+          </div>
+          <p className="muted">
+            O foco, a ação, o prazo e a evidência esperada são combinados pelo gestor. Colaboradores
+            acompanham os planos abaixo e reportam andamento sem alterar a estrutura do PDI.
+          </p>
         </div>
-        {showDevelopmentPlanPersonSelect ? (
+      ) : (
+        <form className="card card-span compact-card admin-form-card development-plan-form" onSubmit={handleDevelopmentPlanSubmit}>
+          <div className="card-header">
+            <h3>Novo PDI</h3>
+            <span>
+              {activeDevelopmentView === "team"
+                ? "Plano de desenvolvimento para reportes diretos"
+                : activeDevelopmentView === "organization"
+                  ? "Plano estruturado para pessoas da organizacao"
+                  : "Plano de desenvolvimento individual com acao e evidencia"}
+            </span>
+          </div>
+          {showDevelopmentPlanPersonSelect ? (
+            <SafeSelect
+              label="Pessoa"
+              value={developmentPlanForm.personId}
+              options={developmentPlanPeopleOptions.map((item) => item.value)}
+              renderLabel={(value) =>
+                developmentPlanPeopleOptions.find((item) => item.value === value)?.label || value
+              }
+              onChange={(value) => setDevelopmentPlanForm({ ...developmentPlanForm, personId: value })}
+            />
+          ) : null}
           <SafeSelect
-            label="Pessoa"
-            value={developmentPlanForm.personId}
-            options={developmentPlanPeopleOptions.map((item) => item.value)}
+            label="Ciclo"
+            value={developmentPlanForm.cycleId}
+            options={developmentPlanCycleOptions.map((item) => item.value)}
             renderLabel={(value) =>
-              developmentPlanPeopleOptions.find((item) => item.value === value)?.label || value
+              developmentPlanCycleOptions.find((item) => item.value === value)?.label || value
             }
-            onChange={(value) => setDevelopmentPlanForm({ ...developmentPlanForm, personId: value })}
+            onChange={(value) => setDevelopmentPlanForm({ ...developmentPlanForm, cycleId: value })}
           />
-        ) : null}
-        <SafeSelect
-          label="Ciclo"
-          value={developmentPlanForm.cycleId}
-          options={developmentPlanCycleOptions.map((item) => item.value)}
-          renderLabel={(value) =>
-            developmentPlanCycleOptions.find((item) => item.value === value)?.label || value
-          }
-          onChange={(value) => setDevelopmentPlanForm({ ...developmentPlanForm, cycleId: value })}
-        />
-        <SafeSelect
-          label="Competencia"
-          value={developmentPlanForm.competencyId}
-          options={developmentPlanCompetencyOptions.map((item) => item.value)}
-          renderLabel={(value) =>
-            developmentPlanCompetencyOptions.find((item) => item.value === value)?.label || value
-          }
-          onChange={(value) =>
-            setDevelopmentPlanForm({ ...developmentPlanForm, competencyId: value })
-          }
-        />
-        <SafeInput
-          label="Foco prioritario"
-          value={developmentPlanForm.focusTitle}
-          onChange={(value) => setDevelopmentPlanForm({ ...developmentPlanForm, focusTitle: value })}
-        />
-        <SafeTextarea
-          label="Acao sugerida"
-          rows={3}
-          value={developmentPlanForm.actionText}
-          onChange={(value) => setDevelopmentPlanForm({ ...developmentPlanForm, actionText: value })}
-        />
-        <SafeInput
-          label="Prazo"
-          type="date"
-          value={developmentPlanForm.dueDate}
-          onChange={(value) => setDevelopmentPlanForm({ ...developmentPlanForm, dueDate: value })}
-        />
-        <SafeTextarea
-          label="Evidencia esperada"
-          rows={3}
-          value={developmentPlanForm.expectedEvidence}
-          onChange={(value) =>
-            setDevelopmentPlanForm({ ...developmentPlanForm, expectedEvidence: value })
-          }
-        />
-        <button className="primary-button" type="submit">
-          Registrar PDI
-        </button>
-      </form>
+          <SafeSelect
+            label="Competencia"
+            value={developmentPlanForm.competencyId}
+            options={developmentPlanCompetencyOptions.map((item) => item.value)}
+            renderLabel={(value) =>
+              developmentPlanCompetencyOptions.find((item) => item.value === value)?.label || value
+            }
+            onChange={(value) =>
+              setDevelopmentPlanForm({ ...developmentPlanForm, competencyId: value })
+            }
+          />
+          <SafeInput
+            label="Foco prioritario"
+            value={developmentPlanForm.focusTitle}
+            onChange={(value) => setDevelopmentPlanForm({ ...developmentPlanForm, focusTitle: value })}
+          />
+          <SafeTextarea
+            label="Acao sugerida"
+            rows={3}
+            value={developmentPlanForm.actionText}
+            onChange={(value) => setDevelopmentPlanForm({ ...developmentPlanForm, actionText: value })}
+          />
+          <SafeInput
+            label="Prazo"
+            type="date"
+            value={developmentPlanForm.dueDate}
+            onChange={(value) => setDevelopmentPlanForm({ ...developmentPlanForm, dueDate: value })}
+          />
+          <SafeTextarea
+            label="Evidencia esperada"
+            rows={3}
+            value={developmentPlanForm.expectedEvidence}
+            onChange={(value) =>
+              setDevelopmentPlanForm({ ...developmentPlanForm, expectedEvidence: value })
+            }
+          />
+          <button className="primary-button" type="submit">
+            Registrar PDI
+          </button>
+        </form>
+      )}
 
       {!isEmployeeJourney ? (
         <div className="card card-span compact-card">
@@ -649,12 +665,16 @@ export function DevelopmentSection({
                 key={plan.id}
                 competencyOptions={developmentPlanCompetencyOptions}
                 cycleOptions={developmentPlanCycleOptions}
+                canEdit={canStructureDevelopmentPlan}
+                canReportProgress={roleKey === "employee"}
                 onSave={handleDevelopmentPlanUpdate}
+                onProgressSave={handleDevelopmentPlanProgressUpdate}
                 personOptions={developmentEditablePlanPeopleOptions}
                 plan={{
                   ...plan,
                   dueDate: plan.dueDate?.slice?.(0, 10) || plan.dueDate
                 }}
+                progressStatusOptions={developmentPlanProgressStatusOptions}
                 statusOptions={developmentPlanStatusOptions}
               />
             ))

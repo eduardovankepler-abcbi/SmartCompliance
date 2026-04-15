@@ -650,9 +650,27 @@ try {
     "Registro arquivado deve expor data de arquivamento"
   );
 
+  await assert.rejects(
+    () =>
+      store.createDevelopmentPlan(
+        {
+          personId: employee.personId,
+          cycleId: createdCycle.id,
+          competencyId: "cmp_communication",
+          focusTitle: "Evoluir comunicacao com stakeholders",
+          actionText: "Conduzir checkpoints quinzenais com pauta e resumo de riscos.",
+          dueDate: "2026-08-15",
+          expectedEvidence: "Atas publicadas e feedback do gestor sobre clareza."
+        },
+        employee
+      ),
+    /gestor, RH ou admin/,
+    "Colaborador nao deve estruturar o proprio PDI"
+  );
+
   const createdDevelopmentPlan = await store.createDevelopmentPlan(
     {
-      personId: employee.personId,
+      personId: managerRevieweeEmployee.personId,
       cycleId: createdCycle.id,
       competencyId: "cmp_communication",
       focusTitle: "Evoluir comunicacao com stakeholders",
@@ -660,13 +678,13 @@ try {
       dueDate: "2026-08-15",
       expectedEvidence: "Atas publicadas e feedback do gestor sobre clareza."
     },
-    employee
+    manager
   );
 
   const completedDevelopmentPlan = await store.updateDevelopmentPlan(
     createdDevelopmentPlan.id,
     {
-      personId: employee.personId,
+      personId: managerRevieweeEmployee.personId,
       cycleId: createdCycle.id,
       competencyId: "cmp_communication",
       focusTitle: "Evoluir comunicacao com stakeholders",
@@ -675,16 +693,58 @@ try {
       expectedEvidence: "Atas publicadas e feedback do gestor sobre clareza.",
       status: "completed"
     },
-    employee
+    manager
   );
 
   assert.equal(
     completedDevelopmentPlan.status,
     "completed",
-    "PDI deve permitir conclusao controlada"
+    "Gestor deve poder concluir o PDI do reporte"
   );
 
-  const employeeDevelopmentPlans = await store.getDevelopmentPlans(employee);
+  const progressDevelopmentPlan = await store.updateDevelopmentPlanProgress(
+    createdDevelopmentPlan.id,
+    {
+      progressStatus: "in_progress",
+      progressNote: "Primeiro checkpoint realizado e evidencias em coleta."
+    },
+    managerRevieweeEmployee
+  );
+
+  assert.equal(
+    progressDevelopmentPlan.progressStatus,
+    "in_progress",
+    "Colaborador deve reportar andamento do proprio PDI"
+  );
+  assert.ok(
+    progressDevelopmentPlan.progressUpdatedAt,
+    "Reporte de andamento deve registrar data de atualizacao"
+  );
+
+  const progressApiResponse = await sendJson(
+    baseUrl,
+    `/api/development/plans/${createdDevelopmentPlan.id}/progress`,
+    {
+      method: "PATCH",
+      headers: getAuthHeader(managerRevieweeEmployee.id),
+      body: {
+        progressStatus: "blocked",
+        progressNote: "Aguardando agenda com stakeholders para validar o proximo passo."
+      }
+    }
+  );
+  assert.equal(
+    progressApiResponse.response.status,
+    200,
+    "API deve permitir reporte de andamento pelo colaborador"
+  );
+  assert.equal(
+    progressApiResponse.payload.progressStatus,
+    "blocked",
+    "API deve retornar o andamento atualizado do PDI"
+  );
+
+  const employeeDevelopmentPlans = await store.getDevelopmentPlans(managerRevieweeEmployee);
   assert.ok(
     employeeDevelopmentPlans.some((plan) => plan.id === createdDevelopmentPlan.id),
     "Colaborador deve visualizar o proprio PDI"

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "./api";
 import {
   academicDevelopmentTypes,
+  developmentPlanProgressStatusOptions,
   developmentViewLabels,
   emptyDevelopment,
   emptyDevelopmentPlan
@@ -611,6 +612,16 @@ export function useDevelopmentFlow({
     }
   }
 
+  async function handleDevelopmentPlanProgressUpdate(planId, payload) {
+    try {
+      setError("");
+      await api.updateDevelopmentPlanProgress(planId, payload);
+      await reloadData();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
   function setLearningIntegrationDraft(eventId, patch) {
     setLearningIntegrationDrafts((current) => ({
       ...current,
@@ -662,10 +673,12 @@ export function useDevelopmentFlow({
     developmentPlanCycleOptions,
     developmentPlanForm,
     developmentPlanPeopleOptions,
+    developmentPlanProgressStatusOptions,
     developmentViewOptions,
     filteredDevelopmentPlans,
     filteredDevelopmentRecords,
     handleDevelopmentPlanSubmit,
+    handleDevelopmentPlanProgressUpdate,
     handleDevelopmentPlanUpdate,
     handleDevelopmentSubmit,
     handleDevelopmentUpdate,

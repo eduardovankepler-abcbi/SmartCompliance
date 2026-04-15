@@ -1663,6 +1663,40 @@ button:disabled {
   grid-column: 1 / -1;
 }
 
+.development-plan-readonly-note {
+  gap: 12px;
+}
+
+.development-plan-readonly-grid,
+.development-plan-progress-box {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(8, 13, 23, 0.42);
+}
+
+.development-plan-readonly-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.development-plan-readonly-grid span {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.development-plan-readonly-grid strong {
+  display: block;
+  color: var(--text);
+  line-height: 1.45;
+}
+
 .development-performance-panel {
   display: grid;
   grid-template-columns: minmax(240px, 1.2fr) minmax(220px, 0.65fr) minmax(260px, 1fr);
@@ -3737,6 +3771,7 @@ button:disabled {
   .development-intake-form,
   .development-performance-panel,
   .development-plan-form,
+  .development-plan-readonly-grid,
   .applause-intake-grid,
   .user-provision-form,
   .evaluation-question-controls,

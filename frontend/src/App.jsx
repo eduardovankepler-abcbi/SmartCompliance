@@ -306,10 +306,12 @@ export default function App() {
     developmentPlanCycleOptions,
     developmentPlanForm,
     developmentPlanPeopleOptions,
+    developmentPlanProgressStatusOptions,
     developmentViewOptions,
     filteredDevelopmentPlans,
     filteredDevelopmentRecords,
     handleDevelopmentPlanSubmit,
+    handleDevelopmentPlanProgressUpdate,
     handleDevelopmentPlanUpdate,
     handleDevelopmentSubmit,
     handleDevelopmentUpdate,
@@ -536,6 +538,7 @@ export default function App() {
         developmentPlanCycleOptions={developmentPlanCycleOptions}
         developmentPlanForm={developmentPlanForm}
         developmentPlanPeopleOptions={developmentPlanPeopleOptions}
+        developmentPlanProgressStatusOptions={developmentPlanProgressStatusOptions}
         developmentPlanStatusOptions={developmentPlanStatusOptions}
         developmentRecordTypes={developmentRecordTypes}
         developmentViewLabels={developmentViewLabels}
@@ -598,6 +601,7 @@ export default function App() {
         handleCycleStatusChange={handleCycleStatusChange}
         handleCycleSubmit={handleCycleSubmit}
         handleDevelopmentPlanSubmit={handleDevelopmentPlanSubmit}
+        handleDevelopmentPlanProgressUpdate={handleDevelopmentPlanProgressUpdate}
         handleDevelopmentPlanUpdate={handleDevelopmentPlanUpdate}
         handleDevelopmentSubmit={handleDevelopmentSubmit}
         handleDevelopmentUpdate={handleDevelopmentUpdate}

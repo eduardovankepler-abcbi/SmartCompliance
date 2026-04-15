@@ -5,6 +5,7 @@ import {
   DEFAULT_WORK_MODE,
   DEFAULT_WORK_UNIT,
   DEVELOPMENT_PLAN_STATUS_OPTIONS,
+  DEVELOPMENT_PLAN_PROGRESS_STATUS_OPTIONS,
   DEVELOPMENT_RECORD_STATUS_OPTIONS,
   EMPLOYMENT_TYPE_OPTIONS,
   FEEDBACK_REQUEST_STATUS,
@@ -79,6 +80,12 @@ export function assertValidDevelopmentRecordStatus(status) {
 export function assertValidDevelopmentPlanStatus(status) {
   if (!DEVELOPMENT_PLAN_STATUS_OPTIONS.includes(status)) {
     throw new Error("Status do PDI invalido.");
+  }
+}
+
+export function assertValidDevelopmentPlanProgressStatus(status) {
+  if (!DEVELOPMENT_PLAN_PROGRESS_STATUS_OPTIONS.includes(status)) {
+    throw new Error("Status de andamento do PDI invalido.");
   }
 }
 

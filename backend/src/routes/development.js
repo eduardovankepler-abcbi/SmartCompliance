@@ -232,5 +232,31 @@ export function createDevelopmentRouter(store) {
     }
   });
 
+  router.patch("/plans/:planId/progress", async (req, res, next) => {
+    const { planId } = req.params;
+    const { progressStatus, progressNote } = req.body;
+
+    if (!progressStatus) {
+      return badRequest(res, "Status de andamento do PDI nao informado.");
+    }
+
+    try {
+      const plan = await store.updateDevelopmentPlanProgress(
+        planId,
+        {
+          progressStatus,
+          progressNote: progressNote || ""
+        },
+        req.auth.user
+      );
+
+      res.json(plan);
+    } catch (error) {
+      res
+        .status(400)
+        .json({ error: error.message || "Falha ao atualizar andamento do PDI." });
+    }
+  });
+
   return router;
 }

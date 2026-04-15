@@ -80,6 +80,7 @@ import { createId, hashPassword, verifyPasswordHash } from "./storeSecurity.js";
 import {
   assertCycleStatusTransition,
   assertValidApplauseStatus,
+  assertValidDevelopmentPlanProgressStatus,
   assertValidDevelopmentPlanStatus,
   assertValidDevelopmentRecordStatus,
   assertValidFeedbackRequestStatus,
@@ -1843,6 +1844,36 @@ async function ensureMysqlAssignmentReminderSupport(pool) {
       "ALTER TABLE evaluation_assignments ADD COLUMN last_reminder_sent_at DATETIME NULL"
     ],
     detectMysqlAssignmentReminderSupport
+  );
+}
+
+async function detectMysqlDevelopmentPlanProgressSupport(pool) {
+  try {
+    const [statusRows] = await pool.query(
+      "SHOW COLUMNS FROM development_plans LIKE 'progress_status'"
+    );
+    const [noteRows] = await pool.query(
+      "SHOW COLUMNS FROM development_plans LIKE 'progress_note'"
+    );
+    const [updatedAtRows] = await pool.query(
+      "SHOW COLUMNS FROM development_plans LIKE 'progress_updated_at'"
+    );
+    return hasMysqlColumn(statusRows) && hasMysqlColumn(noteRows) && hasMysqlColumn(updatedAtRows);
+  } catch (_error) {
+    return false;
+  }
+}
+
+async function ensureMysqlDevelopmentPlanProgressSupport(pool) {
+  return ensureMysqlColumns(
+    pool,
+    "development_plans",
+    [
+      "ALTER TABLE development_plans ADD COLUMN progress_status VARCHAR(32) NOT NULL DEFAULT 'not_started'",
+      "ALTER TABLE development_plans ADD COLUMN progress_note TEXT NULL",
+      "ALTER TABLE development_plans ADD COLUMN progress_updated_at DATETIME NULL"
+    ],
+    detectMysqlDevelopmentPlanProgressSupport
   );
 }
 
@@ -4064,11 +4095,52 @@ function assertCanCreateFeedbackRequest(db, actorUser, payload) {
 }
 
 function assertCanCreateDevelopmentPlan(actorUser, people, personId) {
-  assertCanManageDevelopmentSubject(actorUser, people, personId, {
-    isOrgWideUser,
-    isManagerUser,
-    getTeamPeople
-  });
+  const actorPersonId = actorUser.person?.id || actorUser.personId;
+
+  if (["admin", "hr"].includes(actorUser?.roleKey || "")) {
+    return;
+  }
+
+  if (
+    isManagerUser(actorUser) &&
+    (actorPersonId === personId ||
+      people.some((person) => person.id === personId && person.managerPersonId === actorPersonId))
+  ) {
+    return;
+  }
+
+  throw new Error("O PDI deve ser estruturado pelo gestor, RH ou admin.");
+}
+
+function assertCanReportDevelopmentPlanProgress(actorUser, people, plan) {
+  const actorPersonId = actorUser.person?.id || actorUser.personId;
+
+  if (["admin", "hr"].includes(actorUser?.roleKey || "")) {
+    return;
+  }
+
+  if (actorPersonId === plan.personId) {
+    return;
+  }
+
+  if (
+    isManagerUser(actorUser) &&
+    people.some((person) => person.id === plan.personId && person.managerPersonId === actorPersonId)
+  ) {
+    return;
+  }
+
+  throw new Error("Voce so pode reportar andamento do proprio PDI ou da sua equipe.");
+}
+
+function normalizeDevelopmentPlanProgressPayload(payload) {
+  const progressStatus = payload.progressStatus || "in_progress";
+  assertValidDevelopmentPlanProgressStatus(progressStatus);
+
+  return {
+    progressStatus,
+    progressNote: normalizeOptionalText(payload.progressNote)
+  };
 }
 
 async function loadCustomLibraryState() {
@@ -4254,7 +4326,10 @@ function enrichDevelopmentPlan(plan, people, cycles, competencies) {
     cycleSemesterLabel: cycle?.semesterLabel || "",
     competencyName: competency?.name || "",
     status: plan.status || "active",
-    archivedAt: plan.archivedAt || null
+    archivedAt: plan.archivedAt || null,
+    progressStatus: plan.progressStatus || "not_started",
+    progressNote: plan.progressNote || "",
+    progressUpdatedAt: plan.progressUpdatedAt || null
   };
 }
 
@@ -4399,7 +4474,9 @@ async function fetchDevelopmentPlanRows(pool) {
     `SELECT id, person_id AS personId, cycle_id AS cycleId, competency_id AS competencyId,
             focus_title AS focusTitle, action_text AS actionText, due_date AS dueDate,
             expected_evidence AS expectedEvidence, status, created_by_user_id AS createdByUserId,
-            created_at AS createdAt, archived_at AS archivedAt
+            created_at AS createdAt, archived_at AS archivedAt,
+            progress_status AS progressStatus, progress_note AS progressNote,
+            progress_updated_at AS progressUpdatedAt
      FROM development_plans
      ORDER BY due_date ASC, created_at DESC`
   );
@@ -5989,7 +6066,10 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         status: "active",
         createdByUserId: actorUser.id,
         createdAt: new Date().toISOString(),
-        archivedAt: null
+        archivedAt: null,
+        progressStatus: "not_started",
+        progressNote: "",
+        progressUpdatedAt: null
       };
       db.developmentPlans.unshift(plan);
       const person = db.people.find((item) => item.id === plan.personId);
@@ -6032,6 +6112,9 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
       plan.expectedEvidence = payload.expectedEvidence;
       plan.status = payload.status;
       plan.archivedAt = payload.status === "archived" ? new Date().toISOString() : null;
+      plan.progressStatus = plan.progressStatus || "not_started";
+      plan.progressNote = plan.progressNote || "";
+      plan.progressUpdatedAt = plan.progressUpdatedAt || null;
 
       const person = db.people.find((item) => item.id === plan.personId);
       pushAuditLog(db.auditLogs, {
@@ -6046,6 +6129,32 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
             ? `PDI arquivado para ${person?.name || "pessoa"}`
             : `PDI atualizado para ${person?.name || "pessoa"}`,
         detail: buildDevelopmentPlanAuditDetail(plan)
+      });
+
+      return enrichDevelopmentPlan(plan, db.people, db.cycles, db.competencies);
+    },
+    async updateDevelopmentPlanProgress(planId, payload, actorUser) {
+      const plan = db.developmentPlans.find((item) => item.id === planId);
+      if (!plan) {
+        throw new Error("PDI nao encontrado.");
+      }
+
+      assertCanReportDevelopmentPlanProgress(actorUser, db.people, plan);
+      const progress = normalizeDevelopmentPlanProgressPayload(payload);
+      plan.progressStatus = progress.progressStatus;
+      plan.progressNote = progress.progressNote;
+      plan.progressUpdatedAt = new Date().toISOString();
+
+      const person = db.people.find((item) => item.id === plan.personId);
+      pushAuditLog(db.auditLogs, {
+        category: AUDIT_CATEGORIES.development,
+        action: "plan_progress_reported",
+        entityType: "development_plan",
+        entityId: plan.id,
+        entityLabel: plan.focusTitle,
+        actorUser,
+        summary: `Andamento do PDI reportado para ${person?.name || "pessoa"}`,
+        detail: `${plan.progressStatus} · ${plan.progressNote || "Sem nota"}`
       });
 
       return enrichDevelopmentPlan(plan, db.people, db.cycles, db.competencies);
@@ -6198,10 +6307,18 @@ function buildMysqlStore(
         "role_key",
         "status"
       ]);
+      const missingDevelopmentPlanColumns = await getMysqlMissingColumns(pool, "development_plans", [
+        "progress_status",
+        "progress_note",
+        "progress_updated_at"
+      ]);
       return {
         database: "ok",
         usersTable: missingUserColumns.length === 0 ? "ok" : "incomplete",
-        missingUserColumns
+        missingUserColumns,
+        developmentPlansTable:
+          missingDevelopmentPlanColumns.length === 0 ? "ok" : "incomplete",
+        missingDevelopmentPlanColumns
       };
     },
     async findUserByEmail(email) {
@@ -9075,14 +9192,18 @@ function buildMysqlStore(
         status: "active",
         createdByUserId: actorUser.id,
         createdAt: new Date().toISOString(),
-        archivedAt: null
+        archivedAt: null,
+        progressStatus: "not_started",
+        progressNote: "",
+        progressUpdatedAt: null
       };
 
       await pool.query(
         `INSERT INTO development_plans
          (id, person_id, cycle_id, competency_id, focus_title, action_text, due_date,
-          expected_evidence, status, created_by_user_id, created_at, archived_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          expected_evidence, status, created_by_user_id, created_at, archived_at,
+          progress_status, progress_note, progress_updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           plan.id,
           plan.personId,
@@ -9095,7 +9216,10 @@ function buildMysqlStore(
           plan.status,
           plan.createdByUserId,
           plan.createdAt,
-          plan.archivedAt
+          plan.archivedAt,
+          plan.progressStatus,
+          plan.progressNote,
+          plan.progressUpdatedAt
         ]
       );
 
@@ -9124,7 +9248,8 @@ function buildMysqlStore(
       ]);
       const [[existingPlan]] = await pool.query(
         `SELECT id, person_id AS personId, created_by_user_id AS createdByUserId,
-                created_at AS createdAt
+                created_at AS createdAt, progress_status AS progressStatus,
+                progress_note AS progressNote, progress_updated_at AS progressUpdatedAt
          FROM development_plans
          WHERE id = ?`,
         [planId]
@@ -9198,7 +9323,71 @@ function buildMysqlStore(
           competencyId: payload.competencyId || null,
           createdByUserId: existingPlan.createdByUserId,
           createdAt: existingPlan.createdAt,
-          archivedAt
+          archivedAt,
+          progressStatus: existingPlan.progressStatus || "not_started",
+          progressNote: existingPlan.progressNote || "",
+          progressUpdatedAt: existingPlan.progressUpdatedAt || null
+        },
+        people,
+        cycles,
+        competencies
+      );
+    },
+    async updateDevelopmentPlanProgress(planId, payload, actorUser) {
+      const [people, cycles, competencies] = await Promise.all([
+        fetchPeopleRows(pool),
+        pool
+          .query(
+            `SELECT id, title, semester_label AS semesterLabel, due_date AS dueDate
+             FROM evaluation_cycles`
+          )
+          .then(([rows]) => rows),
+        fetchCompetencyRows(pool)
+      ]);
+      const [[plan]] = await pool.query(
+        `SELECT id, person_id AS personId, cycle_id AS cycleId, competency_id AS competencyId,
+                focus_title AS focusTitle, action_text AS actionText, due_date AS dueDate,
+                expected_evidence AS expectedEvidence, status,
+                created_by_user_id AS createdByUserId, created_at AS createdAt,
+                archived_at AS archivedAt
+         FROM development_plans
+         WHERE id = ?`,
+        [planId]
+      );
+
+      if (!plan) {
+        throw new Error("PDI nao encontrado.");
+      }
+
+      assertCanReportDevelopmentPlanProgress(actorUser, people, plan);
+      const progress = normalizeDevelopmentPlanProgressPayload(payload);
+      const progressUpdatedAt = new Date().toISOString();
+
+      await pool.query(
+        `UPDATE development_plans
+         SET progress_status = ?, progress_note = ?, progress_updated_at = ?
+         WHERE id = ?`,
+        [progress.progressStatus, progress.progressNote, progressUpdatedAt, planId]
+      );
+
+      const person = people.find((item) => item.id === plan.personId);
+      await insertAuditLog(pool, {
+        category: AUDIT_CATEGORIES.development,
+        action: "plan_progress_reported",
+        entityType: "development_plan",
+        entityId: plan.id,
+        entityLabel: plan.focusTitle,
+        actorUser,
+        summary: `Andamento do PDI reportado para ${person?.name || "pessoa"}`,
+        detail: `${progress.progressStatus} · ${progress.progressNote || "Sem nota"}`
+      });
+
+      return enrichDevelopmentPlan(
+        {
+          ...plan,
+          progressStatus: progress.progressStatus,
+          progressNote: progress.progressNote,
+          progressUpdatedAt
         },
         people,
         cycles,
@@ -9364,6 +9553,7 @@ export async function createStore() {
     supportsFeedbackAcknowledgement,
     _supportsPeopleWorkContext,
     supportsAssignmentReminder,
+    _supportsDevelopmentPlanProgress,
     supportsPairings,
     supportsLearningIntegrations
   ] =
@@ -9372,6 +9562,7 @@ export async function createStore() {
       ensureMysqlFeedbackAcknowledgementSupport(pool),
       ensureMysqlPeopleWorkContextSupport(pool),
       ensureMysqlAssignmentReminderSupport(pool),
+      ensureMysqlDevelopmentPlanProgressSupport(pool),
       ensureMysqlPairingSupport(pool),
       ensureMysqlLearningIntegrationSupport(pool)
     ]);

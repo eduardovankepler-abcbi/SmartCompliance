@@ -316,8 +316,8 @@ INSERT INTO development_records (id, person_id, record_type, title, provider_nam
 ('d4', 'p1', 'Pos-graduacao', 'Compliance e Integridade Corporativa', 'FGV', '2025-08-22', 'Etica, controles internos e investigacao', 'Evolucao academica diretamente conectada ao papel atual no time de compliance.')
 ON DUPLICATE KEY UPDATE title = VALUES(title);
 
-INSERT INTO development_plans (id, person_id, cycle_id, competency_id, focus_title, action_text, due_date, expected_evidence, status, created_by_user_id, created_at, archived_at) VALUES
-('dp1', 'p1', 'c1', 'cmp_communication', 'Fortalecer comunicacao executiva', 'Conduzir checkpoint quinzenal com a area e formalizar riscos-chave em ate 24h.', '2026-06-30', 'Ata dos checkpoints e melhoria percebida nas avaliacoes do proximo ciclo.', 'active', 'u6', '2026-03-20 09:00:00', NULL)
+INSERT INTO development_plans (id, person_id, cycle_id, competency_id, focus_title, action_text, due_date, expected_evidence, status, created_by_user_id, created_at, archived_at, progress_status, progress_note, progress_updated_at) VALUES
+('dp1', 'p1', 'c1', 'cmp_communication', 'Fortalecer comunicacao executiva', 'Conduzir checkpoint quinzenal com a area e formalizar riscos-chave em ate 24h.', '2026-06-30', 'Ata dos checkpoints e melhoria percebida nas avaliacoes do proximo ciclo.', 'active', 'u6', '2026-03-20 09:00:00', NULL, 'not_started', '', NULL)
 ON DUPLICATE KEY UPDATE focus_title = VALUES(focus_title);
 
 INSERT INTO audit_logs (id, category, action_key, entity_type, entity_id, entity_label, actor_user_id, actor_name, actor_role_key, summary_text, detail_text, created_at) VALUES

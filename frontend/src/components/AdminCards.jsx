@@ -13,6 +13,29 @@ function getEmploymentTypeLabel(value) {
   return value || "-";
 }
 
+function getDevelopmentPlanStatusLabel(value) {
+  if (value === "completed") {
+    return "Concluido";
+  }
+  if (value === "archived") {
+    return "Arquivado";
+  }
+  return "Ativo";
+}
+
+function getDevelopmentProgressStatusLabel(value) {
+  if (value === "in_progress") {
+    return "Em andamento";
+  }
+  if (value === "blocked") {
+    return "Com impedimento";
+  }
+  if (value === "done") {
+    return "Concluido";
+  }
+  return "Ainda nao iniciado";
+}
+
 export function IncidentQueueCard({
   areaOptions,
   canManage,
@@ -519,11 +542,15 @@ export function DevelopmentRecordAdminCard({
 }
 
 export function DevelopmentPlanAdminCard({
+  canEdit = true,
+  canReportProgress = false,
   competencyOptions,
   cycleOptions,
   onSave,
+  onProgressSave,
   personOptions,
   plan,
+  progressStatusOptions = [],
   statusOptions
 }) {
   const [draft, setDraft] = useState({
@@ -535,6 +562,10 @@ export function DevelopmentPlanAdminCard({
     dueDate: plan.dueDate,
     expectedEvidence: plan.expectedEvidence,
     status: plan.status || "active"
+  });
+  const [progressDraft, setProgressDraft] = useState({
+    progressStatus: plan.progressStatus || "not_started",
+    progressNote: plan.progressNote || ""
   });
 
   useEffect(() => {
@@ -548,6 +579,10 @@ export function DevelopmentPlanAdminCard({
       expectedEvidence: plan.expectedEvidence,
       status: plan.status || "active"
     });
+    setProgressDraft({
+      progressStatus: plan.progressStatus || "not_started",
+      progressNote: plan.progressNote || ""
+    });
   }, [
     plan.actionText,
     plan.competencyId,
@@ -556,20 +591,20 @@ export function DevelopmentPlanAdminCard({
     plan.expectedEvidence,
     plan.focusTitle,
     plan.personId,
+    plan.progressNote,
+    plan.progressStatus,
     plan.status
   ]);
+
+  const progressOptions = progressStatusOptions.length
+    ? progressStatusOptions
+    : ["not_started", "in_progress", "blocked", "done"];
 
   return (
     <article className="list-card compact-list-card">
       <div className="row">
         <strong>{plan.focusTitle}</strong>
-        <span className="badge">
-          {draft.status === "completed"
-            ? "Concluido"
-            : draft.status === "archived"
-              ? "Arquivado"
-              : "Ativo"}
-        </span>
+        <span className="badge">{getDevelopmentPlanStatusLabel(draft.status)}</span>
       </div>
       <p>{plan.personName}</p>
       <p className="muted">
@@ -577,67 +612,121 @@ export function DevelopmentPlanAdminCard({
         {plan.cycleTitle ? ` | ${plan.cycleTitle}` : ""}
       </p>
       <p className="muted">Prazo: {plan.dueDate}</p>
-      <div className="incident-actions compact-actions structure-actions">
-        <Select
-          label="Pessoa"
-          value={draft.personId}
-          options={personOptions.map((item) => item.value)}
-          renderLabel={(value) => personOptions.find((item) => item.value === value)?.label || value}
-          onChange={(value) => setDraft((current) => ({ ...current, personId: value }))}
-        />
-        <Select
-          label="Ciclo"
-          value={draft.cycleId}
-          options={cycleOptions.map((item) => item.value)}
-          renderLabel={(value) => cycleOptions.find((item) => item.value === value)?.label || value}
-          onChange={(value) => setDraft((current) => ({ ...current, cycleId: value }))}
-        />
-        <Select
-          label="Competencia"
-          value={draft.competencyId}
-          options={competencyOptions.map((item) => item.value)}
-          renderLabel={(value) =>
-            competencyOptions.find((item) => item.value === value)?.label || value
-          }
-          onChange={(value) => setDraft((current) => ({ ...current, competencyId: value }))}
-        />
-        <Input
-          label="Foco"
-          value={draft.focusTitle}
-          onChange={(value) => setDraft((current) => ({ ...current, focusTitle: value }))}
-        />
-        <Textarea
-          label="Acao"
-          rows={3}
-          value={draft.actionText}
-          onChange={(value) => setDraft((current) => ({ ...current, actionText: value }))}
-        />
-        <Input
-          label="Prazo"
-          type="date"
-          value={draft.dueDate}
-          onChange={(value) => setDraft((current) => ({ ...current, dueDate: value }))}
-        />
-        <Textarea
-          label="Evidencia esperada"
-          rows={3}
-          value={draft.expectedEvidence}
-          onChange={(value) =>
-            setDraft((current) => ({ ...current, expectedEvidence: value }))
-          }
-        />
-        <Select
-          label="Status"
-          value={draft.status}
-          options={statusOptions}
-          renderLabel={(value) =>
-            value === "completed" ? "Concluido" : value === "archived" ? "Arquivado" : "Ativo"
-          }
-          onChange={(value) => setDraft((current) => ({ ...current, status: value }))}
-        />
-        <button type="button" className="primary-button" onClick={() => onSave(plan.id, draft)}>
-          Salvar PDI
-        </button>
+      {canEdit ? (
+        <div className="incident-actions compact-actions structure-actions">
+          <Select
+            label="Pessoa"
+            value={draft.personId}
+            options={personOptions.map((item) => item.value)}
+            renderLabel={(value) =>
+              personOptions.find((item) => item.value === value)?.label || value
+            }
+            onChange={(value) => setDraft((current) => ({ ...current, personId: value }))}
+          />
+          <Select
+            label="Ciclo"
+            value={draft.cycleId}
+            options={cycleOptions.map((item) => item.value)}
+            renderLabel={(value) => cycleOptions.find((item) => item.value === value)?.label || value}
+            onChange={(value) => setDraft((current) => ({ ...current, cycleId: value }))}
+          />
+          <Select
+            label="Competencia"
+            value={draft.competencyId}
+            options={competencyOptions.map((item) => item.value)}
+            renderLabel={(value) =>
+              competencyOptions.find((item) => item.value === value)?.label || value
+            }
+            onChange={(value) => setDraft((current) => ({ ...current, competencyId: value }))}
+          />
+          <Input
+            label="Foco"
+            value={draft.focusTitle}
+            onChange={(value) => setDraft((current) => ({ ...current, focusTitle: value }))}
+          />
+          <Textarea
+            label="Acao"
+            rows={3}
+            value={draft.actionText}
+            onChange={(value) => setDraft((current) => ({ ...current, actionText: value }))}
+          />
+          <Input
+            label="Prazo"
+            type="date"
+            value={draft.dueDate}
+            onChange={(value) => setDraft((current) => ({ ...current, dueDate: value }))}
+          />
+          <Textarea
+            label="Evidencia esperada"
+            rows={3}
+            value={draft.expectedEvidence}
+            onChange={(value) =>
+              setDraft((current) => ({ ...current, expectedEvidence: value }))
+            }
+          />
+          <Select
+            label="Status"
+            value={draft.status}
+            options={statusOptions}
+            renderLabel={getDevelopmentPlanStatusLabel}
+            onChange={(value) => setDraft((current) => ({ ...current, status: value }))}
+          />
+          <button type="button" className="primary-button" onClick={() => onSave(plan.id, draft)}>
+            Salvar PDI
+          </button>
+        </div>
+      ) : (
+        <div className="development-plan-readonly-grid">
+          <div>
+            <span>Acao definida</span>
+            <strong>{plan.actionText}</strong>
+          </div>
+          <div>
+            <span>Evidencia esperada</span>
+            <strong>{plan.expectedEvidence}</strong>
+          </div>
+        </div>
+      )}
+      <div className="development-plan-progress-box">
+        <div className="row">
+          <strong>Andamento</strong>
+          <span className="badge">{getDevelopmentProgressStatusLabel(progressDraft.progressStatus)}</span>
+        </div>
+        {canReportProgress ? (
+          <div className="incident-actions compact-actions structure-actions">
+            <Select
+              label="Status do andamento"
+              value={progressDraft.progressStatus}
+              options={progressOptions}
+              renderLabel={getDevelopmentProgressStatusLabel}
+              onChange={(value) =>
+                setProgressDraft((current) => ({ ...current, progressStatus: value }))
+              }
+            />
+            <Textarea
+              label="Reporte do colaborador"
+              rows={3}
+              value={progressDraft.progressNote}
+              onChange={(value) =>
+                setProgressDraft((current) => ({ ...current, progressNote: value }))
+              }
+            />
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => onProgressSave(plan.id, progressDraft)}
+            >
+              Reportar andamento
+            </button>
+          </div>
+        ) : (
+          <p className="muted">
+            {plan.progressNote || "Ainda sem reporte de andamento pelo colaborador."}
+          </p>
+        )}
+        {plan.progressUpdatedAt ? (
+          <p className="muted">Atualizado em {String(plan.progressUpdatedAt).slice(0, 10)}</p>
+        ) : null}
       </div>
     </article>
   );
