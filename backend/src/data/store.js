@@ -3081,7 +3081,7 @@ function buildPerformanceHealthSummary(reviews = []) {
     ).length,
     support: scoredReviews.filter((review) => Number(review.score10) < 6).length
   };
-  const areaHighlights = Object.values(
+  const areaSeries = Object.values(
     scoredReviews.reduce((acc, review) => {
       const area = review.personArea || "Sem area";
       const entry = acc[area] || {
@@ -3100,11 +3100,12 @@ function buildPerformanceHealthSummary(reviews = []) {
         score10,
         scoreLabel: score10.toFixed(1),
         peopleCount: entry.scores.length,
+        percentage: calculatePercentage(score10, 10),
         tone: getPerformanceHealthTone(score10)
       };
     })
-    .sort((left, right) => left.score10 - right.score10)
-    .slice(0, 4);
+    .sort((left, right) => left.score10 - right.score10);
+  const areaHighlights = areaSeries.slice(0, 4);
 
   return {
     averageScore10,
@@ -3135,7 +3136,10 @@ function buildPerformanceHealthSummary(reviews = []) {
         tone: "critical"
       }
     ],
+    areaSeries,
     areaHighlights,
+    lowestArea: areaSeries[0] || null,
+    highestArea: areaSeries[areaSeries.length - 1] || null,
     guidance:
       averageScore10 < 6
         ? "Priorize planos de direcionamento com linguagem de desenvolvimento, nao de alarme."

@@ -933,6 +933,17 @@ button:disabled {
   align-items: center;
 }
 
+.dashboard-performance-area-panel {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 20px;
+  border: 1px solid rgba(77, 136, 255, 0.14);
+  background:
+    linear-gradient(145deg, rgba(77, 136, 255, 0.08), transparent 56%),
+    rgba(8, 13, 23, 0.5);
+}
+
 .dashboard-performance-score-card {
   display: grid;
   align-content: center;

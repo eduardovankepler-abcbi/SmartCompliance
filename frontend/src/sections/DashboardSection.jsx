@@ -117,6 +117,7 @@ export function DashboardSection({
   const performanceHealth = dashboard?.performanceHealth || null;
   const performanceDistributionItems = performanceHealth?.distribution || [];
   const performanceAreaHighlights = performanceHealth?.areaHighlights || [];
+  const performanceAreaSeries = performanceHealth?.areaSeries || [];
   const satisfactionQuestionAnalyticsItems = dashboard?.satisfactionQuestionAnalytics || [];
   const satisfactionQuestionAreaOptions = getSatisfactionQuestionAreaOptions(
     satisfactionQuestionAnalyticsItems
@@ -1007,6 +1008,26 @@ export function DashboardSection({
                         </div>
                       </div>
                     ) : null}
+                    {performanceAreaSeries.length ? (
+                      <div className="dashboard-performance-area-panel">
+                        <div className="dashboard-dimension-summary-head">
+                          <strong>Desempenho por area</strong>
+                          <span className="muted">Base macro para ações profiláticas</span>
+                        </div>
+                        <div className="bar-list">
+                          {performanceAreaSeries.map((item) => (
+                            <SafeBarMetricRow
+                              key={`performance-area-${item.area}`}
+                              label={item.area}
+                              value={`${item.scoreLabel}/10`}
+                              detail={`${item.peopleCount} leituras agregadas`}
+                              percentage={item.percentage}
+                              toneKey={`performance-${item.tone}-${item.area}`}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
                     <div className="dashboard-theme-action-row">
                       <p className="muted">{performanceHealth.guidance}</p>
                       <button
@@ -1262,6 +1283,29 @@ export function DashboardSection({
               getDetail={(item) => `${item.peopleCount} pessoas · ${item.percentage}%`}
               toneSeed="area"
             />
+          </div>
+        ) : null}
+
+        {isExecutiveView && performanceAreaSeries.length ? (
+          <div className="card dashboard-side-card">
+            <DashboardCardHeader
+              eyebrow="Desempenho 360"
+              title="Desempenho por area"
+              subtitle="Leitura macro agregada"
+              tone="primary"
+            />
+            <div className="bar-list">
+              {performanceAreaSeries.map((item) => (
+                <SafeBarMetricRow
+                  key={`executive-performance-area-${item.area}`}
+                  label={item.area}
+                  value={`${item.scoreLabel}/10`}
+                  detail={`${item.peopleCount} leituras · ${item.tone === "critical" ? "requer apoio" : item.tone === "warning" ? "acompanhar" : "saudavel"}`}
+                  percentage={item.percentage}
+                  toneKey={`executive-performance-${item.tone}-${item.area}`}
+                />
+              ))}
+            </div>
           </div>
         ) : null}
 
