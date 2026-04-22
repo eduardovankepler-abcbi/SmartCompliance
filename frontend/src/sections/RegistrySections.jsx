@@ -88,10 +88,12 @@ export function PeopleSection({
   Input,
   PersonStructureCard,
   Select,
+  auditEntries,
   areaForm,
   areaOptions,
   areas,
   canManagePeopleRegistry,
+  formatDate,
   handleAreaSubmit,
   handleAreaUpdate,
   handlePersonSubmit,
@@ -474,6 +476,16 @@ export function PeopleSection({
           )}
         </div>
       </div>
+
+      {canManagePeopleRegistry ? (
+        <AuditTrailPanel
+          entries={auditEntries.slice(0, 6)}
+          emptyMessage="Criacoes e atualizacoes de areas e pessoas aparecerao nesta trilha."
+          formatDate={formatDate}
+          subtitle="Historico recente de cadastro base, hierarquia e lideranca"
+          title="Trilha da estrutura"
+        />
+      ) : null}
     </section>
   );
 }

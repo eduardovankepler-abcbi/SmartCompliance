@@ -36,6 +36,8 @@ import {
   buildDevelopmentRecordAuditDetail
 } from "./storeGrowthDomain.js";
 import {
+  buildAreaAuditDetail,
+  buildPersonAuditDetail,
   prepareAreaMutation,
   prepareCompetencyMutation,
   preparePersonMutation
@@ -4735,6 +4737,21 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         managerPersonId: areaMutation.managerPersonId || null
       };
       db.areas.unshift(area);
+      const managerName =
+        db.people.find((person) => person.id === area.managerPersonId)?.name || "";
+      pushAuditLog(db.auditLogs, {
+        category: AUDIT_CATEGORIES.registry,
+        action: "created",
+        entityType: "area",
+        entityId: area.id,
+        entityLabel: area.name,
+        actorUser,
+        summary: `Area criada: ${area.name}`,
+        detail: buildAreaAuditDetail({
+          name: area.name,
+          managerName
+        })
+      });
       return enrichArea(db.people, area);
     },
     async updateArea(areaId, payload, actorUser) {
@@ -4769,6 +4786,22 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         });
       }
 
+      const managerName =
+        db.people.find((person) => person.id === area.managerPersonId)?.name || "";
+      pushAuditLog(db.auditLogs, {
+        category: AUDIT_CATEGORIES.registry,
+        action: "updated",
+        entityType: "area",
+        entityId: area.id,
+        entityLabel: area.name,
+        actorUser,
+        summary: `Area atualizada: ${area.name}`,
+        detail: buildAreaAuditDetail({
+          name: area.name,
+          managerName
+        })
+      });
+
       return enrichArea(db.people, area);
     },
     async getPeople(actorUser) {
@@ -4801,6 +4834,26 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         person.area,
         shouldLeadArea
       );
+      const managerName =
+        db.people.find((item) => item.id === person.managerPersonId)?.name || "";
+      pushAuditLog(db.auditLogs, {
+        category: AUDIT_CATEGORIES.registry,
+        action: "created",
+        entityType: "person",
+        entityId: person.id,
+        entityLabel: person.name,
+        actorUser,
+        summary: `Pessoa criada: ${person.name}`,
+        detail: buildPersonAuditDetail({
+          roleTitle: person.roleTitle,
+          area: person.area,
+          workUnit: person.workUnit,
+          workMode: person.workMode,
+          managerName,
+          employmentType: person.employmentType,
+          isAreaManager: shouldLeadArea
+        })
+      });
       return enrichPerson(db.people, person, db.areas.map((area) => enrichArea(db.people, area)));
     },
     async updatePerson(personId, payload, actorUser) {
@@ -4833,6 +4886,26 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         person.area,
         shouldLeadArea
       );
+      const managerName =
+        db.people.find((item) => item.id === person.managerPersonId)?.name || "";
+      pushAuditLog(db.auditLogs, {
+        category: AUDIT_CATEGORIES.registry,
+        action: "updated",
+        entityType: "person",
+        entityId: person.id,
+        entityLabel: person.name,
+        actorUser,
+        summary: `Pessoa atualizada: ${person.name}`,
+        detail: buildPersonAuditDetail({
+          roleTitle: person.roleTitle,
+          area: person.area,
+          workUnit: person.workUnit,
+          workMode: person.workMode,
+          managerName,
+          employmentType: person.employmentType,
+          isAreaManager: shouldLeadArea
+        })
+      });
 
       return enrichPerson(db.people, person, db.areas.map((area) => enrichArea(db.people, area)));
     },
@@ -6529,6 +6602,22 @@ function buildMysqlStore(
         [area.id, area.name, area.managerPersonId]
       );
 
+      const managerName =
+        people.find((person) => person.id === area.managerPersonId)?.name || "";
+      await insertAuditLog(pool, {
+        category: AUDIT_CATEGORIES.registry,
+        action: "created",
+        entityType: "area",
+        entityId: area.id,
+        entityLabel: area.name,
+        actorUser,
+        summary: `Area criada: ${area.name}`,
+        detail: buildAreaAuditDetail({
+          name: area.name,
+          managerName
+        })
+      });
+
       return enrichArea(people, area);
     },
     async updateArea(areaId, payload, actorUser) {
@@ -6567,6 +6656,22 @@ function buildMysqlStore(
           area.name
         ]);
       }
+
+      const managerName =
+        people.find((person) => person.id === nextManagerPersonId)?.name || "";
+      await insertAuditLog(pool, {
+        category: AUDIT_CATEGORIES.registry,
+        action: "updated",
+        entityType: "area",
+        entityId: areaId,
+        entityLabel: areaMutation.normalizedName,
+        actorUser,
+        summary: `Area atualizada: ${areaMutation.normalizedName}`,
+        detail: buildAreaAuditDetail({
+          name: areaMutation.normalizedName,
+          managerName
+        })
+      });
 
       return enrichArea(people.map((person) => ({
         ...person,
@@ -6652,6 +6757,27 @@ function buildMysqlStore(
         );
       }
 
+      const managerName =
+        people.find((item) => item.id === person.managerPersonId)?.name || "";
+      await insertAuditLog(pool, {
+        category: AUDIT_CATEGORIES.registry,
+        action: "created",
+        entityType: "person",
+        entityId: person.id,
+        entityLabel: person.name,
+        actorUser,
+        summary: `Pessoa criada: ${person.name}`,
+        detail: buildPersonAuditDetail({
+          roleTitle: person.roleTitle,
+          area: person.area,
+          workUnit: person.workUnit,
+          workMode: person.workMode,
+          managerName,
+          employmentType: person.employmentType,
+          isAreaManager: shouldLeadArea
+        })
+      });
+
       const nextAreas = assignAreaLeadershipSnapshot(areas, person.id, person.area, shouldLeadArea);
       return enrichPerson(people, person, nextAreas);
     },
@@ -6727,6 +6853,27 @@ function buildMysqlStore(
           [personId, personPayload.area]
         );
       }
+
+      const managerName =
+        people.find((item) => item.id === personPayload.managerPersonId)?.name || "";
+      await insertAuditLog(pool, {
+        category: AUDIT_CATEGORIES.registry,
+        action: "updated",
+        entityType: "person",
+        entityId: personId,
+        entityLabel: personPayload.name,
+        actorUser,
+        summary: `Pessoa atualizada: ${personPayload.name}`,
+        detail: buildPersonAuditDetail({
+          roleTitle: personPayload.roleTitle,
+          area: personPayload.area,
+          workUnit: personPayload.workUnit,
+          workMode: personPayload.workMode,
+          managerName,
+          employmentType: personPayload.employmentType,
+          isAreaManager: shouldLeadArea
+        })
+      });
 
       const nextAreas = assignAreaLeadershipSnapshot(
         areas,

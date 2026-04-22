@@ -70,6 +70,7 @@ export const FEEDBACK_ACKNOWLEDGEMENT_STATUS = {
 
 export const AUDIT_CATEGORIES = {
   user: "user",
+  registry: "registry",
   competency: "competency",
   incident: "incident",
   cycle: "cycle",

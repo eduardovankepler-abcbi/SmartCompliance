@@ -897,6 +897,48 @@ try {
     "Edicao da pessoa deve permitir remover a lideranca da area"
   );
 
+  const registryAudit = await store.getAuditTrail(admin, {
+    category: "registry"
+  });
+  assert.ok(
+    registryAudit.some(
+      (entry) =>
+        entry.entityType === "area" &&
+        entry.action === "created" &&
+        entry.entityLabel === createdArea.name
+    ),
+    "Criacao de area deve entrar na trilha estrutural"
+  );
+  assert.ok(
+    registryAudit.some(
+      (entry) =>
+        entry.entityType === "area" &&
+        entry.action === "updated" &&
+        entry.entityLabel === renamedArea.name
+    ),
+    "Edicao de area deve entrar na trilha estrutural"
+  );
+  assert.ok(
+    registryAudit.some(
+      (entry) =>
+        entry.entityType === "person" &&
+        entry.action === "created" &&
+        entry.entityLabel === createdPerson.name &&
+        entry.detail.includes("Sao Paulo")
+    ),
+    "Criacao de pessoa deve entrar na trilha estrutural com contexto de unidade"
+  );
+  assert.ok(
+    registryAudit.some(
+      (entry) =>
+        entry.entityType === "person" &&
+        entry.action === "updated" &&
+        entry.entityLabel === updatedPersonWithoutLeadership.name &&
+        entry.detail.includes("Sem lideranca de area")
+    ),
+    "Edicao de pessoa deve refletir mudanca de lideranca na trilha estrutural"
+  );
+
   await assert.rejects(
     () =>
       store.createPerson(

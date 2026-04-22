@@ -99,3 +99,35 @@ export function preparePersonMutation({
     shouldLeadArea
   };
 }
+
+export function buildAreaAuditDetail({ name, managerName }) {
+  return `${name} · Responsavel ${managerName || "Nao definido"}`;
+}
+
+export function buildPersonAuditDetail({
+  roleTitle,
+  area,
+  workUnit,
+  workMode,
+  managerName,
+  employmentType,
+  isAreaManager
+}) {
+  const workModeLabel =
+    workMode === "onsite"
+      ? "Presencial"
+      : workMode === "remote"
+        ? "Remoto"
+        : "Hibrido";
+  const employmentTypeLabel = employmentType === "consultant" ? "Consultor" : "Interno";
+
+  return [
+    roleTitle || "Sem cargo",
+    area || "Sem area",
+    workUnit || "Sem unidade",
+    workModeLabel,
+    employmentTypeLabel,
+    `Gestor ${managerName || "Nao definido"}`,
+    isAreaManager ? "Lider da area" : "Sem lideranca de area"
+  ].join(" · ");
+}

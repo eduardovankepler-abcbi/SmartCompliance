@@ -421,6 +421,7 @@ export default function App() {
   const evaluationAuditEntries = auditTrail.filter(
     (item) => item.category === "cycle" || item.category === "feedback_request"
   );
+  const registryAuditEntries = auditTrail.filter((item) => item.category === "registry");
   const userAuditEntries = auditTrail.filter((item) => item.category === "user");
 
   if (authLoading) {
@@ -658,6 +659,7 @@ export default function App() {
         PersonStructureCard={PersonStructureCard}
         prepareUserProvisioning={prepareUserProvisioning}
         receivedManagerFeedbackDrafts={receivedManagerFeedbackDrafts}
+        registryAuditEntries={registryAuditEntries}
         ResponseDistributionChartCard={ResponseDistributionChartCard}
         TrendAreaChartCard={TrendAreaChartCard}
         roleKey={user.roleKey}

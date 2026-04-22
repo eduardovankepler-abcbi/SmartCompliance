@@ -262,10 +262,12 @@ export function AppSceneRenderer(props) {
           Input={props.Input}
           PersonStructureCard={props.PersonStructureCard}
           Select={props.Select}
+          auditEntries={props.registryAuditEntries}
           canManagePeopleRegistry={props.canManagePeopleRegistry}
           areaForm={props.areaForm}
           areaOptions={props.areaOptions}
           areas={props.areas}
+          formatDate={props.formatDate}
           handleAreaSubmit={props.handleAreaSubmit}
           handleAreaUpdate={props.handleAreaUpdate}
           handlePersonSubmit={props.handlePersonSubmit}

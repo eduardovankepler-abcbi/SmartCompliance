@@ -55,6 +55,7 @@ export function getAuditCategoriesForUser(user) {
     case "hr":
       return [
         AUDIT_CATEGORIES.user,
+        AUDIT_CATEGORIES.registry,
         AUDIT_CATEGORIES.competency,
         AUDIT_CATEGORIES.incident,
         AUDIT_CATEGORIES.cycle,
