@@ -9,6 +9,10 @@ import {
 
 export function useAppShellFlow({
   canViewDashboard,
+  canViewComplianceWorkspace,
+  canViewEvaluationWorkspace,
+  canViewDevelopmentWorkspace,
+  canViewApplauseWorkspace,
   canViewEvaluationInsights,
   canViewEvaluationOperations,
   canViewPeople,
@@ -37,12 +41,24 @@ export function useAppShellFlow({
   const visibleSections = useMemo(
     () =>
       getVisibleSections(sections, {
-        roleKey,
         canViewDashboard,
+        canViewComplianceWorkspace,
+        canViewEvaluationWorkspace,
+        canViewDevelopmentWorkspace,
+        canViewApplauseWorkspace,
         canViewPeople,
         canViewUsersAdmin
       }),
-    [canViewDashboard, canViewPeople, canViewUsersAdmin, roleKey, sections]
+    [
+      canViewApplauseWorkspace,
+      canViewComplianceWorkspace,
+      canViewDashboard,
+      canViewDevelopmentWorkspace,
+      canViewEvaluationWorkspace,
+      canViewPeople,
+      canViewUsersAdmin,
+      sections
+    ]
   );
 
   const preferredSectionKey = useMemo(

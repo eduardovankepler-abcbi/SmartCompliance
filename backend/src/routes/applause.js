@@ -1,10 +1,11 @@
 import { Router } from "express";
+import { requireRoles } from "../auth/middleware.js";
 import { badRequest } from "./helpers.js";
 
 export function createApplauseRouter(store) {
   const router = Router();
 
-  router.get("/", async (req, res, next) => {
+  router.get("/", requireRoles("admin", "hr", "manager", "employee"), async (req, res, next) => {
     try {
       res.json(await store.getApplauseEntries(req.auth.user));
     } catch (error) {
@@ -12,7 +13,7 @@ export function createApplauseRouter(store) {
     }
   });
 
-  router.post("/", async (req, res, next) => {
+  router.post("/", requireRoles("admin", "hr", "manager", "employee"), async (req, res, next) => {
     const { receiverPersonId, category, impact, contextNote } = req.body;
 
     if (!receiverPersonId || !category || !impact || !contextNote) {
@@ -34,7 +35,10 @@ export function createApplauseRouter(store) {
     }
   });
 
-  router.patch("/:applauseId", async (req, res, next) => {
+  router.patch(
+    "/:applauseId",
+    requireRoles("admin", "hr", "manager", "employee"),
+    async (req, res, next) => {
     const { applauseId } = req.params;
     const { receiverPersonId, category, impact, contextNote, status } = req.body;
 
@@ -59,7 +63,8 @@ export function createApplauseRouter(store) {
     } catch (error) {
       res.status(400).json({ error: error.message || "Falha ao atualizar Aplause." });
     }
-  });
+    }
+  );
 
   return router;
 }

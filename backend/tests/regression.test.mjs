@@ -120,6 +120,39 @@ try {
     "Dashboard deve retornar recomendacoes profilaticas agregadas quando houver dados"
   );
 
+  const complianceDashboard = await fetchJson(
+    baseUrl,
+    "/api/dashboards/overview",
+    getAuthHeader(compliance.id)
+  );
+  assert.equal(
+    complianceDashboard.response.status,
+    403,
+    "Compliance nao deve acessar o dashboard executivo"
+  );
+
+  const complianceCycles = await fetchJson(
+    baseUrl,
+    "/api/evaluations/cycles",
+    getAuthHeader(compliance.id)
+  );
+  assert.equal(
+    complianceCycles.response.status,
+    403,
+    "Compliance nao deve acessar o workspace de avaliacoes"
+  );
+
+  const complianceApplause = await fetchJson(
+    baseUrl,
+    "/api/applause",
+    getAuthHeader(compliance.id)
+  );
+  assert.equal(
+    complianceApplause.response.status,
+    403,
+    "Compliance nao deve acessar o workspace de Aplause"
+  );
+
   const employeeAudit = await fetchJson(
     baseUrl,
     "/api/audit-trail",

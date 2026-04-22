@@ -1,29 +1,30 @@
 export function getVisibleSections(
   sections,
   {
-    roleKey,
     canViewDashboard = false,
+    canViewComplianceWorkspace = false,
+    canViewEvaluationWorkspace = false,
+    canViewDevelopmentWorkspace = false,
+    canViewApplauseWorkspace = false,
     canViewPeople = false,
     canViewUsersAdmin = false
   } = {}
 ) {
   return sections.filter((section) => {
-    if (roleKey === "employee") {
-      return ["Compliance", "Avaliacoes", "Desenvolvimento", "Aplause"].includes(section.key);
-    }
-
-    if (roleKey === "manager") {
-      return ["Dashboard", "Avaliacoes", "Desenvolvimento", "Aplause", "Pessoas"].includes(
-        section.key
-      );
-    }
-
-    if (roleKey === "compliance") {
-      return ["Dashboard", "Compliance", "Avaliacoes"].includes(section.key);
-    }
-
     if (section.key === "Dashboard") {
       return canViewDashboard;
+    }
+    if (section.key === "Compliance") {
+      return canViewComplianceWorkspace;
+    }
+    if (section.key === "Avaliacoes") {
+      return canViewEvaluationWorkspace;
+    }
+    if (section.key === "Desenvolvimento") {
+      return canViewDevelopmentWorkspace;
+    }
+    if (section.key === "Aplause") {
+      return canViewApplauseWorkspace;
     }
     if (section.key === "Pessoas") {
       return canViewPeople;

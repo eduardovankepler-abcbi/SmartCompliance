@@ -5,7 +5,7 @@ import { badRequest } from "./helpers.js";
 export function createCompetenciesRouter(store) {
   const router = Router();
 
-  router.get("/", async (req, res, next) => {
+  router.get("/", requireRoles("admin", "hr", "manager"), async (req, res, next) => {
     try {
       res.json(await store.getCompetencies(req.auth.user));
     } catch (error) {

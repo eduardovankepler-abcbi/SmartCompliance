@@ -11,10 +11,19 @@ export function useAppData({
   user,
   canViewAuditTrail,
   canFilterDashboardByArea,
+  canViewComplianceWorkspace,
   canViewDashboard,
+  canViewEvaluationWorkspace,
+  canViewDevelopmentWorkspace,
+  canViewApplauseWorkspace,
+  canViewPeople,
+  canViewIncidents,
+  canManageIncidentQueue,
   canReceiveManagerFeedback,
   canViewResponses,
   canViewPerformance360,
+  canViewEvaluationLibrary,
+  canViewCompetenciesCatalog,
   canViewUsersAdmin,
   canViewOrganizationDevelopment,
   dashboardAreaFilter,
@@ -84,24 +93,37 @@ export function useAppData({
       const dashboardRequest = canViewDashboard
         ? api.getDashboardOverview(dashboardArea, dashboardTimeGrouping)
         : Promise.resolve(null);
+      const competenciesRequest = canViewCompetenciesCatalog
+        ? api.getCompetencies()
+        : Promise.resolve([]);
+      const areasRequest = canViewComplianceWorkspace ? api.getAreas() : Promise.resolve([]);
+      const peopleRequest =
+        canViewPeople ||
+        canManageIncidentQueue ||
+        canViewApplauseWorkspace ||
+        canViewDevelopmentWorkspace
+          ? api.getPeople()
+          : Promise.resolve([]);
       const requests = [
         api.getSummary(),
         canViewAuditTrail ? api.getAuditTrail() : Promise.resolve([]),
         dashboardRequest,
-        api.getEvaluationTemplate(),
-        api.getEvaluationLibrary(),
-        api.getCompetencies(),
-        api.getAreas(),
-        api.getPeople(),
-        api.getIncidents(),
-        api.getEvaluationCycles(),
-        api.getEvaluationAssignments(),
+        canViewEvaluationWorkspace ? api.getEvaluationTemplate() : Promise.resolve(null),
+        canViewEvaluationLibrary
+          ? api.getEvaluationLibrary()
+          : Promise.resolve(null),
+        competenciesRequest,
+        areasRequest,
+        peopleRequest,
+        canViewIncidents ? api.getIncidents() : Promise.resolve([]),
+        canViewEvaluationWorkspace ? api.getEvaluationCycles() : Promise.resolve([]),
+        canViewEvaluationWorkspace ? api.getEvaluationAssignments() : Promise.resolve([]),
         canReceiveManagerFeedback ? api.getReceivedManagerFeedback() : Promise.resolve([]),
-        api.getFeedbackRequests(),
+        canViewEvaluationWorkspace ? api.getFeedbackRequests() : Promise.resolve([]),
         canViewPerformance360 ? api.getPerformance360Reviews() : Promise.resolve([]),
-        api.getApplauseEntries(),
-        api.getDevelopmentRecords(),
-        api.getDevelopmentPlans(),
+        canViewApplauseWorkspace ? api.getApplauseEntries() : Promise.resolve([]),
+        canViewDevelopmentWorkspace ? api.getDevelopmentRecords() : Promise.resolve([]),
+        canViewDevelopmentWorkspace ? api.getDevelopmentPlans() : Promise.resolve([]),
         canViewOrganizationDevelopment ? api.getLearningIntegrationEvents() : Promise.resolve([])
       ];
 
@@ -165,11 +187,20 @@ export function useAppData({
     }
   }, [
     canViewAuditTrail,
+    canManageIncidentQueue,
+    canViewComplianceWorkspace,
+    canViewCompetenciesCatalog,
     canFilterDashboardByArea,
+    canViewIncidents,
+    canViewPeople,
     canViewDashboard,
+    canViewEvaluationWorkspace,
+    canViewDevelopmentWorkspace,
+    canViewApplauseWorkspace,
     canReceiveManagerFeedback,
     canViewResponses,
     canViewPerformance360,
+    canViewEvaluationLibrary,
     canViewUsersAdmin,
     canViewOrganizationDevelopment,
     dashboardAreaFilter,

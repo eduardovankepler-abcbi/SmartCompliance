@@ -39,7 +39,7 @@ export function createDevelopmentRouter(store) {
     }
   });
 
-  router.get("/records", async (req, res, next) => {
+  router.get("/records", requireRoles("admin", "hr", "manager", "employee"), async (req, res, next) => {
     try {
       res.json(await store.getDevelopmentRecords(req.auth.user));
     } catch (error) {
@@ -47,7 +47,7 @@ export function createDevelopmentRouter(store) {
     }
   });
 
-  router.post("/records", async (req, res, next) => {
+  router.post("/records", requireRoles("admin", "hr", "manager", "employee"), async (req, res, next) => {
     const {
       personId,
       recordType,
@@ -91,7 +91,10 @@ export function createDevelopmentRouter(store) {
     }
   });
 
-  router.patch("/records/:recordId", async (req, res, next) => {
+  router.patch(
+    "/records/:recordId",
+    requireRoles("admin", "hr", "manager", "employee"),
+    async (req, res, next) => {
     const { recordId } = req.params;
     const {
       personId,
@@ -141,9 +144,10 @@ export function createDevelopmentRouter(store) {
         .status(400)
         .json({ error: error.message || "Falha ao atualizar desenvolvimento." });
     }
-  });
+    }
+  );
 
-  router.get("/plans", async (req, res, next) => {
+  router.get("/plans", requireRoles("admin", "hr", "manager", "employee"), async (req, res, next) => {
     try {
       res.json(await store.getDevelopmentPlans(req.auth.user));
     } catch (error) {
@@ -151,7 +155,7 @@ export function createDevelopmentRouter(store) {
     }
   });
 
-  router.post("/plans", async (req, res, next) => {
+  router.post("/plans", requireRoles("admin", "hr", "manager", "employee"), async (req, res, next) => {
     const {
       personId,
       cycleId,
@@ -186,7 +190,10 @@ export function createDevelopmentRouter(store) {
     }
   });
 
-  router.patch("/plans/:planId", async (req, res, next) => {
+  router.patch(
+    "/plans/:planId",
+    requireRoles("admin", "hr", "manager", "employee"),
+    async (req, res, next) => {
     const { planId } = req.params;
     const {
       personId,
@@ -230,9 +237,13 @@ export function createDevelopmentRouter(store) {
     } catch (error) {
       res.status(400).json({ error: error.message || "Falha ao atualizar PDI." });
     }
-  });
+    }
+  );
 
-  router.patch("/plans/:planId/progress", async (req, res, next) => {
+  router.patch(
+    "/plans/:planId/progress",
+    requireRoles("admin", "hr", "manager", "employee"),
+    async (req, res, next) => {
     const { planId } = req.params;
     const { progressStatus, progressNote } = req.body;
 
@@ -256,7 +267,8 @@ export function createDevelopmentRouter(store) {
         .status(400)
         .json({ error: error.message || "Falha ao atualizar andamento do PDI." });
     }
-  });
+    }
+  );
 
   return router;
 }

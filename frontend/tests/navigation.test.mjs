@@ -18,8 +18,11 @@ const sections = [
 ];
 
 const employeeSections = getVisibleSections(sections, {
-  roleKey: "employee",
   canViewDashboard: false,
+  canViewComplianceWorkspace: true,
+  canViewEvaluationWorkspace: true,
+  canViewDevelopmentWorkspace: true,
+  canViewApplauseWorkspace: true,
   canViewPeople: false,
   canViewUsersAdmin: false
 });
@@ -41,8 +44,11 @@ assert.equal(
 );
 
 const adminSections = getVisibleSections(sections, {
-  roleKey: "admin",
   canViewDashboard: true,
+  canViewComplianceWorkspace: true,
+  canViewEvaluationWorkspace: true,
+  canViewDevelopmentWorkspace: true,
+  canViewApplauseWorkspace: true,
   canViewPeople: true,
   canViewUsersAdmin: true
 });
@@ -54,29 +60,35 @@ assert.equal(
 );
 
 const managerSections = getVisibleSections(sections, {
-  roleKey: "manager",
   canViewDashboard: true,
+  canViewComplianceWorkspace: true,
+  canViewEvaluationWorkspace: true,
+  canViewDevelopmentWorkspace: true,
+  canViewApplauseWorkspace: true,
   canViewPeople: true,
   canViewUsersAdmin: false
 });
 
 assert.deepEqual(
   managerSections.map((section) => section.key),
-  ["Dashboard", "Avaliacoes", "Desenvolvimento", "Aplause", "Pessoas"],
-  "Gestor deve ver apenas os modulos relevantes para gestao de equipe"
+  ["Dashboard", "Compliance", "Avaliacoes", "Desenvolvimento", "Aplause", "Pessoas"],
+  "Gestor deve manter os modulos de equipe e o canal de compliance disponiveis"
 );
 
 const complianceSections = getVisibleSections(sections, {
-  roleKey: "compliance",
-  canViewDashboard: true,
+  canViewDashboard: false,
+  canViewComplianceWorkspace: true,
+  canViewEvaluationWorkspace: false,
+  canViewDevelopmentWorkspace: false,
+  canViewApplauseWorkspace: false,
   canViewPeople: false,
   canViewUsersAdmin: false
 });
 
 assert.deepEqual(
   complianceSections.map((section) => section.key),
-  ["Dashboard", "Compliance", "Avaliacoes"],
-  "Compliance deve ter foco em canal, tratamento e leitura do ciclo"
+  ["Compliance"],
+  "Compliance deve ficar focado no canal e tratamento operacional"
 );
 assert.equal(
   getPreferredSectionKey("compliance"),

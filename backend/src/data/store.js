@@ -228,7 +228,7 @@ function filterPeopleForUser(people, user, areas = []) {
   const enrichedAreas = areas.map((area) => enrichArea(people, area));
   const enrichedPeople = people.map((person) => enrichPerson(people, person, enrichedAreas));
 
-  if (isOrgWideUser(user)) {
+  if (isAdminUser(user) || isHrUser(user)) {
     return enrichedPeople;
   }
 

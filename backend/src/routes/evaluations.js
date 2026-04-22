@@ -17,7 +17,7 @@ export function createEvaluationsRouter(store) {
     }
   });
 
-  router.get("/template", async (_req, res, next) => {
+  router.get("/template", requireRoles("admin", "hr", "manager", "employee"), async (_req, res, next) => {
     try {
       res.json(await store.getEvaluationTemplate());
     } catch (error) {
@@ -25,7 +25,7 @@ export function createEvaluationsRouter(store) {
     }
   });
 
-  router.get("/library", async (_req, res, next) => {
+  router.get("/library", requireRoles("admin", "hr"), async (_req, res, next) => {
     try {
       res.json(await store.getEvaluationLibrary());
     } catch (error) {
@@ -33,7 +33,7 @@ export function createEvaluationsRouter(store) {
     }
   });
 
-  router.get("/cycles", async (req, res, next) => {
+  router.get("/cycles", requireRoles("admin", "hr", "manager", "employee"), async (req, res, next) => {
     try {
       res.json(await store.getEvaluationCycles(req.auth.user));
     } catch (error) {
@@ -192,7 +192,7 @@ export function createEvaluationsRouter(store) {
     }
   );
 
-  router.get("/assignments", async (req, res, next) => {
+  router.get("/assignments", requireRoles("admin", "hr", "manager", "employee"), async (req, res, next) => {
     try {
       res.json(await store.getEvaluationAssignmentsForUser(req.auth.user.id));
     } catch (error) {
@@ -200,7 +200,10 @@ export function createEvaluationsRouter(store) {
     }
   });
 
-  router.get("/assignments/:assignmentId", async (req, res, next) => {
+  router.get(
+    "/assignments/:assignmentId",
+    requireRoles("admin", "hr", "manager", "employee"),
+    async (req, res, next) => {
     try {
       const assignment = await store.getEvaluationAssignmentById(
         req.params.assignmentId,
@@ -221,9 +224,10 @@ export function createEvaluationsRouter(store) {
     } catch (error) {
       next(error);
     }
-  });
+    }
+  );
 
-  router.get("/received-feedback", async (req, res, next) => {
+  router.get("/received-feedback", requireRoles("employee"), async (req, res, next) => {
     try {
       res.json(await store.getReceivedManagerFeedback(req.auth.user));
     } catch (error) {
@@ -255,7 +259,10 @@ export function createEvaluationsRouter(store) {
     }
   );
 
-  router.patch("/responses/:submissionId/acknowledgement", async (req, res) => {
+  router.patch(
+    "/responses/:submissionId/acknowledgement",
+    requireRoles("employee"),
+    async (req, res) => {
     const { status, note } = req.body || {};
     if (!status) {
       return badRequest(res, "Status de concordancia obrigatorio.");
@@ -273,9 +280,10 @@ export function createEvaluationsRouter(store) {
         .status(400)
         .json({ error: error.message || "Falha ao registrar retorno do colaborador." });
     }
-  });
+    }
+  );
 
-  router.get("/feedback-requests", async (req, res, next) => {
+  router.get("/feedback-requests", requireRoles("admin", "hr", "manager", "employee"), async (req, res, next) => {
     try {
       res.json(await store.getFeedbackRequests(req.auth.user));
     } catch (error) {
@@ -283,7 +291,7 @@ export function createEvaluationsRouter(store) {
     }
   });
 
-  router.post("/feedback-requests", async (req, res) => {
+  router.post("/feedback-requests", requireRoles("admin", "hr", "manager", "employee"), async (req, res) => {
     const { cycleId, providerPersonIds, contextNote } = req.body;
 
     if (!cycleId || !Array.isArray(providerPersonIds) || !contextNote) {
@@ -417,7 +425,7 @@ export function createEvaluationsRouter(store) {
     }
   );
 
-  router.post("/submit", async (req, res, next) => {
+  router.post("/submit", requireRoles("admin", "hr", "manager", "employee"), async (req, res, next) => {
     const { assignmentId, answers, strengthsNote, developmentNote } = req.body;
 
     if (!assignmentId || !answers) {

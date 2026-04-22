@@ -175,6 +175,9 @@ assert.equal(employeeCapabilities.canViewAuditTrail, false);
 assert.equal(employeeCapabilities.canViewEvaluationInsights, false);
 assert.equal(employeeCapabilities.canViewPeople, false);
 assert.equal(employeeCapabilities.canReceiveManagerFeedback, true);
+assert.equal(employeeCapabilities.canViewEvaluationWorkspace, true);
+assert.equal(employeeCapabilities.canViewDevelopmentWorkspace, true);
+assert.equal(employeeCapabilities.canViewApplauseWorkspace, true);
 
 const managerCapabilities = getCapabilities("manager");
 assert.equal(managerCapabilities.canViewDashboard, true);
@@ -188,6 +191,13 @@ assert.equal(hrCapabilities.canManageCycles, true);
 assert.equal(hrCapabilities.canViewAuditTrail, true);
 assert.equal(hrCapabilities.canViewEvaluationLibrary, true);
 assert.equal(hrCapabilities.canViewOrganizationDevelopment, true);
+
+const complianceCapabilities = getCapabilities({ roleKey: "compliance" });
+assert.equal(complianceCapabilities.canViewDashboard, false);
+assert.equal(complianceCapabilities.canViewComplianceWorkspace, true);
+assert.equal(complianceCapabilities.canViewEvaluationWorkspace, false);
+assert.equal(complianceCapabilities.canViewDevelopmentWorkspace, false);
+assert.equal(complianceCapabilities.canViewApplauseWorkspace, false);
 
 assert.deepEqual(
   validateEvaluationAnswerForm({
