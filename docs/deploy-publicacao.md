@@ -3,7 +3,7 @@
 Este projeto pode ser publicado sem depender da maquina local usando:
 
 - `Frontend`: Vercel
-- `Backend`: Railway
+- `Backend`: Render
 - `Banco`: MySQL gerenciado
 
 ## Arquitetura recomendada
@@ -61,7 +61,7 @@ Configurar na Vercel:
 Exemplo:
 
 ```bash
-VITE_API_URL=https://smart-compliance-api.up.railway.app
+VITE_API_URL=https://smartcompliance.onrender.com
 ```
 
 ## Banco de dados
@@ -84,6 +84,12 @@ Voce pode fazer isso:
 - por um cliente MySQL local
 - pelo console SQL do provedor
 - por um job inicial de provisionamento
+
+Observacao pratica:
+
+- em provedores como Aiven, o banco e frequentemente criado com nome padrao como `defaultdb`
+- use exatamente os valores fornecidos pelo provedor para `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD` e `MYSQL_DATABASE`
+- se o provedor exigir SSL, mantenha `MYSQL_SSL_MODE=required`
 
 ## Ordem de publicacao
 
@@ -135,3 +141,13 @@ Se esses 4 pontos estiverem corretos, o deploy tende a ser direto.
 - `backend/.env.production.example`
 - `frontend/.env.production.example`
 - `render.yaml`
+
+## Arquitetura publicada hoje
+
+Para evitar ambiguidade, o desenho operacional atual do projeto e:
+
+- `frontend` na Vercel
+- `backend` no Render
+- `mysql` gerenciado externo
+
+Nao existe dependencia operacional da Railway no fluxo atual.

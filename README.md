@@ -7,9 +7,10 @@ MVP local para uma plataforma de compliance, feedback, desenvolvimento profissio
 - Backend: Node.js + Express
 - Frontend: React + Vite
 - Banco alvo: MySQL
-- Deploy planejado:
-  - Backend na Railway
+- Publicacao recomendada:
+  - Backend no Render
   - Frontend na Vercel
+  - Banco MySQL gerenciado (Aiven ou provedor equivalente)
 
 ## Módulos do MVP
 
@@ -112,3 +113,9 @@ O projeto já possui validação local por testes, build do frontend e uma suít
 ## Publicação
 
 O roteiro recomendado de publicação está em `docs/deploy-publicacao.md`.
+
+Resumo operacional atual:
+
+- frontend publicado na Vercel
+- backend publicado no Render
+- banco em MySQL gerenciado com `STORAGE_MODE=mysql`
