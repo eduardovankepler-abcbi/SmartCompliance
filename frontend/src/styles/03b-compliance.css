@@ -1,0 +1,46 @@
+.compliance-intake-form {
+  grid-template-columns: 1fr;
+  gap: 18px;
+}
+
+.compliance-intake-form .card-header,
+.compliance-intake-form .field-span-full,
+.compliance-intake-form .primary-button {
+  grid-column: 1 / -1;
+}
+
+.compliance-report-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(320px, 0.9fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.compliance-form-span-main,
+.compliance-form-span-sidebar {
+  display: grid;
+  gap: 16px;
+}
+
+.compliance-intake-panel {
+  display: grid;
+  gap: 16px;
+  padding: 16px 18px 18px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(11, 18, 35, 0.45);
+}
+
+.compliance-panel-header {
+  padding-bottom: 0;
+}
+
+.compliance-panel-header h4 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.compliance-side-grid {
+  display: grid;
+  gap: 14px;
+}

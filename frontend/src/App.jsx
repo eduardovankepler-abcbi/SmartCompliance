@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { api } from "./api.js";
 import {
+  buildAppSceneProps
+} from "./appSceneProps.js";
+import {
   demoAccounts,
   developmentPlanStatusOptions,
   developmentRecordTypes,
@@ -54,6 +57,7 @@ import { useEvaluations } from "./evaluations/useEvaluations";
 import { useDashboardFilters, useDashboardInsights } from "./useDashboardFlow";
 import { useAppShellFlow } from "./useAppShellFlow";
 import { AppShell, ThemeGlyph } from "./layout/AppShell";
+import { LoginScreen } from "./LoginScreen.jsx";
 import { useAppData } from "./useAppData";
 import { useDevelopmentFlow } from "./useDevelopmentFlow";
 import { useOperationsFlow } from "./useOperationsFlow";
@@ -418,11 +422,255 @@ export default function App() {
     setError
   });
 
-  const evaluationAuditEntries = auditTrail.filter(
-    (item) => item.category === "cycle" || item.category === "feedback_request"
-  );
-  const registryAuditEntries = auditTrail.filter((item) => item.category === "registry");
-  const userAuditEntries = auditTrail.filter((item) => item.category === "user");
+  const {
+    applauseSceneProps,
+    complianceSceneProps,
+    dashboardSceneProps,
+    developmentSceneProps,
+    evaluationsSceneProps,
+    peopleSceneProps,
+    usersSceneProps
+  } = buildAppSceneProps({
+    auditTrail,
+    user,
+    widgets: {
+      BarMetricRow,
+      ColumnMetricCard,
+      DashboardDonut,
+      FunnelSeriesChart,
+      HeatmapMatrixCard,
+      MetricCard,
+      ResponseDistributionChartCard,
+      TrendAreaChartCard
+    },
+    controls: { Input, Select, Textarea },
+    adminCards: {
+      ApplauseAdminCard,
+      AreaAdminCard,
+      DevelopmentPlanAdminCard,
+      DevelopmentRecordAdminCard,
+      IncidentQueueCard,
+      PersonStructureCard,
+      UserAdminCard
+    },
+    dashboardState: {
+      dashboardAreaFilter,
+      dashboardCompositionFilter,
+      dashboardCompositionOptions,
+      dashboardTimeGrouping,
+      dashboardTimeGroupingLabel,
+      dashboardTimeGroupingOptions,
+      filteredDashboardEvaluationMix,
+      filteredDashboardEvaluationResultsSummary,
+      filteredDashboardResponseDistributions,
+      selectedDashboardCompositionMeta,
+      setDashboardAreaFilter,
+      setDashboardCompositionFilter,
+      setDashboardTimeGrouping
+    },
+    evaluationsState: {
+      activeCycleModuleSummary,
+      activeEvaluationCycleId,
+      activeEvaluationModule,
+      activeEvaluationModuleMeta,
+      activeEvaluationWorkspace,
+      answerForm,
+      assignmentDetail,
+      comparisonCycleModuleSummary,
+      comparisonCycleOptions,
+      comparisonEvaluationCycleId,
+      customLibraryDraft,
+      customLibraryPublishForm,
+      cycleComparisonHighlights,
+      cycleForm,
+      developmentNote,
+      evaluationCycleHistory,
+      evaluationCycleOptions,
+      evaluationCycleStructure,
+      evaluationModuleOptions,
+      evaluationOperationNotice,
+      evaluationOperationWorkModeFilter,
+      evaluationOperationWorkModeOptions,
+      evaluationOperationWorkUnitFilter,
+      evaluationOperationWorkUnitOptions,
+      feedbackProviderOptions,
+      feedbackRequestCycleOptions,
+      feedbackRequestForm,
+      filteredAggregateResponses,
+      filteredAssignments,
+      filteredEvaluationCycleStructure,
+      filteredFeedbackRequests,
+      filteredIndividualResponses,
+      filteredReceivedManagerFeedback,
+      handleAssignmentSubmit,
+      handleBlockCrossFunctionalPairing,
+      handleCustomLibraryImport,
+      handleCustomLibraryPublish,
+      handleCustomLibraryUpdate,
+      handleCycleEnabledToggle,
+      handleCycleModuleToggle,
+      handleCycleStatusChange,
+      handleCycleSubmit,
+      handleFeedbackProviderToggle,
+      handleFeedbackRequestReview,
+      handleFeedbackRequestSubmit,
+      handleForceCrossFunctionalPairing,
+      handleNotifyDelinquents,
+      handleReceivedManagerFeedbackSubmit,
+      handleTransversalConfigSubmit,
+      handleTransversalUnitOverrideRemove,
+      receivedManagerFeedbackDrafts,
+      selectedAssignment,
+      setActiveEvaluationCycleId,
+      setActiveEvaluationModule,
+      setActiveEvaluationWorkspace,
+      setAnswerForm,
+      setComparisonEvaluationCycleId,
+      setCustomLibraryPublishForm,
+      setCycleForm,
+      setDevelopmentNote,
+      setEvaluationOperationWorkModeFilter,
+      setEvaluationOperationWorkUnitFilter,
+      setFeedbackRequestForm,
+      setReceivedManagerFeedbackDraft,
+      setSelectedAssignment,
+      setShowEvaluationLibrary,
+      setStrengthsNote,
+      setTransversalConfigForm,
+      setTransversalOverrideForm,
+      showEvaluationLibrary,
+      strengthsNote,
+      transversalConfigForm,
+      transversalOverrideForm
+    },
+    developmentState: {
+      activeDevelopmentView,
+      developmentAuditEntries,
+      developmentEditablePeopleOptions,
+      developmentEditablePlanPeopleOptions,
+      developmentForm,
+      developmentFormPeopleOptions,
+      developmentHighlights,
+      developmentMetrics,
+      developmentPerformanceSummary,
+      developmentPlanCompetencyOptions,
+      developmentPlanCycleOptions,
+      developmentPlanForm,
+      developmentPlanPeopleOptions,
+      developmentPlanProgressStatusOptions,
+      developmentViewOptions,
+      filteredDevelopmentPlans,
+      filteredDevelopmentRecords,
+      handleDevelopmentPlanProgressUpdate,
+      handleDevelopmentPlanSubmit,
+      handleDevelopmentPlanUpdate,
+      handleDevelopmentSubmit,
+      handleDevelopmentUpdate,
+      handleLearningIntegrationApply,
+      learningIntegrationPeopleOptions,
+      learningIntegrationReviewItems,
+      learningIntegrationSummary,
+      setActiveDevelopmentView,
+      setDevelopmentForm,
+      setDevelopmentPlanForm,
+      setLearningIntegrationDraft
+    },
+    operationsState: {
+      applauseAuditEntries,
+      applauseForm,
+      applausePeopleOptions,
+      handleApplauseSubmit,
+      handleApplauseUpdate,
+      handleIncidentSubmit,
+      handleIncidentUpdate,
+      incidentAuditEntries,
+      incidentAreaOptions,
+      incidentForm,
+      incidentResponsibleOptions,
+      setApplauseForm,
+      setIncidentForm
+    },
+    registryState: {
+      accessJourneySummary,
+      areaForm,
+      areaOptions,
+      availableUserPeopleOptions,
+      handleAreaSubmit,
+      handleAreaUpdate,
+      handlePersonSubmit,
+      handlePersonUpdate,
+      handleUserPersonSelect,
+      handleUserSubmit,
+      handleUserUpdate,
+      managerOptions,
+      pendingAccessPeople,
+      personAccessStateById,
+      personForm,
+      prepareUserProvisioning,
+      selectedUserPerson,
+      setAreaForm,
+      setPersonForm,
+      setUserForm,
+      suggestedUserEmail,
+      suggestedUserRole,
+      suggestedUserRoleReason,
+      userForm
+    },
+    sharedData: {
+      applauseEntries,
+      areas,
+      competencies,
+      cycles,
+      dashboard,
+      evaluationLibrary,
+      incidents,
+      people,
+      performance360Reviews,
+      summary,
+      users
+    },
+    sharedHandlers: {
+      handleCompetencyCreate,
+      handleCompetencyUpdate,
+      setActiveSection
+    },
+    labels: {
+      formatDate,
+      getAssignmentStatusLabel,
+      getCycleStatusDescription,
+      getDevelopmentTrackLabel,
+      getFeedbackRequestStatusLabel,
+      getRelationshipDescription,
+      getRelationshipLabel,
+      getVisibilityLabel
+    },
+    options: {
+      developmentPlanStatusOptions,
+      developmentRecordTypes,
+      developmentViewLabels,
+      incidentClassificationOptions,
+      incidentStatusOptions,
+      userRoleOptions,
+      userStatusOptions
+    },
+    apiHandlers: {
+      downloadCustomLibraryTemplate: api.downloadCustomLibraryTemplate
+    },
+    capabilities: {
+      canFilterDashboardByArea,
+      canManageApplause,
+      canManageCycles,
+      canManageFeedbackRequests,
+      canManageIncidentQueue,
+      canManagePeopleRegistry,
+      canViewAuditTrail,
+      canViewEvaluationInsights,
+      canViewEvaluationLibrary,
+      canViewEvaluationOperations,
+      canViewIncidents,
+      canViewResponses
+    }
+  });
 
   if (authLoading) {
     return <div className="center-screen">Validando sessao...</div>;
@@ -430,48 +678,17 @@ export default function App() {
 
   if (!user) {
     return (
-      <div className="login-shell">
-        <div className="login-backdrop" />
-        <button
-          type="button"
-          className="theme-icon-button login-theme-button"
-          onClick={toggleTheme}
-          aria-label={theme === "dark" ? "Ativar tema claro" : "Ativar tema escuro"}
-          title={theme === "dark" ? "Ativar tema claro" : "Ativar tema escuro"}
-        >
-          <ThemeGlyph theme={theme} />
-        </button>
-        <form className="login-card" onSubmit={handleLogin}>
-          <p className="eyebrow">Smart Compliance</p>
-          <h1>Governanca com presenca executiva</h1>
-          <p className="muted hero-copy">
-            Um painel unico para etica, reputacao interna, desenvolvimento e feedback continuo.
-          </p>
-          <Input
-            label="Email"
-            value={loginForm.email}
-            onChange={(value) => setLoginForm({ ...loginForm, email: value })}
-          />
-          <Input
-            label="Senha"
-            type="password"
-            value={loginForm.password}
-            onChange={(value) => setLoginForm({ ...loginForm, password: value })}
-          />
-          {authError ? <div className="error-banner">{authError}</div> : null}
-          <button className="primary-button" type="submit">
-            Entrar no ambiente
-          </button>
-          <div className="stack-list login-accounts">
-            <strong>Contas demo</strong>
-            {demoAccounts.map((item) => (
-              <p className="muted" key={item}>
-                {item}
-              </p>
-            ))}
-          </div>
-        </form>
-      </div>
+      <LoginScreen
+        Input={Input}
+        ThemeGlyph={ThemeGlyph}
+        authError={authError}
+        demoAccounts={demoAccounts}
+        handleLogin={handleLogin}
+        loginForm={loginForm}
+        setLoginForm={setLoginForm}
+        theme={theme}
+        toggleTheme={toggleTheme}
+      />
     );
   }
 
@@ -493,226 +710,15 @@ export default function App() {
     >
       <AppSceneRenderer
         activeCycleModuleSummary={activeCycleModuleSummary}
-        activeDevelopmentView={activeDevelopmentView}
-        activeEvaluationCycleId={activeEvaluationCycleId}
-        activeEvaluationModule={activeEvaluationModule}
-        activeEvaluationModuleMeta={activeEvaluationModuleMeta}
-        activeEvaluationWorkspace={activeEvaluationWorkspace}
         activeSection={activeSection}
-        accessJourneySummary={accessJourneySummary}
-        answerForm={answerForm}
-        applauseAuditEntries={applauseAuditEntries}
-        applauseEntries={applauseEntries}
-        applauseForm={applauseForm}
-        applausePeopleOptions={applausePeopleOptions}
-        areaForm={areaForm}
-        areaOptions={areaOptions}
-        areas={areas}
-        assignmentDetail={assignmentDetail}
-        availableUserPeopleOptions={availableUserPeopleOptions}
-        BarMetricRow={BarMetricRow}
-        canFilterDashboardByArea={canFilterDashboardByArea}
-        canManageApplause={canManageApplause}
-        canManageCycles={canManageCycles}
-        canManageFeedbackRequests={canManageFeedbackRequests}
-        canManageIncidentQueue={canManageIncidentQueue}
-        canManagePeopleRegistry={canManagePeopleRegistry}
-        canViewAuditTrail={canViewAuditTrail}
-        canViewEvaluationInsights={canViewEvaluationInsights}
-        canViewEvaluationLibrary={canViewEvaluationLibrary}
-        canViewEvaluationOperations={canViewEvaluationOperations}
-        canViewIncidents={canViewIncidents}
-        canViewResponses={canViewResponses}
-        ColumnMetricCard={ColumnMetricCard}
-        comparisonCycleModuleSummary={comparisonCycleModuleSummary}
-        comparisonCycleOptions={comparisonCycleOptions}
-        comparisonEvaluationCycleId={comparisonEvaluationCycleId}
-        competencies={competencies}
-        customLibraryDraft={customLibraryDraft}
-        customLibraryPublishForm={customLibraryPublishForm}
-        cycleComparisonHighlights={cycleComparisonHighlights}
-        cycleForm={cycleForm}
-        cycles={cycles}
-        dashboard={dashboard}
-        dashboardAreaFilter={dashboardAreaFilter}
-        dashboardCompositionFilter={dashboardCompositionFilter}
-        dashboardCompositionOptions={dashboardCompositionOptions}
-        dashboardTimeGrouping={dashboardTimeGrouping}
-        dashboardTimeGroupingLabel={dashboardTimeGroupingLabel}
-        dashboardTimeGroupingOptions={dashboardTimeGroupingOptions}
-        DashboardDonut={DashboardDonut}
-        HeatmapMatrixCard={HeatmapMatrixCard}
-        onSectionChange={setActiveSection}
-        profileName={user?.person?.name || "Usuario"}
-        developmentAuditEntries={developmentAuditEntries}
-        developmentForm={developmentForm}
-        developmentEditablePeopleOptions={developmentEditablePeopleOptions}
-        developmentEditablePlanPeopleOptions={developmentEditablePlanPeopleOptions}
-        developmentFormPeopleOptions={developmentFormPeopleOptions}
-        developmentHighlights={developmentHighlights}
-        developmentMetrics={developmentMetrics}
-        developmentPerformanceSummary={developmentPerformanceSummary}
-        developmentNote={developmentNote}
-        developmentPlanCompetencyOptions={developmentPlanCompetencyOptions}
-        developmentPlanCycleOptions={developmentPlanCycleOptions}
-        developmentPlanForm={developmentPlanForm}
-        developmentPlanPeopleOptions={developmentPlanPeopleOptions}
-        developmentPlanProgressStatusOptions={developmentPlanProgressStatusOptions}
-        developmentPlanStatusOptions={developmentPlanStatusOptions}
-        developmentRecordTypes={developmentRecordTypes}
-        developmentViewLabels={developmentViewLabels}
-        developmentViewOptions={developmentViewOptions}
-        learningIntegrationPeopleOptions={learningIntegrationPeopleOptions}
-        learningIntegrationReviewItems={learningIntegrationReviewItems}
-        learningIntegrationSummary={learningIntegrationSummary}
-        performance360Reviews={performance360Reviews}
-        DevelopmentPlanAdminCard={DevelopmentPlanAdminCard}
-        DevelopmentRecordAdminCard={DevelopmentRecordAdminCard}
-        evaluationAuditEntries={evaluationAuditEntries}
-        evaluationCycleHistory={evaluationCycleHistory}
-        evaluationCycleOptions={evaluationCycleOptions}
-        evaluationCycleStructure={evaluationCycleStructure}
-        evaluationLibrary={evaluationLibrary}
-        evaluationModuleOptions={evaluationModuleOptions}
-        evaluationOperationNotice={evaluationOperationNotice}
-        evaluationOperationWorkModeFilter={evaluationOperationWorkModeFilter}
-        evaluationOperationWorkModeOptions={evaluationOperationWorkModeOptions}
-        evaluationOperationWorkUnitFilter={evaluationOperationWorkUnitFilter}
-        evaluationOperationWorkUnitOptions={evaluationOperationWorkUnitOptions}
-        feedbackProviderOptions={feedbackProviderOptions}
-        feedbackRequestCycleOptions={feedbackRequestCycleOptions}
-        feedbackRequestForm={feedbackRequestForm}
-        filteredAggregateResponses={filteredAggregateResponses}
-        filteredAssignments={filteredAssignments}
-        filteredDashboardEvaluationMix={filteredDashboardEvaluationMix}
-        filteredDashboardEvaluationResultsSummary={filteredDashboardEvaluationResultsSummary}
-        filteredDashboardResponseDistributions={filteredDashboardResponseDistributions}
-        filteredDevelopmentPlans={filteredDevelopmentPlans}
-        filteredDevelopmentRecords={filteredDevelopmentRecords}
-        filteredEvaluationCycleStructure={filteredEvaluationCycleStructure}
-        filteredFeedbackRequests={filteredFeedbackRequests}
-        filteredIndividualResponses={filteredIndividualResponses}
-        filteredReceivedManagerFeedback={filteredReceivedManagerFeedback}
-        formatDate={formatDate}
-        FunnelSeriesChart={FunnelSeriesChart}
-        getAssignmentStatusLabel={getAssignmentStatusLabel}
-        getCycleStatusDescription={getCycleStatusDescription}
-        getDevelopmentTrackLabel={getDevelopmentTrackLabel}
-        getFeedbackRequestStatusLabel={getFeedbackRequestStatusLabel}
-        getRelationshipDescription={getRelationshipDescription}
-        getRelationshipLabel={getRelationshipLabel}
-        getVisibilityLabel={getVisibilityLabel}
-        handleApplauseSubmit={handleApplauseSubmit}
-        handleApplauseUpdate={handleApplauseUpdate}
-        handleAreaSubmit={handleAreaSubmit}
-        handleAreaUpdate={handleAreaUpdate}
-        handleAssignmentSubmit={handleAssignmentSubmit}
-        handleCompetencyCreate={handleCompetencyCreate}
-        handleCompetencyUpdate={handleCompetencyUpdate}
-        handleCustomLibraryImport={handleCustomLibraryImport}
-        handleCustomLibraryUpdate={handleCustomLibraryUpdate}
-        handleCustomLibraryPublish={handleCustomLibraryPublish}
-        handleCustomLibraryTemplateDownload={api.downloadCustomLibraryTemplate}
-        handleForceCrossFunctionalPairing={handleForceCrossFunctionalPairing}
-        handleBlockCrossFunctionalPairing={handleBlockCrossFunctionalPairing}
-        handleCycleEnabledToggle={handleCycleEnabledToggle}
-        handleCycleModuleToggle={handleCycleModuleToggle}
-        handleCycleStatusChange={handleCycleStatusChange}
-        handleCycleSubmit={handleCycleSubmit}
-        handleDevelopmentPlanSubmit={handleDevelopmentPlanSubmit}
-        handleDevelopmentPlanProgressUpdate={handleDevelopmentPlanProgressUpdate}
-        handleDevelopmentPlanUpdate={handleDevelopmentPlanUpdate}
-        handleDevelopmentSubmit={handleDevelopmentSubmit}
-        handleDevelopmentUpdate={handleDevelopmentUpdate}
-        handleLearningIntegrationApply={handleLearningIntegrationApply}
-        handleFeedbackProviderToggle={handleFeedbackProviderToggle}
-        handleFeedbackRequestReview={handleFeedbackRequestReview}
-        handleFeedbackRequestSubmit={handleFeedbackRequestSubmit}
-        handleIncidentSubmit={handleIncidentSubmit}
-        handleIncidentUpdate={handleIncidentUpdate}
-        handleNotifyDelinquents={handleNotifyDelinquents}
-        handlePersonSubmit={handlePersonSubmit}
-        handlePersonSubmitAndCreateUser={() =>
-          handlePersonSubmit(undefined, { createUserAfter: true })
-        }
-        handlePersonUpdate={handlePersonUpdate}
-        handleReceivedManagerFeedbackSubmit={handleReceivedManagerFeedbackSubmit}
-        handleUserPersonSelect={handleUserPersonSelect}
-        handleUserSubmit={handleUserSubmit}
-        handleUserUpdate={handleUserUpdate}
-        incidents={incidents}
-        incidentAreaOptions={incidentAreaOptions}
-        incidentAuditEntries={incidentAuditEntries}
-        incidentClassificationOptions={incidentClassificationOptions}
-        incidentForm={incidentForm}
-        incidentResponsibleOptions={incidentResponsibleOptions}
-        incidentStatusOptions={incidentStatusOptions}
-        IncidentQueueCard={IncidentQueueCard}
-        Input={Input}
+        applauseProps={applauseSceneProps}
+        complianceProps={complianceSceneProps}
+        dashboardProps={dashboardSceneProps}
+        developmentProps={developmentSceneProps}
+        evaluationsProps={evaluationsSceneProps}
         loading={loading}
-        managerOptions={managerOptions}
-        MetricCard={MetricCard}
-        pendingAccessPeople={pendingAccessPeople}
-        people={people}
-        personAccessStateById={personAccessStateById}
-        personForm={personForm}
-        PersonStructureCard={PersonStructureCard}
-        prepareUserProvisioning={prepareUserProvisioning}
-        receivedManagerFeedbackDrafts={receivedManagerFeedbackDrafts}
-        registryAuditEntries={registryAuditEntries}
-        ResponseDistributionChartCard={ResponseDistributionChartCard}
-        TrendAreaChartCard={TrendAreaChartCard}
-        roleKey={user.roleKey}
-        selectedAssignment={selectedAssignment}
-        selectedDashboardCompositionMeta={selectedDashboardCompositionMeta}
-        selectedUserPerson={selectedUserPerson}
-        setActiveDevelopmentView={setActiveDevelopmentView}
-        setActiveEvaluationCycleId={setActiveEvaluationCycleId}
-        setActiveEvaluationModule={setActiveEvaluationModule}
-        setActiveEvaluationWorkspace={setActiveEvaluationWorkspace}
-        setAnswerForm={setAnswerForm}
-        setApplauseForm={setApplauseForm}
-        setAreaForm={setAreaForm}
-        setComparisonEvaluationCycleId={setComparisonEvaluationCycleId}
-        setCustomLibraryPublishForm={setCustomLibraryPublishForm}
-        setCycleForm={setCycleForm}
-        setDashboardAreaFilter={setDashboardAreaFilter}
-        setDashboardCompositionFilter={setDashboardCompositionFilter}
-        setDashboardTimeGrouping={setDashboardTimeGrouping}
-        setDevelopmentForm={setDevelopmentForm}
-        setLearningIntegrationDraft={setLearningIntegrationDraft}
-        setDevelopmentNote={setDevelopmentNote}
-        setDevelopmentPlanForm={setDevelopmentPlanForm}
-        setEvaluationOperationWorkModeFilter={setEvaluationOperationWorkModeFilter}
-        setEvaluationOperationWorkUnitFilter={setEvaluationOperationWorkUnitFilter}
-        setFeedbackRequestForm={setFeedbackRequestForm}
-        setIncidentForm={setIncidentForm}
-        setPersonForm={setPersonForm}
-        setReceivedManagerFeedbackDraft={setReceivedManagerFeedbackDraft}
-        Select={Select}
-        setTransversalOverrideForm={setTransversalOverrideForm}
-        setSelectedAssignment={setSelectedAssignment}
-        setShowEvaluationLibrary={setShowEvaluationLibrary}
-        setStrengthsNote={setStrengthsNote}
-        setUserForm={setUserForm}
-        showEvaluationLibrary={showEvaluationLibrary}
-        strengthsNote={strengthsNote}
-        summary={summary}
-        suggestedUserEmail={suggestedUserEmail}
-        suggestedUserRole={suggestedUserRole}
-        suggestedUserRoleReason={suggestedUserRoleReason}
-        Textarea={Textarea}
-        transversalOverrideForm={transversalOverrideForm}
-        transversalConfigForm={transversalConfigForm}
-        setTransversalConfigForm={setTransversalConfigForm}
-        handleTransversalConfigSubmit={handleTransversalConfigSubmit}
-        handleTransversalUnitOverrideRemove={handleTransversalUnitOverrideRemove}
-        UserAdminCard={UserAdminCard}
-        userAuditEntries={userAuditEntries}
-        userForm={userForm}
-        userRoleOptions={userRoleOptions}
-        userStatusOptions={userStatusOptions}
-        users={users}
+        peopleProps={peopleSceneProps}
+        usersProps={usersSceneProps}
       />
     </AppShell>
   );

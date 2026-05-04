@@ -28,6 +28,18 @@ import {
   resolveCycleConfigUpdate
 } from "./storeEvaluationsDomain.js";
 import {
+  createMemoryEvaluationReadStore,
+  createMysqlEvaluationReadStore
+} from "./storeEvaluationReadOperations.js";
+import {
+  createMemoryEvaluationSubmissionStore,
+  createMysqlEvaluationSubmissionStore
+} from "./storeEvaluationSubmissionOperations.js";
+import {
+  createMemoryEvaluationWorkflowStore,
+  createMysqlEvaluationWorkflowStore
+} from "./storeEvaluationWorkflowOperations.js";
+import {
   assertCanCreateApplause,
   assertCanManageApplauseEntry,
   assertCanManageDevelopmentSubject,
@@ -35,6 +47,18 @@ import {
   buildDevelopmentPlanAuditDetail,
   buildDevelopmentRecordAuditDetail
 } from "./storeGrowthDomain.js";
+import {
+  createMemoryApplauseStore,
+  createMysqlApplauseStore
+} from "./storeApplauseOperations.js";
+import {
+  createMemoryDevelopmentRecordStore,
+  createMysqlDevelopmentRecordStore
+} from "./storeDevelopmentRecordOperations.js";
+import {
+  createMemoryLearningIntegrationStore,
+  createMysqlLearningIntegrationStore
+} from "./storeLearningIntegrationOperations.js";
 import {
   assertNoDuplicatePersonProfile,
   assertNoManagerCycle,
@@ -53,6 +77,10 @@ import {
   prepareCompetencyMutation,
   preparePersonMutation
 } from "./storeRegistryDomain.js";
+import {
+  createMemoryRegistryStore,
+  createMysqlRegistryStore
+} from "./storeRegistryOperations.js";
 import {
   assertPersonHasNoLinkedUser,
   assertUserPersonExists,
@@ -4562,270 +4590,35 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
       });
       return presentCompetency(competency);
     },
-    async createArea(payload, actorUser) {
-      if (!canManagePeople(actorUser)) {
-        throw new Error("Perfil sem permissao para cadastrar areas.");
-      }
-
-      const areaMutation = prepareAreaMutation({
-        areas: db.areas,
-        payload,
-        people: db.people,
-        assertValidAreaManagerReference
-      });
-
-      const area = {
-        id: createId("area"),
-        name: areaMutation.normalizedName,
-        managerPersonId: areaMutation.managerPersonId || null
-      };
-      db.areas.unshift(area);
-      const managerName =
-        db.people.find((person) => person.id === area.managerPersonId)?.name || "";
-      pushAuditLog(db.auditLogs, {
-        category: AUDIT_CATEGORIES.registry,
-        action: "created",
-        entityType: "area",
-        entityId: area.id,
-        entityLabel: area.name,
-        actorUser,
-        summary: `Area criada: ${area.name}`,
-        detail: buildAreaAuditDetail({
-          name: area.name,
-          managerName
-        })
-      });
-      return enrichArea(db.people, area);
-    },
-    async updateArea(areaId, payload, actorUser) {
-      if (!canManagePeople(actorUser)) {
-        throw new Error("Perfil sem permissao para atualizar areas.");
-      }
-
-      const area = db.areas.find((item) => item.id === areaId);
-      if (!area) {
-        throw new Error("Area nao encontrada.");
-      }
-
-      const areaMutation = prepareAreaMutation({
-        areaId,
-        areas: db.areas,
-        payload,
-        people: db.people,
-        assertValidAreaManagerReference
-      });
-
-      const previousName = area.name;
-      area.name = areaMutation.normalizedName;
-      if (areaMutation.managerPersonId !== undefined) {
-        area.managerPersonId = areaMutation.managerPersonId;
-      }
-
-      if (previousName !== area.name) {
-        db.people.forEach((person) => {
-          if (person.area === previousName) {
-            person.area = area.name;
-          }
-        });
-      }
-
-      const managerName =
-        db.people.find((person) => person.id === area.managerPersonId)?.name || "";
-      pushAuditLog(db.auditLogs, {
-        category: AUDIT_CATEGORIES.registry,
-        action: "updated",
-        entityType: "area",
-        entityId: area.id,
-        entityLabel: area.name,
-        actorUser,
-        summary: `Area atualizada: ${area.name}`,
-        detail: buildAreaAuditDetail({
-          name: area.name,
-          managerName
-        })
-      });
-
-      return enrichArea(db.people, area);
-    },
-    async getPeople(actorUser) {
-      return filterPeopleForUser(db.people, actorUser, db.areas);
-    },
-    async createPerson(payload, actorUser) {
-      if (!canManagePeople(actorUser)) {
-        throw new Error("Perfil sem permissao para cadastrar pessoas.");
-      }
-
-      const { personPayload, shouldLeadArea } = preparePersonMutation({
-        areas: db.areas,
-        payload,
-        people: db.people,
-        assertNoDuplicatePersonProfile,
-        assertNoManagerCycle,
-        assertValidAreaReference,
-        assertValidManagerReference
-      });
-
-      const person = {
-        id: createId("person"),
-        ...personPayload,
-        satisfactionScore: null
-      };
-      db.people.unshift(person);
-      db.areas = assignAreaLeadershipSnapshot(
-        db.areas,
-        person.id,
-        person.area,
-        shouldLeadArea
-      );
-      const managerName =
-        db.people.find((item) => item.id === person.managerPersonId)?.name || "";
-      pushAuditLog(db.auditLogs, {
-        category: AUDIT_CATEGORIES.registry,
-        action: "created",
-        entityType: "person",
-        entityId: person.id,
-        entityLabel: person.name,
-        actorUser,
-        summary: `Pessoa criada: ${person.name}`,
-        detail: buildPersonAuditDetail({
-          roleTitle: person.roleTitle,
-          area: person.area,
-          workUnit: person.workUnit,
-          workMode: person.workMode,
-          managerName,
-          employmentType: person.employmentType,
-          isAreaManager: shouldLeadArea
-        })
-      });
-      return enrichPerson(db.people, person, db.areas.map((area) => enrichArea(db.people, area)));
-    },
-    async updatePerson(personId, payload, actorUser) {
-      if (!canManagePeople(actorUser)) {
-        throw new Error("Perfil sem permissao para atualizar pessoas.");
-      }
-
-      const person = db.people.find((item) => item.id === personId);
-      if (!person) {
-        throw new Error("Pessoa nao encontrada.");
-      }
-
-      const { personPayload, shouldLeadArea } = preparePersonMutation({
-        areaId: personId,
-        areas: db.areas,
-        payload: {
-          ...payload
-        },
-        people: db.people,
-        assertNoDuplicatePersonProfile,
-        assertNoManagerCycle,
-        assertValidAreaReference,
-        assertValidManagerReference
-      });
-
-      Object.assign(person, personPayload);
-      db.areas = assignAreaLeadershipSnapshot(
-        db.areas,
-        person.id,
-        person.area,
-        shouldLeadArea
-      );
-      const managerName =
-        db.people.find((item) => item.id === person.managerPersonId)?.name || "";
-      pushAuditLog(db.auditLogs, {
-        category: AUDIT_CATEGORIES.registry,
-        action: "updated",
-        entityType: "person",
-        entityId: person.id,
-        entityLabel: person.name,
-        actorUser,
-        summary: `Pessoa atualizada: ${person.name}`,
-        detail: buildPersonAuditDetail({
-          roleTitle: person.roleTitle,
-          area: person.area,
-          workUnit: person.workUnit,
-          workMode: person.workMode,
-          managerName,
-          employmentType: person.employmentType,
-          isAreaManager: shouldLeadArea
-        })
-      });
-
-      return enrichPerson(db.people, person, db.areas.map((area) => enrichArea(db.people, area)));
-    },
-    async getUsers(actorUser) {
-      if (!canManageUsers(actorUser)) {
-        return [];
-      }
-
-      return db.users.map((user) => toAdminUserRow(db, user));
-    },
+    ...createMemoryRegistryStore({
+      db,
+      createId,
+      canManagePeople,
+      canManageUsers,
+      assertValidAreaManagerReference,
+      prepareAreaMutation,
+      enrichArea,
+      pushAuditLog,
+      AUDIT_CATEGORIES,
+      buildAreaAuditDetail,
+      preparePersonMutation,
+      assertNoDuplicatePersonProfile,
+      assertNoManagerCycle,
+      assertValidAreaReference,
+      assertValidManagerReference,
+      assignAreaLeadershipSnapshot,
+      buildPersonAuditDetail,
+      enrichPerson,
+      filterPeopleForUser,
+      assertUserPersonExists,
+      assertPersonHasNoLinkedUser,
+      prepareUserWrite,
+      hashPassword,
+      buildUserAuditDetail,
+      toAdminUserRow
+    }),
     async getAuditTrail(actorUser, options = {}) {
       return filterAuditLogsForUser(db.auditLogs, actorUser, options);
-    },
-    async createUser(payload, actorUser) {
-      if (!canManageUsers(actorUser)) {
-        throw new Error("Perfil sem permissao para cadastrar usuarios.");
-      }
-
-      const person = db.people.find((item) => item.id === payload.personId);
-      assertUserPersonExists(person);
-      assertPersonHasNoLinkedUser(db.users.some((item) => item.personId === payload.personId));
-
-      const userData = prepareUserWrite(db.users, payload, { requirePassword: true });
-
-      const user = {
-        id: createId("user"),
-        personId: payload.personId,
-        email: userData.email,
-        passwordHash: hashPassword(userData.password),
-        roleKey: userData.roleKey,
-        status: userData.status
-      };
-      db.users.unshift(user);
-      pushAuditLog(db.auditLogs, {
-        category: AUDIT_CATEGORIES.user,
-        action: "created",
-        entityType: "user",
-        entityId: user.id,
-        entityLabel: person.name,
-        actorUser,
-        summary: `Usuario criado para ${person.name}`,
-        detail: buildUserAuditDetail(userData)
-      });
-      return toAdminUserRow(db, user);
-    },
-    async updateUser(userId, payload, actorUser) {
-      if (!canManageUsers(actorUser)) {
-        throw new Error("Perfil sem permissao para atualizar usuarios.");
-      }
-
-      const user = db.users.find((item) => item.id === userId);
-      if (!user) {
-        throw new Error("Usuario nao encontrado.");
-      }
-
-      const userData = prepareUserWrite(db.users, payload, { userId });
-
-      user.email = userData.email;
-      user.roleKey = userData.roleKey;
-      user.status = userData.status;
-      if (userData.password) {
-        user.passwordHash = hashPassword(userData.password);
-      }
-
-      const person = db.people.find((item) => item.id === user.personId);
-      pushAuditLog(db.auditLogs, {
-        category: AUDIT_CATEGORIES.user,
-        action: "updated",
-        entityType: "user",
-        entityId: user.id,
-        entityLabel: person?.name || user.email,
-        actorUser,
-        summary: `Acesso atualizado para ${person?.name || user.email}`,
-        detail: buildUserAuditDetail(userData)
-      });
-
-      return toAdminUserRow(db, user);
     },
     async getSummary(actorUser) {
       return buildSummary(db, actorUser);
@@ -4923,101 +4716,29 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
 
       return enrichIncident(incident, db.people, db.areas);
     },
-    async getEvaluationTemplate() {
-      return buildTemplate(evaluationLibrary.templates.collaboration);
-    },
-    async getEvaluationLibrary() {
-      return buildEvaluationLibraryPayload(customLibraryState.published);
-    },
-    async importCustomLibraryDraft(payload) {
-      const draft = {
-        id: createId("library_draft"),
-        fileName: payload.fileName,
-        createdAt: new Date().toISOString(),
-        createdByUserId: payload.createdByUserId,
-        errors: payload.errors,
-        templates: payload.templates,
-        summary: payload.summary
-      };
-      customLibraryState.drafts.unshift(draft);
-      await saveCustomLibraryState(customLibraryState);
-      return draft;
-    },
-      async publishCustomLibraryDraft(payload) {
-        const draft = customLibraryState.drafts.find((item) => item.id === payload.draftId);
-      if (!draft) {
-        throw new Error("Rascunho da biblioteca nao encontrado.");
-      }
-      if (draft.errors.length) {
-        throw new Error("Nao e possivel publicar uma biblioteca com erros.");
-      }
-
-      const published = {
-        id: createId("library"),
-        name: payload.name,
-        description: payload.description || "",
-        sourceFileName: draft.fileName,
-        createdAt: new Date().toISOString(),
-        createdByUserId: payload.createdByUserId,
-        templateCount: draft.templates.length,
-        questionCount: draft.summary.questions,
-        templates: draft.templates
-      };
-      customLibraryState.published.unshift(published);
-      customLibraryState.drafts = customLibraryState.drafts.filter(
-        (item) => item.id !== payload.draftId
-      );
-        await saveCustomLibraryState(customLibraryState);
-        return published;
-      },
-      async updateCustomLibrary(libraryId, payload) {
-        const libraryIndex = customLibraryState.published.findIndex((item) => item.id === libraryId);
-        if (libraryIndex < 0) {
-          throw new Error("Biblioteca customizada nao encontrada.");
-        }
-
-        const updatedLibrary = preparePublishedCustomLibraryUpdate(
-          customLibraryState.published[libraryIndex],
-          payload
-        );
-
-        customLibraryState.published[libraryIndex] = updatedLibrary;
-        await saveCustomLibraryState(customLibraryState);
-        return updatedLibrary;
-      },
-      async getEvaluationTemplateForCycleRelationship(cycleId, relationshipType) {
-      const cycle = db.cycles.find((item) => item.id === cycleId);
-      return buildTemplate(
-        getTemplateDefinitionForCycle({
-          cycle: presentCycle(cycle || {}),
-          relationshipType,
-          customLibraries: customLibraryState.published
-        })
-      );
-    },
-    async getEvaluationCycles(actorUser = null) {
-      const cycles = db.cycles.map((cycle) => {
-        const cycleStructure = presentCycleParticipantStructure(
-          db,
-          cycle.id,
-          customLibraryState.published
-        );
-
-        return {
-          ...presentCycle(cycle),
-          supportsConfig: true,
-          participantCount: cycleStructure.cycle.participantCount,
-          raterCount: cycleStructure.cycle.raterCount,
-          reportSnapshotCount: db.cycleReports.filter((item) => item.cycleId === cycle.id).length
-        };
-      });
-
-      if (actorUser && !isOrgWideUser(actorUser)) {
-        return cycles.filter((cycle) => cycle.isEnabled);
-      }
-
-      return cycles;
-    },
+    ...createMemoryEvaluationReadStore({
+      db,
+      createId,
+      customLibraryState,
+      anonymousResponseState,
+      saveCustomLibraryState,
+      buildTemplate,
+      evaluationLibrary,
+      buildEvaluationLibraryPayload,
+      preparePublishedCustomLibraryUpdate,
+      getTemplateDefinitionForCycle,
+      presentCycle,
+      presentCycleParticipantStructure,
+      isOrgWideUser,
+      isCycleRelationshipEnabled,
+      enrichAssignment,
+      buildEvaluationResponseBundle,
+      enrichSubmission,
+      buildResponsesBundle,
+      presentCycleReportSnapshot,
+      buildPerformance360Reviews,
+      filterReceivedManagerFeedback
+    }),
     async createEvaluationCycle(payload, actorUser) {
       const selectedLibrary =
         payload.libraryId && payload.libraryId !== DEFAULT_EVALUATION_LIBRARY_ID
@@ -5252,692 +4973,97 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
       });
       return presentCycleParticipantStructure(db, cycleId, customLibraryState.published);
     },
-    async notifyCycleDelinquents(cycleId, actorUser) {
-      const cycle = db.cycles.find((item) => item.id === cycleId);
-      if (!cycle) {
-        throw new Error("Ciclo de avaliacao nao encontrado.");
-      }
-
-      const delinquentAssignments = db.assignments.filter(
-        (assignment) =>
-          assignment.cycleId === cycleId && isAssignmentDelinquent(assignment, cycle.status)
-      );
-
-      if (!delinquentAssignments.length) {
-        return {
-          cycleId,
-          notifiedAssignments: 0,
-          delinquentAssignments: []
-        };
-      }
-
-      const reminderSentAt = new Date().toISOString();
-      delinquentAssignments.forEach((assignment) => {
-        assignment.reminderCount = Number(assignment.reminderCount || 0) + 1;
-        assignment.lastReminderSentAt = reminderSentAt;
-      });
-
-      pushAuditLog(db.auditLogs, {
-        category: AUDIT_CATEGORIES.cycle,
-        action: "delinquent_reminder_sent",
-        entityType: "evaluation_cycle",
-        entityId: cycle.id,
-        entityLabel: cycle.title,
-        actorUser,
-        summary: `Lembrete enviado para inadimplentes: ${cycle.title}`,
-        detail: buildCycleReminderAuditDetail(delinquentAssignments.length)
-      });
-
-      return {
-        cycleId,
-        notifiedAssignments: delinquentAssignments.length,
-        delinquentAssignments: delinquentAssignments.map((assignment) =>
-          presentDelinquentAssignment(assignment, db, cycle.status)
-        )
-      };
-    },
-    async updateEvaluationCycleStatus(cycleId, nextStatus, actorUser) {
-      const cycle = db.cycles.find((item) => item.id === cycleId);
-      if (!cycle) {
-        throw new Error("Ciclo de avaliacao nao encontrado.");
-      }
-
-      const previousStatus = cycle.status;
-      assertCycleStatusTransition(cycle.status, nextStatus);
-      cycle.status = nextStatus;
-      if (nextStatus === CYCLE_STATUS.processed) {
-        const responses = [
-          ...db.submissions
-            .filter((submission) => submission.cycleId === cycleId)
-            .map((item) => enrichSubmission(db, item, customLibraryState.published)),
-          ...anonymousResponseState.responses.filter((response) => response.cycleId === cycleId)
-        ];
-        const snapshots = buildCycleReportSnapshots(cycleId, responses);
-        db.cycleReports = db.cycleReports.filter((item) => item.cycleId !== cycleId);
-        db.cycleReports.unshift(...snapshots);
-      }
-      pushAuditLog(db.auditLogs, {
-        category: AUDIT_CATEGORIES.cycle,
-        action: nextStatus === CYCLE_STATUS.processed ? "processed" : "status_changed",
-        entityType: "cycle",
-        entityId: cycle.id,
-        entityLabel: cycle.title,
-        actorUser,
-        summary: `Status do ciclo atualizado: ${cycle.title}`,
-        detail: buildCycleStatusAuditDetail(previousStatus, nextStatus)
-      });
-      return { ...presentCycle(cycle), supportsConfig: true };
-    },
-    async updateEvaluationCycleConfig(cycleId, payload, actorUser) {
-      if (!["admin", "hr"].includes(actorUser?.roleKey || "")) {
-        throw new Error("Perfil sem permissao para configurar ciclos.");
-      }
-
-      const cycle = db.cycles.find((item) => item.id === cycleId);
-      if (!cycle) {
-        throw new Error("Ciclo de avaliacao nao encontrado.");
-      }
-
-      const currentModuleAvailability = normalizeCycleModuleAvailability(cycle.moduleAvailability);
-      const cycleConfigUpdate = resolveCycleConfigUpdate(
-        currentModuleAvailability,
-        normalizeTransversalConfig(cycle.transversalConfig),
-        payload
-      );
-
-      if (cycleConfigUpdate.nextIsEnabled !== undefined) {
-        cycle.isEnabled = cycleConfigUpdate.nextIsEnabled;
-      }
-
-      if (cycleConfigUpdate.nextModuleAvailability) {
-        cycle.moduleAvailability = cycleConfigUpdate.nextModuleAvailability;
-      }
-      if (cycleConfigUpdate.nextTransversalConfig) {
-        cycle.transversalConfig = cycleConfigUpdate.nextTransversalConfig;
-      }
-
-      pushAuditLog(db.auditLogs, {
-        category: AUDIT_CATEGORIES.cycle,
-        action: "config_changed",
-        entityType: "cycle",
-        entityId: cycle.id,
-        entityLabel: cycle.title,
-        actorUser,
-        summary: `Configuracao do ciclo atualizada: ${cycle.title}`,
-        detail: buildCycleConfigAuditDetail(cycle.isEnabled)
-      });
-
-      return presentCycle(cycle);
-    },
-    async getEvaluationAssignmentsForUser(userId) {
-      return db.assignments
-        .filter((item) => item.reviewerUserId === userId)
-        .filter((item) =>
-          isCycleRelationshipEnabled(
-            db.cycles.find((cycle) => cycle.id === item.cycleId),
-            item.relationshipType
-          )
-        )
-        .map((item) => enrichAssignment(db, item, customLibraryState.published));
-    },
-    async getEvaluationAssignmentById(assignmentId, userId) {
-      const assignment = db.assignments.find(
-        (item) => item.id === assignmentId && item.reviewerUserId === userId
-      );
-      if (!assignment) {
-        return null;
-      }
-      if (
-        !isCycleRelationshipEnabled(
-          db.cycles.find((cycle) => cycle.id === assignment.cycleId),
-          assignment.relationshipType
-        )
-      ) {
-        return null;
-      }
-      return enrichAssignment(db, assignment, customLibraryState.published);
-    },
-    async getEvaluationResponses(actorUser) {
-      return buildEvaluationResponseBundle({
-        submissions: db.submissions,
-        anonymousResponses: anonymousResponseState.responses,
-        buildSubmission: (item) => enrichSubmission(db, item, customLibraryState.published),
-        actorUser,
-        buildResponsesBundle,
-        cycles: db.cycles,
-        cycleReports: db.cycleReports.map((item) => presentCycleReportSnapshot(item))
-      });
-    },
-    async getPerformance360Reviews(actorUser) {
-      return buildPerformance360Reviews({
-        people: db.people,
-        cycles: db.cycles.map((cycle) => presentCycle(cycle)),
-        responses: db.submissions.map((item) =>
-          enrichSubmission(db, item, customLibraryState.published)
-        ),
-        actorUser
-      });
-    },
-    async getReceivedManagerFeedback(actorUser) {
-      return filterReceivedManagerFeedback({
-        submissions: db.submissions,
-        actorUser,
-        buildSubmission: (item) => enrichSubmission(db, item, customLibraryState.published)
-      });
-    },
-    async getFeedbackRequests(actorUser) {
-      return filterFeedbackRequestsForUser(db, actorUser);
-    },
-    async createFeedbackRequest(payload, actorUser) {
-      const providerPersonIds = assertCanCreateFeedbackRequest(db, actorUser, payload);
-
-      const request = {
-        ...prepareFeedbackRequest({
-          payload,
-          actorUser,
-          createId,
-          requestedAt: new Date().toISOString()
-        }),
-        decidedAt: null,
-        decidedByUserId: null
-      };
-      db.feedbackRequests.unshift(request);
-
-      const items = buildFeedbackRequestItems({
-        providerPersonIds,
-        requestId: request.id,
-        createId
-      });
-      db.feedbackRequestItems.unshift(...items);
-
-      pushAuditLog(db.auditLogs, {
-        category: AUDIT_CATEGORIES.feedbackRequest,
-        action: "created",
-        entityType: "feedback_request",
-        entityId: request.id,
-        entityLabel: actorUser.person?.name || actorUser.email,
-        actorUser,
-        summary: `Solicitacao de feedback direto registrada`,
-        detail: buildFeedbackRequestCreateAuditDetail(providerPersonIds, request.cycleId)
-      });
-
-      return presentFeedbackRequest(db, request);
-    },
-    async reviewFeedbackRequest(requestId, payload, actorUser) {
-      if (!["admin", "hr"].includes(actorUser.roleKey)) {
-        throw new Error("Perfil sem permissao para aprovar solicitacoes de feedback.");
-      }
-
-      assertValidFeedbackRequestStatus(payload.status);
-      const request = db.feedbackRequests.find((item) => item.id === requestId);
-      if (!request) {
-        throw new Error("Solicitacao de feedback nao encontrada.");
-      }
-      if (request.status !== FEEDBACK_REQUEST_STATUS.pending) {
-        throw new Error("A solicitacao ja foi tratada.");
-      }
-
-      request.status = payload.status;
-      request.decidedAt = new Date().toISOString();
-      request.decidedByUserId = actorUser.id;
-
-      if (payload.status === FEEDBACK_REQUEST_STATUS.approved) {
-        const cycle = db.cycles.find((item) => item.id === request.cycleId);
-        if (!cycle) {
-          throw new Error("Ciclo de avaliacao nao encontrado.");
-        }
-        if (!isCycleRelationshipEnabled(cycle, "peer")) {
-          throw new Error("Feedback direto esta desativado neste ciclo.");
-        }
-        const items = getFeedbackRequestItems(db, request.id);
-
-        for (const item of items) {
-          const reviewerUser = db.users.find(
-            (user) => user.personId === item.providerPersonId && user.status === "active"
-          );
-          if (!reviewerUser) {
-            continue;
-          }
-
-          const assignment = {
-            id: createId("assignment"),
-            cycleId: request.cycleId,
-            reviewerUserId: reviewerUser.id,
-            revieweePersonId: request.revieweePersonId,
-            relationshipType: "peer",
-            projectContext: "Feedback direto solicitado",
-            collaborationContext: request.contextNote,
-            status: "pending",
-            dueDate: cycle.dueDate || ""
-          };
-          pushAssignment(db.assignments, assignment);
-          const createdAssignment = db.assignments.find(
-            (entry) =>
-              entry.cycleId === assignment.cycleId &&
-              entry.reviewerUserId === assignment.reviewerUserId &&
-              entry.revieweePersonId === assignment.revieweePersonId &&
-              entry.relationshipType === assignment.relationshipType
-          );
-          item.assignmentId = createdAssignment?.id || null;
-        }
-      }
-
-      pushAuditLog(db.auditLogs, {
-        category: AUDIT_CATEGORIES.feedbackRequest,
-        action: payload.status === FEEDBACK_REQUEST_STATUS.approved ? "approved" : "rejected",
-        entityType: "feedback_request",
-        entityId: request.id,
-        entityLabel:
-          db.people.find((item) => item.id === request.revieweePersonId)?.name || request.id,
-        actorUser,
-        summary:
-          payload.status === FEEDBACK_REQUEST_STATUS.approved
-            ? "Solicitacao de feedback aprovada"
-            : "Solicitacao de feedback rejeitada",
-        detail: buildFeedbackRequestReviewAuditDetail(request)
-      });
-
-      return presentFeedbackRequest(db, request);
-    },
-    async submitEvaluationAssignment(payload) {
-      const assignment = db.assignments.find((item) => item.id === payload.assignmentId);
-      if (!assignment) {
-        throw new Error("Assignment de avaliacao nao encontrado.");
-      }
-      if (assignment.reviewerUserId !== payload.reviewerUserId) {
-        throw new Error("Usuario nao autorizado a responder esta avaliacao.");
-      }
-      if (assignment.status === "submitted") {
-        throw new Error("Esta avaliacao ja foi enviada.");
-      }
-
-      const cycle = db.cycles.find((item) => item.id === assignment.cycleId);
-      if (!cycle) {
-        throw new Error("Ciclo de avaliacao nao encontrado.");
-      }
-      if (!isReleasedCycle(cycle.status)) {
-        throw new Error("As avaliacoes deste ciclo ainda nao foram liberadas pelo RH.");
-      }
-      if (!isCycleRelationshipEnabled(cycle, assignment.relationshipType)) {
-        throw new Error("Este questionario nao esta ativo neste ciclo.");
-      }
-
-      const templateDefinition = getTemplateDefinitionForCycle({
-        cycle,
-        relationshipType: assignment.relationshipType,
-        customLibraries: customLibraryState.published
-      });
-      validateEvaluationAnswers(payload.answers, templateDefinition);
-
-      if (isAnonymousRelationship(assignment.relationshipType)) {
-        const anonymousSubmission = createAnonymousSubmissionPayload(
-          assignment,
-          payload,
-          templateDefinition
-        );
-        anonymousResponseState.responses.unshift(anonymousSubmission);
-        await saveAnonymousResponseState(anonymousResponseState);
-        if (assignment.relationshipType === "company") {
-          updatePersonSatisfactionScoreInMemory(
-            db,
-            assignment.revieweePersonId,
-            anonymousSubmission.overallScore
-          );
-        }
-        assignment.status = "submitted";
-        hydrateCycleStructure(db, assignment.cycleId);
-        return anonymousSubmission;
-      }
-
-      const submission = prepareEvaluationSubmission({
-        assignment,
-        payload,
-        createId,
-        getAnsweredScaleScores,
-        average
-      });
-
-      const answerRows = buildEvaluationAnswerRows({
-        answers: payload.answers,
-        templateDefinition,
-        submissionId: submission.id,
-        createId
-      });
-
-      db.submissions.unshift(submission);
-      db.answers.unshift(...answerRows);
-      assignment.status = "submitted";
-      hydrateCycleStructure(db, assignment.cycleId);
-
-      return enrichSubmission(db, submission);
-    },
-    async acknowledgeReceivedManagerFeedback(submissionId, payload, actorUser) {
-      const submission = db.submissions.find((item) => item.id === submissionId);
-      if (!submission) {
-        throw new Error("Feedback do lider nao encontrado.");
-      }
-
-      const assignment = db.assignments.find((item) => item.id === submission.assignmentId);
-      if (assignment?.relationshipType !== "manager") {
-        throw new Error("Somente feedback do lider permite concordancia do colaborador.");
-      }
-
-      if (submission.revieweePersonId !== actorUser?.person?.id) {
-        throw new Error("Usuario nao autorizado a responder este feedback.");
-      }
-
-      const acknowledgement = validateFeedbackAcknowledgementPayload(payload);
-      submission.revieweeAcknowledgementStatus = acknowledgement.status;
-      submission.revieweeAcknowledgementNote = acknowledgement.note;
-      submission.revieweeAcknowledgedAt = new Date().toISOString();
-
-      pushAuditLog(db.auditLogs, {
-        category: AUDIT_CATEGORIES.cycle,
-        action:
-          acknowledgement.status === FEEDBACK_ACKNOWLEDGEMENT_STATUS.agreed
-            ? "manager_feedback_agreed"
-            : "manager_feedback_disagreed",
-        entityType: "evaluation_submission",
-        entityId: submission.id,
-        entityLabel:
-          db.people.find((item) => item.id === submission.revieweePersonId)?.name || submission.id,
-        actorUser,
-        summary:
-          acknowledgement.status === FEEDBACK_ACKNOWLEDGEMENT_STATUS.agreed
-            ? "Colaborador concordou com o feedback do lider"
-            : "Colaborador discordou do feedback do lider",
-        detail: acknowledgement.note || "Sem observacoes adicionais."
-      });
-
-      return enrichSubmission(db, submission, customLibraryState.published);
-    },
-    async getApplauseEntries(actorUser) {
-      const entries = db.applauseEntries.map((item) => {
-        const sender = db.people.find((person) => person.id === item.senderPersonId);
-        const receiver = db.people.find((person) => person.id === item.receiverPersonId);
-        return {
-          ...item,
-          senderName: sender?.name || "",
-          receiverName: receiver?.name || ""
-        };
-      });
-
-      if (isOrgWideUser(actorUser)) {
-        return entries;
-      }
-
-      if (isManagerUser(actorUser)) {
-        const visiblePersonIds = new Set([
-          actorUser.person.id,
-          ...getTeamPeople(db.people, actorUser.person.id).map((item) => item.id)
-        ]);
-        return entries.filter(
-          (item) =>
-            visiblePersonIds.has(item.senderPersonId) ||
-            visiblePersonIds.has(item.receiverPersonId)
-        );
-      }
-
-      return entries.filter(
-        (item) =>
-          item.senderPersonId === actorUser.person.id ||
-          item.receiverPersonId === actorUser.person.id
-      );
-    },
-    async createApplauseEntry(payload) {
-      assertCanCreateApplause(db.applauseEntries, payload);
-
-      const applause = {
-        id: createId("applause"),
-        createdAt: new Date().toISOString(),
-        status: "Validado",
-        ...payload
-      };
-      db.applauseEntries.unshift(applause);
-      const sender = db.people.find((person) => person.id === applause.senderPersonId);
-      const receiver = db.people.find((person) => person.id === applause.receiverPersonId);
-      pushAuditLog(db.auditLogs, {
-        category: AUDIT_CATEGORIES.applause,
-        action: "created",
-        entityType: "applause_entry",
-        entityId: applause.id,
-        entityLabel: applause.category,
-        actorUser: db.users.find((user) => user.personId === applause.senderPersonId) || null,
-        summary: `Aplause registrado para ${receiver?.name || "colaborador"}`,
-        detail: buildApplauseAuditDetail({
-          category: applause.category,
-          senderName: sender?.name,
-          receiverName: receiver?.name
-        })
-      });
-      return {
-        ...applause,
-        senderName: sender?.name || "",
-        receiverName: receiver?.name || ""
-      };
-    },
-    async updateApplauseEntry(applauseId, payload, actorUser) {
-      const applause = db.applauseEntries.find((item) => item.id === applauseId);
-      if (!applause) {
-        throw new Error("Registro de Aplause nao encontrado.");
-      }
-
-      assertCanManageApplauseEntry(actorUser, db.people, applause, {
-        isOrgWideUser,
-        getTeamPeople
-      });
-      assertValidApplauseStatus(payload.status);
-
-      applause.receiverPersonId = payload.receiverPersonId;
-      applause.category = payload.category;
-      applause.impact = payload.impact;
-      applause.contextNote = payload.contextNote;
-      applause.status = payload.status;
-
-      const sender = db.people.find((person) => person.id === applause.senderPersonId);
-      const receiver = db.people.find((person) => person.id === applause.receiverPersonId);
-      pushAuditLog(db.auditLogs, {
-        category: AUDIT_CATEGORIES.applause,
-        action: payload.status === "Arquivado" ? "archived" : "updated",
-        entityType: "applause_entry",
-        entityId: applause.id,
-        entityLabel: applause.category,
-        actorUser,
-        summary:
-          payload.status === "Arquivado"
-            ? `Aplause arquivado para ${receiver?.name || "colaborador"}`
-            : `Aplause atualizado para ${receiver?.name || "colaborador"}`,
-        detail: buildApplauseAuditDetail({
-          category: applause.category,
-          senderName: sender?.name,
-          receiverName: receiver?.name
-        })
-      });
-
-      return {
-        ...applause,
-        senderName: sender?.name || "",
-        receiverName: receiver?.name || ""
-      };
-    },
-    async getDevelopmentRecords(actorUser) {
-      const actorPersonId = actorUser.person?.id || actorUser.personId;
-      const records = db.developmentRecords.map((item) => {
-        const person = db.people.find((person) => person.id === item.personId);
-        return {
-          ...item,
-          status: item.status || "active",
-          archivedAt: item.archivedAt || null,
-          personName: person?.name || ""
-        };
-      });
-
-      if (isOrgWideUser(actorUser)) {
-        return records;
-      }
-
-      if (isManagerUser(actorUser)) {
-        const visiblePersonIds = new Set([
-          actorPersonId,
-          ...getTeamPeople(db.people, actorPersonId).map((item) => item.id)
-        ]);
-        return records.filter((item) => visiblePersonIds.has(item.personId));
-      }
-
-      return records.filter((item) => item.personId === actorPersonId);
-    },
-    async createDevelopmentRecord(payload, actorUser) {
-      assertCanManageDevelopmentSubject(actorUser, db.people, payload.personId, {
-        isOrgWideUser,
-        isManagerUser,
-        getTeamPeople
-      });
-
-      const record = {
-        id: createId("development"),
-        ...payload,
-        status: "active",
-        archivedAt: null
-      };
-      db.developmentRecords.unshift(record);
-      const person = db.people.find((item) => item.id === record.personId);
-      pushAuditLog(db.auditLogs, {
-        category: AUDIT_CATEGORIES.development,
-        action: "created",
-        entityType: "development_record",
-        entityId: record.id,
-        entityLabel: record.title,
-        actorUser,
-        summary: `Registro de desenvolvimento criado para ${person?.name || "pessoa"}`,
-        detail: buildDevelopmentRecordAuditDetail(record)
-      });
-      return record;
-    },
-    async updateDevelopmentRecord(recordId, payload, actorUser) {
-      const record = db.developmentRecords.find((item) => item.id === recordId);
-      if (!record) {
-        throw new Error("Registro de desenvolvimento nao encontrado.");
-      }
-
-      assertCanManageDevelopmentSubject(actorUser, db.people, payload.personId, {
-        isOrgWideUser,
-        isManagerUser,
-        getTeamPeople
-      });
-      assertValidDevelopmentRecordStatus(payload.status);
-
-      record.personId = payload.personId;
-      record.recordType = payload.recordType;
-      record.title = payload.title;
-      record.providerName = payload.providerName;
-      record.completedAt = payload.completedAt;
-      record.skillSignal = payload.skillSignal;
-      record.notes = payload.notes;
-      record.status = payload.status;
-      record.archivedAt = payload.status === "archived" ? new Date().toISOString() : null;
-
-      const person = db.people.find((item) => item.id === record.personId);
-      pushAuditLog(db.auditLogs, {
-        category: AUDIT_CATEGORIES.development,
-        action: payload.status === "archived" ? "archived" : "updated",
-        entityType: "development_record",
-        entityId: record.id,
-        entityLabel: record.title,
-        actorUser,
-        summary:
-          payload.status === "archived"
-            ? `Registro de desenvolvimento arquivado para ${person?.name || "pessoa"}`
-            : `Registro de desenvolvimento atualizado para ${person?.name || "pessoa"}`,
-        detail: buildDevelopmentRecordAuditDetail(record)
-      });
-
-      return {
-        ...record,
-        personName: person?.name || ""
-      };
-    },
-    async getLearningIntegrationEvents(actorUser) {
-      if (!isOrgWideUser(actorUser)) {
-        throw new Error("Perfil sem permissao para visualizar integracoes de aprendizagem.");
-      }
-
-      return db.learningIntegrationEvents.map((event) =>
-        presentLearningIntegrationEvent(event, db.people)
-      );
-    },
-    async ingestLearningIntegrationEvents(payload, actorUser) {
-      if (!isOrgWideUser(actorUser)) {
-        throw new Error("Perfil sem permissao para receber integracoes de aprendizagem.");
-      }
-
-      const rows = buildLearningIntegrationEventRows(payload, db.people, db.users, actorUser);
-      const existingKeys = new Set(
-        db.learningIntegrationEvents.map((item) => `${item.sourceSystem}:${item.externalId}`)
-      );
-      const accepted = rows.filter((row) => !existingKeys.has(`${row.sourceSystem}:${row.externalId}`));
-
-      db.learningIntegrationEvents.unshift(...accepted);
-      pushAuditLog(db.auditLogs, {
-        category: AUDIT_CATEGORIES.development,
-        action: "imported",
-        entityType: "learning_integration_event",
-        entityId: accepted[0]?.id || rows[0]?.id || "learning_integration",
-        entityLabel: payload.sourceSystem || "Integracao de aprendizagem",
-        actorUser,
-        summary: `${accepted.length} eventos de aprendizagem recebidos de ${payload.sourceSystem || "sistema externo"}`,
-        detail: `${accepted.filter((item) => item.processingStatus === "ready_for_review").length} prontos para revisao · ${accepted.filter((item) => item.processingStatus === "needs_review").length} exigem conciliacao`
-      });
-
-      return {
-        sourceSystem: payload.sourceSystem,
-        received: rows.length,
-        accepted: accepted.length,
-        duplicates: rows.length - accepted.length,
-        events: accepted.map((event) => presentLearningIntegrationEvent(event, db.people))
-      };
-    },
-    async applyLearningIntegrationEvent(eventId, payload, actorUser) {
-      if (!isOrgWideUser(actorUser)) {
-        throw new Error("Perfil sem permissao para aplicar integracoes de aprendizagem.");
-      }
-
-      const event = db.learningIntegrationEvents.find((item) => item.id === eventId);
-      if (!event) {
-        throw new Error("Evento de aprendizagem nao encontrado.");
-      }
-
-      const application = buildLearningIntegrationApplicationPayload(
-        event,
-        payload,
-        db.competencies
-      );
-      const appliedEntity =
-        application.entityType === "development_record"
-          ? await this.createDevelopmentRecord(application.payload, actorUser)
-          : await this.createDevelopmentPlan(application.payload, actorUser);
-
-      event.processingStatus = "applied";
-      event.appliedEntityType = application.entityType;
-      event.appliedEntityId = appliedEntity.id;
-      event.appliedAt = new Date().toISOString();
-      event.reviewNote = String(payload?.reviewNote || "").trim();
-
-      pushAuditLog(db.auditLogs, {
-        category: AUDIT_CATEGORIES.development,
-        action: "applied",
-        entityType: "learning_integration_event",
-        entityId: event.id,
-        entityLabel: event.title,
-        actorUser,
-        summary: `Evento de aprendizagem aplicado em ${application.entityType === "development_record" ? "desenvolvimento" : "PDI"}`,
-        detail: `${event.sourceSystem} · ${event.externalId} · ${appliedEntity.id}`
-      });
-
-      return {
-        event: presentLearningIntegrationEvent(event, db.people),
-        appliedEntity
-      };
-    },
+    ...createMemoryEvaluationWorkflowStore({
+      db,
+      createId,
+      customLibraryState,
+      anonymousResponseState,
+      presentCycle,
+      pushAuditLog,
+      AUDIT_CATEGORIES,
+      isAssignmentDelinquent,
+      presentDelinquentAssignment,
+      buildCycleReminderAuditDetail,
+      assertCycleStatusTransition,
+      CYCLE_STATUS,
+      enrichSubmission,
+      buildCycleReportSnapshots,
+      buildCycleStatusAuditDetail,
+      normalizeCycleModuleAvailability,
+      normalizeTransversalConfig,
+      resolveCycleConfigUpdate,
+      buildCycleConfigAuditDetail,
+      filterFeedbackRequestsForUser,
+      assertCanCreateFeedbackRequest,
+      prepareFeedbackRequest,
+      buildFeedbackRequestItems,
+      buildFeedbackRequestCreateAuditDetail,
+      assertValidFeedbackRequestStatus,
+      FEEDBACK_REQUEST_STATUS,
+      isCycleRelationshipEnabled,
+      getFeedbackRequestItems,
+      pushAssignment,
+      buildFeedbackRequestReviewAuditDetail,
+      presentFeedbackRequest
+    }),
+    ...createMemoryEvaluationSubmissionStore({
+      db,
+      createId,
+      customLibraryState,
+      anonymousResponseState,
+      saveAnonymousResponseState,
+      isReleasedCycle,
+      isCycleRelationshipEnabled,
+      getTemplateDefinitionForCycle,
+      validateEvaluationAnswers,
+      isAnonymousRelationship,
+      createAnonymousSubmissionPayload,
+      updatePersonSatisfactionScoreInMemory,
+      prepareEvaluationSubmission,
+      getAnsweredScaleScores,
+      average,
+      buildEvaluationAnswerRows,
+      hydrateCycleStructure,
+      enrichSubmission,
+      validateFeedbackAcknowledgementPayload,
+      pushAuditLog,
+      AUDIT_CATEGORIES,
+      FEEDBACK_ACKNOWLEDGEMENT_STATUS
+    }),
+    ...createMemoryApplauseStore({
+      db,
+      createId,
+      isOrgWideUser,
+      isManagerUser,
+      getTeamPeople,
+      assertCanCreateApplause,
+      pushAuditLog,
+      AUDIT_CATEGORIES,
+      buildApplauseAuditDetail,
+      assertCanManageApplauseEntry,
+      assertValidApplauseStatus
+    }),
+    ...createMemoryDevelopmentRecordStore({
+      db,
+      createId,
+      isOrgWideUser,
+      isManagerUser,
+      getTeamPeople,
+      assertCanManageDevelopmentSubject,
+      pushAuditLog,
+      AUDIT_CATEGORIES,
+      buildDevelopmentRecordAuditDetail,
+      assertValidDevelopmentRecordStatus
+    }),
+    ...createMemoryLearningIntegrationStore({
+      db,
+      isOrgWideUser,
+      buildLearningIntegrationEventRows,
+      presentLearningIntegrationEvent,
+      pushAuditLog,
+      AUDIT_CATEGORIES,
+      buildLearningIntegrationApplicationPayload
+    }),
     async getDevelopmentPlans(actorUser) {
       const actorPersonId = actorUser.person?.id || actorUser.personId;
       const plans = db.developmentPlans.map((item) =>
@@ -6420,498 +5546,36 @@ function buildMysqlStore(
         ...competencyData
       });
     },
-    async createArea(payload, actorUser) {
-      if (!canManagePeople(actorUser)) {
-        throw new Error("Perfil sem permissao para cadastrar areas.");
-      }
-
-      const [areas, people] = await Promise.all([fetchAreaRows(pool), fetchPeopleRows(pool)]);
-      const areaMutation = prepareAreaMutation({
-        areas,
-        payload,
-        people,
-        assertValidAreaManagerReference
-      });
-
-      const area = {
-        id: createId("area"),
-        name: areaMutation.normalizedName,
-        managerPersonId: areaMutation.managerPersonId || null
-      };
-
-      await pool.query(
-        `INSERT INTO areas (id, name, manager_person_id)
-         VALUES (?, ?, ?)`,
-        [area.id, area.name, area.managerPersonId]
-      );
-
-      const managerName =
-        people.find((person) => person.id === area.managerPersonId)?.name || "";
-      await insertAuditLog(pool, {
-        category: AUDIT_CATEGORIES.registry,
-        action: "created",
-        entityType: "area",
-        entityId: area.id,
-        entityLabel: area.name,
-        actorUser,
-        summary: `Area criada: ${area.name}`,
-        detail: buildAreaAuditDetail({
-          name: area.name,
-          managerName
-        })
-      });
-
-      return enrichArea(people, area);
-    },
-    async updateArea(areaId, payload, actorUser) {
-      if (!canManagePeople(actorUser)) {
-        throw new Error("Perfil sem permissao para atualizar areas.");
-      }
-
-      const [areas, people] = await Promise.all([fetchAreaRows(pool), fetchPeopleRows(pool)]);
-      const area = areas.find((item) => item.id === areaId);
-      if (!area) {
-        throw new Error("Area nao encontrada.");
-      }
-
-      const areaMutation = prepareAreaMutation({
-        areaId,
-        areas,
-        payload,
-        people,
-        assertValidAreaManagerReference
-      });
-      const nextManagerPersonId =
-        areaMutation.managerPersonId === undefined
-          ? area.managerPersonId
-          : areaMutation.managerPersonId;
-
-      await pool.query(
-        `UPDATE areas
-         SET name = ?, manager_person_id = ?
-         WHERE id = ?`,
-        [areaMutation.normalizedName, nextManagerPersonId, areaId]
-      );
-
-      if (area.name !== areaMutation.normalizedName) {
-        await pool.query(`UPDATE people SET area = ? WHERE area = ?`, [
-          areaMutation.normalizedName,
-          area.name
-        ]);
-      }
-
-      const managerName =
-        people.find((person) => person.id === nextManagerPersonId)?.name || "";
-      await insertAuditLog(pool, {
-        category: AUDIT_CATEGORIES.registry,
-        action: "updated",
-        entityType: "area",
-        entityId: areaId,
-        entityLabel: areaMutation.normalizedName,
-        actorUser,
-        summary: `Area atualizada: ${areaMutation.normalizedName}`,
-        detail: buildAreaAuditDetail({
-          name: areaMutation.normalizedName,
-          managerName
-        })
-      });
-
-      return enrichArea(people.map((person) => ({
-        ...person,
-        area: person.area === area.name ? areaMutation.normalizedName : person.area
-      })), {
-        ...area,
-        name: areaMutation.normalizedName,
-        managerPersonId: nextManagerPersonId
-      });
-    },
-    async getPeople(actorUser) {
-      const [people, areas] = await Promise.all([fetchPeopleRows(pool), fetchAreaRows(pool)]);
-      return filterPeopleForUser(people, actorUser, areas);
-    },
-    async createPerson(payload, actorUser) {
-      if (!canManagePeople(actorUser)) {
-        throw new Error("Perfil sem permissao para cadastrar pessoas.");
-      }
-
-      const [people, areas] = await Promise.all([fetchPeopleRows(pool), fetchAreaRows(pool)]);
-      const { personPayload, shouldLeadArea } = preparePersonMutation({
-        areas,
-        payload,
-        people,
-        assertNoDuplicatePersonProfile,
-        assertNoManagerCycle,
-        assertValidAreaReference,
-        assertValidManagerReference
-      });
-
-      const person = {
-        id: createId("person"),
-        ...personPayload,
-        satisfactionScore: null
-      };
-
-      try {
-        await pool.query(
-          `INSERT INTO people
-           (id, name, role_title, area, work_unit, work_mode, manager_person_id, employment_type, satisfaction_score)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
-            person.id,
-            person.name,
-            person.roleTitle,
-            person.area,
-            person.workUnit,
-            person.workMode,
-            person.managerPersonId,
-            person.employmentType,
-            person.satisfactionScore
-          ]
-        );
-      } catch (error) {
-        if (error?.code !== "ER_BAD_FIELD_ERROR" && error?.errno !== 1054) {
-          throw error;
-        }
-
-        await pool.query(
-          `INSERT INTO people
-           (id, name, role_title, area, manager_person_id, employment_type, satisfaction_score)
-           VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          [
-            person.id,
-            person.name,
-            person.roleTitle,
-            person.area,
-            person.managerPersonId,
-            person.employmentType,
-            person.satisfactionScore
-          ]
-        );
-      }
-
-      await pool.query(`UPDATE areas SET manager_person_id = NULL WHERE manager_person_id = ?`, [person.id]);
-      if (shouldLeadArea) {
-        await pool.query(
-          `UPDATE areas
-           SET manager_person_id = ?
-           WHERE LOWER(name) = LOWER(?)
-           LIMIT 1`,
-          [person.id, person.area]
-        );
-      }
-
-      const managerName =
-        people.find((item) => item.id === person.managerPersonId)?.name || "";
-      await insertAuditLog(pool, {
-        category: AUDIT_CATEGORIES.registry,
-        action: "created",
-        entityType: "person",
-        entityId: person.id,
-        entityLabel: person.name,
-        actorUser,
-        summary: `Pessoa criada: ${person.name}`,
-        detail: buildPersonAuditDetail({
-          roleTitle: person.roleTitle,
-          area: person.area,
-          workUnit: person.workUnit,
-          workMode: person.workMode,
-          managerName,
-          employmentType: person.employmentType,
-          isAreaManager: shouldLeadArea
-        })
-      });
-
-      const nextAreas = assignAreaLeadershipSnapshot(areas, person.id, person.area, shouldLeadArea);
-      return enrichPerson(people, person, nextAreas);
-    },
-    async updatePerson(personId, payload, actorUser) {
-      if (!canManagePeople(actorUser)) {
-        throw new Error("Perfil sem permissao para atualizar pessoas.");
-      }
-
-      const [people, areas] = await Promise.all([fetchPeopleRows(pool), fetchAreaRows(pool)]);
-      const person = people.find((item) => item.id === personId);
-      if (!person) {
-        throw new Error("Pessoa nao encontrada.");
-      }
-
-      const { personPayload, shouldLeadArea } = preparePersonMutation({
-        areaId: personId,
-        areas,
-        payload: {
-          ...payload
-        },
-        people,
-        assertNoDuplicatePersonProfile,
-        assertNoManagerCycle,
-        assertValidAreaReference,
-        assertValidManagerReference
-      });
-
-      try {
-        await pool.query(
-          `UPDATE people
-           SET name = ?, role_title = ?, area = ?, work_unit = ?, work_mode = ?, manager_person_id = ?, employment_type = ?, satisfaction_score = ?
-           WHERE id = ?`,
-          [
-            personPayload.name,
-            personPayload.roleTitle,
-            personPayload.area,
-            personPayload.workUnit,
-            personPayload.workMode,
-            personPayload.managerPersonId,
-            personPayload.employmentType,
-            person.satisfactionScore,
-            personId
-          ]
-        );
-      } catch (error) {
-        if (error?.code !== "ER_BAD_FIELD_ERROR" && error?.errno !== 1054) {
-          throw error;
-        }
-
-        await pool.query(
-          `UPDATE people
-           SET name = ?, role_title = ?, area = ?, manager_person_id = ?, employment_type = ?, satisfaction_score = ?
-           WHERE id = ?`,
-          [
-            personPayload.name,
-            personPayload.roleTitle,
-            personPayload.area,
-            personPayload.managerPersonId,
-            personPayload.employmentType,
-            person.satisfactionScore,
-            personId
-          ]
-        );
-      }
-
-      await pool.query(`UPDATE areas SET manager_person_id = NULL WHERE manager_person_id = ?`, [personId]);
-      if (shouldLeadArea) {
-        await pool.query(
-          `UPDATE areas
-           SET manager_person_id = ?
-           WHERE LOWER(name) = LOWER(?)
-           LIMIT 1`,
-          [personId, personPayload.area]
-        );
-      }
-
-      const managerName =
-        people.find((item) => item.id === personPayload.managerPersonId)?.name || "";
-      await insertAuditLog(pool, {
-        category: AUDIT_CATEGORIES.registry,
-        action: "updated",
-        entityType: "person",
-        entityId: personId,
-        entityLabel: personPayload.name,
-        actorUser,
-        summary: `Pessoa atualizada: ${personPayload.name}`,
-        detail: buildPersonAuditDetail({
-          roleTitle: personPayload.roleTitle,
-          area: personPayload.area,
-          workUnit: personPayload.workUnit,
-          workMode: personPayload.workMode,
-          managerName,
-          employmentType: personPayload.employmentType,
-          isAreaManager: shouldLeadArea
-        })
-      });
-
-      const nextAreas = assignAreaLeadershipSnapshot(
-        areas,
-        personId,
-        personPayload.area,
-        shouldLeadArea
-      );
-      return enrichPerson(
-        people.map((item) =>
-          item.id === personId
-            ? {
-                ...item,
-                ...personPayload
-              }
-            : item
-        ),
-        {
-          ...person,
-          ...personPayload
-        },
-        nextAreas
-      );
-    },
-    async getUsers(actorUser) {
-      if (!canManageUsers(actorUser)) {
-        return [];
-      }
-
-      const [rows] = await pool.query(
-        `SELECT u.id, u.person_id AS personId, p.name AS personName, p.area AS personArea,
-                p.role_title AS personRoleTitle, p.work_unit AS personWorkUnit,
-                p.work_mode AS personWorkMode, manager.name AS managerName, areaManager.name AS areaManagerName,
-                u.email, u.role_key AS roleKey, u.status
-         FROM users u
-         JOIN people p ON p.id = u.person_id
-         LEFT JOIN people manager ON manager.id = p.manager_person_id
-         LEFT JOIN areas a ON a.name = p.area
-         LEFT JOIN people areaManager ON areaManager.id = a.manager_person_id
-         ORDER BY p.name`
-      );
-      return rows;
-    },
+    ...createMysqlRegistryStore({
+      pool,
+      createId,
+      canManagePeople,
+      canManageUsers,
+      fetchAreaRows,
+      fetchPeopleRows,
+      prepareAreaMutation,
+      assertValidAreaManagerReference,
+      insertAuditLog,
+      AUDIT_CATEGORIES,
+      buildAreaAuditDetail,
+      enrichArea,
+      filterPeopleForUser,
+      preparePersonMutation,
+      assertNoDuplicatePersonProfile,
+      assertNoManagerCycle,
+      assertValidAreaReference,
+      assertValidManagerReference,
+      buildPersonAuditDetail,
+      assignAreaLeadershipSnapshot,
+      enrichPerson,
+      prepareUserWrite,
+      assertUserPersonExists,
+      assertPersonHasNoLinkedUser,
+      hashPassword,
+      buildUserAuditDetail
+    }),
     async getAuditTrail(actorUser, options = {}) {
       return fetchAuditLogs(pool, actorUser, options);
-    },
-    async createUser(payload, actorUser) {
-      if (!canManageUsers(actorUser)) {
-        throw new Error("Perfil sem permissao para cadastrar usuarios.");
-      }
-
-      const userData = prepareUserWrite([], payload, { requirePassword: true });
-
-      const [personRows] = await pool.query(
-        `SELECT p.id, p.name, p.area, p.role_title AS roleTitle, p.work_unit AS workUnit,
-                p.work_mode AS workMode, manager.name AS managerName, areaManager.name AS areaManagerName
-         FROM people p
-         LEFT JOIN people manager ON manager.id = p.manager_person_id
-         LEFT JOIN areas a ON a.name = p.area
-         LEFT JOIN people areaManager ON areaManager.id = a.manager_person_id
-         WHERE p.id = ?
-         LIMIT 1`,
-        [payload.personId]
-      );
-      assertUserPersonExists(personRows[0]);
-
-      const [personUserRows] = await pool.query(
-        `SELECT id
-         FROM users
-         WHERE person_id = ?
-         LIMIT 1`,
-        [payload.personId]
-      );
-      assertPersonHasNoLinkedUser(Boolean(personUserRows[0]));
-
-      const [emailRows] = await pool.query(
-        `SELECT id, email
-         FROM users
-         WHERE email = ? OR id = ?
-         LIMIT 2`,
-        [userData.email, "__no_user__"]
-      );
-      prepareUserWrite(emailRows, userData, { requirePassword: true });
-
-      const user = {
-        id: createId("user"),
-        personId: payload.personId,
-        email: userData.email,
-        roleKey: userData.roleKey,
-        status: userData.status
-      };
-
-      await pool.query(
-        `INSERT INTO users
-         (id, person_id, email, password_hash, role_key, status)
-         VALUES (?, ?, ?, ?, ?, ?)`,
-        [user.id, user.personId, user.email, hashPassword(userData.password), user.roleKey, user.status]
-      );
-
-      await insertAuditLog(pool, {
-        category: AUDIT_CATEGORIES.user,
-        action: "created",
-        entityType: "user",
-        entityId: user.id,
-        entityLabel: personRows[0].name,
-        actorUser,
-        summary: `Usuario criado para ${personRows[0].name}`,
-        detail: buildUserAuditDetail(userData)
-      });
-
-      return {
-        ...user,
-        personName: personRows[0].name,
-        personArea: personRows[0].area,
-        personRoleTitle: personRows[0].roleTitle || "",
-        personWorkUnit: personRows[0].workUnit || "",
-        personWorkMode: personRows[0].workMode || "",
-        managerName: personRows[0].managerName || "",
-        areaManagerName: personRows[0].areaManagerName || ""
-      };
-    },
-    async updateUser(userId, payload, actorUser) {
-      if (!canManageUsers(actorUser)) {
-        throw new Error("Perfil sem permissao para atualizar usuarios.");
-      }
-
-      const userData = prepareUserWrite([], payload, { userId });
-
-      const [rows] = await pool.query(
-        `SELECT u.id, u.person_id AS personId, p.name AS personName, p.area AS personArea,
-                p.role_title AS personRoleTitle, p.work_unit AS personWorkUnit,
-                p.work_mode AS personWorkMode, manager.name AS managerName, areaManager.name AS areaManagerName,
-                u.email
-         FROM users u
-         JOIN people p ON p.id = u.person_id
-         LEFT JOIN people manager ON manager.id = p.manager_person_id
-         LEFT JOIN areas a ON a.name = p.area
-         LEFT JOIN people areaManager ON areaManager.id = a.manager_person_id
-         WHERE u.id = ?
-         LIMIT 1`,
-        [userId]
-      );
-      if (!rows[0]) {
-        throw new Error("Usuario nao encontrado.");
-      }
-
-      const [emailRows] = await pool.query(
-        `SELECT id, email
-         FROM users
-         WHERE email = ? OR id = ?
-         LIMIT 2`,
-        [userData.email, userId]
-      );
-      prepareUserWrite(emailRows, userData, { userId });
-
-      if (userData.password) {
-        await pool.query(
-          `UPDATE users
-           SET email = ?, role_key = ?, status = ?, password_hash = ?
-           WHERE id = ?`,
-          [userData.email, userData.roleKey, userData.status, hashPassword(userData.password), userId]
-        );
-      } else {
-        await pool.query(
-          `UPDATE users
-           SET email = ?, role_key = ?, status = ?
-           WHERE id = ?`,
-          [userData.email, userData.roleKey, userData.status, userId]
-        );
-      }
-
-      await insertAuditLog(pool, {
-        category: AUDIT_CATEGORIES.user,
-        action: "updated",
-        entityType: "user",
-        entityId: userId,
-        entityLabel: rows[0].personName,
-        actorUser,
-        summary: `Acesso atualizado para ${rows[0].personName}`,
-        detail: buildUserAuditDetail(userData)
-      });
-
-      return {
-        id: userId,
-        personId: rows[0].personId,
-        personName: rows[0].personName,
-        personArea: rows[0].personArea,
-        personRoleTitle: rows[0].personRoleTitle || "",
-        personWorkUnit: rows[0].personWorkUnit || "",
-        personWorkMode: rows[0].personWorkMode || "",
-        managerName: rows[0].managerName || "",
-        areaManagerName: rows[0].areaManagerName || "",
-        email: userData.email,
-        roleKey: userData.roleKey,
-        status: userData.status
-      };
     },
     async getSummary(actorUser) {
       if (isFullAccessUser(actorUser)) {
@@ -7144,133 +5808,31 @@ function buildMysqlStore(
 
       return enrichIncident(updatedRows[0], people, areas);
     },
-    async getEvaluationTemplate() {
-      return buildTemplate(evaluationLibrary.templates.collaboration);
-    },
-    async getEvaluationLibrary() {
-      return buildEvaluationLibraryPayload(customLibraryState.published);
-    },
-    async importCustomLibraryDraft(payload) {
-      const draft = {
-        id: createId("library_draft"),
-        fileName: payload.fileName,
-        createdAt: new Date().toISOString(),
-        createdByUserId: payload.createdByUserId,
-        errors: payload.errors,
-        templates: payload.templates,
-        summary: payload.summary
-      };
-      customLibraryState.drafts.unshift(draft);
-      await saveCustomLibraryState(customLibraryState);
-      return draft;
-    },
-      async publishCustomLibraryDraft(payload) {
-        const draft = customLibraryState.drafts.find((item) => item.id === payload.draftId);
-      if (!draft) {
-        throw new Error("Rascunho da biblioteca nao encontrado.");
-      }
-      if (draft.errors.length) {
-        throw new Error("Nao e possivel publicar uma biblioteca com erros.");
-      }
-
-      const published = {
-        id: createId("library"),
-        name: payload.name,
-        description: payload.description || "",
-        sourceFileName: draft.fileName,
-        createdAt: new Date().toISOString(),
-        createdByUserId: payload.createdByUserId,
-        templateCount: draft.templates.length,
-        questionCount: draft.summary.questions,
-        templates: draft.templates
-      };
-      customLibraryState.published.unshift(published);
-      customLibraryState.drafts = customLibraryState.drafts.filter(
-        (item) => item.id !== payload.draftId
-      );
-        await saveCustomLibraryState(customLibraryState);
-        return published;
-      },
-      async updateCustomLibrary(libraryId, payload) {
-        const libraryIndex = customLibraryState.published.findIndex((item) => item.id === libraryId);
-        if (libraryIndex < 0) {
-          throw new Error("Biblioteca customizada nao encontrada.");
-        }
-
-        const updatedLibrary = preparePublishedCustomLibraryUpdate(
-          customLibraryState.published[libraryIndex],
-          payload
-        );
-
-        customLibraryState.published[libraryIndex] = updatedLibrary;
-        await saveCustomLibraryState(customLibraryState);
-        return updatedLibrary;
-      },
-      async getEvaluationTemplateForCycleRelationship(cycleId, relationshipType) {
-      const [rows] = await pool.query(
-        `SELECT id, template_id AS templateId, library_id AS libraryId, library_name AS libraryName
-         FROM evaluation_cycles
-         WHERE id = ?
-         LIMIT 1`,
-        [cycleId]
-      );
-
-      return buildTemplate(
-        getTemplateDefinitionForCycle({
-          cycle: presentCycle(rows[0] || {}),
-          relationshipType,
-          customLibraries: customLibraryState.published
-        })
-      );
-    },
-    async getEvaluationCycles(actorUser = null) {
-      const [rows] = await pool.query(
-        supportsCycleConfig
-          ? `SELECT c.id, c.template_id AS templateId, c.title, c.semester_label AS semesterLabel,
-                    c.status, c.is_enabled AS isEnabled, c.enabled_relationships_json AS enabledRelationshipsJson,
-                    c.transversal_config_json AS transversalConfigJson,
-                    c.due_date AS dueDate, c.target_group AS targetGroup,
-                    c.library_id AS libraryId, c.library_name AS libraryName,
-                    COALESCE(c.library_name, t.name) AS modelName, c.created_by_user_id AS createdByUserId,
-                    COUNT(DISTINCT cp.person_id) AS participantCount,
-                    COUNT(DISTINCT CONCAT(cr.participant_person_id, ':', cr.rater_user_id, ':', cr.relationship_type)) AS raterCount,
-                    COUNT(DISTINCT er.id) AS reportSnapshotCount
-             FROM evaluation_cycles c
-             JOIN evaluation_templates t ON t.id = c.template_id
-             LEFT JOIN evaluation_cycle_participants cp ON cp.cycle_id = c.id
-             LEFT JOIN evaluation_cycle_raters cr ON cr.cycle_id = c.id
-             LEFT JOIN evaluation_cycle_reports er ON er.cycle_id = c.id
-             GROUP BY c.id, c.template_id, c.title, c.semester_label, c.status, c.is_enabled, c.enabled_relationships_json,
-                      c.transversal_config_json,
-                      c.due_date, c.target_group, c.library_id, c.library_name, t.name, c.created_by_user_id
-             ORDER BY c.due_date DESC`
-          : `SELECT c.id, c.template_id AS templateId, c.title, c.semester_label AS semesterLabel,
-                    c.status, c.due_date AS dueDate, c.target_group AS targetGroup,
-                    c.library_id AS libraryId, c.library_name AS libraryName,
-                    COALESCE(c.library_name, t.name) AS modelName, c.created_by_user_id AS createdByUserId,
-                    COUNT(DISTINCT cp.person_id) AS participantCount,
-                    COUNT(DISTINCT CONCAT(cr.participant_person_id, ':', cr.rater_user_id, ':', cr.relationship_type)) AS raterCount,
-                    COUNT(DISTINCT er.id) AS reportSnapshotCount
-             FROM evaluation_cycles c
-             JOIN evaluation_templates t ON t.id = c.template_id
-             LEFT JOIN evaluation_cycle_participants cp ON cp.cycle_id = c.id
-             LEFT JOIN evaluation_cycle_raters cr ON cr.cycle_id = c.id
-             LEFT JOIN evaluation_cycle_reports er ON er.cycle_id = c.id
-             GROUP BY c.id, c.template_id, c.title, c.semester_label, c.status, c.due_date, c.target_group,
-                      c.library_id, c.library_name, t.name, c.created_by_user_id
-             ORDER BY c.due_date DESC`
-      );
-      const cycles = rows.map((row) => ({
-        ...presentCycle(row),
-        supportsConfig: Boolean(supportsCycleConfig)
-      }));
-
-      if (actorUser && !isOrgWideUser(actorUser)) {
-        return cycles.filter((cycle) => cycle.isEnabled);
-      }
-
-      return cycles;
-    },
+    ...createMysqlEvaluationReadStore({
+      pool,
+      createId,
+      customLibraryState,
+      anonymousResponseState,
+      saveCustomLibraryState,
+      buildTemplate,
+      evaluationLibrary,
+      buildEvaluationLibraryPayload,
+      preparePublishedCustomLibraryUpdate,
+      getTemplateDefinitionForCycle,
+      presentCycle,
+      supportsCycleConfig,
+      isOrgWideUser,
+      isCycleRelationshipEnabled,
+      presentAssignment,
+      fetchMysqlResponses,
+      supportsFeedbackAcknowledgement,
+      buildEvaluationResponseBundle,
+      buildResponsesBundle,
+      fetchCycleReportRows,
+      buildPerformance360Reviews,
+      fetchPeopleRows,
+      filterReceivedManagerFeedback
+    }),
     async createEvaluationCycle(payload, actorUser) {
       const selectedLibrary =
         payload.libraryId && payload.libraryId !== DEFAULT_EVALUATION_LIBRARY_ID
@@ -7816,1307 +6378,109 @@ function buildMysqlStore(
       }
       return this.getEvaluationCycleParticipants(cycleId);
     },
-    async notifyCycleDelinquents(cycleId, actorUser) {
-      const [cycleRows] = await pool.query(
-        `SELECT id, title, status
-         FROM evaluation_cycles
-         WHERE id = ?
-         LIMIT 1`,
-        [cycleId]
-      );
-      if (!cycleRows[0]) {
-        throw new Error("Ciclo de avaliacao nao encontrado.");
-      }
-
-      const assignments = await fetchCycleAssignmentRows(pool, cycleId, {
-        supportsAssignmentReminder
-      });
-      const delinquentAssignments = assignments.filter((assignment) =>
-        isAssignmentDelinquent(assignment, cycleRows[0].status)
-      );
-
-      if (!delinquentAssignments.length) {
-        return {
-          cycleId,
-          notifiedAssignments: 0,
-          delinquentAssignments: []
-        };
-      }
-
-      const reminderSentAt = new Date().toISOString();
-      const connection = await pool.getConnection();
-      try {
-        await connection.beginTransaction();
-
-        for (const assignment of delinquentAssignments) {
-          if (supportsAssignmentReminder) {
-            await connection.query(
-              `UPDATE evaluation_assignments
-               SET reminder_count = COALESCE(reminder_count, 0) + 1,
-                   last_reminder_sent_at = ?
-               WHERE id = ?`,
-              [reminderSentAt, assignment.id]
-            );
-          }
-        }
-
-        await insertAuditLog(connection, {
-          category: AUDIT_CATEGORIES.cycle,
-          action: "delinquent_reminder_sent",
-          entityType: "evaluation_cycle",
-          entityId: cycleRows[0].id,
-          entityLabel: cycleRows[0].title,
-          actorUser,
-          summary: `Lembrete enviado para inadimplentes: ${cycleRows[0].title}`,
-          detail: buildCycleReminderAuditDetail(delinquentAssignments.length)
-        });
-
-        await connection.commit();
-      } catch (error) {
-        await connection.rollback();
-        throw error;
-      } finally {
-        connection.release();
-      }
-
-      const [people, users] = await Promise.all([fetchPeopleRows(pool), fetchUserRows(pool)]);
-      const refreshedAssignments = await fetchCycleAssignmentRows(pool, cycleId, {
-        supportsAssignmentReminder
-      });
-
-      return {
-        cycleId,
-        notifiedAssignments: delinquentAssignments.length,
-        delinquentAssignments: refreshedAssignments
-          .filter((assignment) => isAssignmentDelinquent(assignment, cycleRows[0].status))
-          .map((assignment) =>
-            presentDelinquentAssignment(
-              assignment,
-              { people, users },
-              cycleRows[0].status
-            )
-          )
-      };
-    },
-    async updateEvaluationCycleStatus(cycleId, nextStatus, actorUser) {
-      const [rows] = await pool.query(
-        `SELECT id, status
-         FROM evaluation_cycles
-         WHERE id = ?
-         LIMIT 1`,
-        [cycleId]
-      );
-
-      if (!rows[0]) {
-        throw new Error("Ciclo de avaliacao nao encontrado.");
-      }
-
-      const previousStatus = rows[0].status;
-      assertCycleStatusTransition(rows[0].status, nextStatus);
-
-      const connection = await pool.getConnection();
-      try {
-        await connection.beginTransaction();
-
-        await connection.query(
-          `UPDATE evaluation_cycles
-           SET status = ?
-           WHERE id = ?`,
-          [nextStatus, cycleId]
-        );
-
-        if (nextStatus === CYCLE_STATUS.processed) {
-          const responses = [
-            ...(await fetchMysqlResponses(pool, customLibraryState.published, {
-              supportsFeedbackAcknowledgement
-            })).filter((response) => response.cycleId === cycleId),
-            ...anonymousResponseState.responses.filter((response) => response.cycleId === cycleId)
-          ];
-          const snapshots = buildCycleReportSnapshots(cycleId, responses);
-
-          await connection.query(`DELETE FROM evaluation_cycle_reports WHERE cycle_id = ?`, [
-            cycleId
-          ]);
-
-          for (const snapshot of snapshots) {
-            await connection.query(
-              `INSERT INTO evaluation_cycle_reports
-               (id, cycle_id, relationship_type, total_responses, average_score, question_averages_json, generated_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?)`,
-              [
-                snapshot.id,
-                snapshot.cycleId,
-                snapshot.relationshipType,
-                snapshot.totalResponses,
-                snapshot.averageScore,
-                JSON.stringify(snapshot.questionAverages),
-                snapshot.generatedAt
-              ]
-            );
-          }
-        }
-
-        const [updatedRows] = await connection.query(
-          `SELECT c.id, c.template_id AS templateId, c.title, c.semester_label AS semesterLabel,
-                  c.status, c.due_date AS dueDate, c.target_group AS targetGroup,
-                  c.library_id AS libraryId, c.library_name AS libraryName,
-                  COALESCE(c.library_name, t.name) AS modelName, c.created_by_user_id AS createdByUserId,
-                  COUNT(DISTINCT er.id) AS reportSnapshotCount
-           FROM evaluation_cycles c
-           JOIN evaluation_templates t ON t.id = c.template_id
-           LEFT JOIN evaluation_cycle_reports er ON er.cycle_id = c.id
-           WHERE c.id = ?
-           GROUP BY c.id, c.template_id, c.title, c.semester_label, c.status, c.due_date, c.target_group,
-                    c.library_id, c.library_name, t.name, c.created_by_user_id`,
-          [cycleId]
-        );
-
-        await insertAuditLog(connection, {
-          category: AUDIT_CATEGORIES.cycle,
-          action: nextStatus === CYCLE_STATUS.processed ? "processed" : "status_changed",
-          entityType: "cycle",
-          entityId: cycleId,
-          entityLabel: updatedRows[0].title,
-          actorUser,
-          summary:
-            nextStatus === CYCLE_STATUS.processed
-              ? `Ciclo processado: ${updatedRows[0].title}`
-              : `Status do ciclo atualizado: ${updatedRows[0].title}`,
-          detail: buildCycleStatusAuditDetail(previousStatus, nextStatus)
-        });
-
-        await connection.commit();
-        return presentCycle(updatedRows[0]);
-      } catch (error) {
-        await connection.rollback();
-        throw error;
-      } finally {
-        connection.release();
-      }
-    },
-    async updateEvaluationCycleConfig(cycleId, payload, actorUser) {
-      if (!["admin", "hr"].includes(actorUser?.roleKey || "")) {
-        throw new Error("Perfil sem permissao para configurar ciclos.");
-      }
-
-      const [rows] = await pool.query(
-        `SELECT id, title, is_enabled AS isEnabled, enabled_relationships_json AS enabledRelationshipsJson, transversal_config_json AS transversalConfigJson
-         FROM evaluation_cycles
-         WHERE id = ?
-         LIMIT 1`,
-        [cycleId]
-      );
-
-      if (!rows[0]) {
-        throw new Error("Ciclo de avaliacao nao encontrado.");
-      }
-
-      const current = presentCycle(rows[0]);
-      const cycleConfigUpdate = resolveCycleConfigUpdate(
-        normalizeCycleModuleAvailability(current.moduleAvailability),
-        normalizeTransversalConfig(current.transversalConfig),
-        payload
-      );
-      const nextIsEnabled =
-        cycleConfigUpdate.nextIsEnabled === undefined
-          ? current.isEnabled
-          : cycleConfigUpdate.nextIsEnabled;
-      const nextModuleAvailability =
-        cycleConfigUpdate.nextModuleAvailability ||
-        normalizeCycleModuleAvailability(current.moduleAvailability);
-      const nextTransversalConfig =
-        cycleConfigUpdate.nextTransversalConfig ||
-        normalizeTransversalConfig(current.transversalConfig);
-
-      const connection = await pool.getConnection();
-      try {
-        await connection.beginTransaction();
-
-        await connection.query(
-          `UPDATE evaluation_cycles
-           SET is_enabled = ?, enabled_relationships_json = ?, transversal_config_json = ?
-           WHERE id = ?`,
-          [
-            nextIsEnabled ? 1 : 0,
-            JSON.stringify(nextModuleAvailability),
-            JSON.stringify(nextTransversalConfig),
-            cycleId
-          ]
-        );
-
-        await insertAuditLog(connection, {
-          category: AUDIT_CATEGORIES.cycle,
-          action: "config_changed",
-          entityType: "cycle",
-          entityId: cycleId,
-          entityLabel: rows[0].title,
-          actorUser,
-          summary: `Configuracao do ciclo atualizada: ${rows[0].title}`,
-          detail: buildCycleConfigAuditDetail(nextIsEnabled)
-        });
-
-        await connection.commit();
-      } catch (error) {
-        await connection.rollback();
-        throw error;
-      } finally {
-        connection.release();
-      }
-
-      const [updatedRows] = await pool.query(
-        `SELECT c.id, c.template_id AS templateId, c.title, c.semester_label AS semesterLabel,
-                c.status, c.is_enabled AS isEnabled, c.enabled_relationships_json AS enabledRelationshipsJson,
-                c.transversal_config_json AS transversalConfigJson,
-                c.due_date AS dueDate, c.target_group AS targetGroup,
-                c.library_id AS libraryId, c.library_name AS libraryName,
-                COALESCE(c.library_name, t.name) AS modelName, c.created_by_user_id AS createdByUserId
-         FROM evaluation_cycles c
-         JOIN evaluation_templates t ON t.id = c.template_id
-         WHERE c.id = ?
-         LIMIT 1`,
-        [cycleId]
-      );
-
-      return updatedRows[0]
-        ? { ...presentCycle(updatedRows[0]), supportsConfig: true }
-        : { ...presentCycle(rows[0]), supportsConfig: true };
-    },
-    async getEvaluationAssignmentsForUser(userId) {
-      const [rows] = await pool.query(
-        supportsCycleConfig
-          ? `SELECT a.id, a.cycle_id AS cycleId, a.reviewer_user_id AS reviewerUserId,
-                    a.reviewee_person_id AS revieweePersonId, a.relationship_type AS relationshipType,
-                    a.project_context AS projectContext, a.collaboration_context AS collaborationContext,
-                    a.status, a.due_date AS dueDate, c.title AS cycleTitle, c.semester_label AS semesterLabel,
-                    c.template_id AS templateId, c.status AS cycleStatus, c.is_enabled AS isEnabled, c.enabled_relationships_json AS enabledRelationshipsJson, c.transversal_config_json AS transversalConfigJson,
-                    c.library_id AS libraryId, c.library_name AS libraryName,
-                    p.name AS revieweeName, p.area AS revieweeArea,
-                    reviewer_person.name AS reviewerName, s.overall_score AS overallScore,
-                    s.submitted_at AS submittedAt
-             FROM evaluation_assignments a
-             JOIN evaluation_cycles c ON c.id = a.cycle_id
-             JOIN people p ON p.id = a.reviewee_person_id
-             JOIN users reviewer_user ON reviewer_user.id = a.reviewer_user_id
-             JOIN people reviewer_person ON reviewer_person.id = reviewer_user.person_id
-             LEFT JOIN evaluation_submissions s ON s.assignment_id = a.id
-             WHERE a.reviewer_user_id = ?
-             ORDER BY a.due_date ASC`
-          : `SELECT a.id, a.cycle_id AS cycleId, a.reviewer_user_id AS reviewerUserId,
-                    a.reviewee_person_id AS revieweePersonId, a.relationship_type AS relationshipType,
-                    a.project_context AS projectContext, a.collaboration_context AS collaborationContext,
-                    a.status, a.due_date AS dueDate, c.title AS cycleTitle, c.semester_label AS semesterLabel,
-                    c.template_id AS templateId, c.status AS cycleStatus,
-                    c.library_id AS libraryId, c.library_name AS libraryName,
-                    p.name AS revieweeName, p.area AS revieweeArea,
-                    reviewer_person.name AS reviewerName, s.overall_score AS overallScore,
-                    s.submitted_at AS submittedAt
-             FROM evaluation_assignments a
-             JOIN evaluation_cycles c ON c.id = a.cycle_id
-             JOIN people p ON p.id = a.reviewee_person_id
-             JOIN users reviewer_user ON reviewer_user.id = a.reviewer_user_id
-             JOIN people reviewer_person ON reviewer_person.id = reviewer_user.person_id
-             LEFT JOIN evaluation_submissions s ON s.assignment_id = a.id
-             WHERE a.reviewer_user_id = ?
-             ORDER BY a.due_date ASC`,
-        [userId]
-      );
-      return rows
-        .map((row) => presentAssignment(row, customLibraryState.published))
-        .filter((assignment) => isCycleRelationshipEnabled(assignment, assignment.relationshipType));
-    },
-    async getEvaluationAssignmentById(assignmentId, userId) {
-      const [rows] = await pool.query(
-        supportsCycleConfig
-          ? `SELECT a.id, a.cycle_id AS cycleId, a.reviewer_user_id AS reviewerUserId,
-                    a.reviewee_person_id AS revieweePersonId, a.relationship_type AS relationshipType,
-                    a.project_context AS projectContext, a.collaboration_context AS collaborationContext,
-                    a.status, a.due_date AS dueDate, c.title AS cycleTitle, c.semester_label AS semesterLabel,
-                    c.template_id AS templateId, c.status AS cycleStatus, c.is_enabled AS isEnabled, c.enabled_relationships_json AS enabledRelationshipsJson, c.transversal_config_json AS transversalConfigJson,
-                    c.library_id AS libraryId, c.library_name AS libraryName,
-                    p.name AS revieweeName, p.area AS revieweeArea
-             FROM evaluation_assignments a
-             JOIN evaluation_cycles c ON c.id = a.cycle_id
-             JOIN people p ON p.id = a.reviewee_person_id
-             WHERE a.id = ? AND a.reviewer_user_id = ?
-             LIMIT 1`
-          : `SELECT a.id, a.cycle_id AS cycleId, a.reviewer_user_id AS reviewerUserId,
-                    a.reviewee_person_id AS revieweePersonId, a.relationship_type AS relationshipType,
-                    a.project_context AS projectContext, a.collaboration_context AS collaborationContext,
-                    a.status, a.due_date AS dueDate, c.title AS cycleTitle, c.semester_label AS semesterLabel,
-                    c.template_id AS templateId, c.status AS cycleStatus,
-                    c.library_id AS libraryId, c.library_name AS libraryName,
-                    p.name AS revieweeName, p.area AS revieweeArea
-             FROM evaluation_assignments a
-             JOIN evaluation_cycles c ON c.id = a.cycle_id
-             JOIN people p ON p.id = a.reviewee_person_id
-             WHERE a.id = ? AND a.reviewer_user_id = ?
-             LIMIT 1`,
-        [assignmentId, userId]
-      );
-      const assignment = rows[0] ? presentAssignment(rows[0], customLibraryState.published) : null;
-      if (!assignment) {
-        return null;
-      }
-      if (!isCycleRelationshipEnabled(assignment, assignment.relationshipType)) {
-        return null;
-      }
-      return assignment;
-    },
-    async getEvaluationResponses(actorUser) {
-      const submissions = await fetchMysqlResponses(pool, customLibraryState.published, {
-        supportsFeedbackAcknowledgement
-      });
-      const [cycles, cycleReports] = await Promise.all([
-        this.getEvaluationCycles(),
-        fetchCycleReportRows(pool)
-      ]);
-      return buildEvaluationResponseBundle({
-        submissions,
-        anonymousResponses: anonymousResponseState.responses,
-        buildSubmission: (item) => item,
-        actorUser,
-        buildResponsesBundle,
-        cycles,
-        cycleReports
-      });
-    },
-    async getPerformance360Reviews(actorUser) {
-      const [people, cycles, responses] = await Promise.all([
-        fetchPeopleRows(pool),
-        this.getEvaluationCycles(),
-        fetchMysqlResponses(pool, customLibraryState.published, {
-          supportsFeedbackAcknowledgement
-        })
-      ]);
-
-      return buildPerformance360Reviews({
-        people,
-        cycles,
-        responses,
-        actorUser
-      });
-    },
-    async getReceivedManagerFeedback(actorUser) {
-      const submissions = await fetchMysqlResponses(pool, customLibraryState.published, {
-        supportsFeedbackAcknowledgement
-      });
-      return filterReceivedManagerFeedback({
-        submissions,
-        actorUser,
-        buildSubmission: (item) => item
-      });
-    },
-    async getFeedbackRequests(actorUser) {
-      const [requestRows] = await pool.query(
-        `SELECT r.id, r.cycle_id AS cycleId, r.requester_user_id AS requesterUserId,
-                r.reviewee_person_id AS revieweePersonId, r.status, r.context_note AS contextNote,
-                r.requested_at AS requestedAt, r.decided_at AS decidedAt,
-                r.decided_by_user_id AS decidedByUserId,
-                c.title AS cycleTitle, c.semester_label AS semesterLabel, c.status AS cycleStatus,
-                requester_person.name AS requesterName, reviewee.name AS revieweeName,
-                decided_person.name AS decidedByName
-         FROM evaluation_feedback_requests r
-         JOIN evaluation_cycles c ON c.id = r.cycle_id
-         JOIN users requester_user ON requester_user.id = r.requester_user_id
-         JOIN people requester_person ON requester_person.id = requester_user.person_id
-         JOIN people reviewee ON reviewee.id = r.reviewee_person_id
-         LEFT JOIN users decided_user ON decided_user.id = r.decided_by_user_id
-         LEFT JOIN people decided_person ON decided_person.id = decided_user.person_id
-         ORDER BY r.requested_at DESC`
-      );
-      const [itemRows] = await pool.query(
-        `SELECT i.id, i.request_id AS requestId, i.provider_person_id AS providerPersonId,
-                i.assignment_id AS assignmentId, p.name AS providerName
-         FROM evaluation_feedback_request_items i
-         JOIN people p ON p.id = i.provider_person_id
-         ORDER BY p.name`
-      );
-
-      const requests = requestRows.map((row) => ({
-        ...row,
-        providers: itemRows.filter((item) => item.requestId === row.id)
-      }));
-
-      if (isOrgWideUser(actorUser)) {
-        return requests;
-      }
-
-      if (isManagerUser(actorUser)) {
-        const people = await fetchPeopleRows(pool);
-        return requests.filter((item) => {
-          const reviewee = people.find((person) => person.id === item.revieweePersonId);
-          return (
-            item.requesterUserId === actorUser.id ||
-            item.revieweePersonId === actorUser.person.id ||
-            reviewee?.managerPersonId === actorUser.person.id
-          );
-        });
-      }
-
-      return requests.filter((item) => item.requesterUserId === actorUser.id);
-    },
-    async createFeedbackRequest(payload, actorUser) {
-      const people = await fetchPeopleRows(pool);
-      const users = await fetchUserRows(pool);
-      const dbSnapshot = {
-        people,
-        users,
-        cycles: await this.getEvaluationCycles(),
-        assignments: await pool
-          .query(
-            `SELECT id, cycle_id AS cycleId, reviewer_user_id AS reviewerUserId,
-                    reviewee_person_id AS revieweePersonId, relationship_type AS relationshipType
-             FROM evaluation_assignments`
-          )
-          .then(([rows]) => rows)
-      };
-      const providerPersonIds = assertCanCreateFeedbackRequest(dbSnapshot, actorUser, payload);
-
-      const request = prepareFeedbackRequest({
-        payload,
-        actorUser,
-        createId,
-        requestedAt: new Date().toISOString()
-      });
-
-      const connection = await pool.getConnection();
-      try {
-        await connection.beginTransaction();
-        await connection.query(
-          `INSERT INTO evaluation_feedback_requests
-           (id, cycle_id, requester_user_id, reviewee_person_id, status, context_note, requested_at, decided_at, decided_by_user_id)
-           VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL)`,
-          [
-            request.id,
-            request.cycleId,
-            request.requesterUserId,
-            request.revieweePersonId,
-            request.status,
-            request.contextNote,
-            request.requestedAt
-          ]
-        );
-
-        for (const item of buildFeedbackRequestItems({
-          providerPersonIds,
-          requestId: request.id,
-          createId
-        })) {
-          await connection.query(
-            `INSERT INTO evaluation_feedback_request_items
-             (id, request_id, provider_person_id, assignment_id)
-             VALUES (?, ?, ?, NULL)`,
-            [item.id, item.requestId, item.providerPersonId]
-          );
-        }
-
-        await insertAuditLog(connection, {
-          category: AUDIT_CATEGORIES.feedbackRequest,
-          action: "created",
-          entityType: "feedback_request",
-          entityId: request.id,
-          entityLabel: actorUser.person?.name || actorUser.email,
-          actorUser,
-          summary: "Solicitacao de feedback direto registrada",
-          detail: buildFeedbackRequestCreateAuditDetail(providerPersonIds, request.cycleId)
-        });
-
-        await connection.commit();
-      } catch (error) {
-        await connection.rollback();
-        throw error;
-      } finally {
-        connection.release();
-      }
-
-      const requests = await this.getFeedbackRequests(actorUser);
-      return requests.find((item) => item.id === request.id);
-    },
-    async reviewFeedbackRequest(requestId, payload, actorUser) {
-      if (!["admin", "hr"].includes(actorUser.roleKey)) {
-        throw new Error("Perfil sem permissao para aprovar solicitacoes de feedback.");
-      }
-
-      assertValidFeedbackRequestStatus(payload.status);
-
-      const [requestRows] = await pool.query(
-        `SELECT r.id, r.cycle_id AS cycleId, r.requester_user_id AS requesterUserId,
-                r.reviewee_person_id AS revieweePersonId, r.status, r.context_note AS contextNote,
-                c.due_date AS dueDate
-         FROM evaluation_feedback_requests r
-         JOIN evaluation_cycles c ON c.id = r.cycle_id
-         WHERE r.id = ?
-         LIMIT 1`,
-        [requestId]
-      );
-      if (!requestRows[0]) {
-        throw new Error("Solicitacao de feedback nao encontrada.");
-      }
-      if (requestRows[0].status !== FEEDBACK_REQUEST_STATUS.pending) {
-        throw new Error("A solicitacao ja foi tratada.");
-      }
-
-      const [itemRows] = await pool.query(
-        `SELECT i.id, i.provider_person_id AS providerPersonId
-         FROM evaluation_feedback_request_items i
-         WHERE i.request_id = ?`,
-        [requestId]
-      );
-
-      const connection = await pool.getConnection();
-      try {
-        await connection.beginTransaction();
-        await connection.query(
-          `UPDATE evaluation_feedback_requests
-           SET status = ?, decided_at = ?, decided_by_user_id = ?
-           WHERE id = ?`,
-          [payload.status, new Date().toISOString(), actorUser.id, requestId]
-        );
-
-        if (payload.status === FEEDBACK_REQUEST_STATUS.approved) {
-          if (supportsCycleConfig) {
-            const [cycleConfigRows] = await connection.query(
-              `SELECT is_enabled AS isEnabled, enabled_relationships_json AS enabledRelationshipsJson, transversal_config_json AS transversalConfigJson
-               FROM evaluation_cycles
-               WHERE id = ?
-               LIMIT 1`,
-              [requestRows[0].cycleId]
-            );
-            if (!cycleConfigRows[0]) {
-              throw new Error("Ciclo de avaliacao nao encontrado.");
-            }
-            if (!isCycleRelationshipEnabled(cycleConfigRows[0], "peer")) {
-              throw new Error("Feedback direto esta desativado neste ciclo.");
-            }
-          }
-
-          const users = await fetchUserRows(pool);
-          for (const item of itemRows) {
-            const reviewerUser = users.find(
-              (user) => user.personId === item.providerPersonId && user.status === "active"
-            );
-            if (!reviewerUser) {
-              continue;
-            }
-
-            const assignmentId = createId("assignment");
-            await connection.query(
-              `INSERT INTO evaluation_assignments
-               (id, cycle_id, reviewer_user_id, reviewee_person_id, relationship_type, project_context,
-                collaboration_context, status, due_date)
-               VALUES (?, ?, ?, ?, 'peer', ?, ?, 'pending', ?)`,
-              [
-                assignmentId,
-                requestRows[0].cycleId,
-                reviewerUser.id,
-                requestRows[0].revieweePersonId,
-                "Feedback direto solicitado",
-                requestRows[0].contextNote,
-                requestRows[0].dueDate
-              ]
-            );
-            await connection.query(
-              `UPDATE evaluation_feedback_request_items
-               SET assignment_id = ?
-               WHERE id = ?`,
-              [assignmentId, item.id]
-            );
-          }
-        }
-
-        await insertAuditLog(connection, {
-          category: AUDIT_CATEGORIES.feedbackRequest,
-          action: payload.status === FEEDBACK_REQUEST_STATUS.approved ? "approved" : "rejected",
-          entityType: "feedback_request",
-          entityId: requestId,
-          entityLabel: requestRows[0].revieweePersonId,
-          actorUser,
-          summary:
-            payload.status === FEEDBACK_REQUEST_STATUS.approved
-              ? "Solicitacao de feedback aprovada"
-              : "Solicitacao de feedback rejeitada",
-          detail: buildFeedbackRequestReviewAuditDetail(requestRows[0])
-        });
-
-        await connection.commit();
-      } catch (error) {
-        await connection.rollback();
-        throw error;
-      } finally {
-        connection.release();
-      }
-
-      const requests = await this.getFeedbackRequests(actorUser);
-      return requests.find((item) => item.id === requestId);
-    },
-    async submitEvaluationAssignment(payload) {
-      const assignment = await this.getEvaluationAssignmentById(
-        payload.assignmentId,
-        payload.reviewerUserId
-      );
-      if (!assignment) {
-        throw new Error("Assignment de avaliacao nao encontrado.");
-      }
-      if (assignment.status === "submitted") {
-        throw new Error("Esta avaliacao ja foi enviada.");
-      }
-      if (!isReleasedCycle(assignment.cycleStatus)) {
-        throw new Error("As avaliacoes deste ciclo ainda nao foram liberadas pelo RH.");
-      }
-      if (!isCycleRelationshipEnabled(assignment, assignment.relationshipType)) {
-        throw new Error("Este questionario nao esta ativo neste ciclo.");
-      }
-
-      const templateDefinition = getTemplateDefinitionForCycle({
-        cycle: assignment,
-        relationshipType: assignment.relationshipType,
-        customLibraries: customLibraryState.published
-      });
-      validateEvaluationAnswers(payload.answers, templateDefinition);
-
-      if (isAnonymousRelationship(assignment.relationshipType)) {
-        const anonymousSubmission = createAnonymousSubmissionPayload(
-          assignment,
-          payload,
-          templateDefinition
-        );
-        anonymousResponseState.responses.unshift(anonymousSubmission);
-        await saveAnonymousResponseState(anonymousResponseState);
-        await pool.query(
-          `UPDATE evaluation_assignments SET status = 'submitted' WHERE id = ?`,
-          [assignment.id]
-        );
-        await pool.query(
-          `UPDATE evaluation_cycle_raters
-           SET status = 'completed'
-           WHERE cycle_id = ? AND participant_person_id = ? AND rater_user_id = ? AND relationship_type = ?`,
-          [
-            assignment.cycleId,
-            assignment.revieweePersonId,
-            assignment.reviewerUserId,
-            assignment.relationshipType
-          ]
-        );
-        if (
-          assignment.relationshipType === "company" &&
-          Number.isFinite(Number(anonymousSubmission.overallScore))
-        ) {
-          await pool.query(
-            `UPDATE people
-             SET satisfaction_score = ?
-             WHERE id = ?`,
-            [Number(Number(anonymousSubmission.overallScore).toFixed(2)), assignment.revieweePersonId]
-          );
-        }
-        return anonymousSubmission;
-      }
-
-      const submission = prepareEvaluationSubmission({
-        assignment,
-        payload,
-        createId,
-        getAnsweredScaleScores,
-        average
-      });
-
-      const connection = await pool.getConnection();
-      try {
-        await connection.beginTransaction();
-
-        await connection.query(
-          `INSERT INTO evaluation_submissions
-          (id, assignment_id, cycle_id, reviewer_user_id, reviewee_person_id, overall_score,
-            strengths_note, development_note, submitted_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
-            submission.id,
-            submission.assignmentId,
-            submission.cycleId,
-            submission.reviewerUserId,
-            submission.revieweePersonId,
-            submission.overallScore,
-            submission.strengthsNote,
-            submission.developmentNote,
-            submission.submittedAt
-          ]
-        );
-
-        for (const answer of buildEvaluationAnswerRows({
-          answers: payload.answers,
-          templateDefinition,
-          submissionId: submission.id,
-          createId
-        })) {
-          await connection.query(
-            `INSERT INTO evaluation_answers
-             (id, submission_id, question_id, answer_type, score, evidence_note, answer_text, answer_options_json)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-            [
-              answer.id,
-              answer.submissionId,
-              answer.questionId,
-              answer.answerType,
-              answer.score,
-              answer.evidenceNote,
-              answer.textValue,
-              JSON.stringify(answer.selectedOptions)
-            ]
-          );
-        }
-
-        await connection.query(
-          `UPDATE evaluation_assignments SET status = 'submitted' WHERE id = ?`,
-          [assignment.id]
-        );
-
-        await connection.query(
-          `UPDATE evaluation_cycle_raters
-           SET status = 'completed'
-           WHERE cycle_id = ? AND participant_person_id = ? AND rater_user_id = ? AND relationship_type = ?`,
-          [
-            assignment.cycleId,
-            assignment.revieweePersonId,
-            assignment.reviewerUserId,
-            assignment.relationshipType
-          ]
-        );
-
-        await connection.commit();
-      } catch (error) {
-        await connection.rollback();
-        throw error;
-      } finally {
-        connection.release();
-      }
-
-      const responses = await fetchMysqlResponses(pool, customLibraryState.published, {
-        supportsFeedbackAcknowledgement
-      });
-      return responses.find((item) => item.id === submission.id);
-    },
-    async acknowledgeReceivedManagerFeedback(submissionId, payload, actorUser) {
-      if (!supportsFeedbackAcknowledgement) {
-        throw new Error(
-          "Este ambiente ainda nao suporta o registro de concordancia do colaborador."
-        );
-      }
-
-      const acknowledgement = validateFeedbackAcknowledgementPayload(payload);
-      const [rows] = await pool.query(
-        `SELECT s.id, s.assignment_id AS assignmentId, s.reviewee_person_id AS revieweePersonId,
-                a.relationship_type AS relationshipType
-         FROM evaluation_submissions s
-         JOIN evaluation_assignments a ON a.id = s.assignment_id
-         WHERE s.id = ?
-         LIMIT 1`,
-        [submissionId]
-      );
-
-      if (!rows[0]) {
-        throw new Error("Feedback do lider nao encontrado.");
-      }
-      if (rows[0].relationshipType !== "manager") {
-        throw new Error("Somente feedback do lider permite concordancia do colaborador.");
-      }
-      if (rows[0].revieweePersonId !== actorUser?.person?.id) {
-        throw new Error("Usuario nao autorizado a responder este feedback.");
-      }
-
-      const acknowledgedAt = new Date().toISOString();
-      const connection = await pool.getConnection();
-      try {
-        await connection.beginTransaction();
-        await connection.query(
-          `UPDATE evaluation_submissions
-           SET reviewee_acknowledgement_status = ?, reviewee_acknowledgement_note = ?, reviewee_acknowledged_at = ?
-           WHERE id = ?`,
-          [acknowledgement.status, acknowledgement.note, acknowledgedAt, submissionId]
-        );
-
-        await insertAuditLog(connection, {
-          category: AUDIT_CATEGORIES.cycle,
-          action:
-            acknowledgement.status === FEEDBACK_ACKNOWLEDGEMENT_STATUS.agreed
-              ? "manager_feedback_agreed"
-              : "manager_feedback_disagreed",
-          entityType: "evaluation_submission",
-          entityId: submissionId,
-          entityLabel: actorUser.person?.name || actorUser.email,
-          actorUser,
-          summary:
-            acknowledgement.status === FEEDBACK_ACKNOWLEDGEMENT_STATUS.agreed
-              ? "Colaborador concordou com o feedback do lider"
-              : "Colaborador discordou do feedback do lider",
-          detail: acknowledgement.note || "Sem observacoes adicionais."
-        });
-
-        await connection.commit();
-      } catch (error) {
-        await connection.rollback();
-        throw error;
-      } finally {
-        connection.release();
-      }
-
-      const responses = await fetchMysqlResponses(pool, customLibraryState.published, {
-        supportsFeedbackAcknowledgement
-      });
-      return responses.find((item) => item.id === submissionId) || null;
-    },
-    async getApplauseEntries(actorUser) {
-      const [rows] = await pool.query(
-        `SELECT a.id, a.sender_person_id AS senderPersonId, a.receiver_person_id AS receiverPersonId,
-                a.category, a.impact, a.context_note AS contextNote, a.created_at AS createdAt,
-                a.status, sender.name AS senderName, receiver.name AS receiverName
-         FROM applause_entries a
-         JOIN people sender ON sender.id = a.sender_person_id
-         JOIN people receiver ON receiver.id = a.receiver_person_id
-         ORDER BY a.created_at DESC`
-      );
-
-      if (isFullAccessUser(actorUser)) {
-        return rows;
-      }
-
-      if (isManagerUser(actorUser)) {
-        const people = await fetchPeopleRows(pool);
-        const visiblePersonIds = new Set([
-          actorUser.person.id,
-          ...getTeamPeople(people, actorUser.person.id).map((item) => item.id)
-        ]);
-        return rows.filter(
-          (item) =>
-            visiblePersonIds.has(item.senderPersonId) ||
-            visiblePersonIds.has(item.receiverPersonId)
-        );
-      }
-
-      return rows.filter(
-        (item) =>
-          item.senderPersonId === actorUser.person.id ||
-          item.receiverPersonId === actorUser.person.id
-      );
-    },
-    async createApplauseEntry(payload) {
-      const [rows] = await pool.query(
-        `SELECT sender_person_id AS senderPersonId, receiver_person_id AS receiverPersonId, created_at AS createdAt
-         FROM applause_entries`
-      );
-      assertCanCreateApplause(rows, payload);
-
-      const applause = {
-        id: createId("applause"),
-        createdAt: new Date().toISOString(),
-        status: "Validado",
-        ...payload
-      };
-      await pool.query(
-        `INSERT INTO applause_entries
-         (id, sender_person_id, receiver_person_id, category, impact, context_note, created_at, status)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          applause.id,
-          applause.senderPersonId,
-          applause.receiverPersonId,
-          applause.category,
-          applause.impact,
-          applause.contextNote,
-          applause.createdAt,
-          applause.status
-        ]
-      );
-      const [people] = await pool.query(`SELECT id, name FROM people WHERE id IN (?, ?)`, [
-        applause.senderPersonId,
-        applause.receiverPersonId
-      ]);
-      const sender = people.find((person) => person.id === applause.senderPersonId);
-      const receiver = people.find((person) => person.id === applause.receiverPersonId);
-      await insertAuditLog(pool, {
-        category: AUDIT_CATEGORIES.applause,
-        action: "created",
-        entityType: "applause_entry",
-        entityId: applause.id,
-        entityLabel: applause.category,
-        actorUser: {
-          id: null,
-          email: null,
-          roleKey: "employee",
-          person: sender ? { id: sender.id, name: sender.name } : null
-        },
-        summary: `Aplause registrado para ${receiver?.name || "colaborador"}`,
-        detail: buildApplauseAuditDetail({
-          category: applause.category,
-          senderName: sender?.name,
-          receiverName: receiver?.name
-        })
-      });
-      return {
-        ...applause,
-        senderName: sender?.name || "",
-        receiverName: receiver?.name || ""
-      };
-    },
-    async updateApplauseEntry(applauseId, payload, actorUser) {
-      const [people, rows] = await Promise.all([
-        fetchPeopleRows(pool),
-        pool
-          .query(
-            `SELECT id, sender_person_id AS senderPersonId, receiver_person_id AS receiverPersonId,
-                    category, impact, context_note AS contextNote, created_at AS createdAt, status
-             FROM applause_entries
-             WHERE id = ?
-             LIMIT 1`,
-            [applauseId]
-          )
-          .then(([result]) => result)
-      ]);
-
-      const applause = rows[0];
-      if (!applause) {
-        throw new Error("Registro de Aplause nao encontrado.");
-      }
-
-      assertCanManageApplauseEntry(actorUser, people, applause, {
-        isOrgWideUser,
-        getTeamPeople
-      });
-      assertValidApplauseStatus(payload.status);
-
-      await pool.query(
-        `UPDATE applause_entries
-         SET receiver_person_id = ?, category = ?, impact = ?, context_note = ?, status = ?
-         WHERE id = ?`,
-        [
-          payload.receiverPersonId,
-          payload.category,
-          payload.impact,
-          payload.contextNote,
-          payload.status,
-          applauseId
-        ]
-      );
-
-      const sender = people.find((person) => person.id === applause.senderPersonId);
-      const receiver = people.find((person) => person.id === payload.receiverPersonId);
-      await insertAuditLog(pool, {
-        category: AUDIT_CATEGORIES.applause,
-        action: payload.status === "Arquivado" ? "archived" : "updated",
-        entityType: "applause_entry",
-        entityId: applauseId,
-        entityLabel: payload.category,
-        actorUser,
-        summary:
-          payload.status === "Arquivado"
-            ? `Aplause arquivado para ${receiver?.name || "colaborador"}`
-            : `Aplause atualizado para ${receiver?.name || "colaborador"}`,
-        detail: buildApplauseAuditDetail({
-          category: payload.category,
-          senderName: sender?.name,
-          receiverName: receiver?.name
-        })
-      });
-
-      return {
-        ...applause,
-        ...payload,
-        id: applauseId,
-        senderPersonId: applause.senderPersonId,
-        createdAt: applause.createdAt,
-        senderName: sender?.name || "",
-        receiverName: receiver?.name || ""
-      };
-    },
-    async getDevelopmentRecords(actorUser) {
-      const actorPersonId = actorUser.person?.id || actorUser.personId;
-      const [rows] = await pool.query(
-        `SELECT d.id, d.person_id AS personId, p.name AS personName, d.record_type AS recordType,
-                d.title, d.provider_name AS providerName, d.completed_at AS completedAt,
-                d.skill_signal AS skillSignal, d.notes, d.status, d.archived_at AS archivedAt
-         FROM development_records d
-         JOIN people p ON p.id = d.person_id
-         ORDER BY d.completed_at DESC`
-      );
-
-      if (isFullAccessUser(actorUser)) {
-        return rows;
-      }
-
-      if (isManagerUser(actorUser)) {
-        const people = await fetchPeopleRows(pool);
-        const visiblePersonIds = new Set([
-          actorPersonId,
-          ...getTeamPeople(people, actorPersonId).map((item) => item.id)
-        ]);
-        return rows.filter((item) => visiblePersonIds.has(item.personId));
-      }
-
-      return rows.filter((item) => item.personId === actorPersonId);
-    },
-    async createDevelopmentRecord(payload, actorUser) {
-      const people = await fetchPeopleRows(pool);
-      assertCanManageDevelopmentSubject(actorUser, people, payload.personId, {
-        isOrgWideUser,
-        isManagerUser,
-        getTeamPeople
-      });
-
-      const record = {
-        id: createId("development"),
-        ...payload,
-        status: "active",
-        archivedAt: null
-      };
-      await pool.query(
-        `INSERT INTO development_records
-         (id, person_id, record_type, title, provider_name, completed_at, skill_signal, notes, status, archived_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          record.id,
-          record.personId,
-          record.recordType,
-          record.title,
-          record.providerName,
-          record.completedAt,
-          record.skillSignal,
-          record.notes,
-          record.status,
-          record.archivedAt
-        ]
-      );
-      const person = people.find((item) => item.id === record.personId);
-      await insertAuditLog(pool, {
-        category: AUDIT_CATEGORIES.development,
-        action: "created",
-        entityType: "development_record",
-        entityId: record.id,
-        entityLabel: record.title,
-        actorUser,
-        summary: `Registro de desenvolvimento criado para ${person?.name || "pessoa"}`,
-        detail: buildDevelopmentRecordAuditDetail(record)
-      });
-      return record;
-    },
-    async updateDevelopmentRecord(recordId, payload, actorUser) {
-      const people = await fetchPeopleRows(pool);
-      const [[existingRecord]] = await pool.query(
-        `SELECT id, person_id AS personId
-         FROM development_records
-         WHERE id = ?`,
-        [recordId]
-      );
-
-      if (!existingRecord) {
-        throw new Error("Registro de desenvolvimento nao encontrado.");
-      }
-
-      assertCanManageDevelopmentSubject(
-        actorUser,
-        people,
-        payload.personId || existingRecord.personId,
-        {
-          isOrgWideUser,
-          isManagerUser,
-          getTeamPeople
-        }
-      );
-      assertValidDevelopmentRecordStatus(payload.status);
-
-      const archivedAt = payload.status === "archived" ? new Date().toISOString() : null;
-      await pool.query(
-        `UPDATE development_records
-         SET person_id = ?, record_type = ?, title = ?, provider_name = ?, completed_at = ?,
-             skill_signal = ?, notes = ?, status = ?, archived_at = ?
-         WHERE id = ?`,
-        [
-          payload.personId,
-          payload.recordType,
-          payload.title,
-          payload.providerName,
-          payload.completedAt,
-          payload.skillSignal,
-          payload.notes,
-          payload.status,
-          archivedAt,
-          recordId
-        ]
-      );
-
-      const person = people.find((item) => item.id === payload.personId);
-      await insertAuditLog(pool, {
-        category: AUDIT_CATEGORIES.development,
-        action: payload.status === "archived" ? "archived" : "updated",
-        entityType: "development_record",
-        entityId: recordId,
-        entityLabel: payload.title,
-        actorUser,
-        summary:
-          payload.status === "archived"
-            ? `Registro de desenvolvimento arquivado para ${person?.name || "pessoa"}`
-            : `Registro de desenvolvimento atualizado para ${person?.name || "pessoa"}`,
-        detail: buildDevelopmentRecordAuditDetail(payload)
-      });
-
-      return {
-        id: recordId,
-        ...payload,
-        archivedAt,
-        personName: person?.name || ""
-      };
-    },
-    async getLearningIntegrationEvents(actorUser) {
-      if (!isOrgWideUser(actorUser)) {
-        throw new Error("Perfil sem permissao para visualizar integracoes de aprendizagem.");
-      }
-
-      if (!supportsLearningIntegrations) {
-        return [];
-      }
-
-      const [rows, people] = await Promise.all([
-        fetchLearningIntegrationEventRows(pool),
-        fetchPeopleRows(pool)
-      ]);
-
-      return rows.map((event) => presentLearningIntegrationEvent(event, people));
-    },
-    async ingestLearningIntegrationEvents(payload, actorUser) {
-      if (!isOrgWideUser(actorUser)) {
-        throw new Error("Perfil sem permissao para receber integracoes de aprendizagem.");
-      }
-
-      if (!supportsLearningIntegrations) {
-        throw new Error("Fila de integracao de aprendizagem indisponivel no banco atual.");
-      }
-
-      const [people, users] = await Promise.all([fetchPeopleRows(pool), fetchUserRows(pool)]);
-      const rows = buildLearningIntegrationEventRows(payload, people, users, actorUser);
-      const accepted = [];
-
-      for (const row of rows) {
-        const [result] = await pool.query(
-          `INSERT IGNORE INTO learning_integration_events
-           (id, source_system, external_id, person_email, person_document, person_id, event_type,
-            title, provider_name, status, occurred_at, workload_hours, competency_key, suggested_action,
-            processing_status, raw_payload_json, created_at, created_by_user_id)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
-            row.id,
-            row.sourceSystem,
-            row.externalId,
-            row.personEmail,
-            row.personDocument || null,
-            row.personId,
-            row.eventType,
-            row.title,
-            row.providerName,
-            row.status,
-            row.occurredAt || null,
-            row.workloadHours,
-            row.competencyKey || null,
-            row.suggestedAction,
-            row.processingStatus,
-            JSON.stringify(row.rawPayload || {}),
-            row.createdAt,
-            row.createdByUserId
-          ]
-        );
-
-        if (result.affectedRows) {
-          accepted.push(row);
-        }
-      }
-
-      await insertAuditLog(pool, {
-        category: AUDIT_CATEGORIES.development,
-        action: "imported",
-        entityType: "learning_integration_event",
-        entityId: accepted[0]?.id || rows[0]?.id || "learning_integration",
-        entityLabel: payload.sourceSystem || "Integracao de aprendizagem",
-        actorUser,
-        summary: `${accepted.length} eventos de aprendizagem recebidos de ${payload.sourceSystem || "sistema externo"}`,
-        detail: `${accepted.filter((item) => item.processingStatus === "ready_for_review").length} prontos para revisao · ${accepted.filter((item) => item.processingStatus === "needs_review").length} exigem conciliacao`
-      });
-
-      return {
-        sourceSystem: payload.sourceSystem,
-        received: rows.length,
-        accepted: accepted.length,
-        duplicates: rows.length - accepted.length,
-        events: accepted.map((event) => presentLearningIntegrationEvent(event, people))
-      };
-    },
-    async applyLearningIntegrationEvent(eventId, payload, actorUser) {
-      if (!isOrgWideUser(actorUser)) {
-        throw new Error("Perfil sem permissao para aplicar integracoes de aprendizagem.");
-      }
-
-      if (!supportsLearningIntegrations) {
-        throw new Error("Fila de integracao de aprendizagem indisponivel no banco atual.");
-      }
-
-      const [events, people, competencies] = await Promise.all([
-        fetchLearningIntegrationEventRows(pool),
-        fetchPeopleRows(pool),
-        fetchCompetencyRows(pool)
-      ]);
-      const event = events.find((item) => item.id === eventId);
-      if (!event) {
-        throw new Error("Evento de aprendizagem nao encontrado.");
-      }
-
-      const application = buildLearningIntegrationApplicationPayload(
-        event,
-        payload,
-        competencies
-      );
-      const appliedEntity =
-        application.entityType === "development_record"
-          ? await this.createDevelopmentRecord(application.payload, actorUser)
-          : await this.createDevelopmentPlan(application.payload, actorUser);
-      const appliedAt = new Date().toISOString();
-      const reviewNote = String(payload?.reviewNote || "").trim();
-
-      await pool.query(
-        `UPDATE learning_integration_events
-         SET processing_status = ?, applied_entity_type = ?, applied_entity_id = ?,
-             applied_at = ?, review_note = ?
-         WHERE id = ?`,
-        [
-          "applied",
-          application.entityType,
-          appliedEntity.id,
-          appliedAt,
-          reviewNote || null,
-          eventId
-        ]
-      );
-
-      await insertAuditLog(pool, {
-        category: AUDIT_CATEGORIES.development,
-        action: "applied",
-        entityType: "learning_integration_event",
-        entityId: event.id,
-        entityLabel: event.title,
-        actorUser,
-        summary: `Evento de aprendizagem aplicado em ${application.entityType === "development_record" ? "desenvolvimento" : "PDI"}`,
-        detail: `${event.sourceSystem} · ${event.externalId} · ${appliedEntity.id}`
-      });
-
-      return {
-        event: presentLearningIntegrationEvent(
-          {
-            ...event,
-            processingStatus: "applied",
-            appliedEntityType: application.entityType,
-            appliedEntityId: appliedEntity.id,
-            appliedAt,
-            reviewNote
-          },
-          people
-        ),
-        appliedEntity
-      };
-    },
+    ...createMysqlEvaluationWorkflowStore({
+      pool,
+      createId,
+      customLibraryState,
+      anonymousResponseState,
+      supportsAssignmentReminder,
+      supportsCycleConfig,
+      supportsFeedbackAcknowledgement,
+      fetchCycleAssignmentRows,
+      fetchPeopleRows,
+      fetchUserRows,
+      fetchMysqlResponses,
+      insertAuditLog,
+      presentDelinquentAssignment,
+      isAssignmentDelinquent,
+      AUDIT_CATEGORIES,
+      buildCycleReminderAuditDetail,
+      assertCycleStatusTransition,
+      CYCLE_STATUS,
+      buildCycleReportSnapshots,
+      buildCycleStatusAuditDetail,
+      presentCycle,
+      normalizeCycleModuleAvailability,
+      normalizeTransversalConfig,
+      resolveCycleConfigUpdate,
+      buildCycleConfigAuditDetail,
+      isOrgWideUser,
+      isManagerUser,
+      assertCanCreateFeedbackRequest,
+      prepareFeedbackRequest,
+      buildFeedbackRequestItems,
+      buildFeedbackRequestCreateAuditDetail,
+      assertValidFeedbackRequestStatus,
+      FEEDBACK_REQUEST_STATUS,
+      isCycleRelationshipEnabled,
+      buildFeedbackRequestReviewAuditDetail
+    }),
+    ...createMysqlEvaluationSubmissionStore({
+      pool,
+      createId,
+      customLibraryState,
+      anonymousResponseState,
+      saveAnonymousResponseState,
+      supportsFeedbackAcknowledgement,
+      isReleasedCycle,
+      isCycleRelationshipEnabled,
+      getTemplateDefinitionForCycle,
+      validateEvaluationAnswers,
+      isAnonymousRelationship,
+      createAnonymousSubmissionPayload,
+      prepareEvaluationSubmission,
+      getAnsweredScaleScores,
+      average,
+      buildEvaluationAnswerRows,
+      fetchMysqlResponses,
+      validateFeedbackAcknowledgementPayload,
+      insertAuditLog,
+      AUDIT_CATEGORIES,
+      FEEDBACK_ACKNOWLEDGEMENT_STATUS
+    }),
+    ...createMysqlApplauseStore({
+      pool,
+      createId,
+      isFullAccessUser,
+      isManagerUser,
+      fetchPeopleRows,
+      getTeamPeople,
+      assertCanCreateApplause,
+      insertAuditLog,
+      AUDIT_CATEGORIES,
+      buildApplauseAuditDetail,
+      assertCanManageApplauseEntry,
+      isOrgWideUser,
+      assertValidApplauseStatus
+    }),
+    ...createMysqlDevelopmentRecordStore({
+      pool,
+      createId,
+      isFullAccessUser,
+      isManagerUser,
+      fetchPeopleRows,
+      getTeamPeople,
+      assertCanManageDevelopmentSubject,
+      isOrgWideUser,
+      insertAuditLog,
+      AUDIT_CATEGORIES,
+      buildDevelopmentRecordAuditDetail,
+      assertValidDevelopmentRecordStatus
+    }),
+    ...createMysqlLearningIntegrationStore({
+      pool,
+      isOrgWideUser,
+      supportsLearningIntegrations,
+      fetchLearningIntegrationEventRows,
+      fetchPeopleRows,
+      fetchUserRows,
+      fetchCompetencyRows,
+      presentLearningIntegrationEvent,
+      buildLearningIntegrationEventRows,
+      insertAuditLog,
+      AUDIT_CATEGORIES,
+      buildLearningIntegrationApplicationPayload
+    }),
     async getDevelopmentPlans(actorUser) {
       const actorPersonId = actorUser.person?.id || actorUser.personId;
       const [plans, people, cycles, competencies] = await Promise.all([

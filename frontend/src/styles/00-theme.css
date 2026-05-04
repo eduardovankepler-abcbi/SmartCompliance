@@ -1,0 +1,118 @@
+:root {
+  --font-stack: "Aptos", "Trebuchet MS", "Segoe UI", sans-serif;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0c0f16;
+  --surface: rgba(19, 24, 33, 0.96);
+  --surface-strong: rgba(24, 29, 39, 0.98);
+  --surface-soft: rgba(15, 19, 28, 0.98);
+  --text: #f3f5f7;
+  --muted: #9ea6b3;
+  --line: rgba(255, 255, 255, 0.08);
+  --accent-primary: #11161f;
+  --accent-primary-strong: #191f2a;
+  --accent-red: #e53722;
+  --accent-red-soft: rgba(229, 55, 34, 0.14);
+  --accent-grey: #8891a0;
+  --shadow: 0 22px 44px rgba(0, 0, 0, 0.22);
+  --hero-glow:
+    radial-gradient(circle at top right, rgba(229, 55, 34, 0.12), transparent 28%),
+    radial-gradient(circle at top left, rgba(91, 101, 118, 0.08), transparent 24%);
+  --body-gradient:
+    linear-gradient(180deg, #0b0e15 0%, #0d1017 100%);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f5f7fb;
+  --surface: rgba(255, 255, 255, 0.92);
+  --surface-strong: rgba(255, 255, 255, 0.99);
+  --surface-soft: rgba(244, 246, 250, 0.94);
+  --text: #0d1117;
+  --muted: #556174;
+  --line: rgba(24, 34, 48, 0.16);
+  --accent-primary: #ffffff;
+  --accent-primary-strong: #eef2f8;
+  --accent-red: #cb223d;
+  --accent-red-soft: rgba(203, 34, 61, 0.1);
+  --accent-grey: #6f7c8d;
+  --shadow: 0 18px 45px rgba(24, 32, 45, 0.1);
+  --hero-glow:
+    radial-gradient(circle at top right, rgba(203, 34, 61, 0.12), transparent 30%),
+    radial-gradient(circle at top left, rgba(124, 135, 151, 0.1), transparent 22%);
+  --body-gradient:
+    radial-gradient(circle at top left, rgba(203, 34, 61, 0.08), transparent 24%),
+    radial-gradient(circle at 86% 8%, rgba(124, 135, 151, 0.12), transparent 20%),
+    linear-gradient(180deg, #f8fafc 0%, #eef2f8 100%);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--body-gradient);
+  background-attachment: fixed;
+  color: var(--text);
+  font-family: var(--font-stack);
+  transition: background 220ms ease, color 220ms ease;
+  letter-spacing: -0.01em;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+.center-screen,
+.login-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+}
+
+.login-shell {
+  position: relative;
+  overflow: hidden;
+  padding: 24px;
+}
+
+.login-backdrop {
+  position: absolute;
+  inset: 0;
+  background: var(--hero-glow);
+  pointer-events: none;
+}
+
+.login-card {
+  position: relative;
+  z-index: 1;
+  width: min(500px, calc(100vw - 32px));
+  padding: 32px;
+  background:
+    linear-gradient(160deg, rgba(255, 255, 255, 0.02), transparent),
+    var(--surface-strong);
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: 18px;
+}
+
+.hero-copy {
+  line-height: 1.55;
+}
+

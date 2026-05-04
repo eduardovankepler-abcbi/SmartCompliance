@@ -1,0 +1,408 @@
+@media (max-width: 980px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    position: relative;
+    top: auto;
+    align-self: stretch;
+    height: auto;
+    padding-bottom: 24px;
+  }
+
+  .page-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .cycle-create-card {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-filter-grid,
+  .hero-panel,
+  .dashboard-command-hero,
+  .dashboard-decision-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-command-actions,
+  .dashboard-priority-queue,
+  .dashboard-analytical-nav,
+  .dashboard-theme-split,
+  .dashboard-theme-action-row,
+  .dashboard-satisfaction-question-grid,
+  .development-performance-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-decision-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboard-board-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .dashboard-board-grid > .card {
+    grid-column: span 3;
+  }
+
+  .dashboard-board-featured {
+    grid-column: span 6 !important;
+  }
+
+  .dashboard-board-grid-analytical > .card:not(.dashboard-board-featured) {
+    grid-column: span 3;
+  }
+
+  .dashboard-board-tall {
+    grid-row: span 1;
+  }
+
+  .dashboard-insight-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .dashboard-insight-grid > .card {
+    grid-column: span 3;
+  }
+
+  .dashboard-insight-grid-executive {
+    columns: 2;
+  }
+
+  .dashboard-card-tall {
+    grid-row: span 1;
+  }
+
+  .dashboard-insight-grid-analytical > .card {
+    margin-bottom: 14px;
+  }
+
+  .response-pie-layout,
+  .response-pie-modal-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .response-pie-visual-large {
+    width: 180px;
+    height: 180px;
+  }
+
+  .response-pie-hole-large {
+    width: 112px;
+    height: 112px;
+  }
+
+  .two-columns {
+    grid-template-columns: 1fr;
+  }
+
+  .module-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .registry-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .people-flow-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .people-support-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .access-journey-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .guide-step-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .incident-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .selection-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .module-toolbar {
+    flex-direction: column;
+  }
+
+  .module-tab {
+    justify-content: space-between;
+  }
+
+  .evaluation-cycle-grid,
+  .compliance-intake-form,
+  .development-intake-form,
+  .development-performance-panel,
+  .development-plan-form,
+  .development-plan-readonly-grid,
+  .applause-intake-grid,
+  .user-provision-form,
+  .evaluation-question-controls,
+  .evaluation-cycle-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .compliance-report-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .applause-intake-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .user-support-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .evaluation-assignment-switcher {
+    flex-direction: column;
+  }
+
+  .sidebar-topbar {
+    align-items: center;
+  }
+
+  .sidebar-brand-card {
+    width: 100%;
+  }
+
+  .topbar,
+  .topbar-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .topbar {
+    display: flex;
+    padding-right: 0;
+  }
+
+  .content {
+    padding: 0 20px 24px;
+  }
+
+  .dashboard-tools {
+    grid-template-columns: 1fr;
+    justify-content: stretch;
+  }
+
+  .dashboard-section-band {
+    align-items: start;
+  }
+
+  .dashboard-section-band p {
+    max-width: none;
+    text-align: left;
+  }
+
+  .dashboard-view-toggle .module-tab {
+    min-width: 0;
+    flex: 1 1 220px;
+  }
+
+  .table-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 1480px) and (min-width: 981px) {
+  .dashboard-grid {
+    gap: 14px;
+  }
+
+  .dashboard-filter-card,
+  .dashboard-grid .card,
+  .dashboard-grid .hero-panel {
+    padding: 18px;
+  }
+
+  .hero-panel,
+  .dashboard-command-hero,
+  .dashboard-decision-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-command-kpis,
+  .dashboard-decision-kpis,
+  .dashboard-priority-queue,
+  .dashboard-analytical-nav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboard-board-grid {
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+  }
+
+  .dashboard-board-grid > .card {
+    grid-column: span 4;
+  }
+
+  .dashboard-board-featured {
+    grid-column: span 8 !important;
+  }
+
+  .dashboard-board-grid-analytical > .card:not(.dashboard-board-featured) {
+    grid-column: span 4;
+  }
+
+  .dashboard-board-tall {
+    grid-row: span 1;
+  }
+
+  .dashboard-insight-grid {
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+  }
+
+  .dashboard-insight-grid > .card,
+  .dashboard-insight-grid-analytical > .card {
+    grid-column: span 4;
+  }
+
+  .dashboard-insight-grid-executive {
+    columns: 2 300px;
+  }
+
+  .dashboard-insight-grid-analytical {
+    columns: 2 300px;
+  }
+}
+
+@media (max-height: 920px) and (min-width: 981px) {
+  .dashboard-grid {
+    gap: 12px;
+  }
+
+  .dashboard-grid .card,
+  .dashboard-grid .hero-panel,
+  .dashboard-filter-card {
+    padding: 16px;
+    gap: 12px;
+  }
+
+  .dashboard-kpi-strip .stat-card {
+    min-height: 102px;
+  }
+
+  .donut-card {
+    min-height: 194px;
+  }
+
+  .heatmap-tile {
+    min-height: 92px;
+  }
+
+  .column-card {
+    min-height: 154px;
+  }
+
+  .column-track {
+    height: 72px;
+  }
+}
+
+@media (max-width: 640px) {
+  .dashboard-section-band {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .dashboard-command-kpis {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-decision-kpis,
+  .dashboard-priority-queue,
+  .dashboard-analytical-nav,
+  .dashboard-theme-split,
+  .dashboard-theme-action-row,
+  .dashboard-satisfaction-question-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-satisfaction-analytics-panel .dashboard-dimension-summary-head,
+  .dashboard-satisfaction-question-head {
+    flex-direction: column;
+  }
+
+  .dashboard-satisfaction-question-meta {
+    justify-items: start;
+  }
+
+  .dashboard-dimension-filter-card,
+  .dashboard-relationship-filter-card {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .dashboard-board-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-board-grid > .card,
+  .dashboard-board-featured {
+    grid-column: auto !important;
+  }
+
+  .dashboard-board-tall {
+    grid-row: auto;
+  }
+
+  .dashboard-insight-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-insight-grid > .card {
+    grid-column: auto;
+  }
+
+  .dashboard-insight-grid-executive {
+    columns: 1;
+  }
+
+  .dashboard-insight-grid-analytical {
+    columns: 1;
+  }
+
+  .dashboard-card-tall {
+    grid-row: auto;
+  }
+
+  .dashboard-rhythm-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-board-grid-analytical > .card:not(.dashboard-board-featured),
+  .dashboard-insight-grid-analytical > .card {
+    grid-column: auto;
+  }
+
+  .response-pie-visual {
+    width: 116px;
+    height: 116px;
+  }
+
+  .response-pie-hole {
+    width: 74px;
+    height: 74px;
+  }
+
+  .modal-card {
+    width: min(100%, calc(100vw - 20px));
+    padding: 18px;
+  }
+
+  .access-journey-grid {
+    grid-template-columns: 1fr;
+  }
+}

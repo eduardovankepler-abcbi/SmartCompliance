@@ -58,8 +58,8 @@ assert.equal(getVisibilityLabel("private"), "Privada");
 assert.equal(getVisibilityLabel("shared"), "Compartilhada");
 assert.match(
   appSource,
-  /<AppSceneRenderer[\s\S]*\bSelect=\{Select\}/,
-  "App deve repassar o componente Select para o renderer principal"
+  /<AppSceneRenderer[\s\S]*\bdashboardProps=\{dashboardSceneProps\}[\s\S]*\bpeopleProps=\{peopleSceneProps\}[\s\S]*\busersProps=\{usersSceneProps\}/,
+  "App deve agrupar props por dominio ao montar o renderer principal"
 );
 assert.equal(
   getCycleStatusDescription("Liberado"),
