@@ -92,16 +92,23 @@ export function createEvaluationsRouter(store) {
     "/cycles/:cycleId/config",
     requireRoles("admin", "hr"),
     async (req, res) => {
-      const { isEnabled, moduleAvailability } = req.body || {};
+      const { isEnabled, moduleAvailability, transversalConfig } = req.body || {};
 
-      if (isEnabled === undefined && moduleAvailability === undefined) {
-        return badRequest(res, "Informe isEnabled e/ou moduleAvailability.");
+      if (
+        isEnabled === undefined &&
+        moduleAvailability === undefined &&
+        transversalConfig === undefined
+      ) {
+        return badRequest(
+          res,
+          "Informe isEnabled, moduleAvailability e/ou transversalConfig."
+        );
       }
 
       try {
         const cycle = await store.updateEvaluationCycleConfig(
           req.params.cycleId,
-          { isEnabled, moduleAvailability },
+          { isEnabled, moduleAvailability, transversalConfig },
           req.auth.user
         );
         res.json(cycle);

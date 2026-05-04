@@ -53,6 +53,49 @@ try {
     "Usuarios demo obrigatorios"
   );
 
+  for (let attempt = 1; attempt <= 5; attempt += 1) {
+    const invalidLogin = await sendJson(baseUrl, "/api/auth/login", {
+      body: {
+        email: "admin@demo.local",
+        password: "senha-invalida"
+      }
+    });
+    assert.equal(
+      invalidLogin.response.status,
+      401,
+      "Tentativas invalidas antes do bloqueio devem retornar 401"
+    );
+  }
+
+  const lockedLogin = await sendJson(baseUrl, "/api/auth/login", {
+    body: {
+      email: "admin@demo.local",
+      password: "senha-invalida"
+    }
+  });
+  assert.equal(
+    lockedLogin.response.status,
+    429,
+    "Rate limit de login deve bloquear excesso de tentativas seguidas"
+  );
+  assert.ok(
+    Number(lockedLogin.response.headers.get("retry-after")) >= 1,
+    "Bloqueio de login deve informar tempo minimo de espera"
+  );
+
+  const validManagerLogin = await sendJson(baseUrl, "/api/auth/login", {
+    body: {
+      email: "gestor@demo.local",
+      password: "demo123"
+    }
+  });
+  assert.equal(
+    validManagerLogin.response.status,
+    200,
+    "Rate limit nao deve contaminar logins validos de outro usuario"
+  );
+  assert.ok(validManagerLogin.payload.token, "Login valido deve emitir token");
+
   const hrResponses = await fetchJson(
     baseUrl,
     "/api/evaluations/responses",
@@ -525,6 +568,44 @@ try {
     selfDetailAfterToggle,
     null,
     "Assignment desativado nao deve carregar detalhe"
+  );
+
+  const transversalConfigPatchResponse = await sendJson(
+    baseUrl,
+    `/api/evaluations/cycles/${toggleCycle.id}/config`,
+    {
+      method: "PATCH",
+      headers: getAuthHeader(hr.id),
+      body: {
+        transversalConfig: {
+          defaultReviewersPerPerson: 2,
+          unitOverrides: {
+            "Sao Paulo": 2
+          }
+        }
+      }
+    }
+  );
+  assert.equal(
+    transversalConfigPatchResponse.response.status,
+    200,
+    "API deve aceitar atualizacao de configuracao transversal do ciclo"
+  );
+  assert.equal(
+    transversalConfigPatchResponse.payload.transversalConfig.defaultReviewersPerPerson,
+    2,
+    "API deve devolver a configuracao transversal persistida"
+  );
+
+  const toggleCycleStructureResponse = await fetchJson(
+    baseUrl,
+    `/api/evaluations/cycles/${toggleCycle.id}/participants`,
+    getAuthHeader(hr.id)
+  );
+  assert.equal(
+    toggleCycleStructureResponse.payload.transversal.config.defaultReviewersPerPerson,
+    2,
+    "Estrutura operacional deve refletir a configuracao transversal salva via rota"
   );
 
   const createdCycleStructure = await store.getEvaluationCycleParticipants(createdCycle.id);

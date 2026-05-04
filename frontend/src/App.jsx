@@ -689,6 +689,7 @@ export default function App() {
         setIncidentForm={setIncidentForm}
         setPersonForm={setPersonForm}
         setReceivedManagerFeedbackDraft={setReceivedManagerFeedbackDraft}
+        Select={Select}
         setTransversalOverrideForm={setTransversalOverrideForm}
         setSelectedAssignment={setSelectedAssignment}
         setShowEvaluationLibrary={setShowEvaluationLibrary}

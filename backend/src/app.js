@@ -19,6 +19,9 @@ export function createApp(store) {
   const app = express();
 
   app.disable("x-powered-by");
+  if (env.trustProxy !== false) {
+    app.set("trust proxy", env.trustProxy);
+  }
   app.use(
     cors({
       origin: env.corsOrigin

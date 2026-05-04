@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import { getCapabilities } from "../src/access.js";
 import { evaluationModules } from "../src/appConfig.js";
 import {
@@ -23,6 +24,8 @@ import {
   getRoleLabel,
   getVisibilityLabel
 } from "../src/appLabels.js";
+
+const appSource = fs.readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8");
 
 assert.equal(evaluationModules.length, 9, "Configuracao de modulos de avaliacao deve permanecer completa");
 assert.equal(
@@ -53,6 +56,11 @@ assert.equal(
 assert.equal(getVisibilityLabel("confidential"), "Confidencial");
 assert.equal(getVisibilityLabel("private"), "Privada");
 assert.equal(getVisibilityLabel("shared"), "Compartilhada");
+assert.match(
+  appSource,
+  /<AppSceneRenderer[\s\S]*\bSelect=\{Select\}/,
+  "App deve repassar o componente Select para o renderer principal"
+);
 assert.equal(
   getCycleStatusDescription("Liberado"),
   "Ciclo aberto para resposta dos assignments distribuidos."

@@ -78,6 +78,35 @@ function parseBoolean(value, fallback = false) {
   return fallback;
 }
 
+function parsePositiveInteger(value, fallback) {
+  const numeric = Number(value);
+  return Number.isInteger(numeric) && numeric > 0 ? numeric : fallback;
+}
+
+function buildTrustProxyOption() {
+  const raw = process.env.TRUST_PROXY;
+
+  if (raw === undefined || raw === null || raw === "") {
+    return process.env.NODE_ENV === "production" ? 1 : false;
+  }
+
+  const normalized = String(raw).trim().toLowerCase();
+  if (["false", "0", "no", "off"].includes(normalized)) {
+    return false;
+  }
+
+  if (["true", "yes", "on"].includes(normalized)) {
+    return 1;
+  }
+
+  const numeric = Number(raw);
+  if (Number.isInteger(numeric) && numeric >= 0) {
+    return numeric;
+  }
+
+  return String(raw).trim();
+}
+
 function buildMysqlSslOption() {
   const mode = String(process.env.MYSQL_SSL_MODE || process.env.DB_SSL_MODE || "disabled")
     .trim()
@@ -114,7 +143,13 @@ export const env = {
   port: Number(process.env.PORT || 4000),
   storageMode: resolveStorageMode(),
   corsOrigin: buildCorsOriginOption(),
+  trustProxy: buildTrustProxyOption(),
   authSecret: process.env.AUTH_SECRET || "smart-compliance-dev-secret",
+  auth: {
+    loginWindowMs: parsePositiveInteger(process.env.AUTH_LOGIN_WINDOW_MS, 10 * 60 * 1000),
+    loginLockMs: parsePositiveInteger(process.env.AUTH_LOGIN_LOCK_MS, 15 * 60 * 1000),
+    maxFailedLogins: parsePositiveInteger(process.env.AUTH_MAX_FAILED_LOGINS, 5)
+  },
   mysql: {
     host: process.env.MYSQL_HOST || process.env.DB_HOST || "localhost",
     port: Number(process.env.MYSQL_PORT || process.env.DB_PORT || 3306),
