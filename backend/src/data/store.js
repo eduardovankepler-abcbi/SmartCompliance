@@ -6,11 +6,51 @@ import { env } from "../config/env.js";
 import { normalizeLearningIntegrationPayload } from "../services/learningIntegrations.js";
 import { evaluationLibrary, questionTemplate, seed } from "./mockData.js";
 import {
-  assertIncidentCreatePayload,
-  assertIncidentUpdatePayload,
-  buildIncidentAuditDetail,
-  resolveIncidentAssignment
-} from "./storeIncidentsDomain.js";
+  createMemoryApplauseStore,
+  createMysqlApplauseStore
+} from "./storeApplauseOperations.js";
+import {
+  canAccessIncidents,
+  canManageCompetencies,
+  canManageIncidentQueue,
+  canManagePeople,
+  canManageUsers,
+  getAuditCategoriesForUser,
+  isAdminUser,
+  isAnonymousRelationship,
+  isComplianceUser,
+  isFullAccessUser,
+  isHrUser,
+  isManagerUser,
+  isOrgWideUser,
+  isReleasedCycle
+} from "./storeAccess.js";
+import {
+  AUDIT_CATEGORIES,
+  CYCLE_STATUS,
+  DEFAULT_CYCLE_MODULE_AVAILABILITY,
+  DEFAULT_EVALUATION_LIBRARY_DESCRIPTION,
+  DEFAULT_EVALUATION_LIBRARY_ID,
+  DEFAULT_EVALUATION_LIBRARY_NAME,
+  DEFAULT_TRANSVERSAL_CONFIG,
+  DEFAULT_WORK_MODE,
+  DEFAULT_WORK_UNIT,
+  FEEDBACK_ACKNOWLEDGEMENT_STATUS,
+  FEEDBACK_REQUEST_STATUS,
+  MIN_ANONYMOUS_AGGREGATE_RESPONSES
+} from "./storeConstants.js";
+import {
+  createMemoryDashboardStore,
+  createMysqlDashboardStore
+} from "./storeDashboardOperations.js";
+import {
+  createMemoryDevelopmentRecordStore,
+  createMysqlDevelopmentRecordStore
+} from "./storeDevelopmentRecordOperations.js";
+import {
+  createMemoryDevelopmentPlanStore,
+  createMysqlDevelopmentPlanStore
+} from "./storeDevelopmentPlanOperations.js";
 import {
   buildEvaluationAnswerRows,
   buildEvaluationResponseBundle,
@@ -48,21 +88,11 @@ import {
   buildDevelopmentRecordAuditDetail
 } from "./storeGrowthDomain.js";
 import {
-  createMemoryApplauseStore,
-  createMysqlApplauseStore
-} from "./storeApplauseOperations.js";
-import {
-  createMemoryDevelopmentRecordStore,
-  createMysqlDevelopmentRecordStore
-} from "./storeDevelopmentRecordOperations.js";
-import {
-  createMemoryDevelopmentPlanStore,
-  createMysqlDevelopmentPlanStore
-} from "./storeDevelopmentPlanOperations.js";
-import {
-  createMemoryDashboardStore,
-  createMysqlDashboardStore
-} from "./storeDashboardOperations.js";
+  assertIncidentCreatePayload,
+  assertIncidentUpdatePayload,
+  buildIncidentAuditDetail,
+  resolveIncidentAssignment
+} from "./storeIncidentsDomain.js";
 import {
   createMemoryLearningIntegrationStore,
   createMysqlLearningIntegrationStore
@@ -89,43 +119,13 @@ import {
   createMemoryRegistryStore,
   createMysqlRegistryStore
 } from "./storeRegistryOperations.js";
+import { createId, hashPassword, verifyPasswordHash } from "./storeSecurity.js";
 import {
   assertPersonHasNoLinkedUser,
   assertUserPersonExists,
   buildUserAuditDetail,
   prepareUserWrite
 } from "./storeUsersDomain.js";
-import {
-  canAccessIncidents,
-  canManageCompetencies,
-  canManageIncidentQueue,
-  canManagePeople,
-  canManageUsers,
-  getAuditCategoriesForUser,
-  isAdminUser,
-  isAnonymousRelationship,
-  isComplianceUser,
-  isFullAccessUser,
-  isHrUser,
-  isManagerUser,
-  isOrgWideUser,
-  isReleasedCycle
-} from "./storeAccess.js";
-import {
-  AUDIT_CATEGORIES,
-  CYCLE_STATUS,
-  DEFAULT_CYCLE_MODULE_AVAILABILITY,
-  DEFAULT_EVALUATION_LIBRARY_DESCRIPTION,
-  DEFAULT_EVALUATION_LIBRARY_ID,
-  DEFAULT_EVALUATION_LIBRARY_NAME,
-  DEFAULT_TRANSVERSAL_CONFIG,
-  DEFAULT_WORK_MODE,
-  DEFAULT_WORK_UNIT,
-  FEEDBACK_ACKNOWLEDGEMENT_STATUS,
-  FEEDBACK_REQUEST_STATUS,
-  MIN_ANONYMOUS_AGGREGATE_RESPONSES,
-} from "./storeConstants.js";
-import { createId, hashPassword, verifyPasswordHash } from "./storeSecurity.js";
 import {
   assertCycleStatusTransition,
   assertValidApplauseStatus,
