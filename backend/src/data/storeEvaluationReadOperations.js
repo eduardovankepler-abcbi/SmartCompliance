@@ -299,6 +299,7 @@ export function createMysqlEvaluationReadStore({
   getTemplateDefinitionForCycle,
   presentCycle,
   supportsCycleConfig,
+  supportsIndividualQuestionnaires,
   isOrgWideUser,
   isCycleRelationshipEnabled,
   presentAssignment,
@@ -315,14 +316,23 @@ export function createMysqlEvaluationReadStore({
 }) {
   async function fetchAssignmentQuestionnaire(assignmentId, reviewerUserId) {
     const [assignmentRows] = await pool.query(
-      `SELECT a.id, a.cycle_id AS cycleId, a.reviewer_user_id AS reviewerUserId,
-              a.reviewee_person_id AS revieweePersonId, a.questionnaire_id AS questionnaireId,
-              a.relationship_type AS relationshipType,
-              c.template_id AS templateId, c.library_id AS libraryId, c.library_name AS libraryName
-       FROM evaluation_assignments a
-       JOIN evaluation_cycles c ON c.id = a.cycle_id
-       WHERE a.id = ? AND a.reviewer_user_id = ?
-       LIMIT 1`,
+      supportsIndividualQuestionnaires
+        ? `SELECT a.id, a.cycle_id AS cycleId, a.reviewer_user_id AS reviewerUserId,
+                a.reviewee_person_id AS revieweePersonId, a.questionnaire_id AS questionnaireId,
+                a.relationship_type AS relationshipType,
+                c.template_id AS templateId, c.library_id AS libraryId, c.library_name AS libraryName
+         FROM evaluation_assignments a
+         JOIN evaluation_cycles c ON c.id = a.cycle_id
+         WHERE a.id = ? AND a.reviewer_user_id = ?
+         LIMIT 1`
+        : `SELECT a.id, a.cycle_id AS cycleId, a.reviewer_user_id AS reviewerUserId,
+                a.reviewee_person_id AS revieweePersonId, NULL AS questionnaireId,
+                a.relationship_type AS relationshipType,
+                c.template_id AS templateId, c.library_id AS libraryId, c.library_name AS libraryName
+         FROM evaluation_assignments a
+         JOIN evaluation_cycles c ON c.id = a.cycle_id
+         WHERE a.id = ? AND a.reviewer_user_id = ?
+         LIMIT 1`,
       [assignmentId, reviewerUserId]
     );
     const assignment = assignmentRows[0];
@@ -553,7 +563,11 @@ export function createMysqlEvaluationReadStore({
       const [rows] = await pool.query(
         supportsCycleConfig
           ? `SELECT a.id, a.cycle_id AS cycleId, a.reviewer_user_id AS reviewerUserId,
-                    a.reviewee_person_id AS revieweePersonId, a.questionnaire_id AS questionnaireId, a.relationship_type AS relationshipType,
+                    a.reviewee_person_id AS revieweePersonId, ${
+                      supportsIndividualQuestionnaires
+                        ? "a.questionnaire_id"
+                        : "NULL"
+                    } AS questionnaireId, a.relationship_type AS relationshipType,
                     a.project_context AS projectContext, a.collaboration_context AS collaborationContext,
                     a.status, a.due_date AS dueDate, c.title AS cycleTitle, c.semester_label AS semesterLabel,
                     c.template_id AS templateId, c.status AS cycleStatus, c.is_enabled AS isEnabled, c.enabled_relationships_json AS enabledRelationshipsJson, c.transversal_config_json AS transversalConfigJson,
@@ -570,7 +584,11 @@ export function createMysqlEvaluationReadStore({
              WHERE a.reviewer_user_id = ?
              ORDER BY a.due_date ASC`
           : `SELECT a.id, a.cycle_id AS cycleId, a.reviewer_user_id AS reviewerUserId,
-                    a.reviewee_person_id AS revieweePersonId, a.questionnaire_id AS questionnaireId, a.relationship_type AS relationshipType,
+                    a.reviewee_person_id AS revieweePersonId, ${
+                      supportsIndividualQuestionnaires
+                        ? "a.questionnaire_id"
+                        : "NULL"
+                    } AS questionnaireId, a.relationship_type AS relationshipType,
                     a.project_context AS projectContext, a.collaboration_context AS collaborationContext,
                     a.status, a.due_date AS dueDate, c.title AS cycleTitle, c.semester_label AS semesterLabel,
                     c.template_id AS templateId, c.status AS cycleStatus,
@@ -596,7 +614,11 @@ export function createMysqlEvaluationReadStore({
       const [rows] = await pool.query(
         supportsCycleConfig
           ? `SELECT a.id, a.cycle_id AS cycleId, a.reviewer_user_id AS reviewerUserId,
-                    a.reviewee_person_id AS revieweePersonId, a.questionnaire_id AS questionnaireId, a.relationship_type AS relationshipType,
+                    a.reviewee_person_id AS revieweePersonId, ${
+                      supportsIndividualQuestionnaires
+                        ? "a.questionnaire_id"
+                        : "NULL"
+                    } AS questionnaireId, a.relationship_type AS relationshipType,
                     a.project_context AS projectContext, a.collaboration_context AS collaborationContext,
                     a.status, a.due_date AS dueDate, c.title AS cycleTitle, c.semester_label AS semesterLabel,
                     c.template_id AS templateId, c.status AS cycleStatus, c.is_enabled AS isEnabled, c.enabled_relationships_json AS enabledRelationshipsJson, c.transversal_config_json AS transversalConfigJson,
@@ -608,7 +630,11 @@ export function createMysqlEvaluationReadStore({
              WHERE a.id = ? AND a.reviewer_user_id = ?
              LIMIT 1`
           : `SELECT a.id, a.cycle_id AS cycleId, a.reviewer_user_id AS reviewerUserId,
-                    a.reviewee_person_id AS revieweePersonId, a.questionnaire_id AS questionnaireId, a.relationship_type AS relationshipType,
+                    a.reviewee_person_id AS revieweePersonId, ${
+                      supportsIndividualQuestionnaires
+                        ? "a.questionnaire_id"
+                        : "NULL"
+                    } AS questionnaireId, a.relationship_type AS relationshipType,
                     a.project_context AS projectContext, a.collaboration_context AS collaborationContext,
                     a.status, a.due_date AS dueDate, c.title AS cycleTitle, c.semester_label AS semesterLabel,
                     c.template_id AS templateId, c.status AS cycleStatus,
@@ -635,7 +661,8 @@ export function createMysqlEvaluationReadStore({
     },
     async getEvaluationResponses(actorUser) {
       const submissions = await fetchMysqlResponses(pool, customLibraryState.published, {
-        supportsFeedbackAcknowledgement
+        supportsFeedbackAcknowledgement,
+        supportsIndividualQuestionnaires
       });
       const [cycles, cycleReports] = await Promise.all([
         this.getEvaluationCycles(),
@@ -672,7 +699,8 @@ export function createMysqlEvaluationReadStore({
         fetchPeopleRows(pool),
         this.getEvaluationCycles(),
         fetchMysqlResponses(pool, customLibraryState.published, {
-          supportsFeedbackAcknowledgement
+          supportsFeedbackAcknowledgement,
+          supportsIndividualQuestionnaires
         })
       ]);
 
@@ -685,7 +713,8 @@ export function createMysqlEvaluationReadStore({
     },
     async getReceivedManagerFeedback(actorUser) {
       const submissions = await fetchMysqlResponses(pool, customLibraryState.published, {
-        supportsFeedbackAcknowledgement
+        supportsFeedbackAcknowledgement,
+        supportsIndividualQuestionnaires
       });
       return filterReceivedManagerFeedback({
         submissions,

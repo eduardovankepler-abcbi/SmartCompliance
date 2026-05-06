@@ -4786,7 +4786,7 @@ async function fetchLearningIntegrationEventRows(pool) {
 async function fetchMysqlResponses(
   pool,
   customLibraries = [],
-  { supportsFeedbackAcknowledgement = false } = {}
+  { supportsFeedbackAcknowledgement = false, supportsIndividualQuestionnaires = false } = {}
 ) {
   const [submissions] = await pool.query(
     supportsFeedbackAcknowledgement
@@ -4800,21 +4800,55 @@ async function fetchMysqlResponses(
               reviewee.name AS revieweeName,
               reviewee.area AS revieweeArea, reviewee.manager_person_id AS revieweeManagerPersonId,
               reviewee_manager.name AS revieweeManagerName,
-              a.relationship_type AS relationshipType, a.questionnaire_id AS questionnaireId,
-              ap.can_view_reviewee AS policyCanViewReviewee,
-              ap.can_view_reviewer AS policyCanViewReviewer,
-              ap.can_view_manager AS policyCanViewManager,
-              ap.can_view_hr AS policyCanViewHr,
-              ap.can_view_admin AS policyCanViewAdmin,
-              ap.can_view_raw_answers AS policyCanViewRawAnswers,
-              ap.can_view_prompt_text_after_submission AS policyCanViewPromptTextAfterSubmission
+              a.relationship_type AS relationshipType, ${
+                supportsIndividualQuestionnaires ? "a.questionnaire_id" : "NULL"
+              } AS questionnaireId,
+              ${
+                supportsIndividualQuestionnaires
+                  ? `ap.can_view_reviewee`
+                  : "0"
+              } AS policyCanViewReviewee,
+              ${
+                supportsIndividualQuestionnaires
+                  ? `ap.can_view_reviewer`
+                  : "1"
+              } AS policyCanViewReviewer,
+              ${
+                supportsIndividualQuestionnaires
+                  ? `ap.can_view_manager`
+                  : "0"
+              } AS policyCanViewManager,
+              ${
+                supportsIndividualQuestionnaires
+                  ? `ap.can_view_hr`
+                  : "1"
+              } AS policyCanViewHr,
+              ${
+                supportsIndividualQuestionnaires
+                  ? `ap.can_view_admin`
+                  : "1"
+              } AS policyCanViewAdmin,
+              ${
+                supportsIndividualQuestionnaires
+                  ? `ap.can_view_raw_answers`
+                  : "0"
+              } AS policyCanViewRawAnswers,
+              ${
+                supportsIndividualQuestionnaires
+                  ? `ap.can_view_prompt_text_after_submission`
+                  : "0"
+              } AS policyCanViewPromptTextAfterSubmission
        FROM evaluation_submissions s
        JOIN evaluation_assignments a ON a.id = s.assignment_id
        JOIN users reviewer_user ON reviewer_user.id = s.reviewer_user_id
        JOIN people reviewer_person ON reviewer_person.id = reviewer_user.person_id
        JOIN people reviewee ON reviewee.id = s.reviewee_person_id
        LEFT JOIN people reviewee_manager ON reviewee_manager.id = reviewee.manager_person_id
-       LEFT JOIN evaluation_questionnaire_access_policies ap ON ap.questionnaire_id = a.questionnaire_id
+       ${
+         supportsIndividualQuestionnaires
+           ? "LEFT JOIN evaluation_questionnaire_access_policies ap ON ap.questionnaire_id = a.questionnaire_id"
+           : ""
+       }
        ORDER BY s.submitted_at DESC`
       : `SELECT s.id, s.assignment_id AS assignmentId, s.cycle_id AS cycleId,
               s.reviewer_user_id AS reviewerUserId, s.reviewee_person_id AS revieweePersonId,
@@ -4824,35 +4858,79 @@ async function fetchMysqlResponses(
               reviewee.name AS revieweeName,
               reviewee.area AS revieweeArea, reviewee.manager_person_id AS revieweeManagerPersonId,
               reviewee_manager.name AS revieweeManagerName,
-              a.relationship_type AS relationshipType, a.questionnaire_id AS questionnaireId,
-              ap.can_view_reviewee AS policyCanViewReviewee,
-              ap.can_view_reviewer AS policyCanViewReviewer,
-              ap.can_view_manager AS policyCanViewManager,
-              ap.can_view_hr AS policyCanViewHr,
-              ap.can_view_admin AS policyCanViewAdmin,
-              ap.can_view_raw_answers AS policyCanViewRawAnswers,
-              ap.can_view_prompt_text_after_submission AS policyCanViewPromptTextAfterSubmission
+              a.relationship_type AS relationshipType, ${
+                supportsIndividualQuestionnaires ? "a.questionnaire_id" : "NULL"
+              } AS questionnaireId,
+              ${
+                supportsIndividualQuestionnaires
+                  ? `ap.can_view_reviewee`
+                  : "0"
+              } AS policyCanViewReviewee,
+              ${
+                supportsIndividualQuestionnaires
+                  ? `ap.can_view_reviewer`
+                  : "1"
+              } AS policyCanViewReviewer,
+              ${
+                supportsIndividualQuestionnaires
+                  ? `ap.can_view_manager`
+                  : "0"
+              } AS policyCanViewManager,
+              ${
+                supportsIndividualQuestionnaires
+                  ? `ap.can_view_hr`
+                  : "1"
+              } AS policyCanViewHr,
+              ${
+                supportsIndividualQuestionnaires
+                  ? `ap.can_view_admin`
+                  : "1"
+              } AS policyCanViewAdmin,
+              ${
+                supportsIndividualQuestionnaires
+                  ? `ap.can_view_raw_answers`
+                  : "0"
+              } AS policyCanViewRawAnswers,
+              ${
+                supportsIndividualQuestionnaires
+                  ? `ap.can_view_prompt_text_after_submission`
+                  : "0"
+              } AS policyCanViewPromptTextAfterSubmission
        FROM evaluation_submissions s
        JOIN evaluation_assignments a ON a.id = s.assignment_id
        JOIN users reviewer_user ON reviewer_user.id = s.reviewer_user_id
        JOIN people reviewer_person ON reviewer_person.id = reviewer_user.person_id
        JOIN people reviewee ON reviewee.id = s.reviewee_person_id
        LEFT JOIN people reviewee_manager ON reviewee_manager.id = reviewee.manager_person_id
-       LEFT JOIN evaluation_questionnaire_access_policies ap ON ap.questionnaire_id = a.questionnaire_id
+       ${
+         supportsIndividualQuestionnaires
+           ? "LEFT JOIN evaluation_questionnaire_access_policies ap ON ap.questionnaire_id = a.questionnaire_id"
+           : ""
+       }
        ORDER BY s.submitted_at DESC`
   );
 
   const [answers] = await pool.query(
-    `SELECT a.id, a.submission_id AS submissionId, a.question_id AS questionId,
-            a.questionnaire_question_id AS questionnaireQuestionId, a.answer_type AS answerType, a.score,
-            a.evidence_note AS evidenceNote, a.answer_text AS textValue, a.answer_options_json AS answerOptionsJson,
-            COALESCE(qq.prompt_text, q.prompt_text) AS questionPrompt,
-            COALESCE(qq.dimension_title, q.dimension_title) AS dimensionTitle,
-            COALESCE(qq.is_sensitive, q.is_sensitive, 0) AS isSensitive
-     FROM evaluation_answers a
-     LEFT JOIN evaluation_questions q ON q.id = a.question_id
-     LEFT JOIN evaluation_questionnaire_questions qq ON qq.id = a.questionnaire_question_id
-     ORDER BY a.id ASC`
+    supportsIndividualQuestionnaires
+      ? `SELECT a.id, a.submission_id AS submissionId, a.question_id AS questionId,
+              a.questionnaire_question_id AS questionnaireQuestionId, a.answer_type AS answerType, a.score,
+              a.evidence_note AS evidenceNote, a.answer_text AS textValue, a.answer_options_json AS answerOptionsJson,
+              COALESCE(qq.prompt_text, q.prompt_text) AS questionPrompt,
+              COALESCE(qq.dimension_title, q.dimension_title) AS dimensionTitle,
+              COALESCE(qq.is_sensitive, q.is_sensitive, 0) AS isSensitive
+       FROM evaluation_answers a
+       LEFT JOIN evaluation_questions q ON q.id = a.question_id
+       LEFT JOIN evaluation_questionnaire_questions qq ON qq.id = a.questionnaire_question_id
+       ORDER BY a.id ASC`
+      : `SELECT a.id, a.submission_id AS submissionId, a.question_id AS questionId,
+              NULL AS questionnaireQuestionId, a.answer_type AS answerType, a.score,
+              a.evidence_note AS evidenceNote, a.answer_text AS textValue, a.answer_options_json AS answerOptionsJson,
+              q.prompt_text AS questionPrompt,
+              q.dimension_title AS dimensionTitle,
+              COALESCE(q.is_sensitive, 0) AS isSensitive
+       FROM evaluation_answers a
+       LEFT JOIN evaluation_questions q ON q.id = a.question_id
+       ORDER BY a.id ASC`
   );
 
   return submissions.map((submission) => ({
@@ -6056,6 +6134,7 @@ function buildMysqlStore(
       getTemplateDefinitionForCycle,
       presentCycle,
       supportsCycleConfig,
+      supportsIndividualQuestionnaires,
       isOrgWideUser,
       isCycleRelationshipEnabled,
       presentAssignment,
