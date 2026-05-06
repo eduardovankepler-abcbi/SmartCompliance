@@ -5,10 +5,16 @@ export function getEvaluationModule(type) {
 }
 
 export function getRelationshipLabel(type) {
+  if (type === "peer-same-area") {
+    return "Colega do mesmo setor";
+  }
   return getEvaluationModule(type)?.label || type;
 }
 
 export function getRelationshipDescription(type) {
+  if (type === "peer-same-area") {
+    return "Perguntas direcionadas para colegas da mesma area do colaborador.";
+  }
   return getEvaluationModule(type)?.description || "";
 }
 

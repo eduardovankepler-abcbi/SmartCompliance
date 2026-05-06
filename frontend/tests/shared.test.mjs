@@ -11,6 +11,10 @@ import {
 } from "../src/registry.js";
 import { validateEvaluationAnswerForm } from "../src/evaluations/validation.js";
 import {
+  validateEvaluationQuestionnaireCreateForm,
+  validateEvaluationQuestionnaireQuestionForm
+} from "../src/evaluations/questionnaireValidation.js";
+import {
   formatDate,
   getAssignmentStatusLabel,
   getCycleStatusDescription,
@@ -56,6 +60,7 @@ assert.equal(
 assert.equal(getVisibilityLabel("confidential"), "Confidencial");
 assert.equal(getVisibilityLabel("private"), "Privada");
 assert.equal(getVisibilityLabel("shared"), "Compartilhada");
+assert.equal(getRelationshipLabel("peer-same-area"), "Colega do mesmo setor");
 assert.match(
   appSource,
   /<AppSceneRenderer[\s\S]*\bdashboardProps=\{dashboardSceneProps\}[\s\S]*\bpeopleProps=\{peopleSceneProps\}[\s\S]*\busersProps=\{usersSceneProps\}/,
@@ -198,7 +203,61 @@ const hrCapabilities = getCapabilities({ roleKey: "hr" });
 assert.equal(hrCapabilities.canManageCycles, true);
 assert.equal(hrCapabilities.canViewAuditTrail, true);
 assert.equal(hrCapabilities.canViewEvaluationLibrary, true);
+assert.equal(hrCapabilities.canViewResponses, true);
 assert.equal(hrCapabilities.canViewOrganizationDevelopment, true);
+
+assert.equal(
+  validateEvaluationQuestionnaireCreateForm({
+    cycleId: "",
+    revieweePersonId: "p1",
+    relationshipType: "self",
+    title: "Autoavaliacao"
+  }),
+  "Selecione o ciclo do questionario individual."
+);
+assert.equal(
+  validateEvaluationQuestionnaireCreateForm({
+    cycleId: "c1",
+    revieweePersonId: "p1",
+    relationshipType: "self",
+    title: "Autoavaliacao"
+  }),
+  "",
+  "Formulario de criacao deve aceitar payload minimo valido"
+);
+assert.equal(
+  validateEvaluationQuestionnaireQuestionForm({
+    dimensionKey: "self-awareness",
+    dimensionTitle: "Autoconhecimento",
+    promptText: "",
+    sortOrder: "1",
+    inputType: "scale"
+  }),
+  "Informe o enunciado da pergunta."
+);
+assert.equal(
+  validateEvaluationQuestionnaireQuestionForm({
+    dimensionKey: "same-area",
+    dimensionTitle: "Colaboracao",
+    promptText: "Como foi a parceria no setor?",
+    sortOrder: "2",
+    inputType: "multi-select",
+    optionsText: ""
+  }),
+  "Perguntas de multipla escolha exigem ao menos uma opcao."
+);
+assert.equal(
+  validateEvaluationQuestionnaireQuestionForm({
+    dimensionKey: "same-area",
+    dimensionTitle: "Colaboracao",
+    promptText: "Como foi a parceria no setor?",
+    sortOrder: "2",
+    inputType: "multi-select",
+    optionsText: "Excelente | Boa"
+  }),
+  "",
+  "Pergunta individual valida deve passar na validacao local"
+);
 
 const complianceCapabilities = getCapabilities({ roleKey: "compliance" });
 assert.equal(complianceCapabilities.canViewDashboard, false);

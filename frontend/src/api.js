@@ -160,6 +160,54 @@ export const api = {
     }),
   getEvaluationTemplate: () => request("/api/evaluations/template"),
   getEvaluationLibrary: () => request("/api/evaluations/library"),
+  getEvaluationQuestionnaires: (filters = {}) => {
+    const params = new URLSearchParams();
+    Object.entries(filters || {}).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && String(value).trim() !== "") {
+        params.set(key, String(value));
+      }
+    });
+    return request(`/api/evaluations/questionnaires${params.toString() ? `?${params.toString()}` : ""}`);
+  },
+  getEvaluationQuestionnaire: (questionnaireId) =>
+    request(`/api/evaluations/questionnaires/${questionnaireId}`),
+  createEvaluationQuestionnaire: (payload) =>
+    request("/api/evaluations/questionnaires", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    }),
+  updateEvaluationQuestionnaire: (questionnaireId, payload) =>
+    request(`/api/evaluations/questionnaires/${questionnaireId}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload)
+    }),
+  publishEvaluationQuestionnaire: (questionnaireId) =>
+    request(`/api/evaluations/questionnaires/${questionnaireId}/publish`, {
+      method: "POST"
+    }),
+  archiveEvaluationQuestionnaire: (questionnaireId) =>
+    request(`/api/evaluations/questionnaires/${questionnaireId}/archive`, {
+      method: "POST"
+    }),
+  addEvaluationQuestionnaireQuestion: (questionnaireId, payload) =>
+    request(`/api/evaluations/questionnaires/${questionnaireId}/questions`, {
+      method: "POST",
+      body: JSON.stringify(payload)
+    }),
+  updateEvaluationQuestionnaireQuestion: (questionId, payload) =>
+    request(`/api/evaluations/questionnaire-questions/${questionId}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload)
+    }),
+  deleteEvaluationQuestionnaireQuestion: (questionId) =>
+    request(`/api/evaluations/questionnaire-questions/${questionId}`, {
+      method: "DELETE"
+    }),
+  reorderEvaluationQuestionnaireQuestions: (questionnaireId, questionIds) =>
+    request(`/api/evaluations/questionnaires/${questionnaireId}/reorder`, {
+      method: "POST",
+      body: JSON.stringify({ questionIds })
+    }),
   getEvaluationCycles: () => request("/api/evaluations/cycles"),
   createEvaluationCycle: (payload) =>
     request("/api/evaluations/cycles", {

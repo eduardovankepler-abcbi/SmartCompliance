@@ -72,6 +72,10 @@ import {
   createMysqlEvaluationReadStore
 } from "./storeEvaluationReadOperations.js";
 import {
+  createMemoryEvaluationQuestionnaireStore,
+  createMysqlEvaluationQuestionnaireStore
+} from "./storeEvaluationQuestionnaireOperations.js";
+import {
   createMemoryEvaluationSubmissionStore,
   createMysqlEvaluationSubmissionStore
 } from "./storeEvaluationSubmissionOperations.js";
@@ -1158,6 +1162,40 @@ function buildTemplate(definition) {
   };
 }
 
+function buildTemplateFromQuestionnaire(questionnaire, policy = null) {
+  return buildTemplate({
+    id: questionnaire.id,
+    key: questionnaire.relationshipType || "custom",
+    relationshipType: questionnaire.relationshipType || "custom",
+    modelName: questionnaire.title || "Questionario individual",
+    description: questionnaire.description || "",
+    policy: {
+      confidentiality: questionnaire.visibilityLevel || "restricted",
+      accessPolicy: policy || null
+    },
+    questions: (questionnaire.questions || []).map((question) => ({
+      id: question.id,
+      questionnaireQuestionId: question.id,
+      sourceQuestionId: question.sourceQuestionId || null,
+      sectionKey: question.sectionKey || "",
+      sectionTitle: question.sectionTitle || "",
+      sectionDescription: question.sectionDescription || "",
+      dimensionKey: question.dimensionKey,
+      dimensionTitle: question.dimensionTitle,
+      prompt: question.promptText || question.prompt || "",
+      helperText: question.helperText || "",
+      inputType: question.inputType || "scale",
+      scaleProfile: question.scaleProfile || null,
+      visibility: question.visibility || "restricted",
+      isRequired: question.isRequired !== false,
+      collectEvidenceOnExtreme: Boolean(question.collectEvidenceOnExtreme),
+      isSensitive: Boolean(question.isSensitive),
+      options: Array.isArray(question.options) ? question.options : [],
+      sortOrder: Number(question.sortOrder || 0)
+    }))
+  });
+}
+
 function buildEvaluationLibraryPayload(customLibraries = []) {
   const defaultLibrary = {
     id: DEFAULT_EVALUATION_LIBRARY_ID,
@@ -1500,8 +1538,31 @@ function findQuestionDefinition(questionId, customLibraries = []) {
     .find((question) => question.id === questionId);
 }
 
+function findQuestionnaireByIdFromMemory(db, questionnaireId) {
+  if (!questionnaireId) {
+    return null;
+  }
+  const questionnaire = db.questionnaires.find((item) => item.id === questionnaireId);
+  if (!questionnaire) {
+    return null;
+  }
+  const questions = db.questionnaireQuestions
+    .filter((item) => item.questionnaireId === questionnaireId)
+    .sort((left, right) => Number(left.sortOrder || 0) - Number(right.sortOrder || 0));
+  const accessPolicy =
+    db.questionnaireAccessPolicies.find((item) => item.questionnaireId === questionnaireId) || null;
+  return {
+    ...questionnaire,
+    questions,
+    accessPolicy
+  };
+}
+
 function presentAssignment(row, customLibraries = []) {
   const cycle = presentCycle(row);
+  const questionnaireTemplate = row.questionnaire
+    ? buildTemplateFromQuestionnaire(row.questionnaire, row.questionnaire.accessPolicy || null)
+    : null;
   const templateDefinition = getTemplateDefinitionForCycle({
     cycle,
     relationshipType: row.relationshipType,
@@ -1509,8 +1570,12 @@ function presentAssignment(row, customLibraries = []) {
   });
   return {
     ...cycle,
-    templateKey: templateDefinition?.key || resolveTemplateKey(row.relationshipType),
-    templateId: templateDefinition?.id || row.templateId || questionTemplate.id,
+    questionnaireId: row.questionnaireId || row.questionnaire?.id || null,
+    questionnaireStatus: row.questionnaire?.status || null,
+    templateKey:
+      questionnaireTemplate?.key || templateDefinition?.key || resolveTemplateKey(row.relationshipType),
+    templateId:
+      questionnaireTemplate?.id || templateDefinition?.id || row.templateId || questionTemplate.id,
     weight: evaluationLibrary.weights[row.relationshipType] || 0,
     cycleStatus: cycle.cycleStatus || "",
     reminderCount: Number(row.reminderCount || 0),
@@ -1522,6 +1587,15 @@ function presentAssignment(row, customLibraries = []) {
 
 function hasMysqlColumn(rows) {
   return Boolean(rows?.length);
+}
+
+async function hasMysqlIndex(pool, tableName, indexName) {
+  try {
+    const [rows] = await pool.query(`SHOW INDEX FROM ${tableName} WHERE Key_name = ?`, [indexName]);
+    return Boolean(rows?.length);
+  } catch (_error) {
+    return false;
+  }
 }
 
 async function hasMysqlTable(pool, tableName) {
@@ -1616,6 +1690,33 @@ async function ensureMysqlTables(pool, detector, statements) {
     try {
       await pool.query(statement);
     } catch (error) {
+      console.warn("Database auto-migration failed", error);
+      break;
+    }
+  }
+
+  return detector(pool);
+}
+
+async function ensureMysqlIndexes(pool, detector, statements) {
+  const supportsBefore = await detector(pool);
+  if (supportsBefore) {
+    return true;
+  }
+
+  const autoMigrateRaw = String(process.env.AUTO_MIGRATE_DB || "").trim().toLowerCase();
+  const autoMigrateDisabled = ["0", "false", "no", "off"].includes(autoMigrateRaw);
+  if (autoMigrateDisabled) {
+    return false;
+  }
+
+  for (const statement of statements) {
+    try {
+      await pool.query(statement);
+    } catch (error) {
+      if (error?.code === "ER_DUP_KEYNAME" || error?.errno === 1061) {
+        continue;
+      }
       console.warn("Database auto-migration failed", error);
       break;
     }
@@ -1889,6 +1990,200 @@ async function ensureMysqlLearningIntegrationSupport(pool) {
   );
 }
 
+async function detectMysqlIndividualQuestionnaireSupport(pool) {
+  try {
+    const hasQuestionnairesTable = await hasMysqlTable(pool, "evaluation_questionnaires");
+    const hasQuestionsTable = await hasMysqlTable(pool, "evaluation_questionnaire_questions");
+    const hasPoliciesTable = await hasMysqlTable(pool, "evaluation_questionnaire_access_policies");
+    const hasQuestionnaireRevieweeRelationshipIndex = await hasMysqlIndex(
+      pool,
+      "evaluation_questionnaires",
+      "idx_questionnaires_cycle_reviewee_relationship"
+    );
+    const hasQuestionnaireStatusIndex = await hasMysqlIndex(
+      pool,
+      "evaluation_questionnaires",
+      "idx_questionnaires_status"
+    );
+    const hasAssignmentQuestionnaireIndex = await hasMysqlIndex(
+      pool,
+      "evaluation_assignments",
+      "idx_assignments_questionnaire_id"
+    );
+    const hasAnswerQuestionnaireQuestionIndex = await hasMysqlIndex(
+      pool,
+      "evaluation_answers",
+      "idx_answers_questionnaire_question_id"
+    );
+    const [assignmentRows] = await pool.query(
+      "SHOW COLUMNS FROM evaluation_assignments LIKE 'questionnaire_id'"
+    );
+    const [answerRows] = await pool.query(
+      "SHOW COLUMNS FROM evaluation_answers LIKE 'questionnaire_question_id'"
+    );
+    return (
+      hasQuestionnairesTable &&
+      hasQuestionsTable &&
+      hasPoliciesTable &&
+      hasQuestionnaireRevieweeRelationshipIndex &&
+      hasQuestionnaireStatusIndex &&
+      hasAssignmentQuestionnaireIndex &&
+      hasAnswerQuestionnaireQuestionIndex &&
+      hasMysqlColumn(assignmentRows) &&
+      hasMysqlColumn(answerRows)
+    );
+  } catch (_error) {
+    return false;
+  }
+}
+
+async function ensureMysqlIndividualQuestionnaireSupport(pool) {
+  const hasTables = await ensureMysqlTables(pool, async (mysqlPool) => {
+    return (
+      (await hasMysqlTable(mysqlPool, "evaluation_questionnaires")) &&
+      (await hasMysqlTable(mysqlPool, "evaluation_questionnaire_questions")) &&
+      (await hasMysqlTable(mysqlPool, "evaluation_questionnaire_access_policies"))
+    );
+  }, [
+    `CREATE TABLE IF NOT EXISTS evaluation_questionnaires (
+      id VARCHAR(36) PRIMARY KEY,
+      cycle_id VARCHAR(36) NOT NULL,
+      reviewee_person_id VARCHAR(36) NOT NULL,
+      relationship_type VARCHAR(60) NOT NULL,
+      source_library_id VARCHAR(120) NULL,
+      title VARCHAR(180) NOT NULL,
+      description TEXT NULL,
+      status VARCHAR(30) NOT NULL DEFAULT 'draft',
+      question_count INT NOT NULL DEFAULT 0,
+      visibility_level VARCHAR(40) NOT NULL DEFAULT 'restricted',
+      version_number INT NOT NULL DEFAULT 1,
+      published_at DATETIME NULL,
+      created_by_user_id VARCHAR(36) NOT NULL,
+      updated_by_user_id VARCHAR(36) NULL,
+      created_at DATETIME NOT NULL,
+      updated_at DATETIME NOT NULL,
+      UNIQUE KEY unique_cycle_reviewee_relationship_questionnaire (
+        cycle_id,
+        reviewee_person_id,
+        relationship_type,
+        version_number
+      ),
+      FOREIGN KEY (cycle_id) REFERENCES evaluation_cycles(id),
+      FOREIGN KEY (reviewee_person_id) REFERENCES people(id),
+      FOREIGN KEY (created_by_user_id) REFERENCES users(id),
+      FOREIGN KEY (updated_by_user_id) REFERENCES users(id)
+    )`,
+    `CREATE TABLE IF NOT EXISTS evaluation_questionnaire_questions (
+      id VARCHAR(36) PRIMARY KEY,
+      questionnaire_id VARCHAR(36) NOT NULL,
+      sort_order INT NOT NULL,
+      section_key VARCHAR(80) NULL,
+      section_title VARCHAR(160) NULL,
+      section_description TEXT NULL,
+      dimension_key VARCHAR(60) NOT NULL,
+      dimension_title VARCHAR(120) NOT NULL,
+      prompt_text TEXT NOT NULL,
+      helper_text TEXT NULL,
+      input_type VARCHAR(40) NOT NULL DEFAULT 'scale',
+      scale_profile VARCHAR(40) NULL,
+      visibility VARCHAR(40) NOT NULL DEFAULT 'restricted',
+      is_required BOOLEAN NOT NULL DEFAULT TRUE,
+      collect_evidence_on_extreme BOOLEAN NOT NULL DEFAULT FALSE,
+      is_sensitive BOOLEAN NOT NULL DEFAULT FALSE,
+      options_json JSON NULL,
+      created_at DATETIME NOT NULL,
+      updated_at DATETIME NOT NULL,
+      UNIQUE KEY unique_questionnaire_sort_order (questionnaire_id, sort_order),
+      FOREIGN KEY (questionnaire_id) REFERENCES evaluation_questionnaires(id)
+    )`,
+    `CREATE TABLE IF NOT EXISTS evaluation_questionnaire_access_policies (
+      id VARCHAR(36) PRIMARY KEY,
+      questionnaire_id VARCHAR(36) NOT NULL,
+      can_view_reviewee BOOLEAN NOT NULL DEFAULT FALSE,
+      can_view_reviewer BOOLEAN NOT NULL DEFAULT TRUE,
+      can_view_manager BOOLEAN NOT NULL DEFAULT FALSE,
+      can_view_hr BOOLEAN NOT NULL DEFAULT TRUE,
+      can_view_admin BOOLEAN NOT NULL DEFAULT TRUE,
+      can_view_raw_answers BOOLEAN NOT NULL DEFAULT FALSE,
+      can_view_prompt_text_after_submission BOOLEAN NOT NULL DEFAULT FALSE,
+      created_at DATETIME NOT NULL,
+      updated_at DATETIME NOT NULL,
+      UNIQUE KEY unique_questionnaire_policy (questionnaire_id),
+      FOREIGN KEY (questionnaire_id) REFERENCES evaluation_questionnaires(id)
+    )`
+  ]);
+
+  if (!hasTables) {
+    return false;
+  }
+
+  const hasAssignmentColumn = await ensureMysqlColumns(
+    pool,
+    "evaluation_assignments",
+    [
+      "ALTER TABLE evaluation_assignments ADD COLUMN questionnaire_id VARCHAR(36) NULL"
+    ],
+    async (mysqlPool) => {
+      const [rows] = await mysqlPool.query(
+        "SHOW COLUMNS FROM evaluation_assignments LIKE 'questionnaire_id'"
+      );
+      return hasMysqlColumn(rows);
+    }
+  );
+
+  const hasAnswerColumn = await ensureMysqlColumns(
+    pool,
+    "evaluation_answers",
+    [
+      "ALTER TABLE evaluation_answers MODIFY COLUMN question_id VARCHAR(36) NULL",
+      "ALTER TABLE evaluation_answers ADD COLUMN questionnaire_question_id VARCHAR(36) NULL"
+    ],
+    async (mysqlPool) => {
+      const [rows] = await mysqlPool.query(
+        "SHOW COLUMNS FROM evaluation_answers LIKE 'questionnaire_question_id'"
+      );
+      return hasMysqlColumn(rows);
+    }
+  );
+
+  const hasIndexes = await ensureMysqlIndexes(
+    pool,
+    async (mysqlPool) => {
+      return (
+        (await hasMysqlIndex(
+          mysqlPool,
+          "evaluation_questionnaires",
+          "idx_questionnaires_cycle_reviewee_relationship"
+        )) &&
+        (await hasMysqlIndex(mysqlPool, "evaluation_questionnaires", "idx_questionnaires_status")) &&
+        (await hasMysqlIndex(mysqlPool, "evaluation_assignments", "idx_assignments_questionnaire_id")) &&
+        (await hasMysqlIndex(
+          mysqlPool,
+          "evaluation_answers",
+          "idx_answers_questionnaire_question_id"
+        ))
+      );
+    },
+    [
+      `CREATE INDEX idx_questionnaires_cycle_reviewee_relationship
+       ON evaluation_questionnaires (cycle_id, reviewee_person_id, relationship_type)`,
+      `CREATE INDEX idx_questionnaires_status
+       ON evaluation_questionnaires (status)`,
+      `CREATE INDEX idx_assignments_questionnaire_id
+       ON evaluation_assignments (questionnaire_id)`,
+      `CREATE INDEX idx_answers_questionnaire_question_id
+       ON evaluation_answers (questionnaire_question_id)`
+    ]
+  );
+
+  return (
+    hasAssignmentColumn &&
+    hasAnswerColumn &&
+    hasIndexes &&
+    detectMysqlIndividualQuestionnaireSupport(pool)
+  );
+}
+
 function enrichAssignment(db, assignment, customLibraries = []) {
   const cycle = db.cycles.find((item) => item.id === assignment.cycleId);
   const presentedCycle = presentCycle(cycle || {});
@@ -1901,24 +2196,27 @@ function enrichAssignment(db, assignment, customLibraries = []) {
     ? db.people.find((item) => item.id === reviewer.personId)
     : null;
   const submission = db.submissions.find((item) => item.assignmentId === assignment.id);
+  const questionnaire = findQuestionnaireByIdFromMemory(db, assignment.questionnaireId);
+  const questionnaireTemplate = questionnaire
+    ? buildTemplateFromQuestionnaire(questionnaire, questionnaire.accessPolicy || null)
+    : null;
+  const fallbackTemplate = getTemplateDefinitionForCycle({
+    cycle: presentedCycle,
+    relationshipType: assignment.relationshipType,
+    customLibraries
+  });
 
   return {
     ...assignment,
     cycleTitle: presentedCycle.title || "",
     semesterLabel: presentedCycle.semesterLabel || "",
     cycleStatus: presentedCycle.status || "",
+    questionnaireId: assignment.questionnaireId || null,
+    questionnaireStatus: questionnaire?.status || null,
     templateId:
-      getTemplateDefinitionForCycle({
-        cycle: presentedCycle,
-        relationshipType: assignment.relationshipType,
-        customLibraries
-      })?.id || presentedCycle.templateId || questionTemplate.id,
+      questionnaireTemplate?.id || fallbackTemplate?.id || presentedCycle.templateId || questionTemplate.id,
     templateKey:
-      getTemplateDefinitionForCycle({
-        cycle: presentedCycle,
-        relationshipType: assignment.relationshipType,
-        customLibraries
-      })?.key || resolveTemplateKey(assignment.relationshipType),
+      questionnaireTemplate?.key || fallbackTemplate?.key || resolveTemplateKey(assignment.relationshipType),
     libraryId: presentedCycle.libraryId,
     libraryName: presentedCycle.libraryName,
     weight: evaluationLibrary.weights[assignment.relationshipType] || 0,
@@ -1939,22 +2237,33 @@ function enrichSubmission(db, submission, customLibraries = []) {
   const reviewer = db.users.find((item) => item.id === submission.reviewerUserId);
   const reviewee = db.people.find((item) => item.id === submission.revieweePersonId);
   const assignment = db.assignments.find((item) => item.id === submission.assignmentId);
+  const questionnaire = assignment?.questionnaireId
+    ? findQuestionnaireByIdFromMemory(db, assignment.questionnaireId)
+    : null;
   const reviewerPerson = reviewer
     ? db.people.find((item) => item.id === reviewer.personId)
     : null;
   const answers = db.answers
     .filter((item) => item.submissionId === submission.id)
     .map((answer) => {
-      const question = findQuestionDefinition(answer.questionId, customLibraries);
+      const questionnaireQuestion = answer.questionnaireQuestionId
+        ? db.questionnaireQuestions.find((item) => item.id === answer.questionnaireQuestionId)
+        : null;
+      const question =
+        questionnaireQuestion || findQuestionDefinition(answer.questionId, customLibraries);
       return {
         ...answer,
-        questionPrompt: question?.prompt || "",
-        dimensionTitle: question?.dimensionTitle || ""
+        questionPrompt: question?.promptText || question?.prompt || "",
+        dimensionTitle: question?.dimensionTitle || "",
+        isSensitive: Boolean(question?.isSensitive),
+        selectedOptions: Array.isArray(answer.selectedOptions) ? answer.selectedOptions : []
       };
     });
 
   return {
     ...submission,
+    questionnaireId: assignment?.questionnaireId || null,
+    questionnaireAccessPolicy: questionnaire?.accessPolicy || null,
     relationshipType: assignment?.relationshipType || "peer",
     weight: evaluationLibrary.weights[assignment?.relationshipType || "peer"] || 0,
     weightedScore: Number(
@@ -3668,9 +3977,12 @@ function buildDashboardPayload({
 }
 
 function filterIndividualResponses(responses, actorUser) {
+  const actorPersonId = actorUser?.person?.id || actorUser?.personId || null;
   const visibleTypes = isOrgWideUser(actorUser)
-    ? ["peer", "manager", "cross-functional", "self"]
-    : ["peer", "manager", "cross-functional"];
+    ? ["peer", "peer-same-area", "manager", "cross-functional", "self"]
+    : isManagerUser(actorUser)
+      ? ["peer", "peer-same-area", "manager", "cross-functional", "self"]
+      : ["peer", "peer-same-area", "manager", "cross-functional"];
 
   return responses.filter((response) => {
     if (!visibleTypes.includes(response.relationshipType)) {
@@ -3683,7 +3995,7 @@ function filterIndividualResponses(responses, actorUser) {
 
     if (isManagerUser(actorUser)) {
       return (
-        response.revieweeManagerPersonId === actorUser.person.id ||
+        response.revieweeManagerPersonId === actorPersonId ||
         response.reviewerUserId === actorUser.id
       );
     }
@@ -3692,12 +4004,77 @@ function filterIndividualResponses(responses, actorUser) {
   });
 }
 
+function getQuestionnaireAccessPolicy(response) {
+  return response?.questionnaireAccessPolicy || null;
+}
+
+function canActorViewSensitiveAnswer(response, actorUser) {
+  if (!actorUser) {
+    return false;
+  }
+
+  const actorPersonId = actorUser?.person?.id || actorUser?.personId || null;
+  const policy = getQuestionnaireAccessPolicy(response);
+  if (policy && policy.canViewRawAnswers !== true) {
+    return false;
+  }
+
+  if (isAdminUser(actorUser)) {
+    return policy ? policy.canViewAdmin !== false : true;
+  }
+
+  if (isHrUser(actorUser)) {
+    return policy ? policy.canViewHr !== false : true;
+  }
+
+  if (isManagerUser(actorUser)) {
+    const isDirectManager = response?.revieweeManagerPersonId === actorPersonId;
+    if (!isDirectManager) {
+      return false;
+    }
+    return policy ? policy.canViewManager !== false : true;
+  }
+
+  return false;
+}
+
+function redactSensitiveAnswer(answer, response, actorUser) {
+  if (!answer?.isSensitive || canActorViewSensitiveAnswer(response, actorUser)) {
+    return answer;
+  }
+
+  const policy = getQuestionnaireAccessPolicy(response);
+  const canShowPrompt = policy ? policy.canViewPromptTextAfterSubmission === true : false;
+
+  return {
+    ...answer,
+    score: null,
+    evidenceNote: "",
+    textValue: "",
+    selectedOptions: [],
+    questionPrompt: canShowPrompt ? answer.questionPrompt : "Pergunta sensivel protegida.",
+    masked: true
+  };
+}
+
+function applySensitiveAnswerPrivacy(response, actorUser) {
+  if (!Array.isArray(response?.answers) || !response.answers.length) {
+    return response;
+  }
+
+  return {
+    ...response,
+    answers: response.answers.map((answer) => redactSensitiveAnswer(answer, response, actorUser))
+  };
+}
+
 function buildResponsesBundle(responses, actorUser, options = {}) {
   const { cycles = [], cycleReports = [] } = options;
+  const actorPersonId = actorUser?.person?.id || actorUser?.personId || null;
   const aggregateSource = isOrgWideUser(actorUser)
     ? responses
     : isManagerUser(actorUser)
-      ? responses.filter((response) => response.revieweeManagerPersonId === actorUser.person.id)
+      ? responses.filter((response) => response.revieweeManagerPersonId === actorPersonId)
       : [];
 
   const processedCycleIds = new Set(
@@ -3715,7 +4092,9 @@ function buildResponsesBundle(responses, actorUser, options = {}) {
   const liveCycleAggregateResponses = buildAggregateResponsesByCycle(dynamicAggregateSource);
 
   return {
-    individualResponses: filterIndividualResponses(responses, actorUser),
+    individualResponses: filterIndividualResponses(responses, actorUser).map((response) =>
+      applySensitiveAnswerPrivacy(response, actorUser)
+    ),
     aggregateResponses: [...liveAggregateResponses, ...scopedSnapshots],
     cycleAggregateResponses: [...liveCycleAggregateResponses, ...scopedSnapshots],
     reportSnapshots: scopedSnapshots
@@ -4405,13 +4784,21 @@ async function fetchMysqlResponses(
               reviewee.name AS revieweeName,
               reviewee.area AS revieweeArea, reviewee.manager_person_id AS revieweeManagerPersonId,
               reviewee_manager.name AS revieweeManagerName,
-              a.relationship_type AS relationshipType
+              a.relationship_type AS relationshipType, a.questionnaire_id AS questionnaireId,
+              ap.can_view_reviewee AS policyCanViewReviewee,
+              ap.can_view_reviewer AS policyCanViewReviewer,
+              ap.can_view_manager AS policyCanViewManager,
+              ap.can_view_hr AS policyCanViewHr,
+              ap.can_view_admin AS policyCanViewAdmin,
+              ap.can_view_raw_answers AS policyCanViewRawAnswers,
+              ap.can_view_prompt_text_after_submission AS policyCanViewPromptTextAfterSubmission
        FROM evaluation_submissions s
        JOIN evaluation_assignments a ON a.id = s.assignment_id
        JOIN users reviewer_user ON reviewer_user.id = s.reviewer_user_id
        JOIN people reviewer_person ON reviewer_person.id = reviewer_user.person_id
        JOIN people reviewee ON reviewee.id = s.reviewee_person_id
        LEFT JOIN people reviewee_manager ON reviewee_manager.id = reviewee.manager_person_id
+       LEFT JOIN evaluation_questionnaire_access_policies ap ON ap.questionnaire_id = a.questionnaire_id
        ORDER BY s.submitted_at DESC`
       : `SELECT s.id, s.assignment_id AS assignmentId, s.cycle_id AS cycleId,
               s.reviewer_user_id AS reviewerUserId, s.reviewee_person_id AS revieweePersonId,
@@ -4421,27 +4808,52 @@ async function fetchMysqlResponses(
               reviewee.name AS revieweeName,
               reviewee.area AS revieweeArea, reviewee.manager_person_id AS revieweeManagerPersonId,
               reviewee_manager.name AS revieweeManagerName,
-              a.relationship_type AS relationshipType
+              a.relationship_type AS relationshipType, a.questionnaire_id AS questionnaireId,
+              ap.can_view_reviewee AS policyCanViewReviewee,
+              ap.can_view_reviewer AS policyCanViewReviewer,
+              ap.can_view_manager AS policyCanViewManager,
+              ap.can_view_hr AS policyCanViewHr,
+              ap.can_view_admin AS policyCanViewAdmin,
+              ap.can_view_raw_answers AS policyCanViewRawAnswers,
+              ap.can_view_prompt_text_after_submission AS policyCanViewPromptTextAfterSubmission
        FROM evaluation_submissions s
        JOIN evaluation_assignments a ON a.id = s.assignment_id
        JOIN users reviewer_user ON reviewer_user.id = s.reviewer_user_id
        JOIN people reviewer_person ON reviewer_person.id = reviewer_user.person_id
        JOIN people reviewee ON reviewee.id = s.reviewee_person_id
        LEFT JOIN people reviewee_manager ON reviewee_manager.id = reviewee.manager_person_id
+       LEFT JOIN evaluation_questionnaire_access_policies ap ON ap.questionnaire_id = a.questionnaire_id
        ORDER BY s.submitted_at DESC`
   );
 
   const [answers] = await pool.query(
-    `SELECT a.id, a.submission_id AS submissionId, a.question_id AS questionId, a.answer_type AS answerType, a.score,
-            a.evidence_note AS evidenceNote, a.answer_text AS textValue, a.answer_options_json AS answerOptionsJson, q.prompt_text AS questionPrompt,
-            q.dimension_title AS dimensionTitle
+    `SELECT a.id, a.submission_id AS submissionId, a.question_id AS questionId,
+            a.questionnaire_question_id AS questionnaireQuestionId, a.answer_type AS answerType, a.score,
+            a.evidence_note AS evidenceNote, a.answer_text AS textValue, a.answer_options_json AS answerOptionsJson,
+            COALESCE(qq.prompt_text, q.prompt_text) AS questionPrompt,
+            COALESCE(qq.dimension_title, q.dimension_title) AS dimensionTitle,
+            COALESCE(qq.is_sensitive, q.is_sensitive, 0) AS isSensitive
      FROM evaluation_answers a
      LEFT JOIN evaluation_questions q ON q.id = a.question_id
+     LEFT JOIN evaluation_questionnaire_questions qq ON qq.id = a.questionnaire_question_id
      ORDER BY a.id ASC`
   );
 
   return submissions.map((submission) => ({
     ...submission,
+    questionnaireAccessPolicy: submission.questionnaireId
+      ? {
+          canViewReviewee: Boolean(submission.policyCanViewReviewee),
+          canViewReviewer: submission.policyCanViewReviewer !== 0,
+          canViewManager: Boolean(submission.policyCanViewManager),
+          canViewHr: submission.policyCanViewHr !== 0,
+          canViewAdmin: submission.policyCanViewAdmin !== 0,
+          canViewRawAnswers: Boolean(submission.policyCanViewRawAnswers),
+          canViewPromptTextAfterSubmission: Boolean(
+            submission.policyCanViewPromptTextAfterSubmission
+          )
+        }
+      : null,
     respondentArea:
       submission.relationshipType === "company"
         ? submission.reviewerArea || submission.revieweeArea || ""
@@ -4477,6 +4889,7 @@ async function fetchMysqlResponses(
           answer.dimensionTitle ||
           findQuestionDefinition(answer.questionId, customLibraries)?.dimensionTitle ||
           "",
+        isSensitive: Boolean(answer.isSensitive),
         selectedOptions: answer.answerOptionsJson ? JSON.parse(answer.answerOptionsJson) : []
       }))
   }));
@@ -4745,7 +5158,17 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
       buildResponsesBundle,
       presentCycleReportSnapshot,
       buildPerformance360Reviews,
-      filterReceivedManagerFeedback
+      filterReceivedManagerFeedback,
+      pushAuditLog,
+      AUDIT_CATEGORIES
+    }),
+    ...createMemoryEvaluationQuestionnaireStore({
+      db,
+      createId,
+      isAdminUser,
+      isHrUser,
+      pushAuditLog,
+      AUDIT_CATEGORIES
     }),
     async createEvaluationCycle(payload, actorUser) {
       const selectedLibrary =
@@ -5109,7 +5532,8 @@ function buildMysqlStore(
     supportsFeedbackAcknowledgement,
     supportsAssignmentReminder,
     supportsPairings,
-    supportsLearningIntegrations
+    supportsLearningIntegrations,
+    supportsIndividualQuestionnaires
   } = {}
 ) {
   return {
@@ -5128,13 +5552,31 @@ function buildMysqlStore(
         "progress_note",
         "progress_updated_at"
       ]);
+      const missingAssignmentQuestionnaireColumns = await getMysqlMissingColumns(
+        pool,
+        "evaluation_assignments",
+        ["questionnaire_id"]
+      );
+      const missingAnswerQuestionnaireColumns = await getMysqlMissingColumns(
+        pool,
+        "evaluation_answers",
+        ["questionnaire_question_id"]
+      );
       return {
         database: "ok",
         usersTable: missingUserColumns.length === 0 ? "ok" : "incomplete",
         missingUserColumns,
         developmentPlansTable:
           missingDevelopmentPlanColumns.length === 0 ? "ok" : "incomplete",
-        missingDevelopmentPlanColumns
+        missingDevelopmentPlanColumns,
+        individualQuestionnaires:
+          supportsIndividualQuestionnaires ? "ok" : "incomplete",
+        assignmentsQuestionnaireColumns:
+          missingAssignmentQuestionnaireColumns.length === 0 ? "ok" : "incomplete",
+        missingAssignmentQuestionnaireColumns,
+        answersQuestionnaireColumns:
+          missingAnswerQuestionnaireColumns.length === 0 ? "ok" : "incomplete",
+        missingAnswerQuestionnaireColumns
       };
     },
     async findUserByEmail(email) {
@@ -5605,7 +6047,17 @@ function buildMysqlStore(
       fetchCycleReportRows,
       buildPerformance360Reviews,
       fetchPeopleRows,
-      filterReceivedManagerFeedback
+      filterReceivedManagerFeedback,
+      insertAuditLog,
+      AUDIT_CATEGORIES
+    }),
+    ...createMysqlEvaluationQuestionnaireStore({
+      pool,
+      createId,
+      isAdminUser,
+      isHrUser,
+      insertAuditLog,
+      AUDIT_CATEGORIES
     }),
     async createEvaluationCycle(payload, actorUser) {
       const selectedLibrary =
@@ -6314,7 +6766,8 @@ export async function createStore() {
     supportsAssignmentReminder,
     _supportsDevelopmentPlanProgress,
     supportsPairings,
-    supportsLearningIntegrations
+    supportsLearningIntegrations,
+    supportsIndividualQuestionnaires
   ] =
     await Promise.all([
       ensureMysqlCycleConfigSupport(pool),
@@ -6323,13 +6776,15 @@ export async function createStore() {
       ensureMysqlAssignmentReminderSupport(pool),
       ensureMysqlDevelopmentPlanProgressSupport(pool),
       ensureMysqlPairingSupport(pool),
-      ensureMysqlLearningIntegrationSupport(pool)
+      ensureMysqlLearningIntegrationSupport(pool),
+      ensureMysqlIndividualQuestionnaireSupport(pool)
     ]);
   return buildMysqlStore(pool, customLibraryState, anonymousResponseState, {
     supportsCycleConfig,
     supportsFeedbackAcknowledgement,
     supportsAssignmentReminder,
     supportsPairings,
-    supportsLearningIntegrations
+    supportsLearningIntegrations,
+    supportsIndividualQuestionnaires
   });
 }

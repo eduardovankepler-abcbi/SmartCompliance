@@ -6,7 +6,6 @@ export function createMemoryEvaluationSubmissionStore({
   saveAnonymousResponseState,
   isReleasedCycle,
   isCycleRelationshipEnabled,
-  getTemplateDefinitionForCycle,
   validateEvaluationAnswers,
   isAnonymousRelationship,
   createAnonymousSubmissionPayload,
@@ -46,11 +45,10 @@ export function createMemoryEvaluationSubmissionStore({
         throw new Error("Este questionario nao esta ativo neste ciclo.");
       }
 
-      const templateDefinition = getTemplateDefinitionForCycle({
-        cycle,
-        relationshipType: assignment.relationshipType,
-        customLibraries: customLibraryState.published
-      });
+      const templateDefinition = await this.getEvaluationTemplateForAssignment(
+        assignment.id,
+        payload.reviewerUserId
+      );
       validateEvaluationAnswers(payload.answers, templateDefinition);
 
       if (isAnonymousRelationship(assignment.relationshipType)) {
@@ -147,7 +145,6 @@ export function createMysqlEvaluationSubmissionStore({
   supportsFeedbackAcknowledgement,
   isReleasedCycle,
   isCycleRelationshipEnabled,
-  getTemplateDefinitionForCycle,
   validateEvaluationAnswers,
   isAnonymousRelationship,
   createAnonymousSubmissionPayload,
@@ -180,11 +177,10 @@ export function createMysqlEvaluationSubmissionStore({
         throw new Error("Este questionario nao esta ativo neste ciclo.");
       }
 
-      const templateDefinition = getTemplateDefinitionForCycle({
-        cycle: assignment,
-        relationshipType: assignment.relationshipType,
-        customLibraries: customLibraryState.published
-      });
+      const templateDefinition = await this.getEvaluationTemplateForAssignment(
+        assignment.id,
+        payload.reviewerUserId
+      );
       validateEvaluationAnswers(payload.answers, templateDefinition);
 
       if (isAnonymousRelationship(assignment.relationshipType)) {
@@ -262,12 +258,13 @@ export function createMysqlEvaluationSubmissionStore({
         })) {
           await connection.query(
             `INSERT INTO evaluation_answers
-             (id, submission_id, question_id, answer_type, score, evidence_note, answer_text, answer_options_json)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+             (id, submission_id, question_id, questionnaire_question_id, answer_type, score, evidence_note, answer_text, answer_options_json)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
               answer.id,
               answer.submissionId,
               answer.questionId,
+              answer.questionnaireQuestionId,
               answer.answerType,
               answer.score,
               answer.evidenceNote,

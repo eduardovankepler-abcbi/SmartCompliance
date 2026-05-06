@@ -530,19 +530,6 @@ export const evaluationLibrary = {
             "Reflita sobre sua capacidade de atuar de forma independente, mantendo resultados satisfatorios.",
           sortOrder: 20,
           visibility: "private"
-        }),
-        createTextQuestion({
-          id: "q_self_21",
-          sectionKey: "final",
-          sectionTitle: "Consideracoes Finais",
-          sectionDescription:
-            "Espaco para voce registrar comentarios, feedbacks ou sugestoes adicionais que considere importantes.",
-          dimensionKey: "final-comments",
-          dimensionTitle: "Sugestoes e observacoes",
-          prompt:
-            "Escreva aqui suas sugestoes, ideias de melhoria, observacoes sobre processos, comunicacao, recursos, desenvolvimento da equipe, lideranca ou qualquer outro ponto relevante para aprimorar seu trabalho, sua equipe ou a empresa.",
-          sortOrder: 21,
-          visibility: "private"
         })
       ]
     },
@@ -1997,12 +1984,16 @@ export const seed = {
     }
   ],
   cycleReports: [],
+  questionnaires: [],
+  questionnaireQuestions: [],
+  questionnaireAccessPolicies: [],
   assignments: [
     {
       id: "ea1",
       cycleId: "c1",
       reviewerUserId: "u1",
       revieweePersonId: "p2",
+      questionnaireId: null,
       relationshipType: "peer",
       projectContext: "Projeto Modernizacao Portal",
       collaborationContext:
@@ -2017,6 +2008,7 @@ export const seed = {
       cycleId: "c1",
       reviewerUserId: "u4",
       revieweePersonId: "p2",
+      questionnaireId: null,
       relationshipType: "manager",
       projectContext: "Rotina da area",
       collaborationContext: "Avaliacao gerencial semestral.",
@@ -2030,6 +2022,7 @@ export const seed = {
       cycleId: "c1",
       reviewerUserId: "u2",
       revieweePersonId: "p1",
+      questionnaireId: null,
       relationshipType: "cross-functional",
       projectContext: "Politica de acessos",
       collaborationContext:
@@ -2044,6 +2037,7 @@ export const seed = {
       cycleId: "c1",
       reviewerUserId: "u1",
       revieweePersonId: "p1",
+      questionnaireId: null,
       relationshipType: "self",
       projectContext: "Reflexao individual",
       collaborationContext: "Autoavaliacao semestral do colaborador.",
@@ -2057,6 +2051,7 @@ export const seed = {
       cycleId: "c1",
       reviewerUserId: "u1",
       revieweePersonId: "p4",
+      questionnaireId: null,
       relationshipType: "leader",
       projectContext: "Avaliacao da lideranca imediata",
       collaborationContext: "Leitura da lideranca no semestre.",
@@ -2070,6 +2065,7 @@ export const seed = {
       cycleId: "c1",
       reviewerUserId: "u1",
       revieweePersonId: "p1",
+      questionnaireId: null,
       relationshipType: "company",
       projectContext: "Experiencia institucional",
       collaborationContext: "Avaliacao da empresa e da experiencia geral do colaborador.",
@@ -2083,6 +2079,7 @@ export const seed = {
       cycleId: "c1",
       reviewerUserId: "u1",
       revieweePersonId: "p2",
+      questionnaireId: null,
       relationshipType: "client-internal",
       projectContext: "Consumo interno entre areas",
       collaborationContext:
@@ -2097,6 +2094,7 @@ export const seed = {
       cycleId: "c1",
       reviewerUserId: "u1",
       revieweePersonId: "p3",
+      questionnaireId: null,
       relationshipType: "client-external",
       projectContext: "Interacao com consultoria",
       collaborationContext:
@@ -2156,6 +2154,7 @@ export const seed = {
       id: "ans1",
       submissionId: "es1",
       questionId: "q1",
+      questionnaireQuestionId: null,
       score: 4,
       evidenceNote: "Cumpriu marcos importantes no periodo."
     },
@@ -2163,6 +2162,7 @@ export const seed = {
       id: "ans2",
       submissionId: "es1",
       questionId: "q2",
+      questionnaireQuestionId: null,
       score: 4,
       evidenceNote: "Manteve consistencia em sprint critica."
     },
@@ -2170,6 +2170,7 @@ export const seed = {
       id: "ans3",
       submissionId: "es1",
       questionId: "q3",
+      questionnaireQuestionId: null,
       score: 5,
       evidenceNote: "Apoiou integracao entre times com rapidez."
     },
@@ -2177,6 +2178,7 @@ export const seed = {
       id: "ans4",
       submissionId: "es1",
       questionId: "q4",
+      questionnaireQuestionId: null,
       score: 4,
       evidenceNote: "Compartilhou contexto tecnico com clareza."
     },
@@ -2184,6 +2186,7 @@ export const seed = {
       id: "ans5",
       submissionId: "es1",
       questionId: "q5",
+      questionnaireQuestionId: null,
       score: 4,
       evidenceNote: "Comunicou riscos sem ruido."
     },
@@ -2191,6 +2194,7 @@ export const seed = {
       id: "ans6",
       submissionId: "es1",
       questionId: "q6",
+      questionnaireQuestionId: null,
       score: 4,
       evidenceNote: "Relacao respeitosa e colaborativa com o time."
     }

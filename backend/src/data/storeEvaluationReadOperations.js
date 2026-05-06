@@ -1,3 +1,32 @@
+function countVisibleSensitiveAnswers(bundle) {
+  return (bundle?.individualResponses || []).reduce((total, response) => {
+    const visibleSensitiveAnswers = (response.answers || []).filter(
+      (answer) => answer.isSensitive && answer.masked !== true
+    ).length;
+    return total + visibleSensitiveAnswers;
+  }, 0);
+}
+
+function buildSensitiveResponseAccessDetail(bundle) {
+  const responseIds = new Set();
+  const revieweeIds = new Set();
+
+  for (const response of bundle?.individualResponses || []) {
+    const hasVisibleSensitiveAnswer = (response.answers || []).some(
+      (answer) => answer.isSensitive && answer.masked !== true
+    );
+    if (!hasVisibleSensitiveAnswer) {
+      continue;
+    }
+    responseIds.add(response.id);
+    if (response.revieweePersonId) {
+      revieweeIds.add(response.revieweePersonId);
+    }
+  }
+
+  return `${responseIds.size} resposta(s) com itens sensiveis visiveis · ${revieweeIds.size} colaborador(es) afetados`;
+}
+
 export function createMemoryEvaluationReadStore({
   db,
   createId,
@@ -19,8 +48,64 @@ export function createMemoryEvaluationReadStore({
   buildResponsesBundle,
   presentCycleReportSnapshot,
   buildPerformance360Reviews,
-  filterReceivedManagerFeedback
+  filterReceivedManagerFeedback,
+  pushAuditLog,
+  AUDIT_CATEGORIES
 }) {
+  function buildTemplateFromAssignment(assignment) {
+    if (assignment?.questionnaireId) {
+      const questionnaire = db.questionnaires.find((item) => item.id === assignment.questionnaireId);
+      if (questionnaire) {
+        const questions = db.questionnaireQuestions
+          .filter((item) => item.questionnaireId === questionnaire.id)
+          .sort((left, right) => Number(left.sortOrder || 0) - Number(right.sortOrder || 0));
+        const accessPolicy =
+          db.questionnaireAccessPolicies.find((item) => item.questionnaireId === questionnaire.id) ||
+          null;
+        return buildTemplate({
+          id: questionnaire.id,
+          key: questionnaire.relationshipType,
+          relationshipType: questionnaire.relationshipType,
+          modelName: questionnaire.title,
+          description: questionnaire.description || "",
+          policy: {
+            confidentiality: questionnaire.visibilityLevel || "restricted",
+            accessPolicy
+          },
+          questions: questions.map((question) => ({
+            id: question.id,
+            questionnaireQuestionId: question.id,
+            sourceQuestionId: question.sourceQuestionId || null,
+            sectionKey: question.sectionKey || "",
+            sectionTitle: question.sectionTitle || "",
+            sectionDescription: question.sectionDescription || "",
+            dimensionKey: question.dimensionKey,
+            dimensionTitle: question.dimensionTitle,
+            prompt: question.promptText || "",
+            helperText: question.helperText || "",
+            inputType: question.inputType || "scale",
+            scaleProfile: question.scaleProfile || null,
+            visibility: question.visibility || "restricted",
+            isRequired: question.isRequired !== false,
+            collectEvidenceOnExtreme: Boolean(question.collectEvidenceOnExtreme),
+            isSensitive: Boolean(question.isSensitive),
+            options: Array.isArray(question.options) ? question.options : [],
+            sortOrder: Number(question.sortOrder || 0)
+          }))
+        });
+      }
+    }
+
+    const cycle = db.cycles.find((item) => item.id === assignment?.cycleId);
+    return buildTemplate(
+      getTemplateDefinitionForCycle({
+        cycle: presentCycle(cycle || {}),
+        relationshipType: assignment?.relationshipType,
+        customLibraries: customLibraryState.published
+      })
+    );
+  }
+
   return {
     async getEvaluationTemplate() {
       return buildTemplate(evaluationLibrary.templates.collaboration);
@@ -145,8 +230,17 @@ export function createMemoryEvaluationReadStore({
       }
       return enrichAssignment(db, assignment, customLibraryState.published);
     },
+    async getEvaluationTemplateForAssignment(assignmentId, userId) {
+      const assignment = db.assignments.find(
+        (item) => item.id === assignmentId && item.reviewerUserId === userId
+      );
+      if (!assignment) {
+        return null;
+      }
+      return buildTemplateFromAssignment(assignment);
+    },
     async getEvaluationResponses(actorUser) {
-      return buildEvaluationResponseBundle({
+      const bundle = buildEvaluationResponseBundle({
         submissions: db.submissions,
         anonymousResponses: anonymousResponseState.responses,
         buildSubmission: (item) => enrichSubmission(db, item, customLibraryState.published),
@@ -155,6 +249,22 @@ export function createMemoryEvaluationReadStore({
         cycles: db.cycles,
         cycleReports: db.cycleReports.map((item) => presentCycleReportSnapshot(item))
       });
+
+      const visibleSensitiveAnswers = countVisibleSensitiveAnswers(bundle);
+      if (visibleSensitiveAnswers > 0) {
+        pushAuditLog(db.auditLogs, {
+          category: AUDIT_CATEGORIES.cycle,
+          action: "sensitive-viewed",
+          entityType: "evaluation_response_bundle",
+          entityId: actorUser?.id || "unknown",
+          entityLabel: actorUser?.person?.name || actorUser?.email || "Leitura de respostas",
+          actorUser,
+          summary: "Visualizacao de respostas sensiveis de avaliacao",
+          detail: buildSensitiveResponseAccessDetail(bundle)
+        });
+      }
+
+      return bundle;
     },
     async getPerformance360Reviews(actorUser) {
       return buildPerformance360Reviews({
@@ -199,8 +309,115 @@ export function createMysqlEvaluationReadStore({
   fetchCycleReportRows,
   buildPerformance360Reviews,
   fetchPeopleRows,
-  filterReceivedManagerFeedback
+  filterReceivedManagerFeedback,
+  insertAuditLog,
+  AUDIT_CATEGORIES
 }) {
+  async function fetchAssignmentQuestionnaire(assignmentId, reviewerUserId) {
+    const [assignmentRows] = await pool.query(
+      `SELECT a.id, a.cycle_id AS cycleId, a.reviewer_user_id AS reviewerUserId,
+              a.reviewee_person_id AS revieweePersonId, a.questionnaire_id AS questionnaireId,
+              a.relationship_type AS relationshipType,
+              c.template_id AS templateId, c.library_id AS libraryId, c.library_name AS libraryName
+       FROM evaluation_assignments a
+       JOIN evaluation_cycles c ON c.id = a.cycle_id
+       WHERE a.id = ? AND a.reviewer_user_id = ?
+       LIMIT 1`,
+      [assignmentId, reviewerUserId]
+    );
+    const assignment = assignmentRows[0];
+    if (!assignment) {
+      return null;
+    }
+    if (!assignment.questionnaireId) {
+      return buildTemplate(
+        getTemplateDefinitionForCycle({
+          cycle: presentCycle(assignment),
+          relationshipType: assignment.relationshipType,
+          customLibraries: customLibraryState.published
+        })
+      );
+    }
+
+    const [questionnaireRows] = await pool.query(
+      `SELECT q.id, q.relationship_type AS relationshipType, q.title, q.description,
+              q.visibility_level AS visibilityLevel
+       FROM evaluation_questionnaires q
+       WHERE q.id = ?
+       LIMIT 1`,
+      [assignment.questionnaireId]
+    );
+    if (!questionnaireRows[0]) {
+      return buildTemplate(
+        getTemplateDefinitionForCycle({
+          cycle: presentCycle(assignment),
+          relationshipType: assignment.relationshipType,
+          customLibraries: customLibraryState.published
+        })
+      );
+    }
+    const [questionRows] = await pool.query(
+      `SELECT q.id, q.sort_order AS sortOrder, q.section_key AS sectionKey,
+              q.section_title AS sectionTitle, q.section_description AS sectionDescription,
+              q.dimension_key AS dimensionKey, q.dimension_title AS dimensionTitle,
+              q.prompt_text AS promptText, q.helper_text AS helperText,
+              q.input_type AS inputType, q.scale_profile AS scaleProfile,
+              q.visibility, q.is_required AS isRequired,
+              q.collect_evidence_on_extreme AS collectEvidenceOnExtreme,
+              q.is_sensitive AS isSensitive, q.options_json AS optionsJson
+       FROM evaluation_questionnaire_questions q
+       WHERE q.questionnaire_id = ?
+       ORDER BY q.sort_order`,
+      [assignment.questionnaireId]
+    );
+    const [policyRows] = await pool.query(
+      `SELECT can_view_reviewee AS canViewReviewee, can_view_reviewer AS canViewReviewer,
+              can_view_manager AS canViewManager, can_view_hr AS canViewHr,
+              can_view_admin AS canViewAdmin, can_view_raw_answers AS canViewRawAnswers,
+              can_view_prompt_text_after_submission AS canViewPromptTextAfterSubmission
+       FROM evaluation_questionnaire_access_policies
+       WHERE questionnaire_id = ?
+       LIMIT 1`,
+      [assignment.questionnaireId]
+    );
+    return buildTemplate({
+      id: questionnaireRows[0].id,
+      key: questionnaireRows[0].relationshipType,
+      relationshipType: questionnaireRows[0].relationshipType,
+      modelName: questionnaireRows[0].title,
+      description: questionnaireRows[0].description || "",
+      policy: {
+        confidentiality: questionnaireRows[0].visibilityLevel || "restricted",
+        accessPolicy: policyRows[0] || null
+      },
+      questions: questionRows.map((question) => ({
+        id: question.id,
+        questionnaireQuestionId: question.id,
+        sourceQuestionId: null,
+        sectionKey: question.sectionKey || "",
+        sectionTitle: question.sectionTitle || "",
+        sectionDescription: question.sectionDescription || "",
+        dimensionKey: question.dimensionKey,
+        dimensionTitle: question.dimensionTitle,
+        prompt: question.promptText || "",
+        helperText: question.helperText || "",
+        inputType: question.inputType || "scale",
+        scaleProfile: question.scaleProfile || null,
+        visibility: question.visibility || "restricted",
+        isRequired: question.isRequired !== false,
+        collectEvidenceOnExtreme: Boolean(question.collectEvidenceOnExtreme),
+        isSensitive: Boolean(question.isSensitive),
+        options:
+          question.optionsJson
+            ? typeof question.optionsJson === "string"
+              ? JSON.parse(question.optionsJson)
+              : question.optionsJson
+            : [],
+        sortOrder: Number(question.sortOrder || 0)
+      }))
+    });
+  }
+
   return {
     async getEvaluationTemplate() {
       return buildTemplate(evaluationLibrary.templates.collaboration);
@@ -336,7 +553,7 @@ export function createMysqlEvaluationReadStore({
       const [rows] = await pool.query(
         supportsCycleConfig
           ? `SELECT a.id, a.cycle_id AS cycleId, a.reviewer_user_id AS reviewerUserId,
-                    a.reviewee_person_id AS revieweePersonId, a.relationship_type AS relationshipType,
+                    a.reviewee_person_id AS revieweePersonId, a.questionnaire_id AS questionnaireId, a.relationship_type AS relationshipType,
                     a.project_context AS projectContext, a.collaboration_context AS collaborationContext,
                     a.status, a.due_date AS dueDate, c.title AS cycleTitle, c.semester_label AS semesterLabel,
                     c.template_id AS templateId, c.status AS cycleStatus, c.is_enabled AS isEnabled, c.enabled_relationships_json AS enabledRelationshipsJson, c.transversal_config_json AS transversalConfigJson,
@@ -353,7 +570,7 @@ export function createMysqlEvaluationReadStore({
              WHERE a.reviewer_user_id = ?
              ORDER BY a.due_date ASC`
           : `SELECT a.id, a.cycle_id AS cycleId, a.reviewer_user_id AS reviewerUserId,
-                    a.reviewee_person_id AS revieweePersonId, a.relationship_type AS relationshipType,
+                    a.reviewee_person_id AS revieweePersonId, a.questionnaire_id AS questionnaireId, a.relationship_type AS relationshipType,
                     a.project_context AS projectContext, a.collaboration_context AS collaborationContext,
                     a.status, a.due_date AS dueDate, c.title AS cycleTitle, c.semester_label AS semesterLabel,
                     c.template_id AS templateId, c.status AS cycleStatus,
@@ -379,7 +596,7 @@ export function createMysqlEvaluationReadStore({
       const [rows] = await pool.query(
         supportsCycleConfig
           ? `SELECT a.id, a.cycle_id AS cycleId, a.reviewer_user_id AS reviewerUserId,
-                    a.reviewee_person_id AS revieweePersonId, a.relationship_type AS relationshipType,
+                    a.reviewee_person_id AS revieweePersonId, a.questionnaire_id AS questionnaireId, a.relationship_type AS relationshipType,
                     a.project_context AS projectContext, a.collaboration_context AS collaborationContext,
                     a.status, a.due_date AS dueDate, c.title AS cycleTitle, c.semester_label AS semesterLabel,
                     c.template_id AS templateId, c.status AS cycleStatus, c.is_enabled AS isEnabled, c.enabled_relationships_json AS enabledRelationshipsJson, c.transversal_config_json AS transversalConfigJson,
@@ -391,7 +608,7 @@ export function createMysqlEvaluationReadStore({
              WHERE a.id = ? AND a.reviewer_user_id = ?
              LIMIT 1`
           : `SELECT a.id, a.cycle_id AS cycleId, a.reviewer_user_id AS reviewerUserId,
-                    a.reviewee_person_id AS revieweePersonId, a.relationship_type AS relationshipType,
+                    a.reviewee_person_id AS revieweePersonId, a.questionnaire_id AS questionnaireId, a.relationship_type AS relationshipType,
                     a.project_context AS projectContext, a.collaboration_context AS collaborationContext,
                     a.status, a.due_date AS dueDate, c.title AS cycleTitle, c.semester_label AS semesterLabel,
                     c.template_id AS templateId, c.status AS cycleStatus,
@@ -413,6 +630,9 @@ export function createMysqlEvaluationReadStore({
       }
       return assignment;
     },
+    async getEvaluationTemplateForAssignment(assignmentId, userId) {
+      return fetchAssignmentQuestionnaire(assignmentId, userId);
+    },
     async getEvaluationResponses(actorUser) {
       const submissions = await fetchMysqlResponses(pool, customLibraryState.published, {
         supportsFeedbackAcknowledgement
@@ -421,7 +641,7 @@ export function createMysqlEvaluationReadStore({
         this.getEvaluationCycles(),
         fetchCycleReportRows(pool)
       ]);
-      return buildEvaluationResponseBundle({
+      const bundle = buildEvaluationResponseBundle({
         submissions,
         anonymousResponses: anonymousResponseState.responses,
         buildSubmission: (item) => item,
@@ -430,6 +650,22 @@ export function createMysqlEvaluationReadStore({
         cycles,
         cycleReports
       });
+
+      const visibleSensitiveAnswers = countVisibleSensitiveAnswers(bundle);
+      if (visibleSensitiveAnswers > 0) {
+        await insertAuditLog(pool, {
+          category: AUDIT_CATEGORIES.cycle,
+          action: "sensitive-viewed",
+          entityType: "evaluation_response_bundle",
+          entityId: actorUser?.id || "unknown",
+          entityLabel: actorUser?.person?.name || actorUser?.email || "Leitura de respostas",
+          actorUser,
+          summary: "Visualizacao de respostas sensiveis de avaliacao",
+          detail: buildSensitiveResponseAccessDetail(bundle)
+        });
+      }
+
+      return bundle;
     },
     async getPerformance360Reviews(actorUser) {
       const [people, cycles, responses] = await Promise.all([

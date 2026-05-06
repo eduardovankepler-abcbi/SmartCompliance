@@ -1,5 +1,6 @@
 import { EvaluationInsightsPanel } from "./EvaluationInsightsPanel";
 import { EvaluationLibraryPanel } from "./EvaluationLibraryPanel";
+import { EvaluationQuestionnairePanel } from "./EvaluationQuestionnairePanel";
 import { EvaluationResponsePanel } from "./EvaluationResponsePanel";
 import { FeedbackRequestPanel } from "./FeedbackRequestPanel";
 import { AuditTrailPanel } from "../components/AuditTrailPanel";
@@ -194,6 +195,7 @@ export function EvaluationsSection(props) {
   } = props;
   const SafeEvaluationInsightsPanel = EvaluationInsightsPanel || EmptyComponent;
   const SafeEvaluationLibraryPanel = EvaluationLibraryPanel || EmptyComponent;
+  const SafeEvaluationQuestionnairePanel = EvaluationQuestionnairePanel || EmptyComponent;
   const SafeEvaluationResponsePanel = EvaluationResponsePanel || EmptyComponent;
   const SafeFeedbackRequestPanel = FeedbackRequestPanel || EmptyComponent;
   const SafeAuditTrailPanel = AuditTrailPanel || EmptyComponent;
@@ -264,6 +266,17 @@ export function EvaluationsSection(props) {
                   </button>
                 ) : null}
               </div>
+            ) : null}
+            {canViewEvaluationLibrary && isOperationsWorkspace ? (
+              <button
+                type="button"
+                className="refresh"
+                onClick={() => props.setShowEvaluationQuestionnaires?.(true)}
+              >
+                {props.showEvaluationQuestionnaires
+                  ? "Questionarios individuais ativos"
+                  : "Questionarios individuais"}
+              </button>
             ) : null}
             {canViewEvaluationLibrary && isOperationsWorkspace ? (
               <button
@@ -375,6 +388,45 @@ export function EvaluationsSection(props) {
         handleCustomLibraryPublish={handleCustomLibraryPublish}
         setCustomLibraryPublishForm={setCustomLibraryPublishForm}
         showEvaluationLibrary={showEvaluationLibrary}
+      />
+
+      <SafeEvaluationQuestionnairePanel
+        Input={Input}
+        Select={Select}
+        Textarea={Textarea}
+        canViewEvaluationLibrary={canViewEvaluationLibrary}
+        cycles={cycles}
+        editingEvaluationQuestionId={props.editingEvaluationQuestionId}
+        evaluationQuestionDraft={props.evaluationQuestionDraft}
+        evaluationQuestionnaireFilters={props.evaluationQuestionnaireFilters}
+        evaluationQuestionnaireCreateForm={props.evaluationQuestionnaireCreateForm}
+        evaluationQuestionnaireDraft={props.evaluationQuestionnaireDraft}
+        evaluationQuestionnaireRelationshipOptions={
+          props.evaluationQuestionnaireRelationshipOptions
+        }
+        evaluationQuestionnaireRequiredCounts={props.evaluationQuestionnaireRequiredCounts}
+        evaluationQuestionnaires={props.evaluationQuestionnaires}
+        formatDate={formatDate}
+        handleCloneQuestionnaireFromExisting={props.handleCloneQuestionnaireFromExisting}
+        handleEvaluationQuestionDelete={props.handleEvaluationQuestionDelete}
+        handleEvaluationQuestionReorder={props.handleEvaluationQuestionReorder}
+        handleEvaluationQuestionSave={props.handleEvaluationQuestionSave}
+        handleLoadQuestionnaireFromLibrary={props.handleLoadQuestionnaireFromLibrary}
+        handleEvaluationQuestionnaireArchive={props.handleEvaluationQuestionnaireArchive}
+        handleEvaluationQuestionnaireCreate={props.handleEvaluationQuestionnaireCreate}
+        handleEvaluationQuestionnairePublish={props.handleEvaluationQuestionnairePublish}
+        handleEvaluationQuestionnaireUpdate={props.handleEvaluationQuestionnaireUpdate}
+        people={props.people}
+        revieweeQuestionnaireOptions={props.revieweeQuestionnaireOptions}
+        selectedEvaluationQuestionnaire={props.selectedEvaluationQuestionnaire}
+        selectedEvaluationQuestionnaireId={props.selectedEvaluationQuestionnaireId}
+        setEvaluationQuestionDraft={props.setEvaluationQuestionDraft}
+        setEvaluationQuestionnaireCreateForm={props.setEvaluationQuestionnaireCreateForm}
+        setEvaluationQuestionnaireDraft={props.setEvaluationQuestionnaireDraft}
+        setEvaluationQuestionnairePolicyValue={props.setEvaluationQuestionnairePolicyValue}
+        setSelectedEvaluationQuestionnaireId={props.setSelectedEvaluationQuestionnaireId}
+        showEvaluationQuestionnaires={props.showEvaluationQuestionnaires}
+        startEvaluationQuestionEdit={props.startEvaluationQuestionEdit}
       />
 
       {canManageCycles && isOperationsWorkspace ? (

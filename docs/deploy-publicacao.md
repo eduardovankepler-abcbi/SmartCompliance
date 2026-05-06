@@ -74,6 +74,7 @@ Antes de usar o backend publicado com `mysql`, execute:
 Se voce ja tem um banco existente (tabelas ja criadas) e atualizou o codigo, aplique tambem:
 
 - `backend/db/migrations/2026-04-01-evaluation-cycle-config.sql` (switches de ciclo + questionarios)
+- `backend/db/migrations/2026-05-05-evaluation-individual-questionnaires.sql` (questionarios individuais + politicas de acesso)
 
 Opcional:
 
@@ -90,6 +91,12 @@ Observacao pratica:
 - em provedores como Aiven, o banco e frequentemente criado com nome padrao como `defaultdb`
 - use exatamente os valores fornecidos pelo provedor para `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD` e `MYSQL_DATABASE`
 - se o provedor exigir SSL, mantenha `MYSQL_SSL_MODE=required`
+
+Para homologar especificamente a frente de `questionarios individuais` em MySQL real, siga tambem:
+
+- `docs/validacao-mysql-questionarios-individuais.md`
+- `docs/checklist-homologacao-render-mysql.md`
+- `docs/checklist-homologacao-aiven.md` se o banco estiver na Aiven
 
 ## Ordem de publicacao
 

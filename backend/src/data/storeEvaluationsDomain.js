@@ -212,7 +212,12 @@ export function buildEvaluationAnswerRows({
     return {
       id: createId("answer"),
       submissionId,
-      questionId: answer.questionId,
+      questionId: question
+        ? question.questionnaireQuestionId
+          ? question.sourceQuestionId || null
+          : answer.questionId
+        : answer.questionId || null,
+      questionnaireQuestionId: question?.questionnaireQuestionId || null,
       score: Number.isFinite(Number(answer.score)) ? Number(answer.score) : null,
       evidenceNote: answer.evidenceNote || "",
       textValue: answer.textValue || "",

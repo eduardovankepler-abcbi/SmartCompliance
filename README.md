@@ -28,7 +28,11 @@ MVP local para uma plataforma de compliance, feedback, desenvolvimento profissio
 - `frontend/`: aplicação React
 - `docs/`: visão funcional e decisões do MVP
 - `docs/evolucao-recomendada.md`: trilha recomendada para as próximas rodadas
+- `docs/mapa-retomada-operacional.md`: guia rápido para retomar por módulo e tipo de problema
 - `docs/deploy-publicacao.md`: guia de publicação sem depender da máquina local
+- `docs/validacao-mysql-questionarios-individuais.md`: checklist de homologação MySQL para avaliações individualizadas
+- `docs/checklist-homologacao-render-mysql.md`: passo a passo operacional para Render + MySQL gerenciado
+- `docs/checklist-homologacao-aiven.md`: adaptação prática da homologação para Aiven for MySQL
 
 ## Como rodar localmente
 

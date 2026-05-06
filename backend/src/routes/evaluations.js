@@ -41,6 +41,168 @@ export function createEvaluationsRouter(store) {
     }
   });
 
+  router.get("/questionnaires", requireRoles("admin", "hr"), async (req, res) => {
+    try {
+      const { cycleId, revieweePersonId, relationshipType, status } = req.query || {};
+      res.json(
+        await store.getEvaluationQuestionnaires(
+          { cycleId, revieweePersonId, relationshipType, status },
+          req.auth.user
+        )
+      );
+    } catch (error) {
+      res
+        .status(400)
+        .json({ error: error.message || "Falha ao carregar questionarios individuais." });
+    }
+  });
+
+  router.get("/questionnaires/:questionnaireId", requireRoles("admin", "hr"), async (req, res) => {
+    try {
+      res.json(
+        await store.getEvaluationQuestionnaireById(req.params.questionnaireId, req.auth.user)
+      );
+    } catch (error) {
+      res
+        .status(400)
+        .json({ error: error.message || "Falha ao carregar questionario individual." });
+    }
+  });
+
+  router.post("/questionnaires", requireRoles("admin", "hr"), async (req, res) => {
+    try {
+      const questionnaire = await store.createEvaluationQuestionnaire(req.body || {}, req.auth.user);
+      res.status(201).json(questionnaire);
+    } catch (error) {
+      res
+        .status(400)
+        .json({ error: error.message || "Falha ao criar questionario individual." });
+    }
+  });
+
+  router.patch("/questionnaires/:questionnaireId", requireRoles("admin", "hr"), async (req, res) => {
+    try {
+      const questionnaire = await store.updateEvaluationQuestionnaire(
+        req.params.questionnaireId,
+        req.body || {},
+        req.auth.user
+      );
+      res.json(questionnaire);
+    } catch (error) {
+      res
+        .status(400)
+        .json({ error: error.message || "Falha ao atualizar questionario individual." });
+    }
+  });
+
+  router.post(
+    "/questionnaires/:questionnaireId/publish",
+    requireRoles("admin", "hr"),
+    async (req, res) => {
+      try {
+        res.json(
+          await store.publishEvaluationQuestionnaire(req.params.questionnaireId, req.auth.user)
+        );
+      } catch (error) {
+        res
+          .status(400)
+          .json({ error: error.message || "Falha ao publicar questionario individual." });
+      }
+    }
+  );
+
+  router.post(
+    "/questionnaires/:questionnaireId/archive",
+    requireRoles("admin", "hr"),
+    async (req, res) => {
+      try {
+        res.json(
+          await store.archiveEvaluationQuestionnaire(req.params.questionnaireId, req.auth.user)
+        );
+      } catch (error) {
+        res
+          .status(400)
+          .json({ error: error.message || "Falha ao arquivar questionario individual." });
+      }
+    }
+  );
+
+  router.post(
+    "/questionnaires/:questionnaireId/questions",
+    requireRoles("admin", "hr"),
+    async (req, res) => {
+      try {
+        res.status(201).json(
+          await store.addEvaluationQuestionnaireQuestion(
+            req.params.questionnaireId,
+            req.body || {},
+            req.auth.user
+          )
+        );
+      } catch (error) {
+        res
+          .status(400)
+          .json({ error: error.message || "Falha ao adicionar pergunta ao questionario." });
+      }
+    }
+  );
+
+  router.patch(
+    "/questionnaire-questions/:questionId",
+    requireRoles("admin", "hr"),
+    async (req, res) => {
+      try {
+        res.json(
+          await store.updateEvaluationQuestionnaireQuestion(
+            req.params.questionId,
+            req.body || {},
+            req.auth.user
+          )
+        );
+      } catch (error) {
+        res
+          .status(400)
+          .json({ error: error.message || "Falha ao atualizar pergunta do questionario." });
+      }
+    }
+  );
+
+  router.delete(
+    "/questionnaire-questions/:questionId",
+    requireRoles("admin", "hr"),
+    async (req, res) => {
+      try {
+        res.json(
+          await store.deleteEvaluationQuestionnaireQuestion(req.params.questionId, req.auth.user)
+        );
+      } catch (error) {
+        res
+          .status(400)
+          .json({ error: error.message || "Falha ao remover pergunta do questionario." });
+      }
+    }
+  );
+
+  router.post(
+    "/questionnaires/:questionnaireId/reorder",
+    requireRoles("admin", "hr"),
+    async (req, res) => {
+      try {
+        res.json(
+          await store.reorderEvaluationQuestionnaireQuestions(
+            req.params.questionnaireId,
+            req.body || {},
+            req.auth.user
+          )
+        );
+      } catch (error) {
+        res
+          .status(400)
+          .json({ error: error.message || "Falha ao reordenar perguntas do questionario." });
+      }
+    }
+  );
+
   router.post("/cycles", requireRoles("admin", "hr"), async (req, res, next) => {
     const { title, semesterLabel, dueDate, targetGroup, libraryId } = req.body;
 
@@ -220,10 +382,15 @@ export function createEvaluationsRouter(store) {
         return res.status(404).json({ error: "Assignment nao encontrado." });
       }
 
-      const template = await store.getEvaluationTemplateForCycleRelationship(
-        assignment.cycleId,
-        assignment.relationshipType
-      );
+      const template =
+        (await store.getEvaluationTemplateForAssignment?.(
+          req.params.assignmentId,
+          req.auth.user.id
+        )) ||
+        (await store.getEvaluationTemplateForCycleRelationship(
+          assignment.cycleId,
+          assignment.relationshipType
+        ));
       res.json({
         assignment,
         template
@@ -256,7 +423,7 @@ export function createEvaluationsRouter(store) {
 
   router.get(
     "/responses",
-    requireRoles("admin", "manager"),
+    requireRoles("admin", "hr", "manager"),
     async (req, res, next) => {
     try {
       res.json(await store.getEvaluationResponses(req.auth.user));

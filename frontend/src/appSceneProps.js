@@ -278,7 +278,7 @@ export function buildAppSceneProps(context) {
       },
       incidentForm: operationsState.incidentForm,
       incidents: sharedData.incidents,
-      roleKey: user.roleKey
+      roleKey: user?.roleKey
     }),
     evaluationsSceneProps: buildEvaluationsSceneProps({
       components: controls,
@@ -309,6 +309,7 @@ export function buildAppSceneProps(context) {
         cycleForm: evaluationsState.cycleForm,
         cycles: sharedData.cycles,
         developmentNote: evaluationsState.developmentNote,
+        editingEvaluationQuestionId: evaluationsState.editingEvaluationQuestionId,
         evaluationCycleHistory: evaluationsState.evaluationCycleHistory,
         evaluationCycleOptions: evaluationsState.evaluationCycleOptions,
         evaluationCycleStructure: evaluationsState.evaluationCycleStructure,
@@ -319,6 +320,17 @@ export function buildAppSceneProps(context) {
         evaluationOperationWorkModeOptions: evaluationsState.evaluationOperationWorkModeOptions,
         evaluationOperationWorkUnitFilter: evaluationsState.evaluationOperationWorkUnitFilter,
         evaluationOperationWorkUnitOptions: evaluationsState.evaluationOperationWorkUnitOptions,
+        evaluationQuestionDraft: evaluationsState.evaluationQuestionDraft,
+        evaluationQuestionnaireFilters: evaluationsState.evaluationQuestionnaireFilters,
+        evaluationQuestionnaireCreateForm: evaluationsState.evaluationQuestionnaireCreateForm,
+        evaluationQuestionnaireDraft: evaluationsState.evaluationQuestionnaireDraft,
+        evaluationQuestionnaireRelationshipOptions:
+          evaluationsState.evaluationQuestionnaireRelationshipOptions,
+        evaluationQuestionnaireRequiredCounts:
+          evaluationsState.evaluationQuestionnaireRequiredCounts,
+        evaluationQuestionnaireStatusOptions:
+          evaluationsState.evaluationQuestionnaireStatusOptions,
+        evaluationQuestionnaires: evaluationsState.evaluationQuestionnaires,
         feedbackProviderOptions: evaluationsState.feedbackProviderOptions,
         feedbackRequestCycleOptions: evaluationsState.feedbackRequestCycleOptions,
         feedbackRequestForm: evaluationsState.feedbackRequestForm,
@@ -328,15 +340,38 @@ export function buildAppSceneProps(context) {
         filteredFeedbackRequests: evaluationsState.filteredFeedbackRequests,
         filteredIndividualResponses: evaluationsState.filteredIndividualResponses,
         filteredReceivedManagerFeedback: evaluationsState.filteredReceivedManagerFeedback,
+        people: sharedData.people,
         performance360Reviews: sharedData.performance360Reviews,
         receivedManagerFeedbackDrafts: evaluationsState.receivedManagerFeedbackDrafts,
+        revieweeQuestionnaireOptions: evaluationsState.revieweeQuestionnaireOptions,
+        selectedEvaluationQuestionnaire: evaluationsState.selectedEvaluationQuestionnaire,
+        selectedEvaluationQuestionnaireId:
+          evaluationsState.selectedEvaluationQuestionnaireId,
         selectedAssignment: evaluationsState.selectedAssignment,
+        showEvaluationQuestionnaires: evaluationsState.showEvaluationQuestionnaires,
         showEvaluationLibrary: evaluationsState.showEvaluationLibrary,
         strengthsNote: evaluationsState.strengthsNote,
         transversalConfigForm: evaluationsState.transversalConfigForm,
         transversalOverrideForm: evaluationsState.transversalOverrideForm
       },
       handlers: {
+        handleEvaluationQuestionDelete:
+          evaluationsState.handleEvaluationQuestionDelete,
+        handleCloneQuestionnaireFromExisting:
+          evaluationsState.handleCloneQuestionnaireFromExisting,
+        handleEvaluationQuestionReorder:
+          evaluationsState.handleEvaluationQuestionReorder,
+        handleEvaluationQuestionSave: evaluationsState.handleEvaluationQuestionSave,
+        handleLoadQuestionnaireFromLibrary:
+          evaluationsState.handleLoadQuestionnaireFromLibrary,
+        handleEvaluationQuestionnaireArchive:
+          evaluationsState.handleEvaluationQuestionnaireArchive,
+        handleEvaluationQuestionnaireCreate:
+          evaluationsState.handleEvaluationQuestionnaireCreate,
+        handleEvaluationQuestionnairePublish:
+          evaluationsState.handleEvaluationQuestionnairePublish,
+        handleEvaluationQuestionnaireUpdate:
+          evaluationsState.handleEvaluationQuestionnaireUpdate,
         handleAssignmentSubmit: evaluationsState.handleAssignmentSubmit,
         handleBlockCrossFunctionalPairing: evaluationsState.handleBlockCrossFunctionalPairing,
         handleCompetencyCreate: sharedHandlers.handleCompetencyCreate,
@@ -368,7 +403,7 @@ export function buildAppSceneProps(context) {
         getRelationshipLabel: labels.getRelationshipLabel,
         getVisibilityLabel: labels.getVisibilityLabel
       },
-      roleKey: user.roleKey,
+      roleKey: user?.roleKey,
       setters: {
         setActiveEvaluationCycleId: evaluationsState.setActiveEvaluationCycleId,
         setActiveEvaluationModule: evaluationsState.setActiveEvaluationModule,
@@ -378,6 +413,15 @@ export function buildAppSceneProps(context) {
         setCustomLibraryPublishForm: evaluationsState.setCustomLibraryPublishForm,
         setCycleForm: evaluationsState.setCycleForm,
         setDevelopmentNote: evaluationsState.setDevelopmentNote,
+        setEvaluationQuestionDraft: evaluationsState.setEvaluationQuestionDraft,
+        setEvaluationQuestionnaireFilters:
+          evaluationsState.setEvaluationQuestionnaireFilters,
+        setEvaluationQuestionnaireCreateForm:
+          evaluationsState.setEvaluationQuestionnaireCreateForm,
+        setEvaluationQuestionnaireDraft:
+          evaluationsState.setEvaluationQuestionnaireDraft,
+        setEvaluationQuestionnairePolicyValue:
+          evaluationsState.setEvaluationQuestionnairePolicyValue,
         setEvaluationOperationWorkModeFilter:
           evaluationsState.setEvaluationOperationWorkModeFilter,
         setEvaluationOperationWorkUnitFilter:
@@ -385,8 +429,13 @@ export function buildAppSceneProps(context) {
         setFeedbackRequestForm: evaluationsState.setFeedbackRequestForm,
         setReceivedManagerFeedbackDraft:
           evaluationsState.setReceivedManagerFeedbackDraft,
+        setSelectedEvaluationQuestionnaireId:
+          evaluationsState.setSelectedEvaluationQuestionnaireId,
         setSelectedAssignment: evaluationsState.setSelectedAssignment,
         setShowEvaluationLibrary: evaluationsState.setShowEvaluationLibrary,
+        setShowEvaluationQuestionnaires:
+          evaluationsState.setShowEvaluationQuestionnaires,
+        startEvaluationQuestionEdit: evaluationsState.startEvaluationQuestionEdit,
         setStrengthsNote: evaluationsState.setStrengthsNote,
         setTransversalConfigForm: evaluationsState.setTransversalConfigForm,
         setTransversalOverrideForm: evaluationsState.setTransversalOverrideForm
@@ -446,7 +495,7 @@ export function buildAppSceneProps(context) {
         formatDate: labels.formatDate,
         getDevelopmentTrackLabel: labels.getDevelopmentTrackLabel
       },
-      roleKey: user.roleKey,
+      roleKey: user?.roleKey,
       setters: {
         setActiveDevelopmentView: developmentState.setActiveDevelopmentView,
         setDevelopmentForm: developmentState.setDevelopmentForm,
@@ -470,7 +519,7 @@ export function buildAppSceneProps(context) {
         handleApplauseSubmit: operationsState.handleApplauseSubmit,
         handleApplauseUpdate: operationsState.handleApplauseUpdate
       },
-      roleKey: user.roleKey,
+      roleKey: user?.roleKey,
       setters: {
         setApplauseForm: operationsState.setApplauseForm
       }

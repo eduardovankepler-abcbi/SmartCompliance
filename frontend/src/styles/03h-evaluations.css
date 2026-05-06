@@ -267,12 +267,45 @@
   gap: 12px;
 }
 
+.evaluation-question-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
 .evaluation-visibility-pill {
   padding: 4px 10px;
   border-radius: 999px;
   border: 1px solid var(--line);
   color: var(--muted);
   font-size: 0.82rem;
+}
+
+.evaluation-sensitive-banner {
+  background:
+    linear-gradient(135deg, rgba(255, 154, 107, 0.12), transparent 48%),
+    var(--accent-primary);
+}
+
+.evaluation-sensitive-pill,
+.evaluation-masked-pill {
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 0.78rem;
+}
+
+.evaluation-sensitive-pill {
+  color: #ffb288;
+  background: rgba(255, 154, 107, 0.14);
+  border-color: rgba(255, 154, 107, 0.24);
+}
+
+.evaluation-masked-pill {
+  color: #ffd46f;
+  background: rgba(255, 212, 111, 0.14);
+  border-color: rgba(255, 212, 111, 0.22);
 }
 
 .evaluation-question-controls {

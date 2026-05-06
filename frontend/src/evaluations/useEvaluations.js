@@ -1,7 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "../api";
 import { parseAppHash } from "../appRoute";
 import { evaluationModules, isEvaluationModuleVisible } from "../appConfig.js";
+import {
+  validateEvaluationQuestionnaireCreateForm,
+  validateEvaluationQuestionnaireQuestionForm
+} from "./questionnaireValidation.js";
 import { validateEvaluationAnswerForm } from "./validation.js";
 
 const DEFAULT_CYCLE_MODULE_AVAILABILITY = Object.freeze({
@@ -28,6 +32,152 @@ const INITIAL_TRANSVERSAL_CONFIG_FORM = Object.freeze({
   unitName: "",
   unitReviewersPerPerson: "1"
 });
+const QUESTIONNAIRE_RELATIONSHIP_OPTIONS = ["manager", "self", "peer-same-area"];
+const QUESTIONNAIRE_STATUS_OPTIONS = ["draft", "published", "archived"];
+const QUESTIONNAIRE_REQUIRED_COUNTS = Object.freeze({
+  manager: 15,
+  self: 20,
+  "peer-same-area": 7
+});
+const INITIAL_QUESTIONNAIRE_CREATE_FORM = Object.freeze({
+  cycleId: "",
+  revieweePersonId: "",
+  relationshipType: "self",
+  title: "",
+  description: "",
+  visibilityLevel: "restricted"
+});
+const INITIAL_QUESTIONNAIRE_QUESTION_FORM = Object.freeze({
+  sectionKey: "",
+  sectionTitle: "",
+  sectionDescription: "",
+  dimensionKey: "",
+  dimensionTitle: "",
+  promptText: "",
+  helperText: "",
+  inputType: "scale",
+  scaleProfile: "performance",
+  visibility: "restricted",
+  sortOrder: "1",
+  isRequired: true,
+  collectEvidenceOnExtreme: false,
+  isSensitive: false,
+  optionsText: ""
+});
+const INITIAL_QUESTIONNAIRE_FILTERS = Object.freeze({
+  revieweePersonId: "all",
+  status: "all"
+});
+
+function buildDefaultQuestionnairePolicy() {
+  return {
+    canViewReviewee: false,
+    canViewReviewer: true,
+    canViewManager: true,
+    canViewHr: true,
+    canViewAdmin: true,
+    canViewRawAnswers: false,
+    canViewPromptTextAfterSubmission: false
+  };
+}
+
+function buildEditableQuestionnaireDraft(questionnaire) {
+  return {
+    title: questionnaire?.title || "",
+    description: questionnaire?.description || "",
+    visibilityLevel: questionnaire?.visibilityLevel || "restricted",
+    accessPolicy: {
+      ...buildDefaultQuestionnairePolicy(),
+      ...(questionnaire?.accessPolicy || {})
+    }
+  };
+}
+
+function buildQuestionnaireQuestionDraft(question = null) {
+  if (!question) {
+    return { ...INITIAL_QUESTIONNAIRE_QUESTION_FORM };
+  }
+
+  return {
+    sectionKey: question.sectionKey || "",
+    sectionTitle: question.sectionTitle || "",
+    sectionDescription: question.sectionDescription || "",
+    dimensionKey: question.dimensionKey || "",
+    dimensionTitle: question.dimensionTitle || "",
+    promptText: question.promptText || question.prompt || "",
+    helperText: question.helperText || "",
+    inputType: question.inputType || "scale",
+    scaleProfile: question.scaleProfile || "performance",
+    visibility: question.visibility || "restricted",
+    sortOrder: String(question.sortOrder || 1),
+    isRequired: question.isRequired !== false,
+    collectEvidenceOnExtreme: Boolean(question.collectEvidenceOnExtreme),
+    isSensitive: Boolean(question.isSensitive),
+    optionsText: (question.options || []).map((option) => option.label || option.value).join(" | ")
+  };
+}
+
+function buildQuestionnaireQuestionPayload(form) {
+  return {
+    sectionKey: form.sectionKey,
+    sectionTitle: form.sectionTitle,
+    sectionDescription: form.sectionDescription,
+    dimensionKey: form.dimensionKey,
+    dimensionTitle: form.dimensionTitle,
+    promptText: form.promptText,
+    helperText: form.helperText,
+    inputType: form.inputType,
+    scaleProfile: form.inputType === "scale" ? form.scaleProfile : "",
+    visibility: form.visibility,
+    sortOrder: Number(form.sortOrder || 1),
+    isRequired: Boolean(form.isRequired),
+    collectEvidenceOnExtreme: Boolean(form.collectEvidenceOnExtreme),
+    isSensitive: Boolean(form.isSensitive),
+    options:
+      form.inputType === "multi-select"
+        ? String(form.optionsText || "")
+            .split("|")
+            .map((item) => item.trim())
+            .filter(Boolean)
+            .map((item) => ({
+              value: item
+                .toLowerCase()
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .replace(/[^a-z0-9]+/g, "-")
+                .replace(/^-+|-+$/g, ""),
+              label: item
+            }))
+        : []
+  };
+}
+
+function mapQuestionnaireRelationshipToTemplateKey(relationshipType) {
+  if (relationshipType === "peer-same-area") {
+    return "peer";
+  }
+  return relationshipType;
+}
+
+function buildQuestionPayloadFromSourceQuestion(question, sortOrder) {
+  return {
+    sectionKey: question.sectionKey || "",
+    sectionTitle: question.sectionTitle || "",
+    sectionDescription: question.sectionDescription || "",
+    dimensionKey: question.dimensionKey || `question-${sortOrder}`,
+    dimensionTitle: question.dimensionTitle || `Pergunta ${sortOrder}`,
+    promptText: question.promptText || question.prompt || "",
+    helperText: question.helperText || "",
+    inputType: question.inputType || "scale",
+    scaleProfile: question.scaleProfile || "",
+    visibility: question.visibility || "restricted",
+    sortOrder,
+    isRequired: question.isRequired !== false,
+    collectEvidenceOnExtreme: Boolean(question.collectEvidenceOnExtreme),
+    isSensitive: Boolean(question.isSensitive),
+    options: Array.isArray(question.options) ? question.options : []
+  };
+}
 
 function normalizeCycleModuleAvailability(value) {
   if (!value || typeof value !== "object") {
@@ -308,6 +458,7 @@ export function useEvaluations({
   evaluationLibrary,
   responsesBundle,
   canViewEvaluationInsights,
+  canViewEvaluationLibrary,
   canViewEvaluationOperations,
   canViewResponses,
   reloadData,
@@ -330,6 +481,22 @@ export function useEvaluations({
   const [evaluationOperationWorkUnitFilter, setEvaluationOperationWorkUnitFilter] = useState("all");
   const [evaluationOperationWorkModeFilter, setEvaluationOperationWorkModeFilter] = useState("all");
   const [showEvaluationLibrary, setShowEvaluationLibrary] = useState(false);
+  const [showEvaluationQuestionnaires, setShowEvaluationQuestionnaires] = useState(false);
+  const [evaluationQuestionnaires, setEvaluationQuestionnaires] = useState([]);
+  const [evaluationQuestionnaireFilters, setEvaluationQuestionnaireFilters] = useState(
+    INITIAL_QUESTIONNAIRE_FILTERS
+  );
+  const [selectedEvaluationQuestionnaireId, setSelectedEvaluationQuestionnaireId] = useState("");
+  const [evaluationQuestionnaireCreateForm, setEvaluationQuestionnaireCreateForm] = useState(
+    INITIAL_QUESTIONNAIRE_CREATE_FORM
+  );
+  const [evaluationQuestionnaireDraft, setEvaluationQuestionnaireDraft] = useState(
+    buildEditableQuestionnaireDraft(null)
+  );
+  const [editingEvaluationQuestionId, setEditingEvaluationQuestionId] = useState("");
+  const [evaluationQuestionDraft, setEvaluationQuestionDraft] = useState(
+    INITIAL_QUESTIONNAIRE_QUESTION_FORM
+  );
   const [selectedAssignment, setSelectedAssignment] = useState(null);
   const [assignmentDetail, setAssignmentDetail] = useState(null);
   const [answerForm, setAnswerForm] = useState({});
@@ -366,6 +533,40 @@ export function useEvaluations({
       },
     [activeCycle?.transversalConfig]
   );
+  const reloadEvaluationQuestionnaires = useCallback(
+    async (preferredQuestionnaireId = "") => {
+      if (!canViewEvaluationLibrary) {
+        setEvaluationQuestionnaires([]);
+        setSelectedEvaluationQuestionnaireId("");
+        return;
+      }
+
+      try {
+        const nextQuestionnaires = await api.getEvaluationQuestionnaires();
+        setEvaluationQuestionnaires(nextQuestionnaires);
+        const nextSelectedId =
+          (preferredQuestionnaireId &&
+            nextQuestionnaires.some((item) => item.id === preferredQuestionnaireId) &&
+            preferredQuestionnaireId) ||
+          (selectedEvaluationQuestionnaireId &&
+            nextQuestionnaires.some((item) => item.id === selectedEvaluationQuestionnaireId) &&
+            selectedEvaluationQuestionnaireId) ||
+          nextQuestionnaires[0]?.id ||
+          "";
+        setSelectedEvaluationQuestionnaireId(nextSelectedId);
+      } catch (err) {
+        setError(err.message);
+      }
+    },
+    [canViewEvaluationLibrary, selectedEvaluationQuestionnaireId, setError]
+  );
+  const selectedEvaluationQuestionnaire = useMemo(
+    () =>
+      evaluationQuestionnaires.find(
+        (questionnaire) => questionnaire.id === selectedEvaluationQuestionnaireId
+      ) || null,
+    [evaluationQuestionnaires, selectedEvaluationQuestionnaireId]
+  );
 
   useEffect(() => {
     setTransversalConfigForm({
@@ -377,6 +578,36 @@ export function useEvaluations({
     });
   }, [activeEvaluationCycleId, activeTransversalConfig.defaultReviewersPerPerson]);
 
+  useEffect(() => {
+    if (!canViewEvaluationLibrary) {
+      setEvaluationQuestionnaires([]);
+      setSelectedEvaluationQuestionnaireId("");
+      return;
+    }
+
+    reloadEvaluationQuestionnaires();
+  }, [canViewEvaluationLibrary, reloadEvaluationQuestionnaires]);
+
+  useEffect(() => {
+    if (selectedEvaluationQuestionnaire) {
+      setEvaluationQuestionnaireDraft(buildEditableQuestionnaireDraft(selectedEvaluationQuestionnaire));
+      setEvaluationQuestionDraft(INITIAL_QUESTIONNAIRE_QUESTION_FORM);
+      setEditingEvaluationQuestionId("");
+      return;
+    }
+
+    setEvaluationQuestionnaireDraft(buildEditableQuestionnaireDraft(null));
+    setEvaluationQuestionDraft(INITIAL_QUESTIONNAIRE_QUESTION_FORM);
+    setEditingEvaluationQuestionId("");
+  }, [selectedEvaluationQuestionnaire]);
+
+  useEffect(() => {
+    setEvaluationQuestionnaireCreateForm((current) => ({
+      ...current,
+      cycleId: current.cycleId || activeEvaluationCycleId || cycles[0]?.id || ""
+    }));
+  }, [activeEvaluationCycleId, cycles]);
+
   const feedbackRequestCycleOptions = useMemo(
     () => cycles.filter((cycle) => !["Encerrado", "Processado"].includes(cycle.status)),
     [cycles]
@@ -386,6 +617,49 @@ export function useEvaluations({
   const cycleLibraryOptions = useMemo(
     () => evaluationLibrary?.cycleLibraries || [],
     [evaluationLibrary]
+  );
+  const questionnaireLibraryTemplates = useMemo(() => {
+    const defaultTemplates = (evaluationLibrary?.templates || []).map((template) => ({
+      ...template,
+      sourceLibraryId: evaluationLibrary?.defaultLibrary?.id || ""
+    }));
+    const customTemplates = (evaluationLibrary?.customLibraries || []).flatMap((library) =>
+      (library.templates || []).map((template) => ({
+        ...template,
+        sourceLibraryId: library.id
+      }))
+    );
+
+    return [...defaultTemplates, ...customTemplates];
+  }, [evaluationLibrary]);
+  const filteredEvaluationQuestionnaires = useMemo(
+    () =>
+      evaluationQuestionnaires
+        .filter(
+          (questionnaire) =>
+            (!activeEvaluationCycleId || questionnaire.cycleId === activeEvaluationCycleId) &&
+            (evaluationQuestionnaireFilters.revieweePersonId === "all" ||
+              questionnaire.revieweePersonId ===
+                evaluationQuestionnaireFilters.revieweePersonId) &&
+            (evaluationQuestionnaireFilters.status === "all" ||
+              questionnaire.status === evaluationQuestionnaireFilters.status)
+        )
+        .sort((left, right) => {
+          const rightDate = right.updatedAt ? new Date(right.updatedAt).getTime() : 0;
+          const leftDate = left.updatedAt ? new Date(left.updatedAt).getTime() : 0;
+          return rightDate - leftDate;
+        }),
+    [activeEvaluationCycleId, evaluationQuestionnaireFilters, evaluationQuestionnaires]
+  );
+  const revieweeQuestionnaireOptions = useMemo(
+    () =>
+      people
+        .map((person) => ({
+          value: person.id,
+          label: `${person.name} · ${person.area || "Sem area"}`
+        }))
+        .sort((left, right) => left.label.localeCompare(right.label, "pt-BR")),
+    [people]
   );
 
   const feedbackProviderOptions = useMemo(
@@ -1165,6 +1439,262 @@ export function useEvaluations({
     }
   }
 
+  function setEvaluationQuestionnairePolicyValue(key, value) {
+    setEvaluationQuestionnaireDraft((current) => ({
+      ...current,
+      accessPolicy: {
+        ...(current.accessPolicy || buildDefaultQuestionnairePolicy()),
+        [key]: value
+      }
+    }));
+  }
+
+  async function handleEvaluationQuestionnaireCreate(event) {
+    event?.preventDefault?.();
+
+    try {
+      setError("");
+      const validationMessage = validateEvaluationQuestionnaireCreateForm({
+        ...evaluationQuestionnaireCreateForm,
+        cycleId: evaluationQuestionnaireCreateForm.cycleId || activeEvaluationCycleId || cycles[0]?.id || ""
+      });
+      if (validationMessage) {
+        setError(validationMessage);
+        return;
+      }
+      const cycleId =
+        evaluationQuestionnaireCreateForm.cycleId || activeEvaluationCycleId || cycles[0]?.id || "";
+      const createdQuestionnaire = await api.createEvaluationQuestionnaire({
+        ...evaluationQuestionnaireCreateForm,
+        cycleId,
+        sourceLibraryId:
+          cycles.find((cycle) => cycle.id === cycleId)?.libraryId ||
+          evaluationQuestionnaireCreateForm.sourceLibraryId ||
+          ""
+      });
+      setEvaluationQuestionnaireCreateForm({
+        ...INITIAL_QUESTIONNAIRE_CREATE_FORM,
+        cycleId
+      });
+      setShowEvaluationQuestionnaires(true);
+      await reloadEvaluationQuestionnaires(createdQuestionnaire.id);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function handleEvaluationQuestionnaireUpdate(event) {
+    event?.preventDefault?.();
+    if (!selectedEvaluationQuestionnaire) {
+      return;
+    }
+
+    try {
+      setError("");
+      await api.updateEvaluationQuestionnaire(selectedEvaluationQuestionnaire.id, {
+        title: evaluationQuestionnaireDraft.title,
+        description: evaluationQuestionnaireDraft.description,
+        visibilityLevel: evaluationQuestionnaireDraft.visibilityLevel,
+        accessPolicy: evaluationQuestionnaireDraft.accessPolicy
+      });
+      await reloadEvaluationQuestionnaires(selectedEvaluationQuestionnaire.id);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function handleEvaluationQuestionnairePublish(questionnaireId) {
+    if (!questionnaireId) {
+      return;
+    }
+
+    try {
+      setError("");
+      await api.publishEvaluationQuestionnaire(questionnaireId);
+      await Promise.all([reloadData(), reloadEvaluationQuestionnaires(questionnaireId)]);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function handleEvaluationQuestionnaireArchive(questionnaireId) {
+    if (!questionnaireId) {
+      return;
+    }
+
+    try {
+      setError("");
+      await api.archiveEvaluationQuestionnaire(questionnaireId);
+      await Promise.all([reloadData(), reloadEvaluationQuestionnaires(questionnaireId)]);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  function startEvaluationQuestionEdit(question) {
+    setEditingEvaluationQuestionId(question.id);
+    setEvaluationQuestionDraft(buildQuestionnaireQuestionDraft(question));
+  }
+
+  function cancelEvaluationQuestionEdit() {
+    setEditingEvaluationQuestionId("");
+    setEvaluationQuestionDraft(INITIAL_QUESTIONNAIRE_QUESTION_FORM);
+  }
+
+  async function handleEvaluationQuestionSave(event) {
+    event?.preventDefault?.();
+    if (!selectedEvaluationQuestionnaire) {
+      return;
+    }
+
+    try {
+      setError("");
+      const validationMessage = validateEvaluationQuestionnaireQuestionForm(
+        evaluationQuestionDraft
+      );
+      if (validationMessage) {
+        setError(validationMessage);
+        return;
+      }
+      const payload = buildQuestionnaireQuestionPayload(evaluationQuestionDraft);
+      if (editingEvaluationQuestionId) {
+        await api.updateEvaluationQuestionnaireQuestion(editingEvaluationQuestionId, payload);
+      } else {
+        await api.addEvaluationQuestionnaireQuestion(selectedEvaluationQuestionnaire.id, payload);
+      }
+      setEditingEvaluationQuestionId("");
+      setEvaluationQuestionDraft(INITIAL_QUESTIONNAIRE_QUESTION_FORM);
+      await reloadEvaluationQuestionnaires(selectedEvaluationQuestionnaire.id);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function handleEvaluationQuestionDelete(questionId) {
+    if (!questionId) {
+      return;
+    }
+
+    try {
+      setError("");
+      await api.deleteEvaluationQuestionnaireQuestion(questionId);
+      if (editingEvaluationQuestionId === questionId) {
+        setEditingEvaluationQuestionId("");
+        setEvaluationQuestionDraft(INITIAL_QUESTIONNAIRE_QUESTION_FORM);
+      }
+      await reloadEvaluationQuestionnaires(selectedEvaluationQuestionnaire?.id || "");
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function handleEvaluationQuestionReorder(questionId, direction) {
+    if (!selectedEvaluationQuestionnaire?.questions?.length) {
+      return;
+    }
+
+    const currentIds = selectedEvaluationQuestionnaire.questions.map((question) => question.id);
+    const currentIndex = currentIds.indexOf(questionId);
+    const swapIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+    if (currentIndex < 0 || swapIndex < 0 || swapIndex >= currentIds.length) {
+      return;
+    }
+
+    const reorderedIds = [...currentIds];
+    const [movedId] = reorderedIds.splice(currentIndex, 1);
+    reorderedIds.splice(swapIndex, 0, movedId);
+
+    try {
+      setError("");
+      await api.reorderEvaluationQuestionnaireQuestions(
+        selectedEvaluationQuestionnaire.id,
+        reorderedIds
+      );
+      await reloadEvaluationQuestionnaires(selectedEvaluationQuestionnaire.id);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function replaceQuestionnaireQuestions(questionnaireId, sourceQuestions = []) {
+    const questionnaire = evaluationQuestionnaires.find((item) => item.id === questionnaireId);
+    if (!questionnaire) {
+      throw new Error("Questionario individual nao encontrado.");
+    }
+    if (questionnaire.status !== "draft") {
+      throw new Error("Somente questionarios em draft podem receber copia de perguntas.");
+    }
+
+    for (const question of questionnaire.questions || []) {
+      await api.deleteEvaluationQuestionnaireQuestion(question.id);
+    }
+
+    for (const [index, sourceQuestion] of sourceQuestions.entries()) {
+      await api.addEvaluationQuestionnaireQuestion(
+        questionnaireId,
+        buildQuestionPayloadFromSourceQuestion(sourceQuestion, index + 1)
+      );
+    }
+  }
+
+  async function handleLoadQuestionnaireFromLibrary(questionnaireId) {
+    const questionnaire = evaluationQuestionnaires.find((item) => item.id === questionnaireId);
+    if (!questionnaire) {
+      return;
+    }
+
+    const templateKey = mapQuestionnaireRelationshipToTemplateKey(questionnaire.relationshipType);
+    const cycle = cycles.find((item) => item.id === questionnaire.cycleId);
+    const preferredLibraryId =
+      questionnaire.sourceLibraryId || cycle?.libraryId || evaluationLibrary?.defaultLibrary?.id;
+    const sourceTemplate =
+      questionnaireLibraryTemplates.find(
+        (template) =>
+          template.sourceLibraryId === preferredLibraryId &&
+          (template.relationshipType || template.key) === templateKey
+      ) ||
+      questionnaireLibraryTemplates.find(
+        (template) => (template.relationshipType || template.key) === templateKey
+      );
+
+    if (!sourceTemplate?.questions?.length) {
+      setError("Nao foi encontrada uma base de perguntas compativel para esse tipo de questionario.");
+      return;
+    }
+
+    try {
+      setError("");
+      await replaceQuestionnaireQuestions(questionnaireId, sourceTemplate.questions);
+      setEvaluationOperationNotice("Perguntas carregadas a partir da biblioteca base do ciclo.");
+      await reloadEvaluationQuestionnaires(questionnaireId);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function handleCloneQuestionnaireFromExisting(targetQuestionnaireId, sourceQuestionnaireId) {
+    if (!targetQuestionnaireId || !sourceQuestionnaireId) {
+      return;
+    }
+
+    const sourceQuestionnaire = evaluationQuestionnaires.find(
+      (item) => item.id === sourceQuestionnaireId
+    );
+    if (!sourceQuestionnaire?.questions?.length) {
+      setError("O questionario de origem nao possui perguntas para copiar.");
+      return;
+    }
+
+    try {
+      setError("");
+      await replaceQuestionnaireQuestions(targetQuestionnaireId, sourceQuestionnaire.questions);
+      setEvaluationOperationNotice("Perguntas duplicadas a partir de outro questionario individual.");
+      await reloadEvaluationQuestionnaires(targetQuestionnaireId);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
   return {
     activeCycleModuleSummary,
     activeEvaluationCycleId,
@@ -1182,6 +1712,7 @@ export function useEvaluations({
     customLibraryPublishForm,
     cycleForm,
     developmentNote,
+    editingEvaluationQuestionId,
     evaluationCycleHistory,
     evaluationCycleOptions,
     evaluationOperationNotice,
@@ -1190,6 +1721,14 @@ export function useEvaluations({
     evaluationOperationWorkUnitFilter,
     evaluationOperationWorkUnitOptions,
     evaluationModuleOptions,
+    evaluationQuestionDraft,
+    evaluationQuestionnaireFilters,
+    evaluationQuestionnaireCreateForm,
+    evaluationQuestionnaireDraft,
+    evaluationQuestionnaires: filteredEvaluationQuestionnaires,
+    evaluationQuestionnaireRelationshipOptions: QUESTIONNAIRE_RELATIONSHIP_OPTIONS,
+    evaluationQuestionnaireStatusOptions: QUESTIONNAIRE_STATUS_OPTIONS,
+    evaluationQuestionnaireRequiredCounts: QUESTIONNAIRE_REQUIRED_COUNTS,
     feedbackProviderOptions,
     feedbackRequestCycleOptions,
     feedbackRequestForm,
@@ -1199,6 +1738,15 @@ export function useEvaluations({
     filteredFeedbackRequests,
     filteredIndividualResponses,
     filteredReceivedManagerFeedback,
+    handleEvaluationQuestionDelete,
+    handleCloneQuestionnaireFromExisting,
+    handleEvaluationQuestionReorder,
+    handleEvaluationQuestionSave,
+    handleLoadQuestionnaireFromLibrary,
+    handleEvaluationQuestionnaireArchive,
+    handleEvaluationQuestionnaireCreate,
+    handleEvaluationQuestionnairePublish,
+    handleEvaluationQuestionnaireUpdate,
     handleAssignmentSubmit,
     handleCustomLibraryImport,
     handleCustomLibraryUpdate,
@@ -1218,8 +1766,16 @@ export function useEvaluations({
     handleNotifyDelinquents,
     handleReceivedManagerFeedbackSubmit,
     receivedManagerFeedbackDrafts,
+    revieweeQuestionnaireOptions,
     resetEvaluations,
+    selectedEvaluationQuestionnaire,
+    selectedEvaluationQuestionnaireId,
     selectedAssignment,
+    setEvaluationQuestionDraft,
+    setEvaluationQuestionnaireFilters,
+    setEvaluationQuestionnaireCreateForm,
+    setEvaluationQuestionnaireDraft,
+    setEvaluationQuestionnairePolicyValue,
     setActiveEvaluationCycleId,
     setActiveEvaluationModule,
     setActiveEvaluationWorkspace,
@@ -1234,10 +1790,14 @@ export function useEvaluations({
     setReceivedManagerFeedbackDraft,
     setTransversalOverrideForm,
     setTransversalConfigForm,
+    setSelectedEvaluationQuestionnaireId,
     setSelectedAssignment,
     setShowEvaluationLibrary,
+    setShowEvaluationQuestionnaires,
     setStrengthsNote,
+    showEvaluationQuestionnaires,
     showEvaluationLibrary,
+    startEvaluationQuestionEdit,
     strengthsNote,
     transversalOverrideForm,
     transversalConfigForm

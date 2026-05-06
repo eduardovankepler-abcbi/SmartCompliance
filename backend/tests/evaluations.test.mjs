@@ -28,6 +28,131 @@ export async function runEvaluationsRegression() {
       "weight nao pode resultar em NaN"
     );
 
+    const createdQuestionnaire = await store.createEvaluationQuestionnaire(
+      {
+        cycleId: "c1",
+        revieweePersonId: employee.personId,
+        relationshipType: "self",
+        title: "Autoavaliacao individual do colaborador 1",
+        description: "Draft individual para regressao."
+      },
+      hr
+    );
+    assert.equal(
+      createdQuestionnaire.status,
+      "draft",
+      "Questionario individual deve nascer como draft"
+    );
+
+    const questionPayload = (sortOrder) => ({
+      sortOrder,
+      sectionKey: "autoconhecimento",
+      sectionTitle: "Autoconhecimento",
+      dimensionKey: `self-q-${sortOrder}`,
+      dimensionTitle: `Pergunta ${sortOrder}`,
+      promptText: `Pergunta individual ${sortOrder}`,
+      helperText: "",
+      inputType: "scale",
+      scaleProfile: "performance",
+      visibility: "restricted",
+      isRequired: true,
+      collectEvidenceOnExtreme: false,
+      isSensitive: sortOrder === 1,
+      options: []
+    });
+    const buildQuestionnaireQuestions = async (questionnaireId, totalQuestions, actorUser) => {
+      for (let index = 1; index <= totalQuestions; index += 1) {
+        await store.addEvaluationQuestionnaireQuestion(
+          questionnaireId,
+          questionPayload(index),
+          actorUser
+        );
+      }
+    };
+
+    await buildQuestionnaireQuestions(createdQuestionnaire.id, 19, hr);
+
+    await assert.rejects(
+      () => store.publishEvaluationQuestionnaire(createdQuestionnaire.id, hr),
+      /exatamente 20 perguntas/i,
+      "Questionario self deve exigir exatamente 20 perguntas para publicar"
+    );
+
+    const readyQuestionnaire = await store.addEvaluationQuestionnaireQuestion(
+      createdQuestionnaire.id,
+      questionPayload(20),
+      hr
+    );
+    assert.equal(
+      readyQuestionnaire.questionCount,
+      20,
+      "Questionario deve contabilizar perguntas adicionadas"
+    );
+
+    const publishedQuestionnaire = await store.publishEvaluationQuestionnaire(
+      createdQuestionnaire.id,
+      hr
+    );
+    assert.equal(
+      publishedQuestionnaire.status,
+      "published",
+      "Questionario individual valido deve publicar"
+    );
+    assert.ok(
+      publishedQuestionnaire.publishedAt,
+      "Questionario publicado deve registrar publishedAt"
+    );
+
+    await assert.rejects(
+      () =>
+        store.addEvaluationQuestionnaireQuestion(
+          createdQuestionnaire.id,
+          questionPayload(21),
+          hr
+        ),
+      /somente questionarios em draft/i,
+      "Questionario publicado nao deve aceitar edicao adicional"
+    );
+
+    const questionnaireListResponse = await fetchJson(
+      "/api/evaluations/questionnaires",
+      getAuthHeader(hr.id)
+    );
+    assert.equal(
+      questionnaireListResponse.response.status,
+      200,
+      "RH deve conseguir listar questionarios individuais"
+    );
+    assert.ok(
+      questionnaireListResponse.payload.some((item) => item.id === createdQuestionnaire.id),
+      "Questionario criado deve aparecer na listagem da API"
+    );
+
+    const employeeAssignmentsAfterQuestionnaire = await store.getEvaluationAssignmentsForUser(employee.id);
+    const selfAssignmentWithQuestionnaire = employeeAssignmentsAfterQuestionnaire.find(
+      (assignment) => assignment.relationshipType === "self" && assignment.cycleId === "c1"
+    );
+    assert.equal(
+      selfAssignmentWithQuestionnaire.questionnaireId,
+      createdQuestionnaire.id,
+      "Publicacao deve vincular questionario ao assignment correspondente"
+    );
+
+    const individualizedTemplate = await store.getEvaluationTemplateForAssignment(
+      selfAssignmentWithQuestionnaire.id,
+      employee.id
+    );
+    assert.equal(
+      individualizedTemplate.questions.length,
+      20,
+      "Assignment deve carregar o questionario individual publicado"
+    );
+    assert.equal(
+      individualizedTemplate.id,
+      createdQuestionnaire.id,
+      "Template retornado para o assignment deve refletir o questionario individual"
+    );
+
     const customLibraryDraft = await store.importCustomLibraryDraft({
       fileName: "biblioteca-customizada.xlsx",
       createdByUserId: admin.id,
@@ -135,6 +260,217 @@ export async function runEvaluationsRegression() {
       "Template gerencial deve usar escala de desempenho"
     );
 
+    const managedQuestionnaire = await store.createEvaluationQuestionnaire(
+      {
+        cycleId: createdCycle.id,
+        revieweePersonId: managerRevieweeEmployee.personId,
+        relationshipType: "self",
+        title: "Autoavaliacao individual do colaborador 2",
+        description: "Questionario individual com conteudo sensivel para subordinado direto."
+      },
+      hr
+    );
+
+    await buildQuestionnaireQuestions(managedQuestionnaire.id, 20, hr);
+    await store.updateEvaluationQuestionnaire(
+      managedQuestionnaire.id,
+      {
+        accessPolicy: {
+          canViewReviewee: false,
+          canViewReviewer: true,
+          canViewManager: true,
+          canViewHr: true,
+          canViewAdmin: true,
+          canViewRawAnswers: false,
+          canViewPromptTextAfterSubmission: false
+        }
+      },
+      hr
+    );
+
+    await store.publishEvaluationQuestionnaire(managedQuestionnaire.id, hr);
+
+    const managedAssignments = await store.getEvaluationAssignmentsForUser(managerRevieweeEmployee.id);
+    const managedSelfAssignment = managedAssignments.find(
+      (assignment) =>
+        assignment.relationshipType === "self" && assignment.cycleId === createdCycle.id
+    );
+    assert.ok(
+      managedSelfAssignment,
+      "Subordinado do gestor precisa receber assignment self no ciclo criado"
+    );
+    assert.equal(
+      managedSelfAssignment.questionnaireId,
+      managedQuestionnaire.id,
+      "Questionario publicado deve vincular o assignment self do subordinado"
+    );
+
+    const managedTemplate = await store.getEvaluationTemplateForAssignment(
+      managedSelfAssignment.id,
+      managerRevieweeEmployee.id
+    );
+    await store.updateEvaluationCycleStatus(createdCycle.id, "Liberado", admin);
+    const individualizedSubmission = await store.submitEvaluationAssignment({
+      assignmentId: managedSelfAssignment.id,
+      reviewerUserId: managerRevieweeEmployee.id,
+      answers: managedTemplate.questions.map((question, index) => ({
+        questionId: question.id,
+        score: question.inputType === "scale" ? 4 : null,
+        evidenceNote: index === 0 ? "Conteudo sensivel de regressao." : "",
+        textValue: "",
+        selectedOptions: []
+      })),
+      strengthsNote: "Ponto forte individual.",
+      developmentNote: "Ponto de desenvolvimento individual."
+    });
+
+    const hrResponsesBundle = await store.getEvaluationResponses(hr);
+    const hrSelfResponse = hrResponsesBundle.individualResponses.find(
+      (response) => response.id === individualizedSubmission.id
+    );
+    assert.ok(hrSelfResponse, "RH deve visualizar a resposta individualizada publicada");
+    assert.equal(
+      hrSelfResponse.answers[0].masked,
+      true,
+      "RH deve receber a pergunta sensivel mascarada quando a politica nao libera resposta bruta"
+    );
+    assert.equal(
+      hrSelfResponse.answers[0].score,
+      null,
+      "Resposta sensivel deve ficar oculta por padrao"
+    );
+    assert.equal(
+      hrSelfResponse.answers[0].questionPrompt,
+      "Pergunta sensivel protegida.",
+      "Prompt sensivel deve ser mascarado quando a politica nao libera leitura bruta"
+    );
+
+    const managerResponsesBundle = await store.getEvaluationResponses(manager);
+    const managerSelfResponse = managerResponsesBundle.individualResponses.find(
+      (response) => response.id === individualizedSubmission.id
+    );
+    assert.ok(
+      managerSelfResponse,
+      "Gestor direto deve visualizar a autoavaliacao do subordinado no bundle individual"
+    );
+    assert.equal(
+      managerSelfResponse.answers[0].masked,
+      true,
+      "Gestor direto tambem deve respeitar a politica de mascaramento padrao"
+    );
+
+    const hrAuditTrailWithoutRawAccess = await store.getAuditTrail(hr, {
+      category: "cycle",
+      limit: 50
+    });
+    assert.equal(
+      hrAuditTrailWithoutRawAccess.some((entry) => entry.action === "sensitive-viewed"),
+      false,
+      "Nao deve haver auditoria de leitura sensivel quando o bundle retorna tudo mascarado"
+    );
+
+    const rawManagerQuestionnaire = await store.createEvaluationQuestionnaire(
+      {
+        cycleId: createdCycle.id,
+        revieweePersonId: managerRevieweeEmployee.personId,
+        relationshipType: "manager",
+        title: "Feedback do lider com leitura bruta controlada",
+        description: "Questionario gerencial para validar politica de respostas sensiveis."
+      },
+      hr
+    );
+    await buildQuestionnaireQuestions(rawManagerQuestionnaire.id, 15, hr);
+    await store.updateEvaluationQuestionnaire(
+      rawManagerQuestionnaire.id,
+      {
+        accessPolicy: {
+          canViewReviewee: false,
+          canViewReviewer: true,
+          canViewManager: true,
+          canViewHr: true,
+          canViewAdmin: true,
+          canViewRawAnswers: true,
+          canViewPromptTextAfterSubmission: true
+        }
+      },
+      hr
+    );
+    await store.publishEvaluationQuestionnaire(rawManagerQuestionnaire.id, hr);
+
+    const managerAssignmentsWithRawQuestionnaire = await store.getEvaluationAssignmentsForUser(manager.id);
+    const rawManagerAssignment = managerAssignmentsWithRawQuestionnaire.find(
+      (assignment) =>
+        assignment.cycleId === createdCycle.id && assignment.relationshipType === "manager"
+    );
+    assert.ok(rawManagerAssignment, "Gestor precisa receber assignment manager individualizado");
+
+    const rawManagerTemplate = await store.getEvaluationTemplateForAssignment(
+      rawManagerAssignment.id,
+      manager.id
+    );
+    const rawManagerSubmission = await store.submitEvaluationAssignment({
+      assignmentId: rawManagerAssignment.id,
+      reviewerUserId: manager.id,
+      answers: rawManagerTemplate.questions.map((question) => ({
+        questionId: question.id,
+        score: question.inputType === "scale" ? 5 : null,
+        evidenceNote: question.sortOrder === 1 ? "Conteudo bruto autorizado." : "",
+        textValue: "",
+        selectedOptions: []
+      })),
+      strengthsNote: "Forca gerencial.",
+      developmentNote: "Acompanhamento gerencial."
+    });
+
+    const hrResponsesBundleWithRawAccess = await store.getEvaluationResponses(hr);
+    const hrRawManagerResponse = hrResponsesBundleWithRawAccess.individualResponses.find(
+      (response) => response.id === rawManagerSubmission.id
+    );
+    assert.ok(hrRawManagerResponse, "RH deve visualizar a resposta com politica bruta habilitada");
+    assert.equal(
+      hrRawManagerResponse.answers[0].masked,
+      undefined,
+      "RH deve enxergar a resposta sensivel quando a politica libera conteudo bruto"
+    );
+    assert.equal(
+      hrRawManagerResponse.answers[0].score,
+      5,
+      "Resposta sensivel deve permanecer visivel quando a politica autoriza"
+    );
+
+    const managerResponsesBundleWithRawAccess = await store.getEvaluationResponses(manager);
+    const managerRawManagerResponse = managerResponsesBundleWithRawAccess.individualResponses.find(
+      (response) => response.id === rawManagerSubmission.id
+    );
+    assert.ok(
+      managerRawManagerResponse,
+      "Gestor direto deve visualizar a resposta publicada com leitura bruta habilitada"
+    );
+    assert.equal(
+      managerRawManagerResponse.answers[0].masked,
+      undefined,
+      "Gestor direto deve ver conteudo bruto somente quando a politica autoriza"
+    );
+
+    const employeeResponsesRoute = await fetchJson(
+      "/api/evaluations/responses",
+      getAuthHeader(managerRevieweeEmployee.id)
+    );
+    assert.equal(
+      employeeResponsesRoute.response.status,
+      403,
+      "Colaborador nao deve acessar a rota estrategica de respostas"
+    );
+
+    const hrAuditTrail = await store.getAuditTrail(hr, {
+      category: "cycle",
+      limit: 50
+    });
+    assert.ok(
+      hrAuditTrail.some((entry) => entry.action === "sensitive-viewed"),
+      "Leitura de respostas sensiveis deve registrar auditoria"
+    );
+
     const crossFunctionalTemplateFallback = await store.getEvaluationTemplateForCycleRelationship(
       createdCycle.id,
       "cross-functional"
@@ -155,71 +491,13 @@ export async function runEvaluationsRegression() {
       "Template transversal deve usar escala de percepcao organizacional"
     );
 
-    const releasedCycles = await store.getEvaluationCycles();
-    const cycleForManagerResponse = releasedCycles[0];
-    assert.ok(cycleForManagerResponse, "Precisa existir pelo menos um ciclo para teste de envio");
-    if (cycleForManagerResponse.status !== "Liberado") {
-      await store.updateEvaluationCycleStatus(cycleForManagerResponse.id, "Liberado", admin);
-    }
-
     const managerAssignments = await store.getEvaluationAssignmentsForUser(manager.id);
     const managerFeedbackAssignment = managerAssignments.find(
-      (assignment) =>
-        assignment.cycleId === cycleForManagerResponse.id &&
-        assignment.relationshipType === "manager"
+      (assignment) => assignment.relationshipType === "manager" && assignment.status !== "submitted"
     );
     assert.ok(managerFeedbackAssignment, "Gestor precisa ter um assignment de feedback do lider");
 
-    const managerFeedbackDetail = await store.getEvaluationAssignmentById(
-      managerFeedbackAssignment.id,
-      manager.id
-    );
-    assert.ok(managerFeedbackDetail, "Detalhe do assignment do gestor precisa carregar template");
-
-    const managerTemplate = await store.getEvaluationTemplateForCycleRelationship(
-      managerFeedbackDetail.cycleId,
-      "manager"
-    );
-
-    const managerAnswers = managerTemplate.questions.map((question) => {
-      if (question.inputType === "text") {
-        return {
-          questionId: question.id,
-          score: null,
-          evidenceNote: "",
-          textValue: "ok",
-          selectedOptions: []
-        };
-      }
-
-      if (question.inputType === "multi-select") {
-        const option = (question.options || [])[0]?.value || "";
-        return {
-          questionId: question.id,
-          score: null,
-          evidenceNote: "",
-          textValue: "",
-          selectedOptions: option ? [option] : []
-        };
-      }
-
-      return {
-        questionId: question.id,
-        score: 3,
-        evidenceNote: "",
-        textValue: "",
-        selectedOptions: []
-      };
-    });
-
-    const managerSubmission = await store.submitEvaluationAssignment({
-      assignmentId: managerFeedbackAssignment.id,
-      reviewerUserId: manager.id,
-      answers: managerAnswers,
-      strengthsNote: "ok",
-      developmentNote: "ok"
-    });
-    assert.ok(managerSubmission.id, "Envio de feedback do lider deve gerar submission");
+    const managerSubmission = rawManagerSubmission;
 
     const employeePerformance = await fetchJson(
       "/api/evaluations/performance-360",

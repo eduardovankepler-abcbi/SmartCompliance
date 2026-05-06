@@ -5,8 +5,10 @@ const BACKEND_PORT = 4000;
 
 export default defineConfig({
   testDir: "./e2e",
-  fullyParallel: true,
+  fullyParallel: false,
+  workers: 1,
   retries: process.env.CI ? 2 : 0,
+  timeout: 120000,
   reporter: [["list"], ["html", { outputFolder: "playwright-report", open: "never" }]],
   use: {
     baseURL: `http://127.0.0.1:${FRONTEND_PORT}`,
@@ -19,7 +21,7 @@ export default defineConfig({
       command: "npm run start",
       cwd: "../backend",
       url: `http://127.0.0.1:${BACKEND_PORT}/health`,
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: false,
       env: {
         ...process.env,
         PORT: String(BACKEND_PORT),
@@ -32,7 +34,7 @@ export default defineConfig({
       command: `npx vite --host 127.0.0.1 --port ${FRONTEND_PORT}`,
       cwd: ".",
       url: `http://127.0.0.1:${FRONTEND_PORT}`,
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: false,
       env: {
         ...process.env,
         VITE_API_URL: `http://127.0.0.1:${BACKEND_PORT}`

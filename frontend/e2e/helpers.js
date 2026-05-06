@@ -1,7 +1,9 @@
 import { expect } from "@playwright/test";
 
 export async function login(page, { email, password }) {
-  await page.goto("/");
+  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("heading", { name: /não foi possível carregar a aplicação/i })).toHaveCount(0);
+  await expect(page.getByLabel("Email")).toBeVisible();
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Senha").fill(password);
   await page.getByRole("button", { name: "Entrar no ambiente" }).click();
@@ -19,6 +21,9 @@ export async function openEvaluationWorkspace(page, workspaceLabel) {
 }
 
 export async function openEvaluationModule(page, moduleLabel) {
-  await page.getByRole("button", { name: moduleLabel }).click();
-  await expect(page.getByRole("button", { name: moduleLabel })).toHaveClass(/active/);
+  const moduleButton = page.locator(".module-toolbar").getByRole("button", {
+    name: new RegExp(moduleLabel, "i")
+  });
+  await moduleButton.click();
+  await expect(moduleButton).toHaveClass(/active/);
 }

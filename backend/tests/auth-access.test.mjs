@@ -65,7 +65,11 @@ export async function runAuthAccessRegression() {
       "/api/evaluations/responses",
       getAuthHeader(hr.id)
     );
-    assert.equal(hrResponses.response.status, 403, "RH nao deve acessar respostas estrategicas");
+    assert.equal(hrResponses.response.status, 200, "RH deve acessar respostas estrategicas");
+    assert.ok(
+      Array.isArray(hrResponses.payload.individualResponses),
+      "Bundle de respostas deve ser retornado para RH"
+    );
 
     const complianceResponses = await fetchJson(
       "/api/evaluations/responses",

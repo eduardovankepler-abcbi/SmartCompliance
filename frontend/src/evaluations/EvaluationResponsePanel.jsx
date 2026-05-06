@@ -193,7 +193,7 @@ export function EvaluationResponsePanel({
           ) : (
             <div className="list-card">
               <strong>Leituras restritas</strong>
-              <p className="muted">Disponivel apenas para gestor e administrador.</p>
+              <p className="muted">Disponivel apenas para gestor, RH e administrador.</p>
             </div>
           )}
         </div>
@@ -326,6 +326,15 @@ function RespondView({
           </p>
         </div>
       )}
+      {assignmentDetail.template.questions.some((question) => question.isSensitive) ? (
+        <div className="list-card evaluation-sensitive-banner">
+          <strong>Este formulario contem perguntas sensiveis</strong>
+          <p className="muted">
+            Responda com objetividade. O acesso a esse conteudo segue a politica de privacidade do
+            questionario publicado.
+          </p>
+        </div>
+      ) : null}
       {questionSections.map((section) => (
         <div className="stack-list" key={section.key}>
           <div className="list-card evaluation-section-block">
@@ -533,10 +542,20 @@ function QuestionField({
     <div className="list-card evaluation-question-panel">
       <div className="evaluation-question-head">
         <strong>{question.dimensionTitle}</strong>
-        <span className="evaluation-visibility-pill">{getVisibilityLabel(question.visibility)}</span>
+        <div className="evaluation-question-badges">
+          {question.isSensitive ? (
+            <span className="evaluation-sensitive-pill">Sensivel</span>
+          ) : null}
+          <span className="evaluation-visibility-pill">{getVisibilityLabel(question.visibility)}</span>
+        </div>
       </div>
       <p className="muted">{question.prompt}</p>
       {question.helperText ? <p className="muted">{question.helperText}</p> : null}
+      {question.isSensitive ? (
+        <p className="muted">
+          Esta pergunta recebe camada adicional de privacidade apos a submissao.
+        </p>
+      ) : null}
       {question.inputType === "text" ? (
         <SafeTextarea
           label="Resposta"
@@ -651,7 +670,28 @@ function InsightsResponseList({
               Peso aplicado: {(response.weight * 100).toFixed(1)}% | Score ponderado:{" "}
               {response.weightedScore}
             </p>
-            <p className="muted">{response.strengthsNote}</p>
+            {response.answers?.some((answer) => answer.masked) ? (
+              <p className="muted">
+                Algumas respostas sensiveis foram mascaradas para o seu perfil.
+              </p>
+            ) : null}
+            {response.strengthsNote ? <p className="muted">{response.strengthsNote}</p> : null}
+            <div className="feedback-answer-grid">
+              {(response.answers || []).map((answer) => (
+                <div className="feedback-answer-item" key={answer.id}>
+                  <div className="row">
+                    <strong>{answer.dimensionTitle || answer.questionPrompt || "Pergunta"}</strong>
+                    {answer.isSensitive ? (
+                      <span className={answer.masked ? "evaluation-masked-pill" : "evaluation-sensitive-pill"}>
+                        {answer.masked ? "Mascarada" : "Sensivel"}
+                      </span>
+                    ) : null}
+                  </div>
+                  {answer.questionPrompt ? <p className="muted">{answer.questionPrompt}</p> : null}
+                  <p>{formatFeedbackAnswer(answer)}</p>
+                </div>
+              ))}
+            </div>
           </article>
         ))
       ) : (
@@ -689,6 +729,9 @@ function InsightsResponseList({
 }
 
 function formatFeedbackAnswer(answer) {
+  if (answer.masked) {
+    return "Conteudo protegido pela politica de privacidade.";
+  }
   if (answer.answerType === "text") {
     return answer.textValue || "Sem comentario registrado.";
   }
