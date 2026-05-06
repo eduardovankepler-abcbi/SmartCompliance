@@ -462,6 +462,7 @@ export function buildAppSceneProps(context) {
         developmentHighlights: developmentState.developmentHighlights,
         developmentMetrics: developmentState.developmentMetrics,
         developmentPerformanceSummary: developmentState.developmentPerformanceSummary,
+        developmentPlans: developmentState.filteredDevelopmentPlans,
         developmentPlanCompetencyOptions:
           developmentState.developmentPlanCompetencyOptions,
         developmentPlanCycleOptions: developmentState.developmentPlanCycleOptions,
