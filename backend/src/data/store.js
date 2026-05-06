@@ -6828,6 +6828,7 @@ function buildMysqlStore(
       customLibraryState,
       anonymousResponseState,
       supportsFeedbackAcknowledgement,
+      supportsIndividualQuestionnaires,
       fetchPeopleRows,
       fetchMysqlResponses,
       isFullAccessUser,

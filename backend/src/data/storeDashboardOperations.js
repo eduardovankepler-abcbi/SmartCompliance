@@ -141,6 +141,7 @@ export function createMysqlDashboardStore({
   customLibraryState,
   anonymousResponseState,
   supportsFeedbackAcknowledgement,
+  supportsIndividualQuestionnaires,
   fetchPeopleRows,
   fetchMysqlResponses,
   isFullAccessUser,
@@ -161,7 +162,8 @@ export function createMysqlDashboardStore({
             )
             .then(([rows]) => rows),
           fetchMysqlResponses(pool, customLibraryState.published, {
-            supportsFeedbackAcknowledgement
+            supportsFeedbackAcknowledgement,
+            supportsIndividualQuestionnaires
           }).then((items) => [...items, ...anonymousResponseState.responses]),
           pool
             .query(
