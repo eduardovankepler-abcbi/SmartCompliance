@@ -4917,7 +4917,7 @@ async function fetchMysqlResponses(
               a.evidence_note AS evidenceNote, a.answer_text AS textValue, a.answer_options_json AS answerOptionsJson,
               COALESCE(qq.prompt_text, q.prompt_text) AS questionPrompt,
               COALESCE(qq.dimension_title, q.dimension_title) AS dimensionTitle,
-              COALESCE(qq.is_sensitive, q.is_sensitive, 0) AS isSensitive
+              COALESCE(qq.is_sensitive, 0) AS isSensitive
        FROM evaluation_answers a
        LEFT JOIN evaluation_questions q ON q.id = a.question_id
        LEFT JOIN evaluation_questionnaire_questions qq ON qq.id = a.questionnaire_question_id
@@ -4927,7 +4927,7 @@ async function fetchMysqlResponses(
               a.evidence_note AS evidenceNote, a.answer_text AS textValue, a.answer_options_json AS answerOptionsJson,
               q.prompt_text AS questionPrompt,
               q.dimension_title AS dimensionTitle,
-              COALESCE(q.is_sensitive, 0) AS isSensitive
+              0 AS isSensitive
        FROM evaluation_answers a
        LEFT JOIN evaluation_questions q ON q.id = a.question_id
        ORDER BY a.id ASC`
