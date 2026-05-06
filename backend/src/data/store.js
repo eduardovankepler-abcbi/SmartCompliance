@@ -1589,6 +1589,22 @@ function hasMysqlColumn(rows) {
   return Boolean(rows?.length);
 }
 
+function parseJsonValue(value, fallback = null) {
+  if (value === null || value === undefined || value === "") {
+    return fallback;
+  }
+
+  if (typeof value === "string") {
+    try {
+      return JSON.parse(value);
+    } catch (_error) {
+      return fallback;
+    }
+  }
+
+  return value;
+}
+
 async function hasMysqlIndex(pool, tableName, indexName) {
   try {
     const [rows] = await pool.query(`SHOW INDEX FROM ${tableName} WHERE Key_name = ?`, [indexName]);
@@ -4879,19 +4895,22 @@ async function fetchMysqlResponses(
     ),
     answers: answers
       .filter((answer) => answer.submissionId === submission.id)
-      .map((answer) => ({
-        ...answer,
-        questionPrompt:
-          answer.questionPrompt ||
-          findQuestionDefinition(answer.questionId, customLibraries)?.prompt ||
-          "",
-        dimensionTitle:
-          answer.dimensionTitle ||
-          findQuestionDefinition(answer.questionId, customLibraries)?.dimensionTitle ||
-          "",
-        isSensitive: Boolean(answer.isSensitive),
-        selectedOptions: answer.answerOptionsJson ? JSON.parse(answer.answerOptionsJson) : []
-      }))
+      .map((answer) => {
+        const parsedSelectedOptions = parseJsonValue(answer.answerOptionsJson, []);
+        return {
+          ...answer,
+          questionPrompt:
+            answer.questionPrompt ||
+            findQuestionDefinition(answer.questionId, customLibraries)?.prompt ||
+            "",
+          dimensionTitle:
+            answer.dimensionTitle ||
+            findQuestionDefinition(answer.questionId, customLibraries)?.dimensionTitle ||
+            "",
+          isSensitive: Boolean(answer.isSensitive),
+          selectedOptions: Array.isArray(parsedSelectedOptions) ? parsedSelectedOptions : []
+        };
+      })
   }));
 }
 
