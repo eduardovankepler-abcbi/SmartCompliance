@@ -876,3 +876,14 @@ Resultado:
   - Operacao;
   - formularios/listas administrativas.
 - Se o visual estiver aprovado, consolidar commit/push.
+
+### Correcao posterior
+
+- Apos revisao visual, foi identificado que o menu lateral no tema claro ficou apagado nos itens nao selecionados.
+- Causa:
+  - `.nav-item`, `.nav-icon-wrap`, `.sidebar-app-name` e `.nav-group-title` ainda herdavam cores fixas pensadas para o fundo escuro.
+- Correcao:
+  - adicionados overrides no tema claro para textos, icones, hover, divisorias e estado ativo do menu lateral em `frontend/src/styles/05-light-contrast.css`.
+- Validacao:
+  - `npm --prefix frontend run test` passou;
+  - `npm --prefix frontend run build` passou com permissao elevada apos o `spawn EPERM` conhecido do sandbox.

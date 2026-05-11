@@ -48,6 +48,50 @@
   box-shadow: var(--light-shadow-soft);
 }
 
+:root[data-theme="light"] .sidebar-app-name {
+  color: #243044;
+}
+
+:root[data-theme="light"] .nav-group {
+  border-top-color: rgba(35, 49, 70, 0.12);
+}
+
+:root[data-theme="light"] .nav-group-title {
+  color: #7a8799;
+}
+
+:root[data-theme="light"] .nav-item {
+  color: #445269;
+}
+
+:root[data-theme="light"] .nav-item:hover {
+  background: rgba(63, 115, 232, 0.08);
+  border-color: rgba(63, 115, 232, 0.16);
+  color: #172033;
+}
+
+:root[data-theme="light"] .nav-icon-wrap {
+  background: rgba(226, 233, 243, 0.86);
+  border-color: rgba(35, 49, 70, 0.12);
+  color: #56647a;
+}
+
+:root[data-theme="light"] .nav-item:hover .nav-icon-wrap {
+  background: rgba(63, 115, 232, 0.12);
+  border-color: rgba(63, 115, 232, 0.2);
+  color: #2f5dc8;
+}
+
+:root[data-theme="light"] .nav-item.active {
+  color: #ffffff;
+}
+
+:root[data-theme="light"] .nav-item.active .nav-icon-wrap {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+}
+
 :root[data-theme="light"] .sidebar-user-role,
 :root[data-theme="light"] .sidebar-footer {
   color: #5b6677;
