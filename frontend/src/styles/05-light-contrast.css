@@ -1,0 +1,231 @@
+:root[data-theme="light"] {
+  --bg: #eef3f8;
+  --surface: #ffffff;
+  --surface-strong: #ffffff;
+  --surface-soft: #f3f6fa;
+  --text: #111827;
+  --muted: #4b5565;
+  --line: rgba(35, 49, 70, 0.22);
+  --accent-primary: #ffffff;
+  --accent-primary-strong: #e8eef6;
+  --accent-red-soft: rgba(203, 34, 61, 0.12);
+  --shadow: 0 16px 34px rgba(24, 38, 58, 0.12);
+  --body-gradient:
+    linear-gradient(180deg, #f6f8fb 0%, #eaf0f7 100%);
+  --light-panel: #ffffff;
+  --light-panel-alt: #f6f8fb;
+  --light-panel-tint: #edf3fb;
+  --light-border: rgba(35, 49, 70, 0.2);
+  --light-border-strong: rgba(35, 49, 70, 0.3);
+  --light-shadow-soft: 0 12px 26px rgba(29, 45, 68, 0.1);
+  --light-shadow-card: 0 18px 38px rgba(29, 45, 68, 0.14);
+}
+
+:root[data-theme="light"] body {
+  background: var(--body-gradient);
+}
+
+:root[data-theme="light"] .sidebar-card,
+:root[data-theme="light"] .card,
+:root[data-theme="light"] .mini-card,
+:root[data-theme="light"] .hero-panel,
+:root[data-theme="light"] .modal-card,
+:root[data-theme="light"] .dashboard-command-card,
+:root[data-theme="light"] .dashboard-decision-card {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 251, 255, 0.98)),
+    var(--light-panel);
+  border-color: var(--light-border-strong);
+  box-shadow: var(--light-shadow-card);
+}
+
+:root[data-theme="light"] .sidebar,
+:root[data-theme="light"] .sidebar-user-card {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(242, 246, 252, 0.96)),
+    var(--light-panel);
+  border-color: var(--light-border);
+  box-shadow: var(--light-shadow-soft);
+}
+
+:root[data-theme="light"] .sidebar-user-role,
+:root[data-theme="light"] .sidebar-footer {
+  color: #5b6677;
+}
+
+:root[data-theme="light"] .dashboard-command-meta,
+:root[data-theme="light"] .dashboard-quick-action,
+:root[data-theme="light"] .dashboard-priority-card,
+:root[data-theme="light"] .dashboard-analytical-tab,
+:root[data-theme="light"] .dashboard-result-narrative-card,
+:root[data-theme="light"] .dashboard-theme-metric-card,
+:root[data-theme="light"] .dashboard-performance-area-panel,
+:root[data-theme="light"] .dashboard-performance-action-card,
+:root[data-theme="light"] .dashboard-performance-score-card,
+:root[data-theme="light"] .dashboard-kpi-inline-card,
+:root[data-theme="light"] .stat-card,
+:root[data-theme="light"] .highlight-card,
+:root[data-theme="light"] .list-card,
+:root[data-theme="light"] .compact-list-card,
+:root[data-theme="light"] .guide-step-card,
+:root[data-theme="light"] .donut-card,
+:root[data-theme="light"] .response-chart-card,
+:root[data-theme="light"] .trend-card,
+:root[data-theme="light"] .selection-card,
+:root[data-theme="light"] .evaluation-context-pill,
+:root[data-theme="light"] .feedback-answer-item,
+:root[data-theme="light"] .evaluation-aggregate-column,
+:root[data-theme="light"] .feedback-receipt-card,
+:root[data-theme="light"] .feedback-receipt-highlight,
+:root[data-theme="light"] .feedback-acknowledgement-panel,
+:root[data-theme="light"] .table-row {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(245, 248, 252, 0.98)),
+    var(--light-panel);
+  border-color: var(--light-border);
+  box-shadow: 0 8px 18px rgba(29, 45, 68, 0.08);
+}
+
+:root[data-theme="light"] .dashboard-command-meta,
+:root[data-theme="light"] .dashboard-performance-area-panel {
+  background:
+    linear-gradient(135deg, rgba(63, 115, 232, 0.1), transparent 58%),
+    var(--light-panel-alt);
+}
+
+:root[data-theme="light"] .dashboard-quick-action span,
+:root[data-theme="light"] .dashboard-priority-card span:not(.mini-label),
+:root[data-theme="light"] .dashboard-result-narrative-card p,
+:root[data-theme="light"] .dashboard-performance-action-card p {
+  color: #4f5b6d;
+}
+
+:root[data-theme="light"] .dashboard-quick-action.primary,
+:root[data-theme="light"] .dashboard-analytical-tab.active,
+:root[data-theme="light"] .evaluation-history-card.active,
+:root[data-theme="light"] .evaluation-assignment-card.active {
+  background:
+    linear-gradient(135deg, rgba(63, 115, 232, 0.16), rgba(255, 255, 255, 0.9) 62%),
+    var(--light-panel);
+  border-color: rgba(63, 115, 232, 0.38);
+}
+
+:root[data-theme="light"] .dashboard-quick-action.success,
+:root[data-theme="light"] .dashboard-priority-card.positive,
+:root[data-theme="light"] .dashboard-result-narrative-card.positive,
+:root[data-theme="light"] .dashboard-theme-metric-card.positive,
+:root[data-theme="light"] .dashboard-performance-action-card.positive,
+:root[data-theme="light"] .evaluation-insight-metric.positive {
+  background:
+    linear-gradient(135deg, rgba(34, 146, 98, 0.14), rgba(255, 255, 255, 0.92) 62%),
+    var(--light-panel);
+  border-color: rgba(34, 146, 98, 0.34);
+}
+
+:root[data-theme="light"] .dashboard-quick-action.secondary {
+  background:
+    linear-gradient(135deg, rgba(117, 76, 210, 0.14), rgba(255, 255, 255, 0.92) 62%),
+    var(--light-panel);
+  border-color: rgba(117, 76, 210, 0.32);
+}
+
+:root[data-theme="light"] .dashboard-quick-action.accent,
+:root[data-theme="light"] .dashboard-priority-card.warning,
+:root[data-theme="light"] .dashboard-result-narrative-card.warning,
+:root[data-theme="light"] .dashboard-theme-metric-card.warning,
+:root[data-theme="light"] .dashboard-performance-action-card.warning,
+:root[data-theme="light"] .evaluation-insight-metric.warning {
+  background:
+    linear-gradient(135deg, rgba(197, 112, 26, 0.14), rgba(255, 255, 255, 0.92) 62%),
+    var(--light-panel);
+  border-color: rgba(197, 112, 26, 0.34);
+}
+
+:root[data-theme="light"] .dashboard-priority-card.critical,
+:root[data-theme="light"] .dashboard-result-narrative-card.critical,
+:root[data-theme="light"] .dashboard-theme-metric-card.critical,
+:root[data-theme="light"] .dashboard-performance-action-card.critical,
+:root[data-theme="light"] .evaluation-insight-metric.critical {
+  background:
+    linear-gradient(135deg, rgba(203, 34, 61, 0.13), rgba(255, 255, 255, 0.92) 62%),
+    var(--light-panel);
+  border-color: rgba(203, 34, 61, 0.34);
+}
+
+:root[data-theme="light"] .dashboard-performance-score-card {
+  background:
+    radial-gradient(circle at 50% 28%, rgba(63, 115, 232, 0.15), transparent 48%),
+    var(--light-panel);
+  box-shadow:
+    inset 0 0 0 1px rgba(63, 115, 232, 0.08),
+    var(--light-shadow-soft);
+}
+
+:root[data-theme="light"] .evaluation-module-spotlight,
+:root[data-theme="light"] .performance-360-card,
+:root[data-theme="light"] .evaluation-workspace-spotlight,
+:root[data-theme="light"] .evaluation-response-summary,
+:root[data-theme="light"] .evaluation-operations-summary,
+:root[data-theme="light"] .module-card.active,
+:root[data-theme="light"] .selection-card.active {
+  background:
+    linear-gradient(135deg, rgba(63, 115, 232, 0.1), transparent 48%),
+    var(--light-panel);
+  border-color: rgba(63, 115, 232, 0.28);
+}
+
+:root[data-theme="light"] .evaluation-workspace-spotlight.peer,
+:root[data-theme="light"] .evaluation-response-summary.peer {
+  background:
+    linear-gradient(135deg, rgba(34, 146, 98, 0.12), transparent 48%),
+    var(--light-panel);
+}
+
+:root[data-theme="light"] .evaluation-workspace-spotlight.company,
+:root[data-theme="light"] .evaluation-response-summary.company,
+:root[data-theme="light"] .evaluation-sensitive-banner {
+  background:
+    linear-gradient(135deg, rgba(197, 112, 26, 0.13), transparent 48%),
+    var(--light-panel);
+}
+
+:root[data-theme="light"] .evaluation-workspace-spotlight.manager,
+:root[data-theme="light"] .evaluation-response-summary.manager {
+  background:
+    linear-gradient(135deg, rgba(117, 76, 210, 0.13), transparent 48%),
+    var(--light-panel);
+}
+
+:root[data-theme="light"] .evaluation-workspace-spotlight.self,
+:root[data-theme="light"] .evaluation-response-summary.self {
+  background:
+    linear-gradient(135deg, rgba(95, 109, 129, 0.13), transparent 48%),
+    var(--light-panel);
+}
+
+:root[data-theme="light"] .evaluation-sensitive-pill {
+  color: #9a4d14;
+  background: rgba(197, 112, 26, 0.14);
+  border-color: rgba(197, 112, 26, 0.3);
+}
+
+:root[data-theme="light"] .evaluation-masked-pill {
+  color: #8a5a00;
+  background: rgba(214, 151, 29, 0.16);
+  border-color: rgba(214, 151, 29, 0.32);
+}
+
+:root[data-theme="light"] input,
+:root[data-theme="light"] textarea,
+:root[data-theme="light"] select {
+  background: #ffffff;
+  border-color: rgba(35, 49, 70, 0.24);
+  color: var(--text);
+}
+
+:root[data-theme="light"] input:focus,
+:root[data-theme="light"] textarea:focus,
+:root[data-theme="light"] select:focus {
+  border-color: rgba(63, 115, 232, 0.55);
+  box-shadow: 0 0 0 3px rgba(63, 115, 232, 0.12);
+}

@@ -823,3 +823,56 @@ d6a6707 Add safe Power BI analytics export
 
 - `git status --short` apos o push:
   - sem arquivos pendentes antes desta atualizacao documental final.
+
+## 29. Upgrade visual do tema claro 2026-05-11
+
+### Pedido
+
+Melhorar o contraste do frontend no tema claro para que blocos de informacao fiquem mais distintos entre si.
+
+### Implementacao aplicada
+
+- Novo arquivo:
+  - `frontend/src/styles/05-light-contrast.css`
+- Import adicionado em:
+  - `frontend/src/styles.css`
+
+### Escopo do ajuste
+
+- A camada nova e importada por ultimo, reduzindo risco de alterar layout funcional.
+- O tema claro recebeu:
+  - fundo geral menos chapado;
+  - bordas mais perceptiveis;
+  - sombras mais claras e consistentes;
+  - superficies principais e secundarias mais separadas;
+  - overrides para cards, paineis, metricas, tabs analiticas, blocos de avaliacao, listas e formularios;
+  - estados positivos/alerta/criticos com tintas mais legiveis no claro.
+
+### Validacoes
+
+```powershell
+npm --prefix frontend run test
+npm --prefix frontend run build
+```
+
+Resultado:
+
+- testes de frontend passaram;
+- primeira tentativa de build no sandbox falhou com `spawn EPERM`, como nas rodadas anteriores;
+- build com permissao elevada passou.
+
+### Servidor local
+
+- Frontend Vite iniciado para revisao visual:
+  - `http://localhost:5173`
+  - porta observada: `5173`
+
+### Proximo passo recomendado
+
+- Revisar visualmente as telas principais no tema claro:
+  - Dashboard executivo;
+  - Dashboard analitico;
+  - Avaliacoes;
+  - Operacao;
+  - formularios/listas administrativas.
+- Se o visual estiver aprovado, consolidar commit/push.
