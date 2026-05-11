@@ -35,6 +35,25 @@
   align-items: start;
 }
 
+.registry-module-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.registry-module-card {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+
+.registry-module-card.active {
+  border-color: rgba(77, 136, 255, 0.32);
+  background:
+    linear-gradient(135deg, rgba(77, 136, 255, 0.1), transparent 52%),
+    var(--accent-primary);
+}
+
 .people-main-stack {
   gap: 18px;
 }

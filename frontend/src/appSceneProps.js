@@ -141,6 +141,7 @@ export function buildPeopleSceneProps({
   people,
   personAccessStateById,
   personForm,
+  usersSummary,
   setters
 }) {
   return {
@@ -156,6 +157,7 @@ export function buildPeopleSceneProps({
     people,
     personAccessStateById,
     personForm,
+    usersSummary,
     ...setters
   };
 }
@@ -557,12 +559,14 @@ export function buildAppSceneProps(context) {
         handlePersonSubmitAndCreateUser: () =>
           registryState.handlePersonSubmit(undefined, { createUserAfter: true }),
         handlePersonUpdate: registryState.handlePersonUpdate,
+        onOpenUsersModule: () => sharedHandlers.setActiveSection("Usuarios"),
         onPrepareUserProvisioning: registryState.prepareUserProvisioning
       },
       managerOptions: registryState.managerOptions,
       people: sharedData.people,
       personAccessStateById: registryState.personAccessStateById,
       personForm: registryState.personForm,
+      usersSummary: registryState.accessJourneySummary,
       setters: {
         setAreaForm: registryState.setAreaForm,
         setPersonForm: registryState.setPersonForm

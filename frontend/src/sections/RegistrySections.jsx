@@ -100,12 +100,14 @@ export function PeopleSection({
   handlePersonSubmitAndCreateUser,
   handlePersonUpdate,
   managerOptions,
+  onOpenUsersModule,
   onPrepareUserProvisioning,
   people,
   personAccessStateById,
   personForm,
   setAreaForm,
-  setPersonForm
+  setPersonForm,
+  usersSummary
 }) {
   const SafeAreaAdminCard = AreaAdminCard || EmptyComponent;
   const SafeInput = Input || EmptyComponent;
@@ -170,7 +172,49 @@ export function PeopleSection({
       {canManagePeopleRegistry ? (
         <div className="card card-span compact-card">
           <div className="card-header">
-            <h3>Fluxo de hierarquia</h3>
+            <h3>Modulos de cadastro</h3>
+            <span>Cadastre primeiro a pessoa na estrutura e depois crie o usuario de acesso</span>
+          </div>
+          <div className="registry-module-grid">
+            <article className="list-card compact-list-card registry-module-card active">
+              <div className="row">
+                <strong>Cadastro de pessoas</strong>
+                <span className="badge">Estrutura</span>
+              </div>
+              <p className="muted">
+                Registre colaborador, area, cargo, gestor direto, modalidade e vinculo.
+              </p>
+              <div className="access-journey-grid">
+                <div className="mini-card">
+                  <p className="mini-label">Acessos ativos</p>
+                  <strong>{usersSummary?.active ?? 0}</strong>
+                </div>
+                <div className="mini-card">
+                  <p className="mini-label">Pendentes</p>
+                  <strong>{usersSummary?.pending ?? 0}</strong>
+                </div>
+              </div>
+            </article>
+            <article className="list-card compact-list-card registry-module-card">
+              <div className="row">
+                <strong>Cadastro de usuarios</strong>
+                <span className="badge">Acesso</span>
+              </div>
+              <p className="muted">
+                Crie login, perfil e status para pessoas ja cadastradas na hierarquia.
+              </p>
+              <button className="refresh" type="button" onClick={onOpenUsersModule}>
+                Abrir cadastro de usuarios
+              </button>
+            </article>
+          </div>
+        </div>
+      ) : null}
+
+      {canManagePeopleRegistry ? (
+        <div className="card card-span compact-card">
+          <div className="card-header">
+            <h3>Cadastro de pessoas</h3>
             <span>Pessoas passam a ser o centro do cadastro organizacional</span>
           </div>
           <div className="people-flow-grid">

@@ -107,6 +107,10 @@
     grid-template-columns: 1fr;
   }
 
+  .registry-module-grid {
+    grid-template-columns: 1fr;
+  }
+
   .people-flow-grid {
     grid-template-columns: 1fr;
   }

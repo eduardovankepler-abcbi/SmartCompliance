@@ -928,3 +928,48 @@ Resultado:
 - testes de frontend passaram;
 - build passou com permissao elevada apos o `spawn EPERM` conhecido do sandbox;
 - suite completa passou.
+
+## 31. Submodulos de cadastro em Pessoas 2026-05-11
+
+### Pedido
+
+- No modulo Pessoas, deixar claro que deve haver cadastro tanto para pessoas quanto para usuarios.
+
+### Contexto encontrado
+
+- O projeto ja possuia:
+  - `Pessoas`: cadastro estrutural da pessoa, area, cargo, gestor direto, modalidade e vinculo;
+  - `Usuarios`: cadastro de acesso, email, senha inicial, perfil e status.
+- A lacuna era de experiencia/navegacao: dentro do modulo Pessoas nao havia uma entrada explicita mostrando os dois submodulos de cadastro.
+
+### Implementacao aplicada
+
+- `frontend/src/sections/RegistrySections.jsx`:
+  - adicionada faixa "Modulos de cadastro" no topo do modulo Pessoas;
+  - criado card "Cadastro de pessoas" com totais de pessoas e areas;
+  - criado card "Cadastro de usuarios" com totais de acessos ativos e pendentes;
+  - botao "Abrir cadastro de usuarios" leva diretamente para o modulo Usuarios.
+- `frontend/src/appSceneProps.js`:
+  - passado `onOpenUsersModule` para abrir `Usuarios`;
+  - passado resumo de acessos para o card de usuarios dentro de Pessoas.
+- `frontend/src/styles/03f-registry.css`:
+  - adicionados estilos para a grade e cards dos submodulos.
+- `frontend/src/styles/04-responsive.css`:
+  - grade dos submodulos passa para uma coluna em viewport menor.
+- `frontend/src/styles/05-light-contrast.css`:
+  - ajuste do estado ativo dos cards no tema claro.
+
+### Validacoes
+
+```powershell
+npm --prefix frontend run test
+npm --prefix frontend run build
+npm test
+```
+
+Resultado:
+
+- testes de frontend passaram;
+- primeira tentativa de build no sandbox falhou com `spawn EPERM`;
+- build com permissao elevada passou;
+- suite completa passou.

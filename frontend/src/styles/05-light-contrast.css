@@ -210,6 +210,7 @@
 :root[data-theme="light"] .evaluation-workspace-spotlight,
 :root[data-theme="light"] .evaluation-response-summary,
 :root[data-theme="light"] .evaluation-operations-summary,
+:root[data-theme="light"] .registry-module-card.active,
 :root[data-theme="light"] .module-card.active,
 :root[data-theme="light"] .selection-card.active {
   background:
