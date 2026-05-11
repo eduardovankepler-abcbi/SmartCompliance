@@ -618,3 +618,74 @@ b1e7819 Stabilize evaluations and analytics dashboards
 
 - `git status --short` apos o commit principal:
   - sem arquivos pendentes antes desta atualizacao documental final.
+
+## 27. Verificacao minuciosa Avaliacoes/Dashboards 2026-05-11
+
+### Pedido verificado
+
+Confirmar se o aplicativo e capaz de:
+
+- direcionar questionarios para colaboradores;
+- cobrar inadimplentes;
+- analisar respostas por area.
+
+### Resultado da verificacao
+
+- Direcionamento de questionarios: confirmado.
+  - `createEvaluationCycle(...)` gera assignments para colaboradores elegiveis.
+  - `publishEvaluationQuestionnaire(...)` vincula o questionario individual publicado aos assignments correspondentes por `cycleId`, `revieweePersonId` e `relationshipType`.
+  - `GET /api/evaluations/assignments` retorna somente os assignments do usuario autenticado.
+  - `GET /api/evaluations/assignments/:assignmentId` retorna o template correto do assignment, usando questionario individual quando houver `questionnaireId`.
+  - E2E confirmou RH publicando questionario individual e colaborador respondendo autoavaliacao personalizada.
+
+- Cobranca de inadimplentes: parcialmente confirmada, com escopo atual claro.
+  - O app identifica assignments pendentes e vencidos em ciclos liberados.
+  - `POST /api/evaluations/cycles/:cycleId/notify-delinquents` incrementa `reminderCount`, atualiza `lastReminderSentAt` e registra auditoria `delinquent_reminder_sent`.
+  - A tela de Operacao exibe lista de inadimplentes, dias de atraso, lembretes e ultimo lembrete.
+  - Limitacao importante: nao ha integracao real de envio externo de email/WhatsApp/Slack; a "notificacao" atual e uma cobranca registrada no sistema.
+
+- Analise de respostas por area: confirmado.
+  - `GET /api/dashboards/overview?area=...&timeGrouping=...` filtra o dashboard por area para admin/RH.
+  - O payload retorna `satisfactionByArea`, `satisfactionQuestionAnalytics` com `areas`, e `performanceHealth.areaSeries` quando ha dados 360.
+  - O frontend permite filtro de area no Dashboard para admin/RH e drilldown por pergunta/area no tema analitico de Avaliacoes.
+  - E2E confirmou Dashboard analitico filtrando area `Tecnologia` e navegando por recorte/periodo/modalidade.
+
+### Validacoes executadas nesta auditoria
+
+```powershell
+npm test
+```
+
+Resultado:
+
+- passou backend regression;
+- passou frontend navigation tests;
+- passou frontend shared helper tests.
+
+```powershell
+npm --prefix frontend run e2e -- dashboard-results.spec.js evaluations-360-homologation.spec.js evaluations-admin-operations.spec.js evaluations-individual-questionnaires.spec.js
+```
+
+Resultado:
+
+- 5 testes passaram:
+  - dashboard analitico de resultados;
+  - 360 + PDI da equipe;
+  - operacao RH de feedback transversal/biblioteca;
+  - persistencia de configuracao transversal;
+  - questionario individual publicado e respondido pelo colaborador.
+- Observacao: primeira tentativa no sandbox falhou com `spawn EPERM`; execucao com permissao elevada passou.
+
+```powershell
+npm --prefix frontend run build
+```
+
+Resultado:
+
+- primeira tentativa no sandbox falhou com `spawn EPERM`;
+- segunda tentativa com permissao elevada passou.
+
+### Recomendacao apos auditoria
+
+- Para o escopo funcional atual, Avaliacoes e Dashboards de resultado estao aptos para homologacao.
+- Se "cobrar inadimplentes" precisar significar envio real de comunicacao externa, falta implementar uma integracao de notificacao. Hoje o sistema registra e audita a cobranca internamente.
