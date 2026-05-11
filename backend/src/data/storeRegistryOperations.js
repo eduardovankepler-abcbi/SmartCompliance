@@ -1,3 +1,72 @@
+function normalizeScopeText(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function isManagerScopedActor(actorUser) {
+  return actorUser?.roleKey === "manager" && Boolean(actorUser?.person?.id);
+}
+
+function canManageRegistryPeople(actorUser, canManagePeople) {
+  return canManagePeople(actorUser) || isManagerScopedActor(actorUser);
+}
+
+function canManageRegistryUsers(actorUser, canManageUsers) {
+  return canManageUsers(actorUser) || isManagerScopedActor(actorUser);
+}
+
+function isAreaManagerPayload(value) {
+  return String(value || "").trim().toLowerCase() === "yes";
+}
+
+function isDirectReportOfActor(person, actorUser) {
+  return (
+    isManagerScopedActor(actorUser) &&
+    String(person?.managerPersonId || "") === String(actorUser.person.id)
+  );
+}
+
+function assertManagerPersonScope(payload, actorUser) {
+  if (!isManagerScopedActor(actorUser)) {
+    return;
+  }
+
+  if (normalizeScopeText(payload.area) !== normalizeScopeText(actorUser.person.area)) {
+    throw new Error("Gestor so pode cadastrar pessoas na propria area.");
+  }
+
+  if (String(payload.managerPersonId || "") !== String(actorUser.person.id)) {
+    throw new Error("Gestor so pode cadastrar pessoas subordinadas diretamente a ele.");
+  }
+
+  if (isAreaManagerPayload(payload.isAreaManager)) {
+    throw new Error("Gestor nao pode alterar a lideranca formal da area.");
+  }
+}
+
+function assertManagerExistingPersonScope(person, actorUser) {
+  if (!isManagerScopedActor(actorUser)) {
+    return;
+  }
+
+  if (!isDirectReportOfActor(person, actorUser)) {
+    throw new Error("Gestor so pode alterar pessoas subordinadas diretamente a ele.");
+  }
+}
+
+function assertManagerUserScope(person, userData, actorUser) {
+  if (!isManagerScopedActor(actorUser)) {
+    return;
+  }
+
+  if (!isDirectReportOfActor(person, actorUser)) {
+    throw new Error("Gestor so pode criar ou alterar usuarios subordinados diretamente a ele.");
+  }
+
+  if (userData.roleKey !== "employee") {
+    throw new Error("Gestor so pode conceder perfil de colaborador aos subordinados.");
+  }
+}
+
 export function createMemoryRegistryStore({
   db,
   createId,
@@ -118,9 +187,10 @@ export function createMemoryRegistryStore({
     },
 
     async createPerson(payload, actorUser) {
-      if (!canManagePeople(actorUser)) {
+      if (!canManageRegistryPeople(actorUser, canManagePeople)) {
         throw new Error("Perfil sem permissao para cadastrar pessoas.");
       }
+      assertManagerPersonScope(payload, actorUser);
 
       const { personPayload, shouldLeadArea } = preparePersonMutation({
         areas: db.areas,
@@ -168,7 +238,7 @@ export function createMemoryRegistryStore({
     },
 
     async updatePerson(personId, payload, actorUser) {
-      if (!canManagePeople(actorUser)) {
+      if (!canManageRegistryPeople(actorUser, canManagePeople)) {
         throw new Error("Perfil sem permissao para atualizar pessoas.");
       }
 
@@ -176,6 +246,8 @@ export function createMemoryRegistryStore({
       if (!person) {
         throw new Error("Pessoa nao encontrada.");
       }
+      assertManagerExistingPersonScope(person, actorUser);
+      assertManagerPersonScope(payload, actorUser);
 
       const { personPayload, shouldLeadArea } = preparePersonMutation({
         areaId: personId,
@@ -222,15 +294,24 @@ export function createMemoryRegistryStore({
     },
 
     async getUsers(actorUser) {
-      if (!canManageUsers(actorUser)) {
+      if (!canManageRegistryUsers(actorUser, canManageUsers)) {
         return [];
       }
 
-      return db.users.map((user) => toAdminUserRow(db, user));
+      const rows = db.users.map((user) => toAdminUserRow(db, user));
+      if (!isManagerScopedActor(actorUser)) {
+        return rows;
+      }
+
+      return rows.filter((user) =>
+        db.people.some(
+          (person) => person.id === user.personId && isDirectReportOfActor(person, actorUser)
+        )
+      );
     },
 
     async createUser(payload, actorUser) {
-      if (!canManageUsers(actorUser)) {
+      if (!canManageRegistryUsers(actorUser, canManageUsers)) {
         throw new Error("Perfil sem permissao para cadastrar usuarios.");
       }
 
@@ -239,6 +320,7 @@ export function createMemoryRegistryStore({
       assertPersonHasNoLinkedUser(db.users.some((item) => item.personId === payload.personId));
 
       const userData = prepareUserWrite(db.users, payload, { requirePassword: true });
+      assertManagerUserScope(person, userData, actorUser);
 
       const user = {
         id: createId("user"),
@@ -263,7 +345,7 @@ export function createMemoryRegistryStore({
     },
 
     async updateUser(userId, payload, actorUser) {
-      if (!canManageUsers(actorUser)) {
+      if (!canManageRegistryUsers(actorUser, canManageUsers)) {
         throw new Error("Perfil sem permissao para atualizar usuarios.");
       }
 
@@ -273,6 +355,8 @@ export function createMemoryRegistryStore({
       }
 
       const userData = prepareUserWrite(db.users, payload, { userId });
+      const person = db.people.find((item) => item.id === user.personId);
+      assertManagerUserScope(person, userData, actorUser);
 
       user.email = userData.email;
       user.roleKey = userData.roleKey;
@@ -281,7 +365,6 @@ export function createMemoryRegistryStore({
         user.passwordHash = hashPassword(userData.password);
       }
 
-      const person = db.people.find((item) => item.id === user.personId);
       pushAuditLog(db.auditLogs, {
         category: AUDIT_CATEGORIES.user,
         action: "updated",
@@ -443,9 +526,10 @@ export function createMysqlRegistryStore({
     },
 
     async createPerson(payload, actorUser) {
-      if (!canManagePeople(actorUser)) {
+      if (!canManageRegistryPeople(actorUser, canManagePeople)) {
         throw new Error("Perfil sem permissao para cadastrar pessoas.");
       }
+      assertManagerPersonScope(payload, actorUser);
 
       const [people, areas] = await Promise.all([fetchPeopleRows(pool), fetchAreaRows(pool)]);
       const { personPayload, shouldLeadArea } = preparePersonMutation({
@@ -541,7 +625,7 @@ export function createMysqlRegistryStore({
     },
 
     async updatePerson(personId, payload, actorUser) {
-      if (!canManagePeople(actorUser)) {
+      if (!canManageRegistryPeople(actorUser, canManagePeople)) {
         throw new Error("Perfil sem permissao para atualizar pessoas.");
       }
 
@@ -550,6 +634,8 @@ export function createMysqlRegistryStore({
       if (!person) {
         throw new Error("Pessoa nao encontrada.");
       }
+      assertManagerExistingPersonScope(person, actorUser);
+      assertManagerPersonScope(payload, actorUser);
 
       const { personPayload, shouldLeadArea } = preparePersonMutation({
         areaId: personId,
@@ -658,7 +744,7 @@ export function createMysqlRegistryStore({
     },
 
     async getUsers(actorUser) {
-      if (!canManageUsers(actorUser)) {
+      if (!canManageRegistryUsers(actorUser, canManageUsers)) {
         return [];
       }
 
@@ -666,7 +752,7 @@ export function createMysqlRegistryStore({
         `SELECT u.id, u.person_id AS personId, p.name AS personName, p.area AS personArea,
                 p.role_title AS personRoleTitle, p.work_unit AS personWorkUnit,
                 p.work_mode AS personWorkMode, manager.name AS managerName, areaManager.name AS areaManagerName,
-                u.email, u.role_key AS roleKey, u.status
+                p.manager_person_id AS managerPersonId, u.email, u.role_key AS roleKey, u.status
          FROM users u
          JOIN people p ON p.id = u.person_id
          LEFT JOIN people manager ON manager.id = p.manager_person_id
@@ -674,11 +760,15 @@ export function createMysqlRegistryStore({
          LEFT JOIN people areaManager ON areaManager.id = a.manager_person_id
          ORDER BY p.name`
       );
-      return rows;
+      if (!isManagerScopedActor(actorUser)) {
+        return rows;
+      }
+
+      return rows.filter((user) => isDirectReportOfActor(user, actorUser));
     },
 
     async createUser(payload, actorUser) {
-      if (!canManageUsers(actorUser)) {
+      if (!canManageRegistryUsers(actorUser, canManageUsers)) {
         throw new Error("Perfil sem permissao para cadastrar usuarios.");
       }
 
@@ -687,6 +777,7 @@ export function createMysqlRegistryStore({
       const [personRows] = await pool.query(
         `SELECT p.id, p.name, p.area, p.role_title AS roleTitle, p.work_unit AS workUnit,
                 p.work_mode AS workMode, manager.name AS managerName, areaManager.name AS areaManagerName
+                , p.manager_person_id AS managerPersonId
          FROM people p
          LEFT JOIN people manager ON manager.id = p.manager_person_id
          LEFT JOIN areas a ON a.name = p.area
@@ -696,6 +787,7 @@ export function createMysqlRegistryStore({
         [payload.personId]
       );
       assertUserPersonExists(personRows[0]);
+      assertManagerUserScope(personRows[0], userData, actorUser);
 
       const [personUserRows] = await pool.query(
         `SELECT id
@@ -754,7 +846,7 @@ export function createMysqlRegistryStore({
     },
 
     async updateUser(userId, payload, actorUser) {
-      if (!canManageUsers(actorUser)) {
+      if (!canManageRegistryUsers(actorUser, canManageUsers)) {
         throw new Error("Perfil sem permissao para atualizar usuarios.");
       }
 
@@ -764,7 +856,7 @@ export function createMysqlRegistryStore({
         `SELECT u.id, u.person_id AS personId, p.name AS personName, p.area AS personArea,
                 p.role_title AS personRoleTitle, p.work_unit AS personWorkUnit,
                 p.work_mode AS personWorkMode, manager.name AS managerName, areaManager.name AS areaManagerName,
-                u.email
+                p.manager_person_id AS managerPersonId, u.email
          FROM users u
          JOIN people p ON p.id = u.person_id
          LEFT JOIN people manager ON manager.id = p.manager_person_id
@@ -777,6 +869,7 @@ export function createMysqlRegistryStore({
       if (!rows[0]) {
         throw new Error("Usuario nao encontrado.");
       }
+      assertManagerUserScope(rows[0], userData, actorUser);
 
       const [emailRows] = await pool.query(
         `SELECT id, email

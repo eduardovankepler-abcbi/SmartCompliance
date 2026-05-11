@@ -350,6 +350,7 @@ export default function App() {
     reloadData,
     setActiveSection: navigateToSection,
     setError,
+    user,
     users
   });
 

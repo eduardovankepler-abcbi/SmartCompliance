@@ -14,6 +14,7 @@ export function useRegistryFlow({
   reloadData,
   setActiveSection,
   setError,
+  user,
   users
 }) {
   const [areaForm, setAreaForm] = useState(emptyArea);
@@ -36,8 +37,11 @@ export function useRegistryFlow({
   );
 
   const managerOptions = useMemo(
-    () => [{ value: "", label: "Sem gestor direto definido" }, ...peopleOptions],
-    [peopleOptions]
+    () =>
+      user?.roleKey === "manager"
+        ? [{ value: user.person?.id || "", label: user.person?.name || "Eu" }]
+        : [{ value: "", label: "Sem gestor direto definido" }, ...peopleOptions],
+    [peopleOptions, user?.person?.id, user?.person?.name, user?.roleKey]
   );
 
   const usersByPersonId = useMemo(
@@ -110,8 +114,8 @@ export function useRegistryFlow({
   );
 
   const suggestedUserRole = useMemo(
-    () => getSuggestedRoleForPerson(selectedUserPerson, people),
-    [people, selectedUserPerson]
+    () => (user?.roleKey === "manager" ? "employee" : getSuggestedRoleForPerson(selectedUserPerson, people)),
+    [people, selectedUserPerson, user?.roleKey]
   );
 
   const suggestedUserRoleReason = useMemo(() => {
@@ -177,10 +181,15 @@ export function useRegistryFlow({
       setUserForm((current) => ({
         ...current,
         personId: nextPersonId,
-        roleKey: nextPerson ? getSuggestedRoleForPerson(nextPerson, people) : emptyUser.roleKey
+        roleKey:
+          nextPerson && user?.roleKey === "manager"
+            ? "employee"
+            : nextPerson
+              ? getSuggestedRoleForPerson(nextPerson, people)
+              : emptyUser.roleKey
       }));
     }
-  }, [availableUserPeopleOptions, people, peopleById, userForm.personId]);
+  }, [availableUserPeopleOptions, people, peopleById, user?.roleKey, userForm.personId]);
 
   useEffect(() => {
     if (!userForm.personId || !suggestedUserEmail) {
@@ -238,6 +247,7 @@ export function useRegistryFlow({
       if (shouldCreateUserAfter) {
         setUserForm(
           buildUserFormFromPerson(createdPerson, people, {
+            actorRoleKey: user?.roleKey,
             isAreaManager
           })
         );
@@ -343,7 +353,7 @@ export function useRegistryFlow({
       return;
     }
 
-    setUserForm(buildUserFormFromPerson(person, people));
+    setUserForm(buildUserFormFromPerson(person, people, { actorRoleKey: user?.roleKey }));
     setActiveSection("Usuarios");
   }
 
@@ -353,7 +363,12 @@ export function useRegistryFlow({
     setUserForm((current) => ({
       ...current,
       personId,
-      roleKey: person ? getSuggestedRoleForPerson(person, people) : emptyUser.roleKey
+      roleKey:
+        person && user?.roleKey === "manager"
+          ? "employee"
+          : person
+            ? getSuggestedRoleForPerson(person, people)
+            : emptyUser.roleKey
     }));
   }
 
@@ -411,6 +426,7 @@ function buildUserFormFromPerson(person, people, options = {}) {
     email: buildSuggestedUserEmail(person?.name || ""),
     roleKey:
       options.roleKey ||
+      (options.actorRoleKey === "manager" ? "employee" : null) ||
       (options.isAreaManager ? "manager" : getSuggestedRoleForPerson(person, people))
   };
 }

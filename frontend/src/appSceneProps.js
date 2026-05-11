@@ -141,6 +141,7 @@ export function buildPeopleSceneProps({
   people,
   personAccessStateById,
   personForm,
+  roleKey,
   usersSummary,
   setters
 }) {
@@ -157,6 +158,7 @@ export function buildPeopleSceneProps({
     people,
     personAccessStateById,
     personForm,
+    roleKey,
     usersSummary,
     ...setters
   };
@@ -170,6 +172,7 @@ export function buildUsersSceneProps({
   formatDate,
   handlers,
   pendingAccessPeople,
+  roleKey,
   selectedUserPerson,
   setters,
   suggestedUserEmail,
@@ -188,6 +191,7 @@ export function buildUsersSceneProps({
     formatDate,
     ...handlers,
     pendingAccessPeople,
+    roleKey,
     selectedUserPerson,
     ...setters,
     suggestedUserEmail,
@@ -566,6 +570,7 @@ export function buildAppSceneProps(context) {
       people: sharedData.people,
       personAccessStateById: registryState.personAccessStateById,
       personForm: registryState.personForm,
+      roleKey: user?.roleKey,
       usersSummary: registryState.accessJourneySummary,
       setters: {
         setAreaForm: registryState.setAreaForm,
@@ -589,6 +594,7 @@ export function buildAppSceneProps(context) {
         onPrepareUserProvisioning: registryState.prepareUserProvisioning
       },
       pendingAccessPeople: registryState.pendingAccessPeople,
+      roleKey: user?.roleKey,
       selectedUserPerson: registryState.selectedUserPerson,
       setters: {
         setUserForm: registryState.setUserForm

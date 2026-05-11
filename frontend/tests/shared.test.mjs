@@ -197,7 +197,7 @@ assert.equal(managerCapabilities.canViewDashboard, true);
 assert.equal(managerCapabilities.canViewAuditTrail, true);
 assert.equal(managerCapabilities.canViewEvaluationInsights, true);
 assert.equal(managerCapabilities.canViewTeamDevelopment, true);
-assert.equal(managerCapabilities.canViewUsersAdmin, false);
+assert.equal(managerCapabilities.canViewUsersAdmin, true);
 
 const hrCapabilities = getCapabilities({ roleKey: "hr" });
 assert.equal(hrCapabilities.canManageCycles, true);

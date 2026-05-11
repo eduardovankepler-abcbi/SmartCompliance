@@ -13,7 +13,7 @@ export function createPeopleRouter(store) {
     }
   });
 
-  router.post("/", requireRoles("admin", "hr"), async (req, res) => {
+  router.post("/", requireRoles("admin", "hr", "manager"), async (req, res) => {
     const {
       name,
       roleTitle,
@@ -49,7 +49,7 @@ export function createPeopleRouter(store) {
     }
   });
 
-  router.patch("/:personId", requireRoles("admin", "hr"), async (req, res) => {
+  router.patch("/:personId", requireRoles("admin", "hr", "manager"), async (req, res) => {
     const {
       name,
       roleTitle,

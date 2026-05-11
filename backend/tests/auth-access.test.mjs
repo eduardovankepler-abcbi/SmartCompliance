@@ -17,6 +17,10 @@ export async function runAuthAccessRegression() {
       admin && manager && hr && compliance && employee && managerRevieweeEmployee,
       "Usuarios demo obrigatorios"
     );
+    const managerPerson = (await store.getPeople(admin)).find(
+      (person) => person.id === manager.personId
+    );
+    assert.ok(managerPerson, "Pessoa do gestor demo obrigatoria");
 
     for (let attempt = 1; attempt <= 5; attempt += 1) {
       const invalidLogin = await sendJson("/api/auth/login", {
@@ -125,6 +129,97 @@ export async function runAuthAccessRegression() {
       managerDashboardAfterExternalPairing.payload.scopeSummary.pendingAssignments,
       managerDashboardBaseline.payload.scopeSummary.pendingAssignments,
       "Dashboard gerencial nao deve inflar pendencias com avaliados fora da equipe"
+    );
+
+    const managerCreatedPerson = await sendJson("/api/people", {
+      headers: getAuthHeader(manager.id),
+      body: {
+        name: "Subordinado Criado Pelo Gestor",
+        roleTitle: "Analista do Time",
+        area: managerPerson.area,
+        workUnit: "Sao Paulo",
+        workMode: "hybrid",
+        managerPersonId: manager.personId,
+        isAreaManager: "no",
+        employmentType: "internal"
+      }
+    });
+    assert.equal(
+      managerCreatedPerson.response.status,
+      201,
+      "Gestor deve cadastrar pessoa subordinada direta na propria area"
+    );
+
+    const managerCreatedUser = await sendJson("/api/users", {
+      headers: getAuthHeader(manager.id),
+      body: {
+        personId: managerCreatedPerson.payload.id,
+        email: "subordinado.gestor@empresa.local",
+        password: "demo123",
+        roleKey: "employee",
+        status: "active"
+      }
+    });
+    assert.equal(
+      managerCreatedUser.response.status,
+      201,
+      "Gestor deve criar usuario colaborador para subordinado direto"
+    );
+
+    const managerUsers = await fetchJson("/api/users", getAuthHeader(manager.id));
+    assert.equal(managerUsers.response.status, 200, "Gestor deve listar usuarios do proprio time");
+    assert.ok(
+      managerUsers.payload.some((user) => user.email === "subordinado.gestor@empresa.local"),
+      "Lista de usuarios do gestor deve incluir acesso criado para subordinado"
+    );
+
+    const managerBlockedPerson = await sendJson("/api/people", {
+      headers: getAuthHeader(manager.id),
+      body: {
+        name: "Pessoa Fora Do Escopo",
+        roleTitle: "Analista Externo",
+        area: "Compliance",
+        workUnit: "Sao Paulo",
+        workMode: "hybrid",
+        managerPersonId: manager.personId,
+        isAreaManager: "no",
+        employmentType: "internal"
+      }
+    });
+    assert.equal(
+      managerBlockedPerson.response.status,
+      400,
+      "Gestor nao deve cadastrar pessoa fora da propria area"
+    );
+
+    const managerBlockedRolePerson = await sendJson("/api/people", {
+      headers: getAuthHeader(manager.id),
+      body: {
+        name: "Subordinado Para Perfil Elevado",
+        roleTitle: "Analista do Time",
+        area: managerPerson.area,
+        workUnit: "Sao Paulo",
+        workMode: "hybrid",
+        managerPersonId: manager.personId,
+        isAreaManager: "no",
+        employmentType: "internal"
+      }
+    });
+    assert.equal(managerBlockedRolePerson.response.status, 201);
+    const managerBlockedUserRole = await sendJson("/api/users", {
+      headers: getAuthHeader(manager.id),
+      body: {
+        personId: managerBlockedRolePerson.payload.id,
+        email: "perfil.elevado.gestor@empresa.local",
+        password: "demo123",
+        roleKey: "admin",
+        status: "active"
+      }
+    });
+    assert.equal(
+      managerBlockedUserRole.response.status,
+      400,
+      "Gestor nao deve conceder perfil administrativo a subordinado"
     );
 
     const employeeDashboard = await fetchJson(

@@ -987,3 +987,51 @@ Resultado:
 - Validacao:
   - `npm --prefix frontend run test` passou;
   - `npm --prefix frontend run build` passou com permissao elevada apos o `spawn EPERM` do sandbox.
+
+## 32. Cadastro de subordinados por gestor 2026-05-11
+
+### Pedido
+
+- Gestores precisam conseguir cadastrar usuarios subordinados a eles.
+
+### Regra de seguranca implementada
+
+- Admin/RH continuam com permissao ampla sobre pessoas e usuarios.
+- Gestor pode:
+  - cadastrar pessoa somente na propria area;
+  - cadastrar pessoa somente com `managerPersonId` igual ao proprio `person.id`;
+  - editar somente pessoas que ja sejam subordinadas diretas;
+  - criar/editar usuario somente para subordinado direto;
+  - conceder somente perfil `employee` aos subordinados.
+- Gestor nao pode:
+  - criar/editar areas;
+  - cadastrar pessoa fora da propria area;
+  - alterar lideranca formal da area;
+  - criar usuario `admin`, `hr` ou `manager`.
+
+### Implementacao aplicada
+
+- Backend:
+  - `backend/src/routes/people.js`: `manager` incluido em `POST /api/people` e `PATCH /api/people/:personId`.
+  - `backend/src/routes/users.js`: `manager` incluido em `GET/POST/PATCH /api/users`.
+  - `backend/src/data/storeRegistryOperations.js`: adicionadas validacoes de escopo para gestor em memoria e MySQL.
+- Frontend:
+  - `frontend/src/access.js`: gestor passa a ver e operar cadastro de Pessoas/Usuarios.
+  - `frontend/src/useRegistryFlow.js`: gestor recebe apenas ele proprio como gestor direto possivel e perfil sugerido `employee`.
+  - `frontend/src/sections/RegistrySections.jsx`: area continua restrita a Admin/RH; gestor opera pessoas/usuarios no proprio escopo.
+  - `frontend/src/appSceneProps.js` e `frontend/src/App.jsx`: role atual passado para os fluxos de cadastro.
+  - `frontend/tests/shared.test.mjs`: permissao de usuarios para gestor atualizada.
+- Teste backend:
+  - `backend/tests/auth-access.test.mjs`: cobre gestor criando pessoa subordinada, criando usuario employee, listando usuarios do time, bloqueio fora da area e bloqueio de perfil admin.
+
+### Validacoes
+
+```powershell
+npm test
+npm --prefix frontend run build
+```
+
+Resultado:
+
+- suite completa passou;
+- build passou com permissao elevada apos o `spawn EPERM` conhecido do sandbox.

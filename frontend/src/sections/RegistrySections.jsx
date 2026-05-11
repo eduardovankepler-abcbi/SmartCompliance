@@ -105,6 +105,7 @@ export function PeopleSection({
   people,
   personAccessStateById,
   personForm,
+  roleKey,
   setAreaForm,
   setPersonForm,
   usersSummary
@@ -125,6 +126,7 @@ export function PeopleSection({
   const personValidationError = validatePersonPayload(personForm);
   const personConsistency = getPersonConsistencyMessages(personForm, { areas, people });
   const organizationalConsistencyAlerts = buildOrganizationalConsistencyAlerts({ areas, people });
+  const canManageAreas = roleKey === "admin" || roleKey === "hr";
   const isPersonReadyToSave =
     hasRegisteredAreas && !personValidationError && personConsistency.blocking.length === 0;
   const peopleGuideSteps = [
@@ -473,22 +475,24 @@ export function PeopleSection({
                   </div>
                 </article>
 
-                <form className="list-card compact-list-card admin-form-card" onSubmit={handleAreaSubmit}>
-                  <div className="card-header">
-                    <h3>Nova area</h3>
-                    <span>Cadastre a area primeiro e volte para concluir a hierarquia pela pessoa.</span>
-                  </div>
-                  <SafeInput
-                    label="Nome da area"
-                    placeholder="Ex.: Tecnologia"
-                    value={areaForm.name}
-                    onChange={(value) => setAreaForm({ ...areaForm, name: value })}
-                    helper="A lideranca da area sera definida no cadastro da pessoa."
-                  />
-                  <button className="primary-button" type="submit">
-                    Cadastrar area
-                  </button>
-                </form>
+                {canManageAreas ? (
+                  <form className="list-card compact-list-card admin-form-card" onSubmit={handleAreaSubmit}>
+                    <div className="card-header">
+                      <h3>Nova area</h3>
+                      <span>Cadastre a area primeiro e volte para concluir a hierarquia pela pessoa.</span>
+                    </div>
+                    <SafeInput
+                      label="Nome da area"
+                      placeholder="Ex.: Tecnologia"
+                      value={areaForm.name}
+                      onChange={(value) => setAreaForm({ ...areaForm, name: value })}
+                      helper="A lideranca da area sera definida no cadastro da pessoa."
+                    />
+                    <button className="primary-button" type="submit">
+                      Cadastrar area
+                    </button>
+                  </form>
+                ) : null}
               </div>
             </div>
           </div>
@@ -576,6 +580,7 @@ export function UsersSection({
   handleUserUpdate,
   onPrepareUserProvisioning,
   pendingAccessPeople,
+  roleKey,
   selectedUserPerson,
   setUserForm,
   suggestedUserEmail,
@@ -589,6 +594,7 @@ export function UsersSection({
   const SafeInput = Input || EmptyComponent;
   const SafeSelect = Select || EmptyComponent;
   const SafeUserAdminCard = UserAdminCard || EmptyComponent;
+  const effectiveUserRoleOptions = roleKey === "manager" ? ["employee"] : userRoleOptions;
   const hasPendingAccess = pendingAccessPeople.length > 0;
   const userValidationError = hasPendingAccess ? validateUserPayload(userForm) : "";
   const userConsistency = getUserConsistencyMessages(userForm, {
@@ -787,7 +793,7 @@ export function UsersSection({
         <SafeSelect
           label="Perfil de acesso"
           value={userForm.roleKey}
-          options={userRoleOptions}
+          options={effectiveUserRoleOptions}
           renderLabel={(value) => getRoleLabel(value)}
           helper={getSuggestedRoleDescription(userForm.roleKey)}
           onChange={(value) => setUserForm({ ...userForm, roleKey: value })}
@@ -825,7 +831,7 @@ export function UsersSection({
               key={item.id}
               user={item}
               onSave={handleUserUpdate}
-              userRoleOptions={userRoleOptions}
+              userRoleOptions={effectiveUserRoleOptions}
               userStatusOptions={userStatusOptions}
             />
           ))}
