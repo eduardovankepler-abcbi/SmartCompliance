@@ -973,3 +973,17 @@ Resultado:
 - primeira tentativa de build no sandbox falhou com `spawn EPERM`;
 - build com permissao elevada passou;
 - suite completa passou.
+
+### Correcao de visibilidade para perfil Gestor
+
+- O usuario testou com perfil `manager` e viu apenas a lista de pessoas, sem evidencia dos cadastros.
+- Causa:
+  - a faixa "Modulos de cadastro" estava condicionada a `canManagePeopleRegistry`;
+  - `manager` pode ver Pessoas, mas o backend restringe `POST /api/people` e `POST /api/users` a `admin`/`hr`.
+- Ajuste:
+  - a faixa "Modulos de cadastro" agora aparece tambem para gestor;
+  - no perfil sem permissao, os cards mostram "Somente leitura"/"Restrito" e informam que cadastro exige Admin/RH;
+  - em Admin/RH, os cards continuam abrindo o cadastro de pessoas e o cadastro de usuarios.
+- Validacao:
+  - `npm --prefix frontend run test` passou;
+  - `npm --prefix frontend run build` passou com permissao elevada apos o `spawn EPERM` do sandbox.

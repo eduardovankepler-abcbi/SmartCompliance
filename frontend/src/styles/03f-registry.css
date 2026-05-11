@@ -54,6 +54,11 @@
     var(--accent-primary);
 }
 
+.registry-anchor-button {
+  justify-content: center;
+  text-decoration: none;
+}
+
 .people-main-stack {
   gap: 18px;
 }

@@ -169,50 +169,79 @@ export function PeopleSection({
 
   return (
     <section className="page-grid">
-      {canManagePeopleRegistry ? (
-        <div className="card card-span compact-card">
-          <div className="card-header">
-            <h3>Modulos de cadastro</h3>
-            <span>Cadastre primeiro a pessoa na estrutura e depois crie o usuario de acesso</span>
-          </div>
-          <div className="registry-module-grid">
-            <article className="list-card compact-list-card registry-module-card active">
-              <div className="row">
-                <strong>Cadastro de pessoas</strong>
-                <span className="badge">Estrutura</span>
+      <div className="card card-span compact-card">
+        <div className="card-header">
+          <h3>Modulos de cadastro</h3>
+          <span>
+            {canManagePeopleRegistry
+              ? "Cadastre primeiro a pessoa na estrutura e depois crie o usuario de acesso"
+              : "Seu perfil consulta a estrutura; cadastros ficam restritos a Admin/RH"}
+          </span>
+        </div>
+        <div className="registry-module-grid">
+          <article
+            className={`list-card compact-list-card registry-module-card${canManagePeopleRegistry ? " active" : ""}`}
+          >
+            <div className="row">
+              <strong>Cadastro de pessoas</strong>
+              <span className="badge">{canManagePeopleRegistry ? "Estrutura" : "Somente leitura"}</span>
+            </div>
+            <p className="muted">
+              Registre colaborador, area, cargo, gestor direto, modalidade e vinculo.
+            </p>
+            {canManagePeopleRegistry ? (
+              <a className="refresh registry-anchor-button" href="#cadastro-pessoas-form">
+                Abrir cadastro de pessoas
+              </a>
+            ) : (
+              <small className="field-helper form-guidance-error">
+                Use um perfil Admin ou RH para cadastrar ou alterar pessoas.
+              </small>
+            )}
+            <div className="access-journey-grid">
+              <div className="mini-card">
+                <p className="mini-label">Pessoas</p>
+                <strong>{people.length}</strong>
               </div>
-              <p className="muted">
-                Registre colaborador, area, cargo, gestor direto, modalidade e vinculo.
-              </p>
-              <div className="access-journey-grid">
-                <div className="mini-card">
-                  <p className="mini-label">Acessos ativos</p>
-                  <strong>{usersSummary?.active ?? 0}</strong>
-                </div>
-                <div className="mini-card">
-                  <p className="mini-label">Pendentes</p>
-                  <strong>{usersSummary?.pending ?? 0}</strong>
-                </div>
+              <div className="mini-card">
+                <p className="mini-label">Areas</p>
+                <strong>{areas.length}</strong>
               </div>
-            </article>
-            <article className="list-card compact-list-card registry-module-card">
-              <div className="row">
-                <strong>Cadastro de usuarios</strong>
-                <span className="badge">Acesso</span>
-              </div>
-              <p className="muted">
-                Crie login, perfil e status para pessoas ja cadastradas na hierarquia.
-              </p>
+            </div>
+          </article>
+          <article className="list-card compact-list-card registry-module-card">
+            <div className="row">
+              <strong>Cadastro de usuarios</strong>
+              <span className="badge">{canManagePeopleRegistry ? "Acesso" : "Restrito"}</span>
+            </div>
+            <p className="muted">
+              Crie login, perfil e status para pessoas ja cadastradas na hierarquia.
+            </p>
+            {canManagePeopleRegistry ? (
               <button className="refresh" type="button" onClick={onOpenUsersModule}>
                 Abrir cadastro de usuarios
               </button>
-            </article>
-          </div>
+            ) : (
+              <small className="field-helper form-guidance-error">
+                Criacao de usuarios e perfis tambem e restrita a Admin/RH.
+              </small>
+            )}
+            <div className="access-journey-grid">
+              <div className="mini-card">
+                <p className="mini-label">Acessos ativos</p>
+                <strong>{usersSummary?.active ?? 0}</strong>
+              </div>
+              <div className="mini-card">
+                <p className="mini-label">Pendentes</p>
+                <strong>{usersSummary?.pending ?? 0}</strong>
+              </div>
+            </div>
+          </article>
         </div>
-      ) : null}
+      </div>
 
       {canManagePeopleRegistry ? (
-        <div className="card card-span compact-card">
+        <div className="card card-span compact-card" id="cadastro-pessoas-form">
           <div className="card-header">
             <h3>Cadastro de pessoas</h3>
             <span>Pessoas passam a ser o centro do cadastro organizacional</span>
