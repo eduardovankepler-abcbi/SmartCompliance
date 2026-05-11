@@ -5,6 +5,7 @@ import { env } from "./config/env.js";
 import { createAuthRouter } from "./routes/auth.js";
 import { createAuditRouter } from "./routes/audit.js";
 import { createApplauseRouter } from "./routes/applause.js";
+import { createAnalyticsRouter } from "./routes/analytics.js";
 import { createAreasRouter } from "./routes/areas.js";
 import { createCompetenciesRouter } from "./routes/competencies.js";
 import { createDashboardsRouter } from "./routes/dashboards.js";
@@ -68,6 +69,7 @@ export function createApp(store) {
   app.use("/api/applause", createApplauseRouter(store));
   app.use("/api/development", createDevelopmentRouter(store));
   app.use("/api/dashboards", createDashboardsRouter(store));
+  app.use("/api/analytics", createAnalyticsRouter(store));
 
   app.use((error, _req, res, _next) => {
     console.error(error);

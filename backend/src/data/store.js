@@ -7,6 +7,10 @@ import { normalizeLearningIntegrationPayload } from "../services/learningIntegra
 import { toMysqlDateTime } from "./mysqlDateTime.js";
 import { evaluationLibrary, questionTemplate, seed } from "./mockData.js";
 import {
+  createMemoryAnalyticsStore,
+  createMysqlAnalyticsStore
+} from "./storeAnalyticsOperations.js";
+import {
   createMemoryApplauseStore,
   createMysqlApplauseStore
 } from "./storeApplauseOperations.js";
@@ -5620,6 +5624,12 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
       isAdminUser,
       getTeamPeople,
       buildDashboardPayload
+    }),
+    ...createMemoryAnalyticsStore({
+      db,
+      anonymousResponseState,
+      enrichSubmission,
+      isAssignmentDelinquent
     })
   };
 }
@@ -6839,6 +6849,18 @@ function buildMysqlStore(
       isManagerUser,
       isAdminUser,
       buildDashboardPayload
+    }),
+    ...createMysqlAnalyticsStore({
+      pool,
+      customLibraryState,
+      anonymousResponseState,
+      supportsAssignmentReminder,
+      supportsFeedbackAcknowledgement,
+      supportsIndividualQuestionnaires,
+      fetchPeopleRows,
+      fetchUserRows,
+      fetchMysqlResponses,
+      isAssignmentDelinquent
     })
   };
 }

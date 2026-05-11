@@ -167,6 +167,72 @@ export async function runAuthAccessRegression() {
       "Dashboard deve retornar recomendacoes profilaticas agregadas quando houver dados"
     );
 
+    const analyticsDataset = await fetchJson(
+      "/api/analytics/powerbi/evaluation-results",
+      getAuthHeader(admin.id)
+    );
+    assert.equal(
+      analyticsDataset.response.status,
+      200,
+      "Admin deve acessar dataset analitico para Power BI"
+    );
+    assert.equal(
+      analyticsDataset.payload.privacy.containsRawComments,
+      false,
+      "Dataset Power BI nao deve declarar comentarios brutos"
+    );
+    assert.equal(
+      analyticsDataset.payload.privacy.containsIndividualAnswers,
+      false,
+      "Dataset Power BI nao deve declarar respostas individuais"
+    );
+    assert.ok(
+      Array.isArray(analyticsDataset.payload.facts.evaluationResults),
+      "Dataset Power BI deve expor fatos agregados de resultados"
+    );
+    assert.ok(
+      Array.isArray(analyticsDataset.payload.facts.questionResults),
+      "Dataset Power BI deve expor fatos agregados por pergunta"
+    );
+    assert.ok(
+      Array.isArray(analyticsDataset.payload.security.rlsViewers),
+      "Dataset Power BI deve expor tabela de permissao RLS"
+    );
+    assert.ok(
+      analyticsDataset.payload.security.rlsViewers.some(
+        (item) => item.viewerEmail === manager.email && item.scope === "team"
+      ),
+      "RLS deve mapear gestores para pessoas permitidas da equipe"
+    );
+    const serializedAnalytics = JSON.stringify(analyticsDataset.payload);
+    assert.equal(
+      /evidenceNote|strengthsNote|developmentNote|textValue|selectedOptions|reviewerName|revieweeName|personName|managerName|managerEmail/.test(
+        serializedAnalytics
+      ),
+      false,
+      "Dataset Power BI nao deve vazar campos de resposta individual ou nomes pessoais na camada agregada"
+    );
+
+    const managerAnalytics = await fetchJson(
+      "/api/analytics/powerbi/evaluation-results",
+      getAuthHeader(manager.id)
+    );
+    assert.equal(
+      managerAnalytics.response.status,
+      403,
+      "Gestor nao deve acessar o dataset completo de Power BI diretamente"
+    );
+
+    const analyticsRls = await fetchJson(
+      "/api/analytics/powerbi/rls-viewers",
+      getAuthHeader(hr.id)
+    );
+    assert.equal(analyticsRls.response.status, 200, "RH deve acessar tabela RLS do Power BI");
+    assert.ok(
+      analyticsRls.payload.rlsViewers.some((item) => item.viewerEmail === hr.email),
+      "RLS deve incluir RH com escopo organizacional"
+    );
+
     const complianceDashboard = await fetchJson(
       "/api/dashboards/overview",
       getAuthHeader(compliance.id)

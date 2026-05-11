@@ -689,3 +689,121 @@ Resultado:
 
 - Para o escopo funcional atual, Avaliacoes e Dashboards de resultado estao aptos para homologacao.
 - Se "cobrar inadimplentes" precisar significar envio real de comunicacao externa, falta implementar uma integracao de notificacao. Hoje o sistema registra e audita a cobranca internamente.
+
+## 28. Integracao segura Power BI 2026-05-11
+
+### Decisao de arquitetura
+
+- O usuario confirmou que a ideia nao e embedar Power BI dentro do app.
+- A necessidade e sincronizar/exportar dados do aplicativo para o Power BI, permitindo:
+  - gestor enxergar apenas o que lhe e pertinente;
+  - admin/RH ou gestor principal ter visao completa conforme permissao;
+  - analise por area e por ciclo.
+- A implementacao foi feita como camada analitica agregada e somente leitura, sem alterar os fluxos existentes de Avaliacoes/Dashboards.
+
+### Implementacao aplicada
+
+- Novo modulo:
+  - `backend/src/data/storeAnalyticsOperations.js`
+- Nova rota:
+  - `backend/src/routes/analytics.js`
+- Rotas registradas em:
+  - `backend/src/app.js`
+- Store conectado em:
+  - `backend/src/data/store.js`
+- Teste de acesso/privacidade ampliado em:
+  - `backend/tests/auth-access.test.mjs`
+
+### Endpoints criados
+
+```txt
+GET /api/analytics/powerbi/evaluation-results
+GET /api/analytics/powerbi/rls-viewers
+```
+
+- Ambos exigem `admin` ou `hr` no app.
+- Gestores nao acessam o dataset completo diretamente pela API.
+- A restricao por gestor no Power BI deve ser feita com a tabela `security.rlsViewers`.
+
+### Estrutura do dataset
+
+- `privacy`:
+  - declara que nao ha comentarios brutos;
+  - declara que nao ha respostas individuais;
+  - informa o minimo de respostas para agregados anonimos.
+- `dimensions.people`:
+  - contem somente campos operacionais para relacionamento/filtro: `personId`, area, unidade, modalidade, gestor por id e tipo de vinculo;
+  - nao exporta nomes de pessoas nem email de gestor.
+- `dimensions.cycles`:
+  - contem ciclo, semestre, status, vencimento, grupo-alvo e biblioteca.
+- `facts.evaluationResults`:
+  - agregado por ciclo, tipo de relacao, area e gestor;
+  - inclui enviados, pendentes, inadimplentes, aderencia, media e sinalizacao de supressao.
+- `facts.questionResults`:
+  - agregado por ciclo, tipo de relacao, area, gestor e pergunta;
+  - inclui total de respostas e media.
+- `security.rlsViewers`:
+  - admin/RH recebem `allowedPersonId: "*"` com escopo organizacional;
+  - gestores recebem escopo `self` e `team` para liderados diretos/indiretos.
+
+### Regras de seguranca aplicadas
+
+- Nao exportar comentarios brutos.
+- Nao exportar respostas individuais.
+- Nao exportar `reviewerName` ou `revieweeName`.
+- Nao exportar nomes pessoais na dimensao de pessoas.
+- Suprimir agregados anonimos abaixo de `MIN_ANONYMOUS_AGGREGATE_RESPONSES`.
+- Manter endpoint de dataset completo restrito a admin/RH.
+- Usar tabela RLS para o Power BI filtrar o que cada gestor pode ver.
+
+### Validacoes executadas
+
+```powershell
+npm test
+```
+
+Resultado:
+
+- passou backend regression;
+- passou frontend navigation tests;
+- passou frontend shared helper tests.
+
+```powershell
+npm --prefix frontend run build
+```
+
+Resultado:
+
+- primeira tentativa no sandbox falhou com `Error: spawn EPERM` ao iniciar esbuild;
+- segunda tentativa com permissao elevada passou;
+- build Vite concluido com sucesso.
+
+### Estado atual do working tree nesta frente
+
+- Arquivos modificados:
+  - `backend/src/app.js`
+  - `backend/src/data/store.js`
+  - `backend/tests/auth-access.test.mjs`
+  - `docs/codex-session-handoff-current.md`
+- Arquivos novos:
+  - `backend/src/data/storeAnalyticsOperations.js`
+  - `backend/src/routes/analytics.js`
+
+### Proximo passo recomendado
+
+1. Rodar validacao final apos esta atualizacao do handoff:
+
+```powershell
+npm test
+npm --prefix frontend run build
+git status --short
+git diff --stat
+```
+
+2. Commit recomendado:
+
+```txt
+Add safe Power BI analytics export
+```
+
+3. Depois do commit, executar `git push` com permissao elevada se o sandbox bloquear acesso ao GitHub.
