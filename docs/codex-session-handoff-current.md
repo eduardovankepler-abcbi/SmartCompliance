@@ -807,3 +807,19 @@ Add safe Power BI analytics export
 ```
 
 3. Depois do commit, executar `git push` com permissao elevada se o sandbox bloquear acesso ao GitHub.
+
+### Resultado de commit/push
+
+- Commit criado:
+
+```txt
+d6a6707 Add safe Power BI analytics export
+```
+
+- `git push`:
+  - primeira tentativa falhou sem acesso ao GitHub pelo sandbox;
+  - segunda tentativa com permissao elevada passou;
+  - branch publicada: `main -> main`.
+
+- `git status --short` apos o push:
+  - sem arquivos pendentes antes desta atualizacao documental final.
