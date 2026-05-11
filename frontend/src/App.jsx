@@ -108,13 +108,25 @@ export default function App() {
     canManageCycles || canManageFeedbackRequests || canViewEvaluationLibrary;
 
   const {
+    dashboardAnalyticalTheme,
     dashboardAreaFilter,
     dashboardCompositionFilter,
-    resetDashboardFlow,
     dashboardTimeGrouping,
+    dashboardViewMode,
+    developmentView,
+    dimensionFilters,
+    resetDashboardFlow,
+    satisfactionQuestionAreaFilter,
+    satisfactionView,
+    setDashboardAnalyticalTheme,
     setDashboardAreaFilter,
     setDashboardCompositionFilter,
-    setDashboardTimeGrouping
+    setDashboardTimeGrouping,
+    setDashboardViewMode,
+    setDevelopmentView,
+    setDimensionFilters,
+    setSatisfactionQuestionAreaFilter,
+    setSatisfactionView
   } = useDashboardFilters();
 
   const {
@@ -485,19 +497,31 @@ export default function App() {
       UserAdminCard
     },
     dashboardState: {
+      dashboardAnalyticalTheme,
       dashboardAreaFilter,
       dashboardCompositionFilter,
       dashboardCompositionOptions,
       dashboardTimeGrouping,
       dashboardTimeGroupingLabel,
       dashboardTimeGroupingOptions,
+      dashboardViewMode,
+      developmentView,
+      dimensionFilters,
       filteredDashboardEvaluationMix,
       filteredDashboardEvaluationResultsSummary,
       filteredDashboardResponseDistributions,
       selectedDashboardCompositionMeta,
+      satisfactionQuestionAreaFilter,
+      satisfactionView,
+      setDashboardAnalyticalTheme,
       setDashboardAreaFilter,
       setDashboardCompositionFilter,
-      setDashboardTimeGrouping
+      setDashboardTimeGrouping,
+      setDashboardViewMode,
+      setDevelopmentView,
+      setDimensionFilters,
+      setSatisfactionQuestionAreaFilter,
+      setSatisfactionView
     },
     evaluationsState: {
       activeCycleModuleSummary,

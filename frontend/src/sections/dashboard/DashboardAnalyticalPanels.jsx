@@ -46,6 +46,11 @@ export function DashboardOperationsPanels({
   summary,
   visibleRelationshipTypes
 }) {
+  const resultNarrative = buildResultNarrative({
+    analyticalRelationshipItems,
+    getRelationshipLabel
+  });
+
   return (
     <>
       <div className="card-span dashboard-section-band operations">
@@ -135,6 +140,18 @@ export function DashboardOperationsPanels({
                   tone="secondary"
                 />
                 <div className="stack-list">
+                  {analyticalRelationshipItems.length ? (
+                    <div className="dashboard-result-narrative-grid">
+                      {resultNarrative.map((item) => (
+                        <article className={`dashboard-result-narrative-card ${item.tone}`} key={item.label}>
+                          <span>{item.label}</span>
+                          <strong>{item.value}</strong>
+                          <p>{item.detail}</p>
+                        </article>
+                      ))}
+                    </div>
+                  ) : null}
+
                   {analyticalRelationshipItems.length ? (
                     <div className="list-card">
                       <div className="row">
@@ -458,6 +475,89 @@ export function DashboardOperationsPanels({
       </div>
     </>
   );
+}
+
+function buildResultNarrative({ analyticalRelationshipItems = [], getRelationshipLabel }) {
+  const populatedItems = analyticalRelationshipItems
+    .map(({ relationshipType, summary }) => ({
+      relationshipType,
+      ...(summary || {})
+    }))
+    .filter((item) => (item.totalAssignments || 0) > 0 || (item.totalResponses || 0) > 0);
+
+  if (!populatedItems.length) {
+    return [
+      {
+        label: "Parecer",
+        value: "Sem base suficiente",
+        detail: "Assim que houver respostas no recorte, a leitura de resultado sera consolidada aqui.",
+        tone: "neutral"
+      }
+    ];
+  }
+
+  const scoredItems = populatedItems.filter((item) => Number.isFinite(Number(item.averageScore)));
+  const strongest = [...scoredItems].sort(
+    (left, right) => Number(right.averageScore) - Number(left.averageScore)
+  )[0];
+  const attention = [...populatedItems].sort((left, right) => {
+    const leftScore = Number.isFinite(Number(left.averageScore)) ? Number(left.averageScore) : 0;
+    const rightScore = Number.isFinite(Number(right.averageScore)) ? Number(right.averageScore) : 0;
+    const leftAdherence = Number(left.adherencePercentage || 0);
+    const rightAdherence = Number(right.adherencePercentage || 0);
+    if (leftAdherence !== rightAdherence) {
+      return leftAdherence - rightAdherence;
+    }
+    return leftScore - rightScore;
+  })[0];
+  const totalAssignments = populatedItems.reduce(
+    (total, item) => total + Number(item.totalAssignments || 0),
+    0
+  );
+  const totalResponses = populatedItems.reduce(
+    (total, item) => total + Number(item.totalResponses || 0),
+    0
+  );
+  const adherence = totalAssignments
+    ? Math.round((totalResponses / totalAssignments) * 100)
+    : 100;
+  const actionDetail =
+    adherence < 70
+      ? "Priorize comunicacao e cobranca de pendencias antes de tomar decisoes sobre desempenho."
+      : attention
+        ? `Aprofunde ${getRelationshipLabel(attention.relationshipType)} para separar aderencia baixa de sinal de desempenho.`
+        : "Use o detalhamento por pergunta para transformar o resultado em plano de acao.";
+
+  return [
+    {
+      label: "Aderencia",
+      value: `${adherence}%`,
+      detail: `${totalResponses}/${totalAssignments || totalResponses} respostas no recorte analisado.`,
+      tone: adherence >= 85 ? "positive" : adherence >= 70 ? "warning" : "critical"
+    },
+    {
+      label: "Melhor sinal",
+      value: strongest ? getRelationshipLabel(strongest.relationshipType) : "Sem nota",
+      detail: strongest
+        ? `${strongest.averageScoreLabel || Number(strongest.averageScore).toFixed(1)} de media.`
+        : "Ainda nao ha score consolidado para comparar modalidades.",
+      tone: "positive"
+    },
+    {
+      label: "Ponto de atencao",
+      value: attention ? getRelationshipLabel(attention.relationshipType) : "Sem alerta",
+      detail: attention
+        ? `${attention.adherencePercentage || 0}% de aderencia e media ${attention.averageScoreLabel || "-"}.`
+        : "Nao ha modalidade com gargalo claro neste recorte.",
+      tone: attention?.tone || "neutral"
+    },
+    {
+      label: "Proxima acao",
+      value: adherence < 70 ? "Fechar pendencias" : "Aprofundar leitura",
+      detail: actionDetail,
+      tone: adherence < 70 ? "critical" : "neutral"
+    }
+  ];
 }
 
 function SelectedRelationshipPanel({

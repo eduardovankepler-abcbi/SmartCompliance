@@ -652,8 +652,71 @@ function InsightsResponseList({
   filteredIndividualResponses,
   getRelationshipLabel
 }) {
+  const visibleIndividualAverage = averageValue(
+    filteredIndividualResponses.map((response) => response.overallScore)
+  );
+  const visibleAggregateAverage = averageValue(
+    filteredAggregateResponses.map((aggregate) => aggregate.averageScore)
+  );
+  const strongestAggregate = [...filteredAggregateResponses].sort(
+    (left, right) => Number(right.averageScore || 0) - Number(left.averageScore || 0)
+  )[0];
+  const attentionAggregate = [...filteredAggregateResponses].sort(
+    (left, right) => Number(left.averageScore || 0) - Number(right.averageScore || 0)
+  )[0];
+
   return (
     <>
+      <div className="list-card evaluation-insights-overview">
+        <div className="row">
+          <div>
+            <strong>Painel de leitura</strong>
+            <p className="muted">
+              Sintese do recorte atual com respostas visiveis e consolidados anonimizados.
+            </p>
+          </div>
+          <span className="badge">Leituras</span>
+        </div>
+        <div className="metrics-grid evaluation-insights-metrics">
+          <InsightMetric
+            label="Respostas visiveis"
+            value={filteredIndividualResponses.length}
+            detail={
+              visibleIndividualAverage === null
+                ? "Sem media individual"
+                : `Media ${visibleIndividualAverage.toFixed(1)}`
+            }
+            tone={getScoreTone(visibleIndividualAverage)}
+          />
+          <InsightMetric
+            label="Consolidados"
+            value={filteredAggregateResponses.length}
+            detail={
+              visibleAggregateAverage === null
+                ? "Sem consolidado"
+                : `Media ${visibleAggregateAverage.toFixed(1)}`
+            }
+            tone={getScoreTone(visibleAggregateAverage)}
+          />
+          <InsightMetric
+            label="Melhor sinal"
+            value={strongestAggregate ? getRelationshipLabel(strongestAggregate.relationshipType) : "-"}
+            detail={
+              strongestAggregate ? `Media ${strongestAggregate.averageScore}` : "Sem destaque"
+            }
+            tone="positive"
+          />
+          <InsightMetric
+            label="Ponto de atencao"
+            value={attentionAggregate ? getRelationshipLabel(attentionAggregate.relationshipType) : "-"}
+            detail={
+              attentionAggregate ? `Media ${attentionAggregate.averageScore}` : "Sem alerta"
+            }
+            tone="warning"
+          />
+        </div>
+      </div>
+
       <div className="list-card">
         <strong>Respostas individuais visiveis</strong>
         <p className="muted">Lideranca e empresa aparecem apenas de forma agregada.</p>
@@ -705,15 +768,44 @@ function InsightsResponseList({
 
       {filteredAggregateResponses.length ? (
         filteredAggregateResponses.map((aggregate) => (
-          <article className="list-card" key={aggregate.relationshipType}>
-            <strong>{getRelationshipLabel(aggregate.relationshipType)}</strong>
-            <p className="muted">Respostas: {aggregate.totalResponses}</p>
-            <p className="muted">Media geral: {aggregate.averageScore}</p>
-            {aggregate.questionAverages.map((question) => (
-              <p className="muted" key={question.questionId}>
-                {question.dimensionTitle}: {question.averageScore} ({question.totalResponses} respostas)
-              </p>
-            ))}
+          <article className="list-card evaluation-aggregate-card" key={aggregate.relationshipType}>
+            <div className="row">
+              <div>
+                <strong>{getRelationshipLabel(aggregate.relationshipType)}</strong>
+                <p className="muted">
+                  {aggregate.totalResponses} resposta(s) consolidadas no recorte.
+                </p>
+              </div>
+              <span className={`badge evaluation-insight-badge ${getScoreTone(aggregate.averageScore)}`}>
+                Media {aggregate.averageScore ?? "-"}
+              </span>
+            </div>
+            <div className="evaluation-aggregate-summary">
+              <div className="evaluation-aggregate-column">
+                <span>Destaques</span>
+                {(getStrongestQuestions(aggregate.questionAverages) || []).length ? (
+                  getStrongestQuestions(aggregate.questionAverages).map((question) => (
+                    <p key={question.questionId}>
+                      <strong>{question.dimensionTitle}</strong>: {question.averageScore}
+                    </p>
+                  ))
+                ) : (
+                  <p className="muted">Sem destaque suficiente neste consolidado.</p>
+                )}
+              </div>
+              <div className="evaluation-aggregate-column">
+                <span>Prioridades</span>
+                {(getAttentionQuestions(aggregate.questionAverages) || []).length ? (
+                  getAttentionQuestions(aggregate.questionAverages).map((question) => (
+                    <p key={question.questionId}>
+                      <strong>{question.dimensionTitle}</strong>: {question.averageScore}
+                    </p>
+                  ))
+                ) : (
+                  <p className="muted">Sem prioridade critica identificada.</p>
+                )}
+              </div>
+            </div>
           </article>
         ))
       ) : (
@@ -744,6 +836,53 @@ function formatFeedbackAnswer(answer) {
     return `Nota ${answer.score}${answer.evidenceNote ? ` · ${answer.evidenceNote}` : ""}`;
   }
   return answer.evidenceNote || "Sem resposta registrada.";
+}
+
+function averageValue(values) {
+  const normalized = values
+    .map((value) => Number(value))
+    .filter((value) => Number.isFinite(value));
+
+  if (!normalized.length) {
+    return null;
+  }
+
+  return Number((normalized.reduce((total, value) => total + value, 0) / normalized.length).toFixed(1));
+}
+
+function getScoreTone(score) {
+  if (!Number.isFinite(Number(score))) {
+    return "neutral";
+  }
+  if (Number(score) >= 4) {
+    return "positive";
+  }
+  if (Number(score) >= 3) {
+    return "warning";
+  }
+  return "critical";
+}
+
+function getStrongestQuestions(questionAverages = []) {
+  return [...questionAverages]
+    .sort((left, right) => Number(right.averageScore || 0) - Number(left.averageScore || 0))
+    .slice(0, 3);
+}
+
+function getAttentionQuestions(questionAverages = []) {
+  return [...questionAverages]
+    .sort((left, right) => Number(left.averageScore || 0) - Number(right.averageScore || 0))
+    .slice(0, 3);
+}
+
+function InsightMetric({ detail, label, tone = "neutral", value }) {
+  return (
+    <article className={`mini-card evaluation-insight-metric ${tone}`}>
+      <p className="mini-label">{label}</p>
+      <strong>{value}</strong>
+      <p className="muted">{detail}</p>
+    </article>
+  );
 }
 
 function getAcknowledgementBadgeLabel(status) {

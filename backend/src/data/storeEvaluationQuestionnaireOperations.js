@@ -1,3 +1,5 @@
+import { toMysqlDateTime } from "./mysqlDateTime.js";
+
 const QUESTIONNAIRE_STATUS = Object.freeze({
   draft: "draft",
   published: "published",
@@ -304,7 +306,7 @@ export function createMemoryEvaluationQuestionnaireStore({
     async createEvaluationQuestionnaire(payload, actorUser) {
       assertCanManageEvaluationQuestionnaires(actorUser, guards);
       const input = normalizeQuestionnaireInput(payload);
-      const timestamp = new Date().toISOString();
+      const timestamp = toMysqlDateTime(new Date());
       const questionnaire = {
         id: createId("questionnaire"),
         cycleId: input.cycleId,
@@ -845,7 +847,7 @@ export function createMysqlEvaluationQuestionnaireStore({
       const policy = payload.accessPolicy
         ? normalizeQuestionnairePolicyInput(payload.accessPolicy)
         : current.accessPolicy;
-      const updatedAt = new Date().toISOString();
+      const updatedAt = toMysqlDateTime(new Date());
 
       const connection = await pool.getConnection();
       try {
@@ -908,7 +910,7 @@ export function createMysqlEvaluationQuestionnaireStore({
     async archiveEvaluationQuestionnaire(questionnaireId, actorUser) {
       assertCanManageEvaluationQuestionnaires(actorUser, guards);
       const current = await this.getEvaluationQuestionnaireById(questionnaireId, actorUser);
-      const updatedAt = new Date().toISOString();
+      const updatedAt = toMysqlDateTime(new Date());
       await pool.query(
         `UPDATE evaluation_questionnaires
          SET status = ?, updated_by_user_id = ?, updated_at = ?
@@ -936,7 +938,7 @@ export function createMysqlEvaluationQuestionnaireStore({
       if (current.questions.some((item) => Number(item.sortOrder) === input.sortOrder)) {
         throw new Error("Ja existe uma pergunta com esse sortOrder.");
       }
-      const timestamp = new Date().toISOString();
+      const timestamp = toMysqlDateTime(new Date());
       const questionId = createId("questionnaire_question");
       const connection = await pool.getConnection();
       try {
@@ -1022,7 +1024,7 @@ export function createMysqlEvaluationQuestionnaireStore({
       ) {
         throw new Error("Ja existe uma pergunta com esse sortOrder.");
       }
-      const updatedAt = new Date().toISOString();
+      const updatedAt = toMysqlDateTime(new Date());
       await pool.query(
         `UPDATE evaluation_questionnaire_questions
          SET sort_order = ?, section_key = ?, section_title = ?, section_description = ?,
@@ -1083,7 +1085,7 @@ export function createMysqlEvaluationQuestionnaireStore({
       }
       const current = await this.getEvaluationQuestionnaireById(rows[0].questionnaireId, actorUser);
       assertQuestionnaireEditable(current);
-      const updatedAt = new Date().toISOString();
+      const updatedAt = toMysqlDateTime(new Date());
       const connection = await pool.getConnection();
       try {
         await connection.beginTransaction();
@@ -1149,14 +1151,14 @@ export function createMysqlEvaluationQuestionnaireStore({
             `UPDATE evaluation_questionnaire_questions
              SET sort_order = ?, updated_at = ?
              WHERE id = ? AND questionnaire_id = ?`,
-            [Number(item.sortOrder), new Date().toISOString(), item.questionId, questionnaireId]
+            [Number(item.sortOrder), toMysqlDateTime(new Date()), item.questionId, questionnaireId]
           );
         }
         await connection.query(
           `UPDATE evaluation_questionnaires
            SET updated_by_user_id = ?, updated_at = ?
            WHERE id = ?`,
-          [actorUser.id, new Date().toISOString(), questionnaireId]
+          [actorUser.id, toMysqlDateTime(new Date()), questionnaireId]
         );
         await insertAuditLog(connection, {
           category: AUDIT_CATEGORIES.cycle,
@@ -1182,7 +1184,7 @@ export function createMysqlEvaluationQuestionnaireStore({
       assertCanManageEvaluationQuestionnaires(actorUser, guards);
       const current = await this.getEvaluationQuestionnaireById(questionnaireId, actorUser);
       validateQuestionnairePublication(current, current.questions);
-      const publishedAt = new Date().toISOString();
+      const publishedAt = toMysqlDateTime(new Date());
       const connection = await pool.getConnection();
       try {
         await connection.beginTransaction();

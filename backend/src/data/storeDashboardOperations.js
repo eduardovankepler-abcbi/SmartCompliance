@@ -65,9 +65,8 @@ export function createMemoryDashboardStore({
         const teamPeople = getTeamPeople(db.people, actorUser.person.id);
         const scopedPeople = [actorUser.person, ...teamPeople];
         const visiblePersonIds = new Set(scopedPeople.map((item) => item.id));
-        const teamAssignments = db.assignments.filter(
-          (item) =>
-            item.reviewerUserId === actorUser.id || visiblePersonIds.has(item.revieweePersonId)
+        const teamAssignments = db.assignments.filter((item) =>
+          visiblePersonIds.has(item.revieweePersonId)
         );
         const teamCycleIds = new Set(teamAssignments.map((item) => item.cycleId));
         const teamResponses = allResponses.filter((response) =>
@@ -233,9 +232,8 @@ export function createMysqlDashboardStore({
             person.id === actorUser.person.id || person.managerPersonId === actorUser.person.id
         );
         const visiblePersonIds = new Set(scopedPeople.map((item) => item.id));
-        const scopedAssignments = assignmentRows.filter(
-          (item) =>
-            item.reviewerUserId === actorUser.id || visiblePersonIds.has(item.revieweePersonId)
+        const scopedAssignments = assignmentRows.filter((item) =>
+          visiblePersonIds.has(item.revieweePersonId)
         );
         const scopedCycleIds = new Set(scopedAssignments.map((item) => item.cycleId));
 

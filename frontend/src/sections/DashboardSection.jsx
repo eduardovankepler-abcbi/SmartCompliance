@@ -1,4 +1,3 @@
-import { useState } from "react";
 import {
   buildDashboardPriorityActions,
   buildDashboardStoryCards,
@@ -68,12 +67,16 @@ export function DashboardSection({
   Select,
   canFilterDashboardByArea,
   dashboard,
+  dashboardAnalyticalTheme,
   dashboardAreaFilter,
   dashboardCompositionFilter,
   dashboardCompositionOptions,
   dashboardTimeGrouping,
   dashboardTimeGroupingLabel,
   dashboardTimeGroupingOptions,
+  dashboardViewMode,
+  developmentView,
+  dimensionFilters,
   onSectionChange,
   filteredDashboardEvaluationMix,
   filteredDashboardEvaluationResultsSummary,
@@ -82,9 +85,17 @@ export function DashboardSection({
   getRelationshipDescription,
   getRelationshipLabel,
   profileName,
+  satisfactionQuestionAreaFilter,
+  satisfactionView,
   selectedDashboardCompositionMeta,
+  setDashboardAnalyticalTheme,
   setDashboardAreaFilter,
   setDashboardCompositionFilter,
+  setDashboardViewMode,
+  setDevelopmentView,
+  setDimensionFilters,
+  setSatisfactionQuestionAreaFilter,
+  setSatisfactionView,
   setDashboardTimeGrouping,
   summary,
   TrendAreaChartCard
@@ -96,12 +107,6 @@ export function DashboardSection({
   const SafeHeatmapMatrixCard = HeatmapMatrixCard || EmptyComponent;
   const SafeResponseDistributionChartCard = ResponseDistributionChartCard || EmptyComponent;
   const SafeTrendAreaChartCard = TrendAreaChartCard || EmptyComponent;
-  const [dashboardViewMode, setDashboardViewMode] = useState("executive");
-  const [dashboardAnalyticalTheme, setDashboardAnalyticalTheme] = useState("evaluations");
-  const [satisfactionView, setSatisfactionView] = useState("all");
-  const [satisfactionQuestionAreaFilter, setSatisfactionQuestionAreaFilter] = useState("all");
-  const [developmentView, setDevelopmentView] = useState("all");
-  const [dimensionFilters, setDimensionFilters] = useState({});
   const executiveHighlights = buildExecutiveHighlights({
     dashboard,
     dashboardAreaFilter,
@@ -333,7 +338,7 @@ export function DashboardSection({
   ];
 
   function setDimensionFilterForGroup(relationshipType, nextValue) {
-    setDimensionFilters((current) => ({
+    setDimensionFilters((current = {}) => ({
       ...current,
       [relationshipType]: nextValue
     }));

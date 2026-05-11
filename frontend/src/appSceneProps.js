@@ -227,13 +227,25 @@ export function buildAppSceneProps(context) {
         Select: controls.Select
       },
       filters: {
+        dashboardAnalyticalTheme: dashboardState.dashboardAnalyticalTheme,
         canFilterDashboardByArea: capabilities.canFilterDashboardByArea,
         dashboardAreaFilter: dashboardState.dashboardAreaFilter,
         dashboardCompositionFilter: dashboardState.dashboardCompositionFilter,
         dashboardTimeGrouping: dashboardState.dashboardTimeGrouping,
+        dashboardViewMode: dashboardState.dashboardViewMode,
+        developmentView: dashboardState.developmentView,
+        dimensionFilters: dashboardState.dimensionFilters,
+        satisfactionQuestionAreaFilter: dashboardState.satisfactionQuestionAreaFilter,
+        satisfactionView: dashboardState.satisfactionView,
+        setDashboardAnalyticalTheme: dashboardState.setDashboardAnalyticalTheme,
         setDashboardAreaFilter: dashboardState.setDashboardAreaFilter,
         setDashboardCompositionFilter: dashboardState.setDashboardCompositionFilter,
-        setDashboardTimeGrouping: dashboardState.setDashboardTimeGrouping
+        setDashboardTimeGrouping: dashboardState.setDashboardTimeGrouping,
+        setDashboardViewMode: dashboardState.setDashboardViewMode,
+        setDevelopmentView: dashboardState.setDevelopmentView,
+        setDimensionFilters: dashboardState.setDimensionFilters,
+        setSatisfactionQuestionAreaFilter: dashboardState.setSatisfactionQuestionAreaFilter,
+        setSatisfactionView: dashboardState.setSatisfactionView
       },
       insights: {
         dashboardCompositionOptions: dashboardState.dashboardCompositionOptions,

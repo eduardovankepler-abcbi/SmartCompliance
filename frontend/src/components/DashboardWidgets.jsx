@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 
 function MetricGlyph({ label }) {
   const common = {
@@ -396,6 +396,7 @@ export function TrendAreaChartCard({
   formatter = (value) => String(value ?? 0),
   detailFormatter = null
 }) {
+  const gradientId = useId().replace(/:/g, "");
   const safeItems = (items || []).filter(Boolean);
   if (!safeItems.length) {
     return (
@@ -463,12 +464,12 @@ export function TrendAreaChartCard({
       </div>
       <svg className="trend-chart" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
         <defs>
-          <linearGradient id={`trend-fill-${valueKey}`} x1="0" y1="0" x2="0" y2="1">
+          <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor={tone.solid} stopOpacity="0.34" />
             <stop offset="100%" stopColor={tone.solid} stopOpacity="0.04" />
           </linearGradient>
         </defs>
-        <path d={areaPath} fill={`url(#trend-fill-${valueKey})`} />
+        <path d={areaPath} fill={`url(#${gradientId})`} />
         <path d={linePath} fill="none" stroke={tone.solid} strokeWidth="3" strokeLinecap="round" />
         {points.map((point) => (
           <circle key={`${point.label}-${point.x}`} cx={point.x} cy={point.y} r="3.5" fill={tone.solid} />

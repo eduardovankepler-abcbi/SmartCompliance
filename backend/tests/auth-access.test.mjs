@@ -87,6 +87,46 @@ export async function runAuthAccessRegression() {
     );
     assert.equal(managerResponses.response.status, 200, "Gestor deve acessar respostas do time");
 
+    const managerDashboardBaseline = await fetchJson(
+      "/api/dashboards/overview",
+      getAuthHeader(manager.id)
+    );
+    assert.equal(
+      managerDashboardBaseline.response.status,
+      200,
+      "Gestor deve acessar o dashboard gerencial"
+    );
+
+    await store.forceCrossFunctionalPairing(
+      "c1",
+      {
+        reviewerUserId: manager.id,
+        revieweePersonId: employee.personId,
+        reason: "Regressao do escopo gerencial no dashboard"
+      },
+      admin
+    );
+
+    const managerDashboardAfterExternalPairing = await fetchJson(
+      "/api/dashboards/overview",
+      getAuthHeader(manager.id)
+    );
+    assert.equal(
+      managerDashboardAfterExternalPairing.response.status,
+      200,
+      "Dashboard gerencial deve seguir acessivel apos pareamento transversal externo"
+    );
+    assert.equal(
+      managerDashboardAfterExternalPairing.payload.scopeSummary.totalAssignments,
+      managerDashboardBaseline.payload.scopeSummary.totalAssignments,
+      "Dashboard gerencial nao deve inflar assignments com avaliados fora da equipe"
+    );
+    assert.equal(
+      managerDashboardAfterExternalPairing.payload.scopeSummary.pendingAssignments,
+      managerDashboardBaseline.payload.scopeSummary.pendingAssignments,
+      "Dashboard gerencial nao deve inflar pendencias com avaliados fora da equipe"
+    );
+
     const employeeDashboard = await fetchJson(
       "/api/dashboards/overview",
       getAuthHeader(employee.id)

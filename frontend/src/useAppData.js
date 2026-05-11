@@ -1,40 +1,54 @@
 import { useCallback, useEffect, useState } from "react";
-import { api } from "./api";
+
+import { api } from "./api.js";
 
 const emptyResponsesBundle = {
-  individualResponses: [],
-  aggregateResponses: [],
-  cycleAggregateResponses: []
+  submissions: [],
+  responses: [],
+  reviewersById: {},
+  peopleById: {},
+  cyclesById: {},
+  questionnairesById: {},
+  questionnaireQuestionsById: {},
 };
+
+function optionalRequest(label, request, fallback) {
+  return { label, request, fallback };
+}
+
+async function resolveOptionalRequest({ label, request, fallback }) {
+  try {
+    const value = await Promise.resolve(request);
+    return { label, value: value ?? fallback, failed: false };
+  } catch (error) {
+    return {
+      label,
+      value: fallback,
+      failed: true,
+      message: error?.message || "Falha ao carregar dados",
+    };
+  }
+}
 
 export function useAppData({
   user,
-  canViewAuditTrail,
-  canFilterDashboardByArea,
-  canViewComplianceWorkspace,
   canViewDashboard,
-  canViewEvaluationWorkspace,
-  canViewDevelopmentWorkspace,
-  canViewApplauseWorkspace,
-  canViewPeople,
+  canViewAuditTrail,
   canViewIncidents,
-  canManageIncidentQueue,
-  canReceiveManagerFeedback,
-  canViewResponses,
+  canViewEvaluationWorkspace,
+  canViewApplauseWorkspace,
+  canViewDevelopmentWorkspace,
   canViewPerformance360,
-  canViewEvaluationLibrary,
-  canViewCompetenciesCatalog,
   canViewUsersAdmin,
-  canViewOrganizationDevelopment,
-  dashboardAreaFilter,
-  dashboardTimeGrouping,
+  dashboardAreaFilter = "all",
+  dashboardTimeGrouping = "semester",
   setError
 }) {
   const [summary, setSummary] = useState(null);
   const [auditTrail, setAuditTrail] = useState([]);
   const [dashboard, setDashboard] = useState(null);
   const [template, setTemplate] = useState(null);
-  const [evaluationLibrary, setEvaluationLibrary] = useState(null);
+  const [evaluationLibrary, setEvaluationLibrary] = useState([]);
   const [competencies, setCompetencies] = useState([]);
   const [areas, setAreas] = useState([]);
   const [people, setPeople] = useState([]);
@@ -50,14 +64,14 @@ export function useAppData({
   const [developmentRecords, setDevelopmentRecords] = useState([]);
   const [developmentPlans, setDevelopmentPlans] = useState([]);
   const [learningIntegrationEvents, setLearningIntegrationEvents] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   const resetData = useCallback(() => {
     setSummary(null);
     setAuditTrail([]);
     setDashboard(null);
     setTemplate(null);
-    setEvaluationLibrary(null);
+    setEvaluationLibrary([]);
     setCompetencies([]);
     setAreas([]);
     setPeople([]);
@@ -86,85 +100,115 @@ export function useAppData({
     setError("");
 
     try {
-      const dashboardArea =
-        canFilterDashboardByArea && dashboardAreaFilter !== "all"
-          ? dashboardAreaFilter
-          : null;
-      const dashboardRequest = canViewDashboard
-        ? api.getDashboardOverview(dashboardArea, dashboardTimeGrouping)
-        : Promise.resolve(null);
-      const competenciesRequest = canViewCompetenciesCatalog
-        ? api.getCompetencies()
-        : Promise.resolve([]);
-      const areasRequest = canViewComplianceWorkspace ? api.getAreas() : Promise.resolve([]);
-      const peopleRequest =
-        canViewPeople ||
-        canManageIncidentQueue ||
-        canViewApplauseWorkspace ||
-        canViewDevelopmentWorkspace
-          ? api.getPeople()
-          : Promise.resolve([]);
-      const requests = [
-        api.getSummary(),
-        canViewAuditTrail ? api.getAuditTrail() : Promise.resolve([]),
-        dashboardRequest,
-        canViewEvaluationWorkspace ? api.getEvaluationTemplate() : Promise.resolve(null),
-        canViewEvaluationLibrary
-          ? api.getEvaluationLibrary()
-          : Promise.resolve(null),
-        competenciesRequest,
-        areasRequest,
-        peopleRequest,
-        canViewIncidents ? api.getIncidents() : Promise.resolve([]),
-        canViewEvaluationWorkspace ? api.getEvaluationCycles() : Promise.resolve([]),
-        canViewEvaluationWorkspace ? api.getEvaluationAssignments() : Promise.resolve([]),
-        canReceiveManagerFeedback ? api.getReceivedManagerFeedback() : Promise.resolve([]),
-        canViewEvaluationWorkspace ? api.getFeedbackRequests() : Promise.resolve([]),
-        canViewPerformance360 ? api.getPerformance360Reviews() : Promise.resolve([]),
-        canViewApplauseWorkspace ? api.getApplauseEntries() : Promise.resolve([]),
-        canViewDevelopmentWorkspace ? api.getDevelopmentRecords() : Promise.resolve([]),
-        canViewDevelopmentWorkspace ? api.getDevelopmentPlans() : Promise.resolve([]),
-        canViewOrganizationDevelopment ? api.getLearningIntegrationEvents() : Promise.resolve([])
+      const nextSummary = await api.getSummary();
+      const normalizedDashboardAreaFilter =
+        dashboardAreaFilter === "all" ? null : dashboardAreaFilter;
+
+      const optionalRequests = [
+        optionalRequest("auditoria", canViewAuditTrail ? api.getAuditTrail() : [], []),
+        optionalRequest(
+          "dashboard",
+          canViewDashboard
+            ? api.getDashboardOverview(normalizedDashboardAreaFilter, dashboardTimeGrouping)
+            : null,
+          null
+        ),
+        optionalRequest(
+          "template de avaliacao",
+          canViewEvaluationWorkspace ? api.getEvaluationTemplate() : null,
+          null
+        ),
+        optionalRequest(
+          "biblioteca de avaliacao",
+          canViewEvaluationWorkspace ? api.getEvaluationLibrary() : [],
+          []
+        ),
+        optionalRequest("competencias", api.getCompetencies(), []),
+        optionalRequest("areas", api.getAreas(), []),
+        optionalRequest("pessoas", api.getPeople(), []),
+        optionalRequest("incidentes", canViewIncidents ? api.getIncidents() : [], []),
+        optionalRequest(
+          "ciclos de avaliacao",
+          canViewEvaluationWorkspace ? api.getEvaluationCycles() : [],
+          []
+        ),
+        optionalRequest(
+          "assignments",
+          canViewEvaluationWorkspace ? api.getEvaluationAssignments() : [],
+          []
+        ),
+        optionalRequest(
+          "feedbacks recebidos",
+          canViewEvaluationWorkspace ? api.getReceivedManagerFeedback() : [],
+          []
+        ),
+        optionalRequest(
+          "solicitacoes de feedback",
+          canViewEvaluationWorkspace ? api.getFeedbackRequests() : [],
+          []
+        ),
+        optionalRequest(
+          "leituras 360",
+          canViewEvaluationWorkspace ? api.getEvaluationResponses() : emptyResponsesBundle,
+          emptyResponsesBundle
+        ),
+        optionalRequest(
+          "performance 360",
+          canViewPerformance360 ? api.getPerformance360Reviews() : [],
+          []
+        ),
+        optionalRequest("aplausos", canViewApplauseWorkspace ? api.getApplauseEntries() : [], []),
+        optionalRequest(
+          "registros de desenvolvimento",
+          canViewDevelopmentWorkspace ? api.getDevelopmentRecords() : [],
+          []
+        ),
+        optionalRequest(
+          "planos de desenvolvimento",
+          canViewDevelopmentWorkspace ? api.getDevelopmentPlans() : [],
+          []
+        ),
+        optionalRequest(
+          "integracoes de aprendizagem",
+          canViewDevelopmentWorkspace ? api.getLearningIntegrationEvents() : [],
+          []
+        ),
       ];
 
       if (canViewUsersAdmin) {
-        requests.push(api.getUsers());
+        optionalRequests.push(optionalRequest("usuarios", api.getUsers(), []));
       }
 
-      if (canViewResponses) {
-        requests.push(api.getEvaluationResponses());
-      }
+      const optionalResults = await Promise.all(optionalRequests.map(resolveOptionalRequest));
+      const failures = optionalResults.filter((entry) => entry.failed);
+      const values = optionalResults.map((entry) => entry.value);
 
-      const result = await Promise.all(requests);
-      const [
-        nextSummary,
-        nextAuditTrail,
-        nextDashboard,
-        nextTemplate,
-        nextLibrary,
-        nextCompetencies,
-        nextAreas,
-        nextPeople,
-        nextIncidents,
-        nextCycles,
-        nextAssignments,
-        nextReceivedManagerFeedback,
-        nextFeedbackRequests,
-        nextPerformance360Reviews,
-        nextApplause,
-        nextDevelopment,
-        nextDevelopmentPlans,
-        nextLearningIntegrationEvents
-      ] = result;
-      let resultIndex = 18;
-      const nextUsers = canViewUsersAdmin ? result[resultIndex++] : [];
-      const nextResponses = canViewResponses ? result[resultIndex] : emptyResponsesBundle;
+      let index = 0;
+      const nextAuditTrail = values[index++];
+      const nextDashboard = values[index++];
+      const nextTemplate = values[index++];
+      const nextEvaluationLibrary = values[index++];
+      const nextCompetencies = values[index++];
+      const nextAreas = values[index++];
+      const nextPeople = values[index++];
+      const nextIncidents = values[index++];
+      const nextCycles = values[index++];
+      const nextAssignments = values[index++];
+      const nextReceivedManagerFeedback = values[index++];
+      const nextFeedbackRequests = values[index++];
+      const nextResponsesBundle = values[index++];
+      const nextPerformance360Reviews = values[index++];
+      const nextApplauseEntries = values[index++];
+      const nextDevelopmentRecords = values[index++];
+      const nextDevelopmentPlans = values[index++];
+      const nextLearningIntegrationEvents = values[index++];
+      const nextUsers = canViewUsersAdmin ? values[index++] : [];
 
       setSummary(nextSummary);
       setAuditTrail(nextAuditTrail);
       setDashboard(nextDashboard);
       setTemplate(nextTemplate);
-      setEvaluationLibrary(nextLibrary);
+      setEvaluationLibrary(nextEvaluationLibrary);
       setCompetencies(nextCompetencies);
       setAreas(nextAreas);
       setPeople(nextPeople);
@@ -174,74 +218,67 @@ export function useAppData({
       setAssignments(nextAssignments);
       setReceivedManagerFeedback(nextReceivedManagerFeedback);
       setFeedbackRequests(nextFeedbackRequests);
-      setPerformance360Reviews(nextPerformance360Reviews);
-      setApplauseEntries(nextApplause);
-      setDevelopmentRecords(nextDevelopment);
+      setResponsesBundle(nextResponsesBundle || emptyResponsesBundle);
+      setPerformance360Reviews(
+        Array.isArray(nextPerformance360Reviews) ? nextPerformance360Reviews : []
+      );
+      setApplauseEntries(nextApplauseEntries);
+      setDevelopmentRecords(nextDevelopmentRecords);
       setDevelopmentPlans(nextDevelopmentPlans);
       setLearningIntegrationEvents(nextLearningIntegrationEvents);
-      setResponsesBundle(nextResponses);
+
+      if (failures.length > 0) {
+        const labels = failures.map((entry) => entry.label).join(", ");
+        setError(`Alguns dados nao puderam ser carregados: ${labels}.`);
+      }
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
   }, [
-    canViewAuditTrail,
-    canManageIncidentQueue,
-    canViewComplianceWorkspace,
-    canViewCompetenciesCatalog,
-    canFilterDashboardByArea,
-    canViewIncidents,
-    canViewPeople,
-    canViewDashboard,
-    canViewEvaluationWorkspace,
-    canViewDevelopmentWorkspace,
-    canViewApplauseWorkspace,
-    canReceiveManagerFeedback,
-    canViewResponses,
-    canViewPerformance360,
-    canViewEvaluationLibrary,
-    canViewUsersAdmin,
-    canViewOrganizationDevelopment,
-    dashboardAreaFilter,
-    dashboardTimeGrouping,
+    user,
     resetData,
     setError,
-    user
+    canViewApplauseWorkspace,
+    canViewAuditTrail,
+    canViewDashboard,
+    canViewDevelopmentWorkspace,
+    canViewEvaluationWorkspace,
+    canViewIncidents,
+    canViewPerformance360,
+    canViewUsersAdmin,
+    dashboardAreaFilter,
+    dashboardTimeGrouping
   ]);
 
   useEffect(() => {
-    if (!user) {
-      resetData();
-      return;
-    }
-
     reloadData();
-  }, [reloadData, resetData, user]);
+  }, [reloadData]);
 
   return {
+    summary,
     auditTrail,
-    applauseEntries,
-    areas,
-    assignments,
-    cycles,
-    competencies,
     dashboard,
-    developmentPlans,
-    developmentRecords,
+    template,
     evaluationLibrary,
-    feedbackRequests,
-    incidents,
-    loading,
-    learningIntegrationEvents,
+    competencies,
+    areas,
     people,
-    performance360Reviews,
+    users,
+    incidents,
+    cycles,
+    assignments,
     receivedManagerFeedback,
+    feedbackRequests,
+    responsesBundle,
+    performance360Reviews,
+    applauseEntries,
+    developmentRecords,
+    developmentPlans,
+    learningIntegrationEvents,
+    loading,
     reloadData,
     resetData,
-    responsesBundle,
-    summary,
-    template,
-    users
   };
 }

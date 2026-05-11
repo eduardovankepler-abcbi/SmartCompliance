@@ -1,3 +1,5 @@
+import { toMysqlDateTime } from "./mysqlDateTime.js";
+
 export function createMemoryEvaluationWorkflowStore({
   db,
   createId,
@@ -638,7 +640,7 @@ export function createMysqlEvaluationWorkflowStore({
         payload,
         actorUser,
         createId,
-        requestedAt: new Date().toISOString()
+        requestedAt: toMysqlDateTime(new Date())
       });
 
       const connection = await pool.getConnection();
@@ -732,7 +734,7 @@ export function createMysqlEvaluationWorkflowStore({
           `UPDATE evaluation_feedback_requests
            SET status = ?, decided_at = ?, decided_by_user_id = ?
            WHERE id = ?`,
-          [payload.status, new Date().toISOString(), actorUser.id, requestId]
+          [payload.status, toMysqlDateTime(new Date()), actorUser.id, requestId]
         );
 
         if (payload.status === FEEDBACK_REQUEST_STATUS.approved) {

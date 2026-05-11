@@ -4,6 +4,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { env } from "../config/env.js";
 import { normalizeLearningIntegrationPayload } from "../services/learningIntegrations.js";
+import { toMysqlDateTime } from "./mysqlDateTime.js";
 import { evaluationLibrary, questionTemplate, seed } from "./mockData.js";
 import {
   createMemoryApplauseStore,
@@ -1281,7 +1282,8 @@ function normalizeCustomLibraryQuestion(question, templateKey, index) {
     inputType,
     options,
     scaleProfile: String(question?.scaleProfile || "").trim(),
-    collectEvidenceOnExtreme: Boolean(question?.collectEvidenceOnExtreme)
+    collectEvidenceOnExtreme: Boolean(question?.collectEvidenceOnExtreme),
+    isSensitive: Boolean(question?.isSensitive || question?.visibility === "confidential")
   };
 }
 
@@ -1536,6 +1538,10 @@ function findQuestionDefinition(questionId, customLibraries = []) {
   ]
     .flatMap((template) => template.questions)
     .find((question) => question.id === questionId);
+}
+
+function isSensitiveQuestionDefinition(question) {
+  return Boolean(question?.isSensitive || question?.visibility === "confidential");
 }
 
 function findQuestionnaireByIdFromMemory(db, questionnaireId) {
@@ -2271,7 +2277,7 @@ function enrichSubmission(db, submission, customLibraries = []) {
         ...answer,
         questionPrompt: question?.promptText || question?.prompt || "",
         dimensionTitle: question?.dimensionTitle || "",
-        isSensitive: Boolean(question?.isSensitive),
+        isSensitive: isSensitiveQuestionDefinition(question),
         selectedOptions: Array.isArray(answer.selectedOptions) ? answer.selectedOptions : []
       };
     });
@@ -4230,22 +4236,6 @@ function filterAuditLogsForUser(auditLogs, actorUser, options = {}) {
     .slice(0, limit);
 }
 
-function toMysqlDateTime(value) {
-  if (!value) {
-    return value;
-  }
-
-  const date = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  const pad = (item) => String(item).padStart(2, "0");
-  return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())} ${pad(
-    date.getUTCHours()
-  )}:${pad(date.getUTCMinutes())}:${pad(date.getUTCSeconds())}`;
-}
-
 async function insertAuditLog(target, payload) {
   const entry = createAuditPayload(payload);
   await target.query(
@@ -4991,17 +4981,15 @@ async function fetchMysqlResponses(
       .filter((answer) => answer.submissionId === submission.id)
       .map((answer) => {
         const parsedSelectedOptions = parseJsonValue(answer.answerOptionsJson, []);
+        const fallbackQuestion = findQuestionDefinition(answer.questionId, customLibraries);
+        const isQuestionnaireAnswer = Boolean(answer.questionnaireQuestionId);
         return {
           ...answer,
-          questionPrompt:
-            answer.questionPrompt ||
-            findQuestionDefinition(answer.questionId, customLibraries)?.prompt ||
-            "",
-          dimensionTitle:
-            answer.dimensionTitle ||
-            findQuestionDefinition(answer.questionId, customLibraries)?.dimensionTitle ||
-            "",
-          isSensitive: Boolean(answer.isSensitive),
+          questionPrompt: answer.questionPrompt || fallbackQuestion?.prompt || "",
+          dimensionTitle: answer.dimensionTitle || fallbackQuestion?.dimensionTitle || "",
+          isSensitive: isQuestionnaireAnswer
+            ? Boolean(answer.isSensitive)
+            : isSensitiveQuestionDefinition(fallbackQuestion),
           selectedOptions: Array.isArray(parsedSelectedOptions) ? parsedSelectedOptions : []
         };
       })
@@ -5818,7 +5806,7 @@ function buildMysqlStore(
         [competency.id, competency.key, competency.name, competency.description, competency.status]
       );
 
-      await persistAuditLog(pool, {
+      await insertAuditLog(pool, {
         category: AUDIT_CATEGORIES.competency,
         action: "created",
         entityType: "competency",
@@ -5859,7 +5847,7 @@ function buildMysqlStore(
         ]
       );
 
-      await persistAuditLog(pool, {
+      await insertAuditLog(pool, {
         category: AUDIT_CATEGORIES.competency,
         action: "updated",
         entityType: "competency",

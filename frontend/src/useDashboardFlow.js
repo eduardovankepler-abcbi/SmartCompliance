@@ -6,21 +6,45 @@ export function useDashboardFilters() {
   const [dashboardAreaFilter, setDashboardAreaFilter] = useState("all");
   const [dashboardCompositionFilter, setDashboardCompositionFilter] = useState("all");
   const [dashboardTimeGrouping, setDashboardTimeGrouping] = useState("semester");
+  const [dashboardViewMode, setDashboardViewMode] = useState("executive");
+  const [dashboardAnalyticalTheme, setDashboardAnalyticalTheme] = useState("evaluations");
+  const [satisfactionView, setSatisfactionView] = useState("all");
+  const [satisfactionQuestionAreaFilter, setSatisfactionQuestionAreaFilter] = useState("all");
+  const [developmentView, setDevelopmentView] = useState("all");
+  const [dimensionFilters, setDimensionFilters] = useState({});
 
   function resetDashboardFlow() {
     setDashboardAreaFilter("all");
     setDashboardCompositionFilter("all");
     setDashboardTimeGrouping("semester");
+    setDashboardViewMode("executive");
+    setDashboardAnalyticalTheme("evaluations");
+    setSatisfactionView("all");
+    setSatisfactionQuestionAreaFilter("all");
+    setDevelopmentView("all");
+    setDimensionFilters({});
   }
 
   return {
+    dashboardAnalyticalTheme,
     dashboardAreaFilter,
     dashboardCompositionFilter,
     dashboardTimeGrouping,
+    dashboardViewMode,
+    developmentView,
+    dimensionFilters,
     resetDashboardFlow,
+    satisfactionQuestionAreaFilter,
+    satisfactionView,
+    setDashboardAnalyticalTheme,
     setDashboardAreaFilter,
     setDashboardCompositionFilter,
-    setDashboardTimeGrouping
+    setDashboardTimeGrouping,
+    setDashboardViewMode,
+    setDevelopmentView,
+    setDimensionFilters,
+    setSatisfactionQuestionAreaFilter,
+    setSatisfactionView
   };
 }
 

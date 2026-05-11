@@ -369,6 +369,39 @@ export async function runEvaluationsRegression() {
       "Nao deve haver auditoria de leitura sensivel quando o bundle retorna tudo mascarado"
     );
 
+    const legacyCrossFunctionalAssignments = await store.getEvaluationAssignmentsForUser(
+      managerRevieweeEmployee.id
+    );
+    const legacyCrossFunctionalAssignment = legacyCrossFunctionalAssignments.find(
+      (assignment) =>
+        assignment.relationshipType === "cross-functional" && assignment.cycleId === "c1"
+    );
+    assert.ok(
+      legacyCrossFunctionalAssignment,
+      "Cenario demo precisa manter assignment transversal legado"
+    );
+    const legacyCrossFunctionalTemplate = await store.getEvaluationTemplateForAssignment(
+      legacyCrossFunctionalAssignment.id,
+      managerRevieweeEmployee.id
+    );
+    const legacyCrossFunctionalSubmission = await store.submitEvaluationAssignment({
+      assignmentId: legacyCrossFunctionalAssignment.id,
+      reviewerUserId: managerRevieweeEmployee.id,
+      answers: legacyCrossFunctionalTemplate.questions.map((question) => ({
+        questionId: question.id,
+        score: question.inputType === "scale" ? 4 : null,
+        evidenceNote: "",
+        textValue: question.inputType === "text" ? "Resposta transversal legada." : "",
+        selectedOptions: []
+      })),
+      strengthsNote: "Leitura transversal legada.",
+      developmentNote: "Sem recomendacoes adicionais."
+    });
+    assert.ok(
+      legacyCrossFunctionalSubmission.answers.every((answer) => answer.isSensitive),
+      "Perguntas legadas com visibility confidential devem continuar marcadas como sensiveis"
+    );
+
     const rawManagerQuestionnaire = await store.createEvaluationQuestionnaire(
       {
         cycleId: createdCycle.id,
