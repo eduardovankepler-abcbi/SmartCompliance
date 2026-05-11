@@ -103,6 +103,10 @@ export function useAppData({
       const nextSummary = await api.getSummary();
       const normalizedDashboardAreaFilter =
         dashboardAreaFilter === "all" ? null : dashboardAreaFilter;
+      const roleKey = user?.roleKey;
+      const canViewEvaluationLibrary = roleKey === "admin" || roleKey === "hr";
+      const canViewReceivedManagerFeedback = roleKey === "employee";
+      const canViewLearningIntegrations = roleKey === "admin" || roleKey === "hr";
 
       const optionalRequests = [
         optionalRequest("auditoria", canViewAuditTrail ? api.getAuditTrail() : [], []),
@@ -120,7 +124,7 @@ export function useAppData({
         ),
         optionalRequest(
           "biblioteca de avaliacao",
-          canViewEvaluationWorkspace ? api.getEvaluationLibrary() : [],
+          canViewEvaluationLibrary ? api.getEvaluationLibrary() : [],
           []
         ),
         optionalRequest("competencias", api.getCompetencies(), []),
@@ -139,7 +143,7 @@ export function useAppData({
         ),
         optionalRequest(
           "feedbacks recebidos",
-          canViewEvaluationWorkspace ? api.getReceivedManagerFeedback() : [],
+          canViewReceivedManagerFeedback ? api.getReceivedManagerFeedback() : [],
           []
         ),
         optionalRequest(
@@ -170,7 +174,7 @@ export function useAppData({
         ),
         optionalRequest(
           "integracoes de aprendizagem",
-          canViewDevelopmentWorkspace ? api.getLearningIntegrationEvents() : [],
+          canViewLearningIntegrations ? api.getLearningIntegrationEvents() : [],
           []
         ),
       ];

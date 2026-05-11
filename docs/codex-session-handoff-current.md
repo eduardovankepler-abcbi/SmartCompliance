@@ -887,3 +887,44 @@ Resultado:
 - Validacao:
   - `npm --prefix frontend run test` passou;
   - `npm --prefix frontend run build` passou com permissao elevada apos o `spawn EPERM` conhecido do sandbox.
+
+## 30. Correcao do alerta vermelho indevido em Avaliacoes 2026-05-11
+
+### Sintoma
+
+- Na tela de Avaliacoes, perfil de gestor via tema claro exibia o banner:
+
+```txt
+Alguns dados nao puderam ser carregados: biblioteca de avaliacao, feedbacks recebidos, integracoes de aprendizagem.
+```
+
+### Causa confirmada
+
+- O alerta vinha de `frontend/src/useAppData.js`, que marca como falha qualquer endpoint opcional que retorne erro.
+- Para o gestor, o frontend estava chamando endpoints que o backend restringe a outros perfis:
+  - `/api/evaluations/library` exige `admin` ou `hr`;
+  - `/api/evaluations/received-feedback` exige `employee`;
+  - `/api/development/integrations/learning-events` exige `admin` ou `hr`.
+- Portanto era um falso alerta de carregamento, causado por chamadas 403 esperadas para o perfil.
+
+### Correcao aplicada
+
+- `frontend/src/useAppData.js` agora calcula gates por `user.roleKey`:
+  - biblioteca de avaliacao: somente `admin`/`hr`;
+  - feedbacks recebidos: somente `employee`;
+  - integracoes de aprendizagem: somente `admin`/`hr`.
+- O gestor continua carregando Avaliacoes, ciclos, assignments, feedback requests, leituras e dashboard quando permitido, sem exibir o alerta vermelho por endpoints que nao pertencem ao perfil.
+
+### Validacoes
+
+```powershell
+npm --prefix frontend run test
+npm --prefix frontend run build
+npm test
+```
+
+Resultado:
+
+- testes de frontend passaram;
+- build passou com permissao elevada apos o `spawn EPERM` conhecido do sandbox;
+- suite completa passou.
