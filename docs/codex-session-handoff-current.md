@@ -602,3 +602,19 @@ Resultado:
 ```txt
 Stabilize evaluations and analytics dashboards
 ```
+
+### Resultado de commit/push
+
+- Commit criado:
+
+```txt
+b1e7819 Stabilize evaluations and analytics dashboards
+```
+
+- `git push`:
+  - primeira tentativa falhou sem acesso ao GitHub pelo sandbox;
+  - segunda tentativa com permissao elevada passou;
+  - branch publicada: `main -> main`.
+
+- `git status --short` apos o commit principal:
+  - sem arquivos pendentes antes desta atualizacao documental final.
