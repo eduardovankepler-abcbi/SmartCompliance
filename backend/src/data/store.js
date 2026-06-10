@@ -1161,6 +1161,7 @@ function buildTemplate(definition) {
   return {
     id: normalizedDefinition.id,
     key: normalizedDefinition.key,
+    relationshipType: normalizedDefinition.relationshipType || normalizedDefinition.key,
     modelName: normalizedDefinition.modelName,
     description: normalizedDefinition.description,
     policy: normalizedDefinition.policy,
@@ -1281,9 +1282,39 @@ function buildManualEvaluationLibrary() {
   };
 }
 
+function cloneTemplateForManualLibrary(template) {
+  return {
+    ...template,
+    relationshipType: template.key,
+    key: template.key,
+    questions: (template.questions || []).map((question) => ({ ...question }))
+  };
+}
+
+function syncManualEvaluationLibraryTemplates(manualLibrary) {
+  manualLibrary.templates = Array.isArray(manualLibrary.templates) ? manualLibrary.templates : [];
+
+  for (const baseTemplate of Object.values(evaluationLibrary.templates)) {
+    const existingTemplate = findTemplateInPublishedLibrary(manualLibrary, baseTemplate.key);
+    if (existingTemplate) {
+      existingTemplate.key = existingTemplate.key || baseTemplate.key;
+      existingTemplate.relationshipType = existingTemplate.relationshipType || baseTemplate.key;
+      existingTemplate.questions = Array.isArray(existingTemplate.questions)
+        ? existingTemplate.questions
+        : [];
+      continue;
+    }
+
+    manualLibrary.templates.push(cloneTemplateForManualLibrary(baseTemplate));
+  }
+
+  return manualLibrary;
+}
+
 function ensureManualEvaluationLibrary(customLibraryState) {
   const existing = findPublishedLibrary(customLibraryState.published, MANUAL_EVALUATION_LIBRARY_ID);
   if (existing) {
+    syncManualEvaluationLibraryTemplates(existing);
     existing.sourceType = "manual";
     existing.templateCount = existing.templates?.length || 0;
     existing.questionCount = countLibraryQuestions(existing.templates || []);
@@ -1617,7 +1648,10 @@ function findPublishedLibrary(customLibraries, libraryId) {
 
 function findTemplateInPublishedLibrary(library, relationshipType) {
   return (
-    library?.templates?.find((template) => template.relationshipType === relationshipType) || null
+    library?.templates?.find(
+      (template) =>
+        template.relationshipType === relationshipType || template.key === relationshipType
+    ) || null
   );
 }
 
@@ -7081,9 +7115,7 @@ export async function createStore() {
     findPublishedLibrary(customLibraryState.published, MANUAL_EVALUATION_LIBRARY_ID)
   );
   ensureManualEvaluationLibrary(customLibraryState);
-  if (!hadManualLibrary) {
-    await saveCustomLibraryState(customLibraryState);
-  }
+  await saveCustomLibraryState(customLibraryState);
 
   if (env.storageMode !== "mysql") {
     return buildMemoryStore(customLibraryState, anonymousResponseState);

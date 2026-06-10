@@ -21,6 +21,90 @@ export async function runEvaluationsRegression() {
     const assignments = await store.getEvaluationAssignmentsForUser(employee.id);
     assert.ok(assignments.length > 0, "Colaborador precisa ter pelo menos um assignment de teste");
 
+    const libraryBeforeSameAreaEdit = await store.getEvaluationLibrary();
+    const sameAreaGroupBeforeEdit = libraryBeforeSameAreaEdit.questionGroups.find(
+      (group) => group.relationshipType === "peer-same-area"
+    );
+    const crossFunctionalGroupBeforeEdit = libraryBeforeSameAreaEdit.questionGroups.find(
+      (group) => group.relationshipType === "cross-functional"
+    );
+    assert.ok(sameAreaGroupBeforeEdit, "Biblioteca manual deve expor Colega do mesmo setor");
+    assert.ok(crossFunctionalGroupBeforeEdit, "Biblioteca manual deve expor Colega de outro setor");
+    const crossFunctionalSnapshot = {
+      count: crossFunctionalGroupBeforeEdit.questions.length,
+      ids: crossFunctionalGroupBeforeEdit.questions.map((question) => question.id).join("|")
+    };
+    const sameAreaManualQuestion = await store.createEvaluationLibraryQuestion(
+      {
+        relationshipType: "peer-same-area",
+        dimensionKey: "same-area-isolation",
+        dimensionTitle: "Isolamento por modalidade",
+        prompt: "Pergunta temporaria para validar isolamento do mesmo setor.",
+        sortOrder: sameAreaGroupBeforeEdit.questions.length + 1,
+        inputType: "multi-select",
+        options: [
+          { value: "alto", label: "Muito acima do esperado" },
+          { value: "baixo", label: "Muito abaixo do esperado" }
+        ],
+        visibility: "shared"
+      },
+      hr
+    );
+    const createdSameAreaQuestion = sameAreaManualQuestion.questionGroups
+      .find((group) => group.relationshipType === "peer-same-area")
+      ?.questions.find((question) => question.dimensionKey === "same-area-isolation");
+    assert.ok(createdSameAreaQuestion, "Pergunta manual deve ser criada apenas no mesmo setor");
+    const crossFunctionalAfterCreate = sameAreaManualQuestion.questionGroups.find(
+      (group) => group.relationshipType === "cross-functional"
+    );
+    assert.equal(
+      crossFunctionalAfterCreate.questions.length,
+      crossFunctionalSnapshot.count,
+      "Criar pergunta de mesmo setor nao deve alterar quantidade de outro setor"
+    );
+    assert.equal(
+      crossFunctionalAfterCreate.questions.map((question) => question.id).join("|"),
+      crossFunctionalSnapshot.ids,
+      "Criar pergunta de mesmo setor nao deve alterar perguntas de outro setor"
+    );
+    const sameAreaManualQuestionUpdate = await store.updateEvaluationLibraryQuestion(
+      createdSameAreaQuestion.id,
+      {
+        relationshipType: "peer-same-area",
+        dimensionKey: "same-area-isolation",
+        dimensionTitle: "Isolamento por modalidade revisado",
+        prompt: "Pergunta temporaria revisada para validar isolamento do mesmo setor.",
+        sortOrder: createdSameAreaQuestion.sortOrder,
+        inputType: "multi-select",
+        options: [
+          { value: "alto", label: "Muito acima do esperado" },
+          { value: "baixo", label: "Muito abaixo do esperado" }
+        ],
+        visibility: "shared"
+      },
+      hr
+    );
+    const crossFunctionalAfterUpdate = sameAreaManualQuestionUpdate.questionGroups.find(
+      (group) => group.relationshipType === "cross-functional"
+    );
+    assert.equal(
+      crossFunctionalAfterUpdate.questions.map((question) => question.id).join("|"),
+      crossFunctionalSnapshot.ids,
+      "Editar pergunta de mesmo setor nao deve alterar perguntas de outro setor"
+    );
+    const sameAreaManualQuestionDelete = await store.deleteEvaluationLibraryQuestion(
+      createdSameAreaQuestion.id,
+      hr
+    );
+    const crossFunctionalAfterDelete = sameAreaManualQuestionDelete.questionGroups.find(
+      (group) => group.relationshipType === "cross-functional"
+    );
+    assert.equal(
+      crossFunctionalAfterDelete.questions.map((question) => question.id).join("|"),
+      crossFunctionalSnapshot.ids,
+      "Remover pergunta de mesmo setor nao deve alterar perguntas de outro setor"
+    );
+
     const assignmentDetail = await store.getEvaluationAssignmentById(assignments[0].id, employee.id);
     assert.equal(typeof assignmentDetail.weight, "number", "Assignment detail deve expor weight");
     assert.equal(
