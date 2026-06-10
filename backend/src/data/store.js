@@ -149,14 +149,13 @@ import {
   normalizeWorkUnit
 } from "./storeValidation.js";
 
-const CUSTOM_LIBRARY_STORAGE_FILE = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "custom-libraries.json"
-);
-const ANONYMOUS_RESPONSE_STORAGE_FILE = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "anonymous-responses.json"
-);
+const STORE_MODULE_DIR = path.dirname(fileURLToPath(import.meta.url));
+const DEFAULT_STORAGE_DIR = path.resolve(STORE_MODULE_DIR, "../../.data");
+const STORAGE_DIR = env.dataDir ? path.resolve(env.dataDir) : DEFAULT_STORAGE_DIR;
+const LEGACY_CUSTOM_LIBRARY_STORAGE_FILE = path.resolve(STORE_MODULE_DIR, "custom-libraries.json");
+const LEGACY_ANONYMOUS_RESPONSE_STORAGE_FILE = path.resolve(STORE_MODULE_DIR, "anonymous-responses.json");
+const CUSTOM_LIBRARY_STORAGE_FILE = path.resolve(STORAGE_DIR, "custom-libraries.json");
+const ANONYMOUS_RESPONSE_STORAGE_FILE = path.resolve(STORAGE_DIR, "anonymous-responses.json");
 const MANUAL_EVALUATION_LIBRARY_ID = "manual_evaluation_question_bank";
 const MANUAL_EVALUATION_LIBRARY_NAME = "Perguntas manuais de avaliacao";
 const MANUAL_EVALUATION_LIBRARY_DESCRIPTION =
@@ -4600,22 +4599,37 @@ function normalizeDevelopmentPlanProgressPayload(payload) {
 }
 
 async function loadCustomLibraryState() {
-  try {
-    const content = await fs.readFile(CUSTOM_LIBRARY_STORAGE_FILE, "utf8");
+  const readStateFile = async (filePath) => {
+    const content = await fs.readFile(filePath, "utf8");
     const parsed = JSON.parse(content);
     return {
       drafts: Array.isArray(parsed.drafts) ? parsed.drafts : [],
       published: Array.isArray(parsed.published) ? parsed.published : []
     };
+  };
+
+  try {
+    return await readStateFile(CUSTOM_LIBRARY_STORAGE_FILE);
   } catch (error) {
-    if (error.code === "ENOENT") {
-      return { drafts: [], published: [] };
+    if (error.code !== "ENOENT") {
+      throw error;
     }
-    throw error;
+
+    try {
+      const legacyState = await readStateFile(LEGACY_CUSTOM_LIBRARY_STORAGE_FILE);
+      await saveCustomLibraryState(legacyState);
+      return legacyState;
+    } catch (legacyError) {
+      if (legacyError.code === "ENOENT") {
+        return { drafts: [], published: [] };
+      }
+      throw legacyError;
+    }
   }
 }
 
 async function saveCustomLibraryState(state) {
+  await fs.mkdir(STORAGE_DIR, { recursive: true });
   await fs.writeFile(
     CUSTOM_LIBRARY_STORAGE_FILE,
     JSON.stringify(
@@ -4631,21 +4645,36 @@ async function saveCustomLibraryState(state) {
 }
 
 async function loadAnonymousResponseState() {
-  try {
-    const content = await fs.readFile(ANONYMOUS_RESPONSE_STORAGE_FILE, "utf8");
+  const readStateFile = async (filePath) => {
+    const content = await fs.readFile(filePath, "utf8");
     const parsed = JSON.parse(content);
     return {
       responses: Array.isArray(parsed.responses) ? parsed.responses : []
     };
+  };
+
+  try {
+    return await readStateFile(ANONYMOUS_RESPONSE_STORAGE_FILE);
   } catch (error) {
-    if (error.code === "ENOENT") {
-      return { responses: [] };
+    if (error.code !== "ENOENT") {
+      throw error;
     }
-    throw error;
+
+    try {
+      const legacyState = await readStateFile(LEGACY_ANONYMOUS_RESPONSE_STORAGE_FILE);
+      await saveAnonymousResponseState(legacyState);
+      return legacyState;
+    } catch (legacyError) {
+      if (legacyError.code === "ENOENT") {
+        return { responses: [] };
+      }
+      throw legacyError;
+    }
   }
 }
 
 async function saveAnonymousResponseState(state) {
+  await fs.mkdir(STORAGE_DIR, { recursive: true });
   await fs.writeFile(
     ANONYMOUS_RESPONSE_STORAGE_FILE,
     JSON.stringify(

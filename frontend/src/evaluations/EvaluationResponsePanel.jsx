@@ -82,7 +82,7 @@ export function EvaluationResponsePanel({
     activeEvaluationWorkspace
   );
 
-  if (activeEvaluationWorkspace === "operations") {
+  if (["operations", "questions"].includes(activeEvaluationWorkspace)) {
     return null;
   }
 

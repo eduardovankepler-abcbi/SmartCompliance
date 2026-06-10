@@ -192,8 +192,6 @@ export function EvaluationsSection(props) {
     setReceivedManagerFeedbackDraft,
     setTransversalConfigForm,
     setTransversalOverrideForm,
-    setShowEvaluationLibrary,
-    showEvaluationLibrary,
     transversalOverrideForm,
     transversalConfigForm
   } = props;
@@ -212,6 +210,7 @@ export function EvaluationsSection(props) {
   const isRespondWorkspace = activeEvaluationWorkspace === "respond";
   const isInsightsWorkspace = activeEvaluationWorkspace === "insights";
   const isOperationsWorkspace = activeEvaluationWorkspace === "operations";
+  const isQuestionsWorkspace = activeEvaluationWorkspace === "questions";
   const operationsStructure = filteredEvaluationCycleStructure || evaluationCycleStructure;
   const hasOperationFilters =
     evaluationOperationWorkUnitFilter !== "all" || evaluationOperationWorkModeFilter !== "all";
@@ -269,27 +268,20 @@ export function EvaluationsSection(props) {
                     <span className="module-tab-title">Operacao</span>
                   </button>
                 ) : null}
+                {canViewEvaluationLibrary ? (
+                  <button
+                    type="button"
+                    className={
+                      isQuestionsWorkspace
+                        ? "button-reset module-tab active"
+                        : "button-reset module-tab"
+                    }
+                    onClick={() => setActiveEvaluationWorkspace("questions")}
+                  >
+                    <span className="module-tab-title">Perguntas</span>
+                  </button>
+                ) : null}
               </div>
-            ) : null}
-            {canViewEvaluationLibrary && isOperationsWorkspace ? (
-              <button
-                type="button"
-                className="refresh"
-                onClick={() => props.setShowEvaluationQuestionnaires?.(true)}
-              >
-                {props.showEvaluationQuestionnaires
-                  ? "Questionarios individuais ativos"
-                  : "Questionarios individuais"}
-              </button>
-            ) : null}
-            {canViewEvaluationLibrary && isOperationsWorkspace ? (
-              <button
-                type="button"
-                className="refresh"
-                onClick={() => setShowEvaluationLibrary((current) => !current)}
-              >
-                {showEvaluationLibrary ? "Ocultar biblioteca" : "Biblioteca"}
-              </button>
             ) : null}
           </div>
         </div>
@@ -396,7 +388,7 @@ export function EvaluationsSection(props) {
         handleEvaluationLibraryQuestionDelete={handleEvaluationLibraryQuestionDelete}
         handleEvaluationLibraryQuestionsReorder={handleEvaluationLibraryQuestionsReorder}
         setCustomLibraryPublishForm={setCustomLibraryPublishForm}
-        showEvaluationLibrary={showEvaluationLibrary}
+        showEvaluationLibrary={isQuestionsWorkspace}
       />
 
       <SafeEvaluationQuestionnairePanel
@@ -435,7 +427,7 @@ export function EvaluationsSection(props) {
         setEvaluationQuestionnaireDraft={props.setEvaluationQuestionnaireDraft}
         setEvaluationQuestionnairePolicyValue={props.setEvaluationQuestionnairePolicyValue}
         setSelectedEvaluationQuestionnaireId={props.setSelectedEvaluationQuestionnaireId}
-        showEvaluationQuestionnaires={props.showEvaluationQuestionnaires}
+        showEvaluationQuestionnaires={isQuestionsWorkspace}
         startEvaluationQuestionEdit={props.startEvaluationQuestionEdit}
       />
 

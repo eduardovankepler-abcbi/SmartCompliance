@@ -677,7 +677,10 @@ export function useEvaluations({
           (module) => module.relationshipType && isEvaluationModuleVisible(module)
         );
 
-    if (activeEvaluationWorkspace === "operations" && canViewEvaluationOperations) {
+    if (
+      (activeEvaluationWorkspace === "operations" && canViewEvaluationOperations) ||
+      (activeEvaluationWorkspace === "questions" && canViewEvaluationLibrary)
+    ) {
       return base;
     }
 
@@ -699,6 +702,7 @@ export function useEvaluations({
     activeCycleModuleAvailability,
     activeEvaluationWorkspace,
     canViewEvaluationInsights,
+    canViewEvaluationLibrary,
     canViewEvaluationOperations
   ]);
 
@@ -1027,6 +1031,12 @@ export function useEvaluations({
       setActiveEvaluationWorkspace("respond");
     }
   }, [activeEvaluationWorkspace, canViewEvaluationOperations]);
+
+  useEffect(() => {
+    if (!canViewEvaluationLibrary && activeEvaluationWorkspace === "questions") {
+      setActiveEvaluationWorkspace("respond");
+    }
+  }, [activeEvaluationWorkspace, canViewEvaluationLibrary]);
 
   useEffect(() => {
     if (!evaluationModuleOptions.some((module) => module.key === activeEvaluationModule)) {

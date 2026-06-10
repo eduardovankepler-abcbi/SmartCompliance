@@ -447,6 +447,7 @@ export default function App() {
     canViewDashboard,
     canViewDevelopmentWorkspace,
     canViewEvaluationInsights,
+    canViewEvaluationLibrary,
     canViewEvaluationOperations,
     canViewEvaluationWorkspace,
     canViewPeople,

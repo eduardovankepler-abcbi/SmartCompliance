@@ -142,6 +142,7 @@ export const env = {
   nodeEnv: process.env.NODE_ENV || "development",
   port: Number(process.env.PORT || 4000),
   storageMode: resolveStorageMode(),
+  dataDir: process.env.DATA_DIR || process.env.SMART_COMPLIANCE_DATA_DIR || "",
   corsOrigin: buildCorsOriginOption(),
   trustProxy: buildTrustProxyOption(),
   authSecret: process.env.AUTH_SECRET || "smart-compliance-dev-secret",

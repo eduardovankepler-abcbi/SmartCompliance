@@ -15,6 +15,7 @@ export function useAppShellFlow({
   canViewApplauseWorkspace,
   canViewEvaluationInsights,
   canViewEvaluationOperations,
+  canViewEvaluationLibrary,
   canViewPeople,
   canViewUsersAdmin,
   navigationGroups,
@@ -34,7 +35,8 @@ export function useAppShellFlow({
 
     return parseAppHash(window.location.hash, {
       fallbackSectionKey: "Dashboard",
-      canViewEvaluationInsights: false
+      canViewEvaluationInsights: false,
+      canViewEvaluationLibrary: false
     }).sectionKey;
   });
 
@@ -127,7 +129,8 @@ export function useAppShellFlow({
       const nextRoute = parseAppHash(window.location.hash, {
         fallbackSectionKey,
         canViewEvaluationInsights,
-        canViewEvaluationOperations
+        canViewEvaluationOperations,
+        canViewEvaluationLibrary
       });
 
       if (nextRoute.sectionKey) {
@@ -160,6 +163,7 @@ export function useAppShellFlow({
     return () => window.removeEventListener("hashchange", applyHashRoute);
   }, [
     canViewEvaluationInsights,
+    canViewEvaluationLibrary,
     canViewEvaluationOperations,
     fallbackSectionKey,
     setActiveEvaluationModule,
@@ -177,7 +181,8 @@ export function useAppShellFlow({
       evaluationModuleKey: activeEvaluationModule,
       evaluationWorkspace: activeEvaluationWorkspace,
       canViewEvaluationInsights,
-      canViewEvaluationOperations
+      canViewEvaluationOperations,
+      canViewEvaluationLibrary
     });
 
     if (window.location.hash !== nextHash) {
@@ -187,6 +192,7 @@ export function useAppShellFlow({
     activeEvaluationModule,
     activeEvaluationWorkspace,
     canViewEvaluationInsights,
+    canViewEvaluationLibrary,
     canViewEvaluationOperations,
     resolvedActiveSection
   ]);

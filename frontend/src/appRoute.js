@@ -39,7 +39,12 @@ function normalizeHash(hash) {
 
 export function parseAppHash(
   hash,
-  { fallbackSectionKey, canViewEvaluationInsights, canViewEvaluationOperations = false }
+  {
+    fallbackSectionKey,
+    canViewEvaluationInsights,
+    canViewEvaluationOperations = false,
+    canViewEvaluationLibrary = false
+  }
 ) {
   const parts = normalizeHash(hash);
   const sectionKey = sectionKeyBySlug[parts[0]] || fallbackSectionKey;
@@ -58,12 +63,16 @@ export function parseAppHash(
       ? "insights"
       : parts[2] === "operacao"
         ? "operations"
+        : parts[2] === "perguntas"
+          ? "questions"
         : "respond";
   const evaluationWorkspace =
     requestedWorkspace === "insights" && canViewEvaluationInsights
       ? "insights"
       : requestedWorkspace === "operations" && canViewEvaluationOperations
         ? "operations"
+        : requestedWorkspace === "questions" && canViewEvaluationLibrary
+          ? "questions"
         : "respond";
 
   return {
@@ -78,7 +87,8 @@ export function buildAppHash({
   evaluationModuleKey,
   evaluationWorkspace,
   canViewEvaluationInsights,
-  canViewEvaluationOperations = false
+  canViewEvaluationOperations = false,
+  canViewEvaluationLibrary = false
 }) {
   const sectionSlug = sectionSlugMap[sectionKey] || sectionSlugMap.Avaliacoes;
 
@@ -92,6 +102,8 @@ export function buildAppHash({
       ? "leituras"
       : evaluationWorkspace === "operations" && canViewEvaluationOperations
         ? "operacao"
+        : evaluationWorkspace === "questions" && canViewEvaluationLibrary
+          ? "perguntas"
         : "responder";
 
   return `#/${sectionSlug}/${moduleSlug}/${workspaceSlug}`;

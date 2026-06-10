@@ -15,6 +15,7 @@ frontend/.env.*
 !frontend/.env.production.example
 backend/src/data/custom-libraries.json
 backend/src/data/anonymous-responses.json
+backend/.data/
 frontend/playwright-report/
 frontend/test-results/
 *.pem

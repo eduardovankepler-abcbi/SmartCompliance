@@ -154,6 +154,30 @@ assert.deepEqual(
   "Operacao deve abrir apenas para perfis com acesso operacional"
 );
 
+assert.deepEqual(
+  parseAppHash("#/avaliacoes/feedback-direto/perguntas", {
+    fallbackSectionKey: "Dashboard",
+    canViewEvaluationInsights: false,
+    canViewEvaluationLibrary: true
+  }),
+  {
+    sectionKey: "Avaliacoes",
+    evaluationModuleKey: "peer",
+    evaluationWorkspace: "questions"
+  },
+  "Perguntas deve abrir como workspace proprio para perfis com biblioteca"
+);
+
+assert.deepEqual(
+  parseAppHash("#/avaliacoes/feedback-direto/perguntas", {
+    fallbackSectionKey: "Dashboard",
+    canViewEvaluationInsights: false,
+    canViewEvaluationLibrary: false
+  }).evaluationWorkspace,
+  "respond",
+  "Perfil sem biblioteca deve cair em responder ao tentar abrir perguntas"
+);
+
 assert.equal(
   buildAppHash({
     sectionKey: "Avaliacoes",
@@ -175,6 +199,18 @@ assert.equal(
   }),
   "#/avaliacoes/feedback-lider/operacao",
   "Workspace operacional deve ter rota propria"
+);
+
+assert.equal(
+  buildAppHash({
+    sectionKey: "Avaliacoes",
+    evaluationModuleKey: "manager",
+    evaluationWorkspace: "questions",
+    canViewEvaluationInsights: false,
+    canViewEvaluationLibrary: true
+  }),
+  "#/avaliacoes/feedback-lider/perguntas",
+  "Workspace de perguntas deve ter rota propria"
 );
 
 console.log("Frontend navigation tests passed.");
