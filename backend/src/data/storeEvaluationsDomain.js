@@ -177,15 +177,87 @@ export function filterReceivedManagerFeedback({
     });
 }
 
+const PEER_SAME_AREA_OPTION_POINTS = Object.freeze({
+  A: 0,
+  B: 0.0536,
+  C: 0.1071,
+  D: 0.1607,
+  E: 0.2143
+});
+
+function normalizePeerSameAreaOption(value) {
+  const normalized = String(value || "")
+    .trim()
+    .toUpperCase();
+  if (PEER_SAME_AREA_OPTION_POINTS[normalized] !== undefined) {
+    return normalized;
+  }
+
+  const text = normalized
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+  if (text.includes("MUITO ACIMA")) {
+    return "E";
+  }
+  if (text.includes("ACIMA")) {
+    return "D";
+  }
+  if (text.includes("DENTRO")) {
+    return "C";
+  }
+  if (text.includes("ABAIXO") && !text.includes("MUITO")) {
+    return "B";
+  }
+  if (text.includes("MUITO ABAIXO")) {
+    return "A";
+  }
+  return "";
+}
+
+function getPeerSameAreaOptionConcept(answer, templateDefinition) {
+  const selectedOption = Array.isArray(answer.selectedOptions)
+    ? answer.selectedOptions[0]
+    : null;
+  const question = templateDefinition?.questions?.find(
+    (item) => item.id === answer.questionId
+  );
+  const option = question?.options?.find(
+    (item) => String(item.value) === String(selectedOption)
+  );
+
+  return (
+    normalizePeerSameAreaOption(option?.label) ||
+    normalizePeerSameAreaOption(selectedOption) ||
+    (Number.isFinite(Number(answer.score))
+      ? normalizePeerSameAreaOption(["", "A", "B", "C", "D", "E"][Number(answer.score)])
+      : "")
+  );
+}
+
+function calculatePeerSameAreaScore(answers = [], templateDefinition = null) {
+  const total = answers.reduce((sum, answer) => {
+    const optionKey = getPeerSameAreaOptionConcept(answer, templateDefinition);
+    return sum + (PEER_SAME_AREA_OPTION_POINTS[optionKey] ?? 0);
+  }, 0);
+  return Number(total.toFixed(4));
+}
+
 export function prepareEvaluationSubmission({
   assignment,
+  templateDefinition,
   payload,
   createId,
   getAnsweredScaleScores,
   average
 }) {
   const scaleScores = getAnsweredScaleScores(payload.answers);
-  const overallScore = scaleScores.length ? Number(average(scaleScores).toFixed(2)) : null;
+  const overallScore =
+    assignment.relationshipType === "peer-same-area" ||
+    templateDefinition?.key === "peer-same-area"
+      ? calculatePeerSameAreaScore(payload.answers, templateDefinition)
+      : scaleScores.length
+        ? Number(average(scaleScores).toFixed(2))
+        : null;
 
   return {
     id: createId("submission"),

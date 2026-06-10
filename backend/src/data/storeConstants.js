@@ -33,6 +33,7 @@ export const DEFAULT_CYCLE_MODULE_AVAILABILITY = Object.freeze({
   leader: true,
   manager: true,
   peer: true,
+  "peer-same-area": true,
   "cross-functional": true,
   "client-internal": true,
   "client-external": true

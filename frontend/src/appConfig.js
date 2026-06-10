@@ -245,6 +245,14 @@ export const evaluationModules = [
     description: "Feedback entre pares com contexto real de colaboracao e entrega."
   },
   {
+    key: "peer-same-area",
+    relationshipType: "peer-same-area",
+    label: "Colega do Mesmo Setor",
+    audience: "Colega do mesmo setor avalia o colaborador",
+    description:
+      "Avaliacao A-E de sete perguntas que soma ate 1,5 ponto para o colaborador avaliado."
+  },
+  {
     key: "cross-functional",
     relationshipType: "cross-functional",
     label: "Feedback Transversal",

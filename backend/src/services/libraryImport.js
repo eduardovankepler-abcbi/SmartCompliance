@@ -9,6 +9,7 @@ import {
 
 const VALID_RELATIONSHIPS = [
   "peer",
+  "peer-same-area",
   "manager",
   "cross-functional",
   "client-internal",
@@ -20,6 +21,7 @@ const VALID_RELATIONSHIPS = [
 
 const DEFAULT_CONFIDENTIALITY = {
   peer: "mixed",
+  "peer-same-area": "mixed",
   manager: "mixed",
   "cross-functional": "mixed",
   "client-internal": "anonymous-aggregate",

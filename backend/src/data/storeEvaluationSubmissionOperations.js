@@ -73,6 +73,7 @@ export function createMemoryEvaluationSubmissionStore({
 
       const submission = prepareEvaluationSubmission({
         assignment,
+        templateDefinition,
         payload,
         createId,
         getAnsweredScaleScores,
@@ -222,6 +223,7 @@ export function createMysqlEvaluationSubmissionStore({
 
       const submission = prepareEvaluationSubmission({
         assignment,
+        templateDefinition,
         payload,
         createId,
         getAnsweredScaleScores,

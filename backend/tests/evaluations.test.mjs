@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { createTestContext } from "./testContext.mjs";
+import { prepareEvaluationSubmission } from "../src/data/storeEvaluationsDomain.js";
 
 export async function runEvaluationsRegression() {
   const context = await createTestContext();
@@ -259,6 +260,20 @@ export async function runEvaluationsRegression() {
       "Muito abaixo do esperado",
       "Template gerencial deve usar escala de desempenho"
     );
+    const sameAreaPeerTemplateFallback = await store.getEvaluationTemplateForCycleRelationship(
+      createdCycle.id,
+      "peer-same-area"
+    );
+    assert.equal(
+      sameAreaPeerTemplateFallback.questions.length,
+      7,
+      "Avaliacao por colaborador do mesmo setor deve ter exatamente 7 perguntas"
+    );
+    assert.deepEqual(
+      sameAreaPeerTemplateFallback.questions[0].options.map((option) => option.value),
+      ["A", "B", "C", "D", "E"],
+      "Avaliacao por colaborador do mesmo setor deve usar alternativas A-E"
+    );
 
     const managedQuestionnaire = await store.createEvaluationQuestionnaire(
       {
@@ -310,6 +325,88 @@ export async function runEvaluationsRegression() {
       managerRevieweeEmployee.id
     );
     await store.updateEvaluationCycleStatus(createdCycle.id, "Liberado", admin);
+
+    const sameAreaPeerAssignments = await store.getEvaluationAssignmentsForUser(manager.id);
+    const sameAreaPeerAssignment = sameAreaPeerAssignments.find(
+      (assignment) =>
+        assignment.relationshipType === "peer-same-area" &&
+        assignment.cycleId === createdCycle.id
+    );
+    assert.ok(
+      sameAreaPeerAssignment,
+      "Gestor deve receber avaliacao de colaborador do mesmo setor quando houver par elegivel"
+    );
+    assert.notEqual(
+      sameAreaPeerAssignment.revieweePersonId,
+      manager.personId,
+      "Avaliacao do mesmo setor deve pontuar o colaborador avaliado, nao o avaliador"
+    );
+    const sameAreaPeerAssignmentTemplate = await store.getEvaluationTemplateForAssignment(
+      sameAreaPeerAssignment.id,
+      manager.id
+    );
+    const sameAreaPeerSubmission = await store.submitEvaluationAssignment({
+      assignmentId: sameAreaPeerAssignment.id,
+      reviewerUserId: manager.id,
+      answers: sameAreaPeerAssignmentTemplate.questions.map((question) => ({
+        questionId: question.id,
+        score: null,
+        evidenceNote: "",
+        textValue: "",
+        selectedOptions: ["E"]
+      })),
+      strengthsNote: "Muito acima do esperado no mesmo setor.",
+      developmentNote: ""
+    });
+    assert.equal(
+      sameAreaPeerSubmission.revieweePersonId,
+      sameAreaPeerAssignment.revieweePersonId,
+      "Submissao do mesmo setor deve ficar vinculada ao colaborador avaliado"
+    );
+    assert.equal(
+      sameAreaPeerSubmission.overallScore,
+      1.5001,
+      "Sete respostas E devem somar 1,5001 por arredondamento"
+    );
+    assert.equal(
+      sameAreaPeerSubmission.weightedScore,
+      1.5,
+      "Pontuacao exibida nao deve multiplicar novamente o teto de 1,5"
+    );
+    const sameAreaPeerShuffledScore = prepareEvaluationSubmission({
+      assignment: {
+        id: "assignment_shuffled_same_area",
+        cycleId: createdCycle.id,
+        relationshipType: "peer-same-area",
+        revieweePersonId: managerRevieweeEmployee.personId
+      },
+      templateDefinition: {
+        key: "peer-same-area",
+        questions: sameAreaPeerAssignmentTemplate.questions.map((question) => ({
+          ...question,
+          options: [
+            { value: "A", label: "Muito acima do esperado" },
+            { value: "B", label: "Muito abaixo do esperado" }
+          ]
+        }))
+      },
+      payload: {
+        reviewerUserId: manager.id,
+        answers: sameAreaPeerAssignmentTemplate.questions.map((question) => ({
+          questionId: question.id,
+          selectedOptions: ["A"]
+        }))
+      },
+      createId: (prefix) => `${prefix}_shuffled`,
+      getAnsweredScaleScores: () => [],
+      average: () => 0
+    });
+    assert.equal(
+      sameAreaPeerShuffledScore.overallScore,
+      1.5001,
+      "Pontuacao do mesmo setor deve seguir o conceito da resposta, nao a letra da alternativa"
+    );
+
     const individualizedSubmission = await store.submitEvaluationAssignment({
       assignmentId: managedSelfAssignment.id,
       reviewerUserId: managerRevieweeEmployee.id,

@@ -27,6 +27,14 @@ export const performanceScale = [
   { value: 5, label: "Muito acima do esperado" }
 ];
 
+export const sameAreaPeerOptions = [
+  { value: "A", label: "Muito abaixo do esperado" },
+  { value: "B", label: "Abaixo do esperado" },
+  { value: "C", label: "Dentro do esperado" },
+  { value: "D", label: "Acima do esperado" },
+  { value: "E", label: "Muito acima do esperado" }
+];
+
 export const evaluationScaleProfiles = {
   satisfaction: satisfactionScale,
   agreement: agreementScale,
@@ -128,6 +136,7 @@ export const evaluationLibrary = {
   weights: {
     self: 0.15,
     peer: 0.15,
+    "peer-same-area": 1,
     manager: 0.25,
     "cross-functional": 0.1,
     "client-internal": 0.1,
@@ -226,6 +235,122 @@ export const evaluationLibrary = {
           visibility: "shared",
           scaleProfile: "satisfaction",
           collectEvidenceOnExtreme: true
+        })
+      ]
+    },
+    "peer-same-area": {
+      id: "t_peer_same_area",
+      key: "peer-same-area",
+      modelName: "Avaliacao por colaborador do mesmo setor",
+      description:
+        "Questionario padrao para colega do mesmo setor pontuar o colaborador avaliado.",
+      policy: {
+        strategy: "standard-library",
+        managerCustomQuestionsLimit: 0,
+        scale: sameAreaPeerOptions,
+        confidentiality: "mixed",
+        showStrengthsNote: true,
+        showDevelopmentNote: true,
+        maxScore: 1.5
+      },
+      questions: [
+        createMultiSelectQuestion({
+          id: "q_peer_same_area_01",
+          sectionKey: "same_area_peer",
+          sectionTitle: "Avaliacao do mesmo setor",
+          sectionDescription:
+            "Avalie a contribuicao observada no dia a dia por alguem do mesmo setor.",
+          dimensionKey: "role_clarity",
+          dimensionTitle: "Conhecimento da funcao",
+          prompt:
+            "Voce sabe quais sao as principais atividades e responsabilidades do colaborador avaliado?",
+          sortOrder: 1,
+          visibility: "shared",
+          options: sameAreaPeerOptions
+        }),
+        createMultiSelectQuestion({
+          id: "q_peer_same_area_02",
+          sectionKey: "same_area_peer",
+          sectionTitle: "Avaliacao do mesmo setor",
+          sectionDescription:
+            "Avalie a contribuicao observada no dia a dia por alguem do mesmo setor.",
+          dimensionKey: "delivery",
+          dimensionTitle: "Entrega",
+          prompt:
+            "O colaborador avaliado entrega suas atividades com qualidade e dentro do esperado para a funcao?",
+          sortOrder: 2,
+          visibility: "shared",
+          options: sameAreaPeerOptions
+        }),
+        createMultiSelectQuestion({
+          id: "q_peer_same_area_03",
+          sectionKey: "same_area_peer",
+          sectionTitle: "Avaliacao do mesmo setor",
+          sectionDescription:
+            "Avalie a contribuicao observada no dia a dia por alguem do mesmo setor.",
+          dimensionKey: "collaboration",
+          dimensionTitle: "Colaboracao",
+          prompt:
+            "O colaborador avaliado colabora com colegas do setor de forma produtiva e respeitosa?",
+          sortOrder: 3,
+          visibility: "shared",
+          options: sameAreaPeerOptions
+        }),
+        createMultiSelectQuestion({
+          id: "q_peer_same_area_04",
+          sectionKey: "same_area_peer",
+          sectionTitle: "Avaliacao do mesmo setor",
+          sectionDescription:
+            "Avalie a contribuicao observada no dia a dia por alguem do mesmo setor.",
+          dimensionKey: "communication",
+          dimensionTitle: "Comunicacao",
+          prompt:
+            "O colaborador avaliado comunica prioridades, pendencias e riscos com clareza para o setor?",
+          sortOrder: 4,
+          visibility: "shared",
+          options: sameAreaPeerOptions
+        }),
+        createMultiSelectQuestion({
+          id: "q_peer_same_area_05",
+          sectionKey: "same_area_peer",
+          sectionTitle: "Avaliacao do mesmo setor",
+          sectionDescription:
+            "Avalie a contribuicao observada no dia a dia por alguem do mesmo setor.",
+          dimensionKey: "accountability",
+          dimensionTitle: "Responsabilidade",
+          prompt:
+            "O colaborador avaliado assume combinados, acompanha demandas e responde por suas entregas?",
+          sortOrder: 5,
+          visibility: "shared",
+          options: sameAreaPeerOptions
+        }),
+        createMultiSelectQuestion({
+          id: "q_peer_same_area_06",
+          sectionKey: "same_area_peer",
+          sectionTitle: "Avaliacao do mesmo setor",
+          sectionDescription:
+            "Avalie a contribuicao observada no dia a dia por alguem do mesmo setor.",
+          dimensionKey: "technical_domain",
+          dimensionTitle: "Dominio tecnico",
+          prompt:
+            "O colaborador avaliado demonstra dominio tecnico adequado para apoiar as rotinas do setor?",
+          sortOrder: 6,
+          visibility: "shared",
+          options: sameAreaPeerOptions
+        }),
+        createMultiSelectQuestion({
+          id: "q_peer_same_area_07",
+          sectionKey: "same_area_peer",
+          sectionTitle: "Avaliacao do mesmo setor",
+          sectionDescription:
+            "Avalie a contribuicao observada no dia a dia por alguem do mesmo setor.",
+          dimensionKey: "team_impact",
+          dimensionTitle: "Impacto no setor",
+          prompt:
+            "O colaborador avaliado contribui positivamente para o desempenho e o clima do setor?",
+          sortOrder: 7,
+          visibility: "shared",
+          options: sameAreaPeerOptions
         })
       ]
     },

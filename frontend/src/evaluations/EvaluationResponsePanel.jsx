@@ -349,6 +349,7 @@ function RespondView({
               answerForm={answerForm}
               getVisibilityLabel={getVisibilityLabel}
               question={question}
+              relationshipType={assignmentDetail.assignment.relationshipType}
               scale={assignmentDetail.template.policy.scale}
               setAnswerForm={setAnswerForm}
               workspaceCopy={workspaceCopy}
@@ -527,6 +528,7 @@ function QuestionField({
   answerForm,
   getVisibilityLabel,
   question,
+  relationshipType,
   scale,
   setAnswerForm,
   workspaceCopy
@@ -537,6 +539,7 @@ function QuestionField({
   const scaleOptions = Array.isArray(scale) && scale.length
     ? scale
     : [1, 2, 3, 4, 5].map((value) => ({ value, label: String(value) }));
+  const isSingleChoice = relationshipType === "peer-same-area";
 
   return (
     <div className="list-card evaluation-question-panel">
@@ -573,7 +576,7 @@ function QuestionField({
         />
       ) : question.inputType === "multi-select" ? (
         <label className="field">
-          <span>Selecione uma ou mais opcoes</span>
+          <span>{isSingleChoice ? "Selecione uma opcao" : "Selecione uma ou mais opcoes"}</span>
           <div className="checkbox-stack">
             {(question.options || []).map((option) => {
               const isChecked = (answerValue.selectedOptions || []).includes(option.value);
@@ -584,10 +587,17 @@ function QuestionField({
                     type="checkbox"
                     onChange={() => {
                       const current = new Set(answerValue.selectedOptions || []);
-                      if (current.has(option.value)) {
-                        current.delete(option.value);
+                      if (isSingleChoice) {
+                        current.clear();
+                        if (!isChecked) {
+                          current.add(option.value);
+                        }
                       } else {
-                        current.add(option.value);
+                        if (current.has(option.value)) {
+                          current.delete(option.value);
+                        } else {
+                          current.add(option.value);
+                        }
                       }
                       setAnswerForm({
                         ...answerForm,

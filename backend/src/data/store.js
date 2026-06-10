@@ -1659,6 +1659,9 @@ function resolveTemplateKey(relationshipType) {
   if (relationshipType === "manager") {
     return "manager";
   }
+  if (relationshipType === "peer-same-area") {
+    return "peer-same-area";
+  }
   if (relationshipType === "cross-functional") {
     return "cross-functional";
   }
@@ -2608,6 +2611,10 @@ function validateEvaluationAnswers(answers, templateDefinition) {
     throw new Error("Avaliacao precisa conter respostas.");
   }
 
+  const requiresSingleChoice =
+    templateDefinition?.key === "peer-same-area" ||
+    templateDefinition?.relationshipType === "peer-same-area";
+
   for (const question of templateDefinition.questions.filter((item) => item.isRequired)) {
     const answer = answers.find((item) => item.questionId === question.id);
     if (!answer) {
@@ -2627,6 +2634,9 @@ function validateEvaluationAnswers(answers, templateDefinition) {
         : [];
       if (!selectedOptions.length) {
         throw new Error("Perguntas de multipla escolha exigem ao menos uma opcao.");
+      }
+      if (requiresSingleChoice && selectedOptions.length !== 1) {
+        throw new Error("Avaliacao por colaborador do mesmo setor exige uma alternativa por pergunta.");
       }
       const validOptions = new Set((question.options || []).map((item) => item.value));
       if (selectedOptions.some((item) => !validOptions.has(item))) {
@@ -2751,6 +2761,7 @@ function generateAssignments({ users, people, cycleId, dueDate, crossFunctionalP
     const managerPerson = getManagerPerson(people, actor.person);
     const managerUser = managerPerson ? getUserByPersonId(users, managerPerson.id) : null;
     const peerCandidate = sameAreaCandidates[0] || anyPeerCandidates[0] || null;
+    const sameAreaPeerCandidate = sameAreaCandidates[0] || null;
     const crossFunctionalCandidates = crossFunctionalPairsByReviewer[actor.id] || [];
     const primaryCrossFunctionalCandidate = crossFunctionalCandidates[0] || null;
     const clientInternalCandidate =
@@ -2812,6 +2823,21 @@ function generateAssignments({ users, people, cycleId, dueDate, crossFunctionalP
         relationshipType: "manager",
         projectContext: "Rotina da area",
         collaborationContext: "Avaliacao gerencial semestral.",
+        status: "pending",
+        dueDate
+      });
+    }
+
+    if (sameAreaPeerCandidate) {
+      pushAssignment(assignments, {
+        id: createId("assignment"),
+        cycleId,
+        reviewerUserId: actor.id,
+        revieweePersonId: sameAreaPeerCandidate.person.id,
+        relationshipType: "peer-same-area",
+        projectContext: "Avaliacao por colaborador do mesmo setor",
+        collaborationContext:
+          "Pontuacao complementar feita por colega do mesmo setor para o colaborador avaliado.",
         status: "pending",
         dueDate
       });

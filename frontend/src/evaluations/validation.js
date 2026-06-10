@@ -1,5 +1,6 @@
 export function validateEvaluationAnswerForm({ template, answerForm }) {
   const questions = template?.questions || [];
+  const requiresSingleChoice = template?.key === "peer-same-area";
 
   for (const question of questions) {
     if (!question?.isRequired) {
@@ -23,6 +24,12 @@ export function validateEvaluationAnswerForm({ template, answerForm }) {
         return {
           ok: false,
           message: `Selecione pelo menos uma opcao em: ${question.dimensionTitle || question.prompt}.`
+        };
+      }
+      if (requiresSingleChoice && answerValue.selectedOptions.length !== 1) {
+        return {
+          ok: false,
+          message: `Selecione apenas uma opcao em: ${question.dimensionTitle || question.prompt}.`
         };
       }
       continue;
@@ -50,4 +57,3 @@ export function validateEvaluationAnswerForm({ template, answerForm }) {
 
   return { ok: true, message: "" };
 }
-

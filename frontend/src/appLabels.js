@@ -93,6 +93,22 @@ export function getEvaluationWorkspaceCopy(moduleKey, workspace = "respond") {
       emptyAssignmentsDescription:
         "Solicite ou aguarde a aprovacao de fornecedores para este ciclo."
     },
+    "peer-same-area": {
+      heading:
+        workspace === "insights" ? "Leitura do mesmo setor" : "Avaliacao do mesmo setor",
+      description:
+        workspace === "insights"
+          ? "Acompanhe a pontuacao complementar atribuida por colegas do mesmo setor ao colaborador avaliado."
+          : "Responda as sete perguntas A-E sobre um colega do mesmo setor. A soma maxima desta avaliacao e 1,5 ponto.",
+      responseTitle: "Responder avaliacao do mesmo setor",
+      submitLabel: "Enviar avaliacao do mesmo setor",
+      evidenceLabel: "Evidencia observada",
+      strengthsLabel: "Pontos fortes observados",
+      developmentLabel: "Pontos de desenvolvimento observados",
+      emptyAssignmentsTitle: "Nenhuma avaliacao do mesmo setor",
+      emptyAssignmentsDescription:
+        "Esta modalidade aparece quando ha outro colaborador elegivel no mesmo setor e unidade."
+    },
     "cross-functional": {
       heading: workspace === "insights" ? "Leitura de feedback transversal" : "Feedback transversal",
       description:
@@ -191,6 +207,23 @@ export function getEvaluationModuleExperience(moduleKey, workspace = "respond") 
               { label: "Base", value: "Experiencia de trabalho direto" },
               { label: "Foco", value: "Entrega, parceria e confiabilidade" },
               { label: "Regra", value: "Ate 3 fornecedores por ciclo" }
+            ]
+    },
+    "peer-same-area": {
+      tone: "peer",
+      spotlightTitle:
+        workspace === "insights" ? "Pontuacao do colaborador avaliado" : "Colega do mesmo setor",
+      spotlightItems:
+        workspace === "insights"
+          ? [
+              { label: "Origem", value: "Colega do mesmo setor" },
+              { label: "Uso", value: "Pontuacao do avaliado" },
+              { label: "Maximo", value: "1,5 ponto" }
+            ]
+          : [
+              { label: "Escala", value: "A a E" },
+              { label: "Perguntas", value: "7 obrigatorias" },
+              { label: "Resultado", value: "Ate 1,5 ponto" }
             ]
     },
     company: {

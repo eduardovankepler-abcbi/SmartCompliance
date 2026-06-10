@@ -31,7 +31,7 @@ import {
 
 const appSource = fs.readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8");
 
-assert.equal(evaluationModules.length, 9, "Configuracao de modulos de avaliacao deve permanecer completa");
+assert.equal(evaluationModules.length, 10, "Configuracao de modulos de avaliacao deve permanecer completa");
 assert.equal(
   getEvaluationModule("peer")?.key,
   "peer",
@@ -61,6 +61,10 @@ assert.equal(getVisibilityLabel("confidential"), "Confidencial");
 assert.equal(getVisibilityLabel("private"), "Privada");
 assert.equal(getVisibilityLabel("shared"), "Compartilhada");
 assert.equal(getRelationshipLabel("peer-same-area"), "Colega do mesmo setor");
+assert.equal(
+  getEvaluationModule("peer-same-area")?.description,
+  "Avaliacao A-E de sete perguntas que soma ate 1,5 ponto para o colaborador avaliado."
+);
 assert.match(
   appSource,
   /<AppSceneRenderer[\s\S]*\bdashboardProps=\{dashboardSceneProps\}[\s\S]*\bpeopleProps=\{peopleSceneProps\}[\s\S]*\busersProps=\{usersSceneProps\}/,
@@ -302,6 +306,29 @@ assert.deepEqual(
   }).ok,
   false,
   "Validacao deve exigir evidencia em notas extremas quando configurado"
+);
+assert.deepEqual(
+  validateEvaluationAnswerForm({
+    template: {
+      key: "peer-same-area",
+      questions: [
+        {
+          id: "q1",
+          isRequired: true,
+          inputType: "multi-select",
+          dimensionTitle: "Mesmo setor",
+          prompt: "Avalie.",
+          options: [
+            { value: "A", label: "Muito abaixo do esperado" },
+            { value: "B", label: "Abaixo do esperado" }
+          ]
+        }
+      ]
+    },
+    answerForm: { q1: { selectedOptions: ["A", "B"] } }
+  }).ok,
+  false,
+  "Avaliacao do mesmo setor deve aceitar apenas uma alternativa por pergunta"
 );
 
 console.log("Frontend shared helper tests passed.");
