@@ -255,7 +255,7 @@ export const evaluationModules = [
   {
     key: "cross-functional",
     relationshipType: "cross-functional",
-    label: "Feedback Transversal",
+    label: "Colega de Outro Setor",
     audience: "Colaborador de outra area na mesma unidade",
     description: "Leitura confidencial da colaboracao entre areas da mesma unidade."
   },

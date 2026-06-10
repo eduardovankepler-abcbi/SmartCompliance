@@ -110,13 +110,13 @@ export function getEvaluationWorkspaceCopy(moduleKey, workspace = "respond") {
         "Esta modalidade aparece quando ha outro colaborador elegivel no mesmo setor e unidade."
     },
     "cross-functional": {
-      heading: workspace === "insights" ? "Leitura de feedback transversal" : "Feedback transversal",
+      heading: workspace === "insights" ? "Leitura de colega de outro setor" : "Colega de outro setor",
       description:
         workspace === "insights"
-          ? "Leitura confidencial da colaboracao transversal entre areas da mesma unidade."
-          : "Avalie a colaboracao observada entre areas da mesma unidade.",
-      responseTitle: "Responder feedback transversal",
-      submitLabel: "Enviar feedback transversal",
+          ? "Leitura confidencial da colaboracao entre setores da mesma unidade."
+          : "Avalie a colaboracao observada com colega de outro setor na mesma unidade.",
+      responseTitle: "Responder avaliacao de colega de outro setor",
+      submitLabel: "Enviar avaliacao",
       evidenceLabel: "Sinais observados",
       strengthsLabel: "Fortes sinais de relacionamento",
       developmentLabel: "Oportunidades de interacao"
