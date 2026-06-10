@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { getRelationshipLabel } from "../appLabels.js";
 
 const emptyCompetencyForm = {
@@ -127,9 +127,11 @@ export function EvaluationLibraryPanel({
   const [activeTab, setActiveTab] = useState("questions");
   const [activeRelationshipType, setActiveRelationshipType] = useState("");
   const [editingQuestionId, setEditingQuestionId] = useState("");
+  const [isQuestionFormOpen, setIsQuestionFormOpen] = useState(false);
   const [questionForm, setQuestionForm] = useState(emptyQuestionForm);
   const [competencyForm, setCompetencyForm] = useState(emptyCompetencyForm);
   const [competencyDrafts, setCompetencyDrafts] = useState({});
+  const questionFormRef = useRef(null);
   const questionGroups = useMemo(
     () =>
       (evaluationLibrary?.questionGroups || evaluationLibrary?.templates || []).map((group) => ({
@@ -179,6 +181,12 @@ export function EvaluationLibraryPanel({
     setQuestionForm(buildQuestionDraft(question, activeGroup?.relationshipType || "self"));
   }, [activeGroup?.relationshipType, activeQuestions, editingQuestionId]);
 
+  useEffect(() => {
+    if (isQuestionFormOpen) {
+      questionFormRef.current?.scrollIntoView?.({ behavior: "smooth", block: "start" });
+    }
+  }, [editingQuestionId, isQuestionFormOpen]);
+
   if (!canViewEvaluationLibrary || !showEvaluationLibrary) {
     return null;
   }
@@ -192,6 +200,7 @@ export function EvaluationLibraryPanel({
       await handleEvaluationLibraryQuestionCreate(payload);
     }
     setEditingQuestionId("");
+    setIsQuestionFormOpen(false);
   }
 
   async function onQuestionReorder(questionId, direction) {
@@ -271,6 +280,7 @@ export function EvaluationLibraryPanel({
                     }
                     onClick={() => {
                       setEditingQuestionId("");
+                      setIsQuestionFormOpen(false);
                       setActiveRelationshipType(group.relationshipType);
                     }}
                   >
@@ -281,7 +291,30 @@ export function EvaluationLibraryPanel({
               </div>
             </div>
 
-            <form className="list-card" onSubmit={onQuestionSubmit}>
+            <div className="list-card compact-list-card">
+              <div className="card-header">
+                <div>
+                  <strong>{getRelationshipLabel(activeGroup?.relationshipType || "")}</strong>
+                  <p className="muted">
+                    {activeQuestions.length} pergunta(s) nesta modalidade.
+                  </p>
+                </div>
+                <button
+                  className="primary-button"
+                  disabled={!canManageEvaluationQuestions}
+                  type="button"
+                  onClick={() => {
+                    setEditingQuestionId("");
+                    setIsQuestionFormOpen(true);
+                  }}
+                >
+                  Nova pergunta
+                </button>
+              </div>
+            </div>
+
+            {isQuestionFormOpen ? (
+            <form className="list-card" ref={questionFormRef} onSubmit={onQuestionSubmit}>
               <div className="card-header">
                 <div>
                   <strong>{editingQuestionId ? "Editar pergunta" : "Nova pergunta"}</strong>
@@ -392,16 +425,18 @@ export function EvaluationLibraryPanel({
                   <span>Evidencia em extremos</span>
                 </label>
               </div>
-              {editingQuestionId ? (
-                <button
-                  className="refresh"
-                  type="button"
-                  onClick={() => setEditingQuestionId("")}
-                >
-                  Cancelar edicao
-                </button>
-              ) : null}
+              <button
+                className="refresh"
+                type="button"
+                onClick={() => {
+                  setEditingQuestionId("");
+                  setIsQuestionFormOpen(false);
+                }}
+              >
+                {editingQuestionId ? "Cancelar edicao" : "Fechar formulario"}
+              </button>
             </form>
+            ) : null}
 
             <div className="stack-list">
               {activeQuestions.map((question, index) => (
@@ -432,7 +467,10 @@ export function EvaluationLibraryPanel({
                       type="button"
                       className="refresh"
                       disabled={!canManageEvaluationQuestions}
-                      onClick={() => setEditingQuestionId(question.id)}
+                      onClick={() => {
+                        setEditingQuestionId(question.id);
+                        setIsQuestionFormOpen(true);
+                      }}
                     >
                       Editar
                     </button>

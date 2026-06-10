@@ -1778,6 +1778,7 @@ export function useEvaluations({
     filteredFeedbackRequests,
     filteredIndividualResponses,
     filteredReceivedManagerFeedback,
+    cancelEvaluationQuestionEdit,
     handleEvaluationQuestionDelete,
     handleCloneQuestionnaireFromExisting,
     handleEvaluationQuestionReorder,

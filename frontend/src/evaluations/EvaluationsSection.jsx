@@ -416,6 +416,7 @@ export function EvaluationsSection(props) {
         evaluationQuestionnaireRequiredCounts={props.evaluationQuestionnaireRequiredCounts}
         evaluationQuestionnaires={props.evaluationQuestionnaires}
         formatDate={formatDate}
+        cancelEvaluationQuestionEdit={props.cancelEvaluationQuestionEdit}
         handleCloneQuestionnaireFromExisting={props.handleCloneQuestionnaireFromExisting}
         handleEvaluationQuestionDelete={props.handleEvaluationQuestionDelete}
         handleEvaluationQuestionReorder={props.handleEvaluationQuestionReorder}

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { getRelationshipDescription, getRelationshipLabel } from "../appLabels.js";
 
 function NativeInputField({ label, value = "", onChange, type = "text" }) {
@@ -67,6 +67,7 @@ export function EvaluationQuestionnairePanel({
   Input,
   Select,
   Textarea,
+  cancelEvaluationQuestionEdit,
   canViewEvaluationLibrary,
   cycles,
   editingEvaluationQuestionId,
@@ -107,6 +108,8 @@ export function EvaluationQuestionnairePanel({
   const SafeSelect = Select || NativeSelectField;
   const SafeTextarea = Textarea || NativeTextareaField;
   const [cloneSourceQuestionnaireId, setCloneSourceQuestionnaireId] = useState("");
+  const [isQuestionFormOpen, setIsQuestionFormOpen] = useState(false);
+  const questionFormRef = useRef(null);
   const cloneCandidates = useMemo(
     () =>
       (evaluationQuestionnaires || []).filter(
@@ -117,6 +120,22 @@ export function EvaluationQuestionnairePanel({
       ),
     [evaluationQuestionnaires, selectedEvaluationQuestionnaire]
   );
+
+  useEffect(() => {
+    setIsQuestionFormOpen(false);
+  }, [selectedEvaluationQuestionnaireId]);
+
+  useEffect(() => {
+    if (editingEvaluationQuestionId) {
+      setIsQuestionFormOpen(true);
+    }
+  }, [editingEvaluationQuestionId]);
+
+  useEffect(() => {
+    if (isQuestionFormOpen) {
+      questionFormRef.current?.scrollIntoView?.({ behavior: "smooth", block: "start" });
+    }
+  }, [editingEvaluationQuestionId, isQuestionFormOpen]);
 
   if (!canViewEvaluationLibrary || !showEvaluationQuestionnaires) {
     return null;
@@ -498,7 +517,7 @@ export function EvaluationQuestionnairePanel({
                   ) : null}
                 </form>
 
-                <form className="list-card" onSubmit={handleEvaluationQuestionSave}>
+                <div className="list-card">
                   <div className="card-header">
                     <div>
                       <strong>{isDraft ? "Perguntas personalizadas" : "Perguntas publicadas"}</strong>
@@ -507,7 +526,20 @@ export function EvaluationQuestionnairePanel({
                         {getRelationshipLabel(selectedEvaluationQuestionnaire.relationshipType).toLowerCase()}
                       </p>
                     </div>
-                    <span className="badge">{selectedEvaluationQuestionnaire.versionNumber}a versao</span>
+                    <div className="row">
+                      <span className="badge">{selectedEvaluationQuestionnaire.versionNumber}a versao</span>
+                      <button
+                        className="primary-button"
+                        disabled={!isDraft}
+                        type="button"
+                        onClick={() => {
+                          cancelEvaluationQuestionEdit?.();
+                          setIsQuestionFormOpen(true);
+                        }}
+                      >
+                        Nova pergunta
+                      </button>
+                    </div>
                   </div>
                   {isDraft ? (
                     <div className="list-card compact-list-card">
@@ -557,6 +589,27 @@ export function EvaluationQuestionnairePanel({
                       </div>
                     </div>
                   ) : null}
+                </div>
+
+                {isQuestionFormOpen ? (
+                <form
+                  className="list-card"
+                  ref={questionFormRef}
+                  onSubmit={handleEvaluationQuestionSave}
+                >
+                  <div className="card-header">
+                    <div>
+                      <strong>
+                        {editingEvaluationQuestionId ? "Editar pergunta" : "Nova pergunta"}
+                      </strong>
+                      <p className="muted">
+                        {getRelationshipLabel(selectedEvaluationQuestionnaire.relationshipType)}
+                      </p>
+                    </div>
+                    <button className="primary-button" disabled={!isDraft} type="submit">
+                      {editingEvaluationQuestionId ? "Salvar pergunta" : "Adicionar pergunta"}
+                    </button>
+                  </div>
                   <div className="dashboard-filter-grid">
                     <SafeInput
                       label="Ordem"
@@ -708,19 +761,23 @@ export function EvaluationQuestionnairePanel({
                     </label>
                   </div>
                   <div className="row">
-                    <button className="primary-button" disabled={!isDraft} type="submit">
-                      {editingEvaluationQuestionId ? "Salvar pergunta" : "Adicionar pergunta"}
+                    <button
+                      className="refresh"
+                      type="button"
+                      onClick={() => {
+                        cancelEvaluationQuestionEdit?.();
+                        setIsQuestionFormOpen(false);
+                      }}
+                    >
+                      Fechar formulario
                     </button>
-                    <span className="muted">
-                      Depois de publicado, o questionario fica congelado para manter privacidade e
-                      rastreabilidade.
-                    </span>
                   </div>
                   <p className="muted">
                     Valido no frontend: dimensao, titulo, pergunta, ordem positiva e opcoes para
                     multipla escolha.
                   </p>
                 </form>
+                ) : null}
 
                 <div className="stack-list">
                   {currentQuestions.map((question, index) => (
@@ -752,7 +809,10 @@ export function EvaluationQuestionnairePanel({
                           type="button"
                           className="refresh"
                           disabled={!isDraft}
-                          onClick={() => startEvaluationQuestionEdit(question)}
+                          onClick={() => {
+                            setIsQuestionFormOpen(true);
+                            startEvaluationQuestionEdit(question);
+                          }}
                         >
                           Editar
                         </button>
