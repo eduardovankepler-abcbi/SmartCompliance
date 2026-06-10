@@ -1439,6 +1439,46 @@ export function useEvaluations({
     }
   }
 
+  async function handleEvaluationLibraryQuestionCreate(payload) {
+    try {
+      setError("");
+      await api.createEvaluationLibraryQuestion(payload);
+      await reloadData();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function handleEvaluationLibraryQuestionUpdate(questionId, payload) {
+    try {
+      setError("");
+      await api.updateEvaluationLibraryQuestion(questionId, payload);
+      await reloadData();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function handleEvaluationLibraryQuestionDelete(questionId) {
+    try {
+      setError("");
+      await api.deleteEvaluationLibraryQuestion(questionId);
+      await reloadData();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function handleEvaluationLibraryQuestionsReorder(relationshipType, questionIds) {
+    try {
+      setError("");
+      await api.reorderEvaluationLibraryQuestions(relationshipType, questionIds);
+      await reloadData();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
   function setEvaluationQuestionnairePolicyValue(key, value) {
     setEvaluationQuestionnaireDraft((current) => ({
       ...current,
@@ -1752,6 +1792,10 @@ export function useEvaluations({
     handleCustomLibraryUpdate,
     handleCustomLibraryTemplateDownload,
     handleCustomLibraryPublish,
+    handleEvaluationLibraryQuestionCreate,
+    handleEvaluationLibraryQuestionUpdate,
+    handleEvaluationLibraryQuestionDelete,
+    handleEvaluationLibraryQuestionsReorder,
     handleForceCrossFunctionalPairing,
     handleBlockCrossFunctionalPairing,
     handleTransversalConfigSubmit,

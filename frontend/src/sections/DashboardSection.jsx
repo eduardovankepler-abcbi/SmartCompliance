@@ -198,8 +198,13 @@ export function DashboardSection({
   const focusPills = [
     { label: "Recorte", value: currentCompositionLabel, tone: "neutral" },
     {
-      label: "Area",
-      value: dashboardAreaFilter === "all" ? "Todas" : dashboardAreaFilter,
+      label: dashboard?.mode === "team" ? "Escopo" : "Area",
+      value:
+        dashboard?.mode === "team"
+          ? "Equipe direta"
+          : dashboardAreaFilter === "all"
+            ? "Todas"
+            : dashboardAreaFilter,
       tone: "positive"
     },
     {

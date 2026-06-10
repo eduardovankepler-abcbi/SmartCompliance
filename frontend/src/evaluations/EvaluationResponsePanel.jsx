@@ -193,7 +193,7 @@ export function EvaluationResponsePanel({
           ) : (
             <div className="list-card">
               <strong>Leituras restritas</strong>
-              <p className="muted">Disponivel apenas para gestor, RH e administrador.</p>
+              <p className="muted">Disponivel apenas para gestor, RH e administrador neste fluxo.</p>
             </div>
           )}
         </div>
@@ -251,7 +251,7 @@ function RespondView({
     return (
       <div className="list-card">
         <strong>{workspaceCopy.selectionTitle}</strong>
-        <p className="muted">Selecione um item para continuar.</p>
+        <p className="muted">{workspaceCopy.selectionDescription}</p>
       </div>
     );
   }
@@ -260,7 +260,7 @@ function RespondView({
     return (
       <div className="list-card">
         <strong>Avaliacao ja enviada</strong>
-        <p className="muted">Escolha outro item pendente.</p>
+        <p className="muted">Escolha outro item pendente para continuar.</p>
       </div>
     );
   }
@@ -672,7 +672,7 @@ function InsightsResponseList({
           <div>
             <strong>Painel de leitura</strong>
             <p className="muted">
-              Sintese do recorte atual com respostas visiveis e consolidados anonimizados.
+              Sintese do recorte atual com respostas visiveis e leituras consolidadas anonimizadas.
             </p>
           </div>
           <span className="badge">Leituras</span>
@@ -719,7 +719,7 @@ function InsightsResponseList({
 
       <div className="list-card">
         <strong>Respostas individuais visiveis</strong>
-        <p className="muted">Lideranca e empresa aparecem apenas de forma agregada.</p>
+        <p className="muted">Lideranca e empresa aparecem apenas em leitura consolidada.</p>
       </div>
       {filteredIndividualResponses.length ? (
         filteredIndividualResponses.map((response) => (
@@ -759,9 +759,9 @@ function InsightsResponseList({
         ))
       ) : (
         <div className="list-card">
-          <strong>Sem respostas individuais neste submodulo</strong>
+          <strong>Sem respostas individuais nesta modalidade</strong>
           <p className="muted">
-            O recorte atual nao possui respostas individuais visiveis para o seu perfil.
+            O recorte atual nao possui respostas individuais visiveis para o seu perfil nesta modalidade.
           </p>
         </div>
       )}
@@ -773,7 +773,7 @@ function InsightsResponseList({
               <div>
                 <strong>{getRelationshipLabel(aggregate.relationshipType)}</strong>
                 <p className="muted">
-                  {aggregate.totalResponses} resposta(s) consolidadas no recorte.
+                  {aggregate.totalResponses} resposta(s) consolidadas nesta modalidade.
                 </p>
               </div>
               <span className={`badge evaluation-insight-badge ${getScoreTone(aggregate.averageScore)}`}>
@@ -810,9 +810,9 @@ function InsightsResponseList({
         ))
       ) : (
         <div className="list-card">
-          <strong>Sem leitura agregada neste submodulo</strong>
+          <strong>Sem leitura consolidada nesta modalidade</strong>
           <p className="muted">
-            O recorte atual ainda nao atingiu o minimo necessario ou nao usa agregacao.
+            O recorte atual ainda nao atingiu o minimo necessario para consolidacao anonima.
           </p>
         </div>
       )}

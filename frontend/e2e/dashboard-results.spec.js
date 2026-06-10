@@ -11,7 +11,7 @@ test("admin explora o dashboard analitico de resultados", async ({ page }) => {
   await expect(page.getByText("Filtros do dashboard")).toBeVisible();
 
   await page.getByRole("button", { name: /Leitura analitica/i }).click();
-  await expect(page.getByText("Leitura executiva do recorte")).toBeVisible();
+  await expect(page.getByText("Sintese rapida do recorte")).toBeVisible();
 
   const areaSelect = page
     .locator(".dashboard-filter-select-card")

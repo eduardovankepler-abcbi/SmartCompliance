@@ -134,8 +134,8 @@ export function DashboardOperationsPanels({
                   title="Resultado por modalidade"
                   subtitle={
                     selectedDashboardCompositionMeta
-                      ? `Visao macro e detalhamento de ${selectedDashboardCompositionMeta.label}`
-                      : "Visao consolidada e drilldown por modalidade"
+                      ? `Resumo macro e detalhamento de ${selectedDashboardCompositionMeta.label}`
+                      : "Resumo consolidado com detalhamento por modalidade"
                   }
                   tone="secondary"
                 />
@@ -255,7 +255,7 @@ export function DashboardOperationsPanels({
                     <div className="list-card">
                       <strong>Sem respostas para o filtro aplicado</strong>
                       <p className="muted">
-                        Ajuste o elemento da composicao do ciclo ou o recorte de area/setor para visualizar dados consolidados.
+                        Ajuste a modalidade analisada ou revise o recorte atual para liberar a leitura consolidada.
                       </p>
                     </div>
                   )}
@@ -669,7 +669,7 @@ function SelectedRelationshipPanel({
             <div className="dashboard-empty-relationship-state">
               <strong>Sem respostas para esta area</strong>
               <p className="muted">
-                Ajuste o filtro de area ou aguarde novas respostas da avaliacao de satisfacao.
+                Ajuste o filtro aplicado ou aguarde novas respostas da avaliacao de satisfacao.
               </p>
             </div>
           )}
@@ -723,7 +723,7 @@ function SelectedRelationshipPanel({
           <strong>Sem detalhe analitico disponivel</strong>
           <p className="muted">
             {summary?.totalResponses
-              ? "Esta modalidade ainda nao tem granularidade suficiente para abrir o nivel pergunta por pergunta."
+              ? "Esta modalidade ainda nao tem volume suficiente para abrir a leitura pergunta por pergunta."
               : "Ainda nao existem respostas registradas para esta modalidade neste recorte."}
           </p>
         </div>

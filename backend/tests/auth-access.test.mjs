@@ -91,6 +91,91 @@ export async function runAuthAccessRegression() {
     );
     assert.equal(managerResponses.response.status, 200, "Gestor deve acessar respostas do time");
 
+    const adminBlockedQuestionCreate = await sendJson("/api/evaluations/library/questions", {
+      headers: getAuthHeader(admin.id),
+      body: {
+        relationshipType: "self",
+        dimensionKey: "admin-blocked",
+        dimensionTitle: "Bloqueio administrativo",
+        prompt: "Admin nao deve alterar esta pergunta.",
+        sortOrder: 99,
+        inputType: "scale",
+        scaleProfile: "performance",
+        visibility: "shared"
+      }
+    });
+    assert.equal(
+      adminBlockedQuestionCreate.response.status,
+      403,
+      "Somente RH deve alterar perguntas da avaliacao"
+    );
+
+    const hrCreatedQuestion = await sendJson("/api/evaluations/library/questions", {
+      headers: getAuthHeader(hr.id),
+      body: {
+        relationshipType: "self",
+        dimensionKey: "manual-regression",
+        dimensionTitle: "Pergunta manual",
+        prompt: "Pergunta criada pelo RH para regressao.",
+        sortOrder: 99,
+        inputType: "multi-select",
+        options: [
+          { value: "sim", label: "Sim" },
+          { value: "nao", label: "Nao" }
+        ],
+        visibility: "shared"
+      }
+    });
+    assert.equal(
+      hrCreatedQuestion.response.status,
+      201,
+      "RH deve criar pergunta manual de avaliacao"
+    );
+    const createdQuestion = hrCreatedQuestion.payload.questionGroups
+      .find((group) => group.key === "self")
+      ?.questions.find((question) => question.dimensionKey === "manual-regression");
+    assert.ok(createdQuestion, "Pergunta manual criada deve voltar na biblioteca");
+
+    const hrUpdatedQuestion = await sendJson(
+      `/api/evaluations/library/questions/${createdQuestion.id}`,
+      {
+        method: "PATCH",
+        headers: getAuthHeader(hr.id),
+        body: {
+          relationshipType: "self",
+          dimensionKey: "manual-regression",
+          dimensionTitle: "Pergunta manual revisada",
+          prompt: "Pergunta revisada pelo RH para regressao.",
+          sortOrder: 99,
+          inputType: "multi-select",
+          options: [
+            { value: "alto", label: "Alto" },
+            { value: "baixo", label: "Baixo" }
+          ],
+          visibility: "confidential",
+          isSensitive: true
+        }
+      }
+    );
+    assert.equal(
+      hrUpdatedQuestion.response.status,
+      200,
+      "RH deve editar pergunta manual de avaliacao"
+    );
+
+    const hrDeletedQuestion = await sendJson(
+      `/api/evaluations/library/questions/${createdQuestion.id}`,
+      {
+        method: "DELETE",
+        headers: getAuthHeader(hr.id)
+      }
+    );
+    assert.equal(
+      hrDeletedQuestion.response.status,
+      200,
+      "RH deve remover pergunta manual de avaliacao"
+    );
+
     const managerDashboardBaseline = await fetchJson(
       "/api/dashboards/overview",
       getAuthHeader(manager.id)
@@ -244,6 +329,16 @@ export async function runAuthAccessRegression() {
     assert.ok(
       Array.isArray(adminDashboard.payload.satisfactionQuestionAnalytics),
       "Dashboard deve retornar leitura de satisfacao por pergunta"
+    );
+    const anonymousDashboardSummaries = adminDashboard.payload.evaluationResultsSummary.filter(
+      (item) =>
+        ["leader", "company", "client-internal", "client-external"].includes(
+          item.relationshipType
+        )
+    );
+    assert.ok(
+      anonymousDashboardSummaries.every((item) => item.adherencePercentage <= 100),
+      "Dashboard nao deve inflar adesao de modalidades anonimas com respostas fora do escopo"
     );
     assert.ok(
       adminDashboard.payload.satisfactionQuestionAnalytics.every(

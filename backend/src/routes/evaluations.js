@@ -33,6 +33,53 @@ export function createEvaluationsRouter(store) {
     }
   });
 
+  router.post("/library/questions", requireRoles("hr"), async (req, res) => {
+    try {
+      res.status(201).json(
+        await store.createEvaluationLibraryQuestion(req.body || {}, req.auth.user)
+      );
+    } catch (error) {
+      res.status(400).json({ error: error.message || "Falha ao criar pergunta de avaliacao." });
+    }
+  });
+
+  router.patch("/library/questions/:questionId", requireRoles("hr"), async (req, res) => {
+    try {
+      res.json(
+        await store.updateEvaluationLibraryQuestion(
+          req.params.questionId,
+          req.body || {},
+          req.auth.user
+        )
+      );
+    } catch (error) {
+      res.status(400).json({ error: error.message || "Falha ao atualizar pergunta de avaliacao." });
+    }
+  });
+
+  router.delete("/library/questions/:questionId", requireRoles("hr"), async (req, res) => {
+    try {
+      res.json(await store.deleteEvaluationLibraryQuestion(req.params.questionId, req.auth.user));
+    } catch (error) {
+      res.status(400).json({ error: error.message || "Falha ao remover pergunta de avaliacao." });
+    }
+  });
+
+  router.post("/library/questions/reorder", requireRoles("hr"), async (req, res) => {
+    try {
+      const { relationshipType, questionIds } = req.body || {};
+      res.json(
+        await store.reorderEvaluationLibraryQuestions(
+          relationshipType,
+          questionIds,
+          req.auth.user
+        )
+      );
+    } catch (error) {
+      res.status(400).json({ error: error.message || "Falha ao reordenar perguntas." });
+    }
+  });
+
   router.get("/cycles", requireRoles("admin", "hr", "manager", "employee"), async (req, res, next) => {
     try {
       res.json(await store.getEvaluationCycles(req.auth.user));

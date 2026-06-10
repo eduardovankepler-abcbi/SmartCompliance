@@ -398,6 +398,14 @@ export function buildAppSceneProps(context) {
         handleCustomLibraryPublish: evaluationsState.handleCustomLibraryPublish,
         handleCustomLibraryTemplateDownload: apiHandlers.downloadCustomLibraryTemplate,
         handleCustomLibraryUpdate: evaluationsState.handleCustomLibraryUpdate,
+        handleEvaluationLibraryQuestionCreate:
+          evaluationsState.handleEvaluationLibraryQuestionCreate,
+        handleEvaluationLibraryQuestionUpdate:
+          evaluationsState.handleEvaluationLibraryQuestionUpdate,
+        handleEvaluationLibraryQuestionDelete:
+          evaluationsState.handleEvaluationLibraryQuestionDelete,
+        handleEvaluationLibraryQuestionsReorder:
+          evaluationsState.handleEvaluationLibraryQuestionsReorder,
         handleCycleEnabledToggle: evaluationsState.handleCycleEnabledToggle,
         handleCycleModuleToggle: evaluationsState.handleCycleModuleToggle,
         handleCycleStatusChange: evaluationsState.handleCycleStatusChange,

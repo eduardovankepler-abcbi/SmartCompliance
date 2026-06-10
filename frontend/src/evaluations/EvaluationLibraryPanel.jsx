@@ -8,62 +8,141 @@ const emptyCompetencyForm = {
   status: "active"
 };
 
+const emptyQuestionForm = {
+  relationshipType: "self",
+  sectionKey: "",
+  sectionTitle: "",
+  sectionDescription: "",
+  dimensionKey: "",
+  dimensionTitle: "",
+  prompt: "",
+  helperText: "",
+  inputType: "scale",
+  scaleProfile: "performance",
+  visibility: "shared",
+  sortOrder: "1",
+  isRequired: true,
+  collectEvidenceOnExtreme: false,
+  isSensitive: false,
+  optionsText: ""
+};
+
 const competencyStatusOptions = [
   { value: "active", label: "Ativa" },
   { value: "inactive", label: "Inativa" }
 ];
 
-function getLibrarySourceLabel(sourceType) {
-  return sourceType === "custom" ? "Customizada" : "Padrao";
+function NativeSelectField({ label, value = "", options = [], onChange, renderLabel }) {
+  return (
+    <label className="field">
+      <span>{label}</span>
+      <select value={value} onChange={(event) => onChange(event.target.value)}>
+        {options.map((option) => (
+          <option key={option} value={option}>
+            {renderLabel ? renderLabel(option) : option}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function buildQuestionDraft(question, relationshipType) {
+  if (!question) {
+    return { ...emptyQuestionForm, relationshipType };
+  }
+
+  return {
+    relationshipType,
+    sectionKey: question.sectionKey || "",
+    sectionTitle: question.sectionTitle || "",
+    sectionDescription: question.sectionDescription || "",
+    dimensionKey: question.dimensionKey || "",
+    dimensionTitle: question.dimensionTitle || "",
+    prompt: question.prompt || question.promptText || "",
+    helperText: question.helperText || "",
+    inputType: question.inputType || "scale",
+    scaleProfile: question.scaleProfile || "performance",
+    visibility: question.visibility || "shared",
+    sortOrder: String(question.sortOrder || 1),
+    isRequired: question.isRequired !== false,
+    collectEvidenceOnExtreme: Boolean(question.collectEvidenceOnExtreme),
+    isSensitive: Boolean(question.isSensitive),
+    optionsText: (question.options || []).map((option) => option.label || option.value).join(" | ")
+  };
+}
+
+function buildQuestionPayload(form) {
+  return {
+    relationshipType: form.relationshipType,
+    sectionKey: form.sectionKey,
+    sectionTitle: form.sectionTitle,
+    sectionDescription: form.sectionDescription,
+    dimensionKey: form.dimensionKey,
+    dimensionTitle: form.dimensionTitle,
+    prompt: form.prompt,
+    helperText: form.helperText,
+    inputType: form.inputType,
+    scaleProfile: form.inputType === "scale" ? form.scaleProfile : "",
+    visibility: form.visibility,
+    sortOrder: Number(form.sortOrder || 1),
+    isRequired: Boolean(form.isRequired),
+    collectEvidenceOnExtreme: Boolean(form.collectEvidenceOnExtreme),
+    isSensitive: Boolean(form.isSensitive),
+    options:
+      form.inputType === "multi-select"
+        ? String(form.optionsText || "")
+            .split("|")
+            .map((item) => item.trim())
+            .filter(Boolean)
+            .map((item) => ({
+              value: item
+                .toLowerCase()
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .replace(/[^a-z0-9]+/g, "-")
+                .replace(/^-+|-+$/g, ""),
+              label: item
+            }))
+        : []
+  };
 }
 
 export function EvaluationLibraryPanel({
   Input,
   Textarea,
+  canManageEvaluationQuestions,
   canViewEvaluationLibrary,
   competencies,
-  customLibraryDraft,
-  customLibraryPublishForm,
   evaluationLibrary,
   handleCompetencyCreate,
   handleCompetencyUpdate,
-  handleCustomLibraryImport,
-  handleCustomLibraryUpdate,
-  handleCustomLibraryTemplateDownload,
-  handleCustomLibraryPublish,
-  setCustomLibraryPublishForm,
+  handleEvaluationLibraryQuestionCreate,
+  handleEvaluationLibraryQuestionDelete,
+  handleEvaluationLibraryQuestionUpdate,
+  handleEvaluationLibraryQuestionsReorder,
   showEvaluationLibrary
 }) {
-  const [activeTab, setActiveTab] = useState("libraries");
-  const [activeLibraryId, setActiveLibraryId] = useState("");
-  const [activeTemplateKey, setActiveTemplateKey] = useState("");
+  const SafeSelect = NativeSelectField;
+  const [activeTab, setActiveTab] = useState("questions");
+  const [activeRelationshipType, setActiveRelationshipType] = useState("");
+  const [editingQuestionId, setEditingQuestionId] = useState("");
+  const [questionForm, setQuestionForm] = useState(emptyQuestionForm);
   const [competencyForm, setCompetencyForm] = useState(emptyCompetencyForm);
   const [competencyDrafts, setCompetencyDrafts] = useState({});
-  const [libraryDrafts, setLibraryDrafts] = useState({});
-  const libraryOptions = useMemo(() => {
-    const defaultLibrary = evaluationLibrary?.defaultLibrary
-      ? {
-          ...evaluationLibrary.defaultLibrary,
-          templates: evaluationLibrary?.templates || []
-        }
-      : null;
-
-    const customLibraries = (evaluationLibrary?.customLibraries || []).map((library) => ({
-      ...library,
-      templates: library.templates || []
-    }));
-
-    return [defaultLibrary, ...customLibraries].filter(Boolean);
-  }, [evaluationLibrary]);
-
-  const activeLibrary =
-    libraryOptions.find((library) => library.id === activeLibraryId) || libraryOptions[0] || null;
-  const activeLibraryTemplates =
-    libraryDrafts[activeLibrary?.id]?.templates || activeLibrary?.templates || [];
-  const activeTemplate =
-    activeLibraryTemplates.find(
-      (template) => (template.relationshipType || template.key) === activeTemplateKey
-    ) || activeLibraryTemplates[0] || null;
+  const questionGroups = useMemo(
+    () =>
+      (evaluationLibrary?.questionGroups || evaluationLibrary?.templates || []).map((group) => ({
+        ...group,
+        relationshipType: group.relationshipType || group.key
+      })),
+    [evaluationLibrary]
+  );
+  const activeGroup =
+    questionGroups.find((group) => group.relationshipType === activeRelationshipType) ||
+    questionGroups[0] ||
+    null;
+  const activeQuestions = activeGroup?.questions || [];
 
   useEffect(() => {
     setCompetencyDrafts(
@@ -82,56 +161,50 @@ export function EvaluationLibraryPanel({
   }, [competencies]);
 
   useEffect(() => {
-    if (!libraryOptions.length) {
-      setActiveLibraryId("");
+    if (!questionGroups.length) {
+      setActiveRelationshipType("");
       return;
     }
-
-    if (!libraryOptions.some((library) => library.id === activeLibraryId)) {
-      setActiveLibraryId(libraryOptions[0].id);
+    if (!questionGroups.some((group) => group.relationshipType === activeRelationshipType)) {
+      setActiveRelationshipType(questionGroups[0].relationshipType);
     }
-  }, [activeLibraryId, libraryOptions]);
+  }, [activeRelationshipType, questionGroups]);
 
   useEffect(() => {
-    if (!activeLibraryTemplates.length) {
-      setActiveTemplateKey("");
+    if (!editingQuestionId) {
+      setQuestionForm(buildQuestionDraft(null, activeGroup?.relationshipType || "self"));
       return;
     }
-
-    if (
-      !activeLibraryTemplates.some(
-        (template) => (template.relationshipType || template.key) === activeTemplateKey
-      )
-    ) {
-      setActiveTemplateKey(activeLibraryTemplates[0].relationshipType || activeLibraryTemplates[0].key);
-    }
-  }, [activeLibraryTemplates, activeTemplateKey]);
-
-  useEffect(() => {
-    setLibraryDrafts(
-      Object.fromEntries(
-        (evaluationLibrary?.customLibraries || []).map((library) => [
-          library.id,
-          {
-            name: library.name,
-            description: library.description || "",
-            templates: (library.templates || []).map((template) => ({
-              ...template,
-              relationshipType: template.relationshipType || template.key,
-              key: template.key || template.relationshipType,
-              questions: (template.questions || []).map((question) => ({
-                ...question,
-                optionsText: (question.options || []).map((option) => option.label || option.value).join(" | ")
-              }))
-            }))
-          }
-        ])
-      )
-    );
-  }, [evaluationLibrary]);
+    const question = activeQuestions.find((item) => item.id === editingQuestionId);
+    setQuestionForm(buildQuestionDraft(question, activeGroup?.relationshipType || "self"));
+  }, [activeGroup?.relationshipType, activeQuestions, editingQuestionId]);
 
   if (!canViewEvaluationLibrary || !showEvaluationLibrary) {
     return null;
+  }
+
+  async function onQuestionSubmit(event) {
+    event.preventDefault();
+    const payload = buildQuestionPayload(questionForm);
+    if (editingQuestionId) {
+      await handleEvaluationLibraryQuestionUpdate(editingQuestionId, payload);
+    } else {
+      await handleEvaluationLibraryQuestionCreate(payload);
+    }
+    setEditingQuestionId("");
+  }
+
+  async function onQuestionReorder(questionId, direction) {
+    const currentIds = activeQuestions.map((question) => question.id);
+    const currentIndex = currentIds.indexOf(questionId);
+    const swapIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+    if (currentIndex < 0 || swapIndex < 0 || swapIndex >= currentIds.length) {
+      return;
+    }
+    const reorderedIds = [...currentIds];
+    const [movedId] = reorderedIds.splice(currentIndex, 1);
+    reorderedIds.splice(swapIndex, 0, movedId);
+    await handleEvaluationLibraryQuestionsReorder(activeGroup.relationshipType, reorderedIds);
   }
 
   async function onCompetencySubmit(event) {
@@ -142,99 +215,33 @@ export function EvaluationLibraryPanel({
 
   async function onCompetencySave(competencyId) {
     const draft = competencyDrafts[competencyId];
-    if (!draft) {
-      return;
+    if (draft) {
+      await handleCompetencyUpdate(competencyId, draft);
     }
-
-    await handleCompetencyUpdate(competencyId, draft);
-  }
-
-  async function onLibrarySave() {
-    if (!activeLibrary || activeLibrary.sourceType !== "custom") {
-      return;
-    }
-
-    const draft = libraryDrafts[activeLibrary.id];
-    if (!draft) {
-      return;
-    }
-
-    await handleCustomLibraryUpdate(activeLibrary.id, {
-      name: draft.name,
-      description: draft.description,
-      templates: draft.templates.map((template) => ({
-        ...template,
-        questions: (template.questions || []).map((question) => ({
-          ...question,
-          options:
-            question.inputType === "multi-select"
-              ? String(question.optionsText || "")
-                  .split("|")
-                  .map((item) => item.trim())
-                  .filter(Boolean)
-                  .map((item) => ({
-                    value: item
-                      .toLowerCase()
-                      .normalize("NFD")
-                      .replace(/[\u0300-\u036f]/g, "")
-                      .replace(/[^a-z0-9]+/g, "-")
-                      .replace(/^-+|-+$/g, ""),
-                    label: item
-                  }))
-              : question.options || []
-        }))
-      }))
-    });
-  }
-
-  function updateActiveTemplate(updateFn) {
-    if (!activeLibrary || !activeTemplate) {
-      return;
-    }
-
-    setLibraryDrafts((current) => ({
-      ...current,
-      [activeLibrary.id]: {
-        ...current[activeLibrary.id],
-        templates: current[activeLibrary.id].templates.map((item) =>
-          (item.relationshipType || item.key) === (activeTemplate.relationshipType || activeTemplate.key)
-            ? updateFn(item)
-            : item
-        )
-      }
-    }));
   }
 
   return (
     <div className="card card-span">
       <div className="card-header">
         <div>
-          <h3>Biblioteca de avaliacoes</h3>
-          <span>Edite bibliotecas e competencias</span>
+          <h3>Perguntas da avaliacao</h3>
+          <span>CRUD manual por modalidade</span>
         </div>
-        <span>{evaluationLibrary?.customLibraries?.length || 0} bibliotecas publicadas</span>
+        <span>{evaluationLibrary?.manualLibrary?.questionCount || 0} pergunta(s)</span>
       </div>
       <div className="stack-list">
         <div className="module-toolbar">
           <button
             type="button"
-            className={
-              activeTab === "libraries" ? "button-reset module-tab active" : "button-reset module-tab"
-            }
-            onClick={() => setActiveTab("libraries")}
+            className={activeTab === "questions" ? "button-reset module-tab active" : "button-reset module-tab"}
+            onClick={() => setActiveTab("questions")}
           >
-            <span className="module-tab-title">Bibliotecas</span>
-            <span className="module-tab-meta">
-              {evaluationLibrary?.customLibraries?.length || 0} publicadas
-            </span>
+            <span className="module-tab-title">Perguntas</span>
+            <span className="module-tab-meta">{questionGroups.length} modalidades</span>
           </button>
           <button
             type="button"
-            className={
-              activeTab === "competencies"
-                ? "button-reset module-tab active"
-                : "button-reset module-tab"
-            }
+            className={activeTab === "competencies" ? "button-reset module-tab active" : "button-reset module-tab"}
             onClick={() => setActiveTab("competencies")}
           >
             <span className="module-tab-title">Competencias</span>
@@ -242,320 +249,221 @@ export function EvaluationLibraryPanel({
           </button>
         </div>
 
-        {activeTab === "libraries" ? (
+        {activeTab === "questions" ? (
           <>
             <div className="list-card">
-              <strong>Bibliotecas publicadas</strong>
-              {libraryOptions.length ? (
-                libraryOptions.map((library) => (
-                  <p className="muted" key={library.id}>
-                    {library.name} ({getLibrarySourceLabel(library.sourceType)}) |{" "}
-                    {library.templateCount || library.templates?.length || 0} templates |{" "}
-                    {library.questionCount ||
-                      (library.templates || []).reduce(
-                        (total, template) => total + (template.questions?.length || 0),
-                        0
-                      )}{" "}
-                    perguntas
-                  </p>
-                ))
-              ) : (
-                <p className="muted">Nenhuma biblioteca customizada publicada ainda.</p>
-              )}
-            </div>
-
-            <div className="list-card">
               <div className="card-header">
-                <strong>Perguntas por tipo de avaliacao</strong>
-                <span>{activeLibrary?.name || "Biblioteca ativa"}</span>
+                <div>
+                  <strong>Modalidades de avaliacao</strong>
+                  <p className="muted">As perguntas padrao permanecem como base inicial do banco manual.</p>
+                </div>
+                <span className="badge">{canManageEvaluationQuestions ? "RH editor" : "Somente leitura"}</span>
               </div>
-              {libraryOptions.length > 1 ? (
-                <label className="field">
-                  <span>Biblioteca em foco</span>
-                  <select
-                    value={activeLibraryId}
-                    onChange={(event) => setActiveLibraryId(event.target.value)}
+              <div className="module-toolbar">
+                {questionGroups.map((group) => (
+                  <button
+                    key={group.relationshipType}
+                    type="button"
+                    className={
+                      group.relationshipType === activeGroup?.relationshipType
+                        ? "button-reset module-tab active"
+                        : "button-reset module-tab"
+                    }
+                    onClick={() => {
+                      setEditingQuestionId("");
+                      setActiveRelationshipType(group.relationshipType);
+                    }}
                   >
-                    {libraryOptions.map((library) => (
-                      <option key={library.id} value={library.id}>
-                        {library.name} - {getLibrarySourceLabel(library.sourceType)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              ) : null}
-              {activeLibrary ? (
-                <div className="row">
-                  <span className="badge">{getLibrarySourceLabel(activeLibrary.sourceType)}</span>
-                  <span className="muted">
-                    {activeLibrary.templateCount || activeLibrary.templates?.length || 0} templates
-                    ·{" "}
-                    {activeLibrary.questionCount ||
-                      (activeLibrary.templates || []).reduce(
-                        (total, template) => total + (template.questions?.length || 0),
-                        0
-                      )}{" "}
-                    perguntas
-                  </span>
-                </div>
-              ) : null}
-              {activeLibraryTemplates.length ? (
-                <div className="stack-list compact-stack">
-                  <div className="module-toolbar">
-                    {activeLibraryTemplates.map((template) => {
-                      const templateKey = template.relationshipType || template.key;
-                      return (
-                        <button
-                          key={template.id}
-                          type="button"
-                          className={
-                            templateKey === activeTemplateKey
-                              ? "button-reset module-tab active"
-                              : "button-reset module-tab"
-                          }
-                          onClick={() => setActiveTemplateKey(templateKey)}
-                        >
-                          <span className="module-tab-title">
-                            {getRelationshipLabel(templateKey) || template.modelName}
-                          </span>
-                          <span className="module-tab-meta">
-                            {template.questions?.length || 0} pergunta(s)
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {activeTemplate ? (
-                    <div className="list-card compact-list-card">
-                      <div className="row">
-                        <strong>
-                          {getRelationshipLabel(activeTemplate.relationshipType || activeTemplate.key) ||
-                            activeTemplate.modelName}
-                        </strong>
-                        <span className="badge">
-                          {activeTemplate.questions?.length || 0} pergunta(s)
-                        </span>
-                      </div>
-                      {activeLibrary.sourceType === "custom" ? (
-                        <>
-                          <Input
-                            label="Nome do template"
-                            value={activeTemplate.modelName}
-                            onChange={(value) =>
-                              updateActiveTemplate((item) => ({ ...item, modelName: value }))
-                            }
-                          />
-                          <Textarea
-                            label="Descricao do template"
-                            value={activeTemplate.description || ""}
-                            onChange={(value) =>
-                              updateActiveTemplate((item) => ({ ...item, description: value }))
-                            }
-                          />
-                        </>
-                      ) : (
-                        <>
-                          <p className="muted">{activeTemplate.modelName}</p>
-                          {activeTemplate.description ? (
-                            <p className="muted">{activeTemplate.description}</p>
-                          ) : null}
-                        </>
-                      )}
-                      {activeTemplate.questions?.length ? (
-                        <div className="stack-list compact-stack">
-                          {activeTemplate.questions.map((question, index) => (
-                            <div className="list-card compact-list-card" key={question.id || index}>
-                              <p className="mini-label">Pergunta {index + 1}</p>
-                              {activeLibrary.sourceType === "custom" ? (
-                                <>
-                                  <Input
-                                    label="Dimensao da pergunta"
-                                    value={question.dimensionTitle || ""}
-                                    onChange={(value) =>
-                                      updateActiveTemplate((item) => ({
-                                        ...item,
-                                        questions: item.questions.map((entry, entryIndex) =>
-                                          entryIndex === index
-                                            ? { ...entry, dimensionTitle: value }
-                                            : entry
-                                        )
-                                      }))
-                                    }
-                                  />
-                                  <Textarea
-                                    label="Enunciado da pergunta"
-                                    value={question.prompt || ""}
-                                    onChange={(value) =>
-                                      updateActiveTemplate((item) => ({
-                                        ...item,
-                                        questions: item.questions.map((entry, entryIndex) =>
-                                          entryIndex === index ? { ...entry, prompt: value } : entry
-                                        )
-                                      }))
-                                    }
-                                  />
-                                  <Textarea
-                                    label="Texto de apoio ao respondente"
-                                    value={question.helperText || ""}
-                                    onChange={(value) =>
-                                      updateActiveTemplate((item) => ({
-                                        ...item,
-                                        questions: item.questions.map((entry, entryIndex) =>
-                                          entryIndex === index
-                                            ? { ...entry, helperText: value }
-                                            : entry
-                                        )
-                                      }))
-                                    }
-                                  />
-                                  {question.inputType === "multi-select" ? (
-                                    <Input
-                                      label="Opcoes da multipla escolha"
-                                      value={question.optionsText || ""}
-                                      onChange={(value) =>
-                                        updateActiveTemplate((item) => ({
-                                          ...item,
-                                          questions: item.questions.map((entry, entryIndex) =>
-                                            entryIndex === index
-                                              ? { ...entry, optionsText: value }
-                                              : entry
-                                          )
-                                        }))
-                                      }
-                                      helper="Separe as opcoes com |"
-                                    />
-                                  ) : null}
-                                  <p className="muted">
-                                    Tipo: {question.inputType || "scale"} · Visibilidade:{" "}
-                                    {question.visibility || "shared"}
-                                  </p>
-                                </>
-                              ) : (
-                                <>
-                                  <strong>
-                                    {question.dimensionTitle || question.sectionTitle || "Pergunta"}
-                                  </strong>
-                                  <p className="muted">{question.prompt}</p>
-                                  <p className="muted">
-                                    Tipo: {question.inputType || "score"} · Visibilidade:{" "}
-                                    {question.visibility || "shared"}
-                                  </p>
-                                </>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="muted">Nenhuma pergunta cadastrada neste template.</p>
-                      )}
-                    </div>
-                  ) : null}
-                </div>
-              ) : (
-                <p className="muted">
-                  Nenhum template encontrado na biblioteca selecionada.
-                </p>
-              )}
-              {activeLibrary?.sourceType === "custom" ? (
-                <div className="stack-list">
-                  <Input
-                    label="Nome da biblioteca"
-                    value={libraryDrafts[activeLibrary.id]?.name || activeLibrary.name || ""}
-                    onChange={(value) =>
-                      setLibraryDrafts((current) => ({
-                        ...current,
-                        [activeLibrary.id]: {
-                          ...current[activeLibrary.id],
-                          name: value
-                        }
-                      }))
-                    }
-                  />
-                  <Textarea
-                    label="Descricao da biblioteca"
-                    value={
-                      libraryDrafts[activeLibrary.id]?.description ||
-                      activeLibrary.description ||
-                      ""
-                    }
-                    onChange={(value) =>
-                      setLibraryDrafts((current) => ({
-                        ...current,
-                        [activeLibrary.id]: {
-                          ...current[activeLibrary.id],
-                          description: value
-                        }
-                      }))
-                    }
-                  />
-                  <button className="primary-button" type="button" onClick={onLibrarySave}>
-                    Salvar biblioteca customizada
+                    <span className="module-tab-title">{getRelationshipLabel(group.relationshipType)}</span>
+                    <span className="module-tab-meta">{group.questions?.length || 0} pergunta(s)</span>
                   </button>
-                </div>
-              ) : null}
-            </div>
-
-            <div className="list-card">
-              <strong>Importar biblioteca</strong>
-              <button
-                className="secondary-button"
-                type="button"
-                onClick={handleCustomLibraryTemplateDownload}
-              >
-                Baixar template XLSX
-              </button>
-              <label className="field">
-                <span>Arquivo CSV ou XLSX</span>
-                <input type="file" accept=".csv,.xlsx" onChange={handleCustomLibraryImport} />
-              </label>
-            </div>
-
-            {customLibraryDraft ? (
-              <div className="stack-list">
-                <div className="list-card">
-                  <strong>{customLibraryDraft.fileName}</strong>
-                  <p className="muted">
-                    Templates: {customLibraryDraft.summary.templates} | Perguntas:{" "}
-                    {customLibraryDraft.summary.questions}
-                  </p>
-                  <p className="muted">Erros: {customLibraryDraft.errors.length}</p>
-                </div>
-                {customLibraryDraft.errors.length ? (
-                  customLibraryDraft.errors.map((item) => (
-                    <div className="error-banner" key={item}>
-                      {item}
-                    </div>
-                  ))
-                ) : (
-                  <form className="stack-list" onSubmit={handleCustomLibraryPublish}>
-                    <Input
-                      label="Nome da biblioteca"
-                      value={customLibraryPublishForm.name}
-                      onChange={(value) =>
-                        setCustomLibraryPublishForm({
-                          ...customLibraryPublishForm,
-                          name: value
-                        })
-                      }
-                    />
-                    <Textarea
-                      label="Descricao"
-                      value={customLibraryPublishForm.description}
-                      onChange={(value) =>
-                        setCustomLibraryPublishForm({
-                          ...customLibraryPublishForm,
-                          description: value
-                        })
-                      }
-                    />
-                    <button className="primary-button" type="submit">
-                      Publicar biblioteca
-                    </button>
-                  </form>
-                )}
+                ))}
               </div>
-            ) : null}
+            </div>
+
+            <form className="list-card" onSubmit={onQuestionSubmit}>
+              <div className="card-header">
+                <div>
+                  <strong>{editingQuestionId ? "Editar pergunta" : "Nova pergunta"}</strong>
+                  <p className="muted">{getRelationshipLabel(activeGroup?.relationshipType || "")}</p>
+                </div>
+                <button className="primary-button" disabled={!canManageEvaluationQuestions} type="submit">
+                  {editingQuestionId ? "Salvar pergunta" : "Criar pergunta"}
+                </button>
+              </div>
+              <div className="dashboard-filter-grid">
+                <Input
+                  label="Ordem"
+                  type="number"
+                  value={questionForm.sortOrder}
+                  onChange={(value) => setQuestionForm((current) => ({ ...current, sortOrder: value }))}
+                />
+                <Input
+                  label="Chave da dimensao"
+                  value={questionForm.dimensionKey}
+                  onChange={(value) => setQuestionForm((current) => ({ ...current, dimensionKey: value }))}
+                />
+                <Input
+                  label="Titulo da dimensao"
+                  value={questionForm.dimensionTitle}
+                  onChange={(value) => setQuestionForm((current) => ({ ...current, dimensionTitle: value }))}
+                />
+              </div>
+              <Textarea
+                label="Pergunta"
+                rows={3}
+                value={questionForm.prompt}
+                onChange={(value) => setQuestionForm((current) => ({ ...current, prompt: value }))}
+              />
+              <div className="dashboard-filter-grid">
+                <Input
+                  label="Secao"
+                  value={questionForm.sectionTitle}
+                  onChange={(value) => setQuestionForm((current) => ({ ...current, sectionTitle: value }))}
+                />
+                <SafeSelect
+                  label="Tipo de resposta"
+                  value={questionForm.inputType}
+                  options={["scale", "text", "multi-select"]}
+                  renderLabel={(value) =>
+                    value === "scale" ? "Escala" : value === "text" ? "Texto" : "Multipla escolha"
+                  }
+                  onChange={(value) => setQuestionForm((current) => ({ ...current, inputType: value }))}
+                />
+                <SafeSelect
+                  label="Escala"
+                  value={questionForm.scaleProfile}
+                  options={["performance", "agreement", "satisfaction"]}
+                  onChange={(value) => setQuestionForm((current) => ({ ...current, scaleProfile: value }))}
+                />
+              </div>
+              <Textarea
+                label="Texto de apoio"
+                rows={2}
+                value={questionForm.helperText}
+                onChange={(value) => setQuestionForm((current) => ({ ...current, helperText: value }))}
+              />
+              {questionForm.inputType === "multi-select" ? (
+                <Textarea
+                  label="Respostas possiveis separadas por |"
+                  rows={2}
+                  value={questionForm.optionsText}
+                  onChange={(value) => setQuestionForm((current) => ({ ...current, optionsText: value }))}
+                />
+              ) : null}
+              <div className="dashboard-filter-grid">
+                <SafeSelect
+                  label="Visibilidade"
+                  value={questionForm.visibility}
+                  options={["shared", "private", "confidential"]}
+                  onChange={(value) => setQuestionForm((current) => ({ ...current, visibility: value }))}
+                />
+                <label className="checkbox-option">
+                  <input
+                    checked={Boolean(questionForm.isRequired)}
+                    type="checkbox"
+                    onChange={(event) =>
+                      setQuestionForm((current) => ({ ...current, isRequired: event.target.checked }))
+                    }
+                  />
+                  <span>Obrigatoria</span>
+                </label>
+                <label className="checkbox-option">
+                  <input
+                    checked={Boolean(questionForm.isSensitive)}
+                    type="checkbox"
+                    onChange={(event) =>
+                      setQuestionForm((current) => ({ ...current, isSensitive: event.target.checked }))
+                    }
+                  />
+                  <span>Sensivel</span>
+                </label>
+                <label className="checkbox-option">
+                  <input
+                    checked={Boolean(questionForm.collectEvidenceOnExtreme)}
+                    type="checkbox"
+                    onChange={(event) =>
+                      setQuestionForm((current) => ({
+                        ...current,
+                        collectEvidenceOnExtreme: event.target.checked
+                      }))
+                    }
+                  />
+                  <span>Evidencia em extremos</span>
+                </label>
+              </div>
+              {editingQuestionId ? (
+                <button
+                  className="refresh"
+                  type="button"
+                  onClick={() => setEditingQuestionId("")}
+                >
+                  Cancelar edicao
+                </button>
+              ) : null}
+            </form>
+
+            <div className="stack-list">
+              {activeQuestions.map((question, index) => (
+                <div className="list-card compact-list-card" key={question.id}>
+                  <div className="row">
+                    <div>
+                      <strong>
+                        {question.sortOrder}. {question.dimensionTitle || question.sectionTitle || "Pergunta"}
+                      </strong>
+                      <p className="muted">{question.prompt}</p>
+                    </div>
+                    <span className="badge">{question.isSensitive ? "Sensivel" : question.inputType || "scale"}</span>
+                  </div>
+                  {question.options?.length ? (
+                    <p className="muted">
+                      Respostas: {question.options.map((option) => option.label || option.value).join(" | ")}
+                    </p>
+                  ) : null}
+                  <div className="evaluation-assignment-meta">
+                    <span className="evaluation-assignment-meta-item">{question.sectionTitle || "Sem secao"}</span>
+                    <span className="evaluation-assignment-meta-item">{question.visibility || "shared"}</span>
+                    <span className="evaluation-assignment-meta-item">
+                      {question.isRequired === false ? "Opcional" : "Obrigatoria"}
+                    </span>
+                  </div>
+                  <div className="row">
+                    <button
+                      type="button"
+                      className="refresh"
+                      disabled={!canManageEvaluationQuestions}
+                      onClick={() => setEditingQuestionId(question.id)}
+                    >
+                      Editar
+                    </button>
+                    <button
+                      type="button"
+                      className="refresh"
+                      disabled={!canManageEvaluationQuestions || index === 0}
+                      onClick={() => onQuestionReorder(question.id, "up")}
+                    >
+                      Subir
+                    </button>
+                    <button
+                      type="button"
+                      className="refresh"
+                      disabled={!canManageEvaluationQuestions || index === activeQuestions.length - 1}
+                      onClick={() => onQuestionReorder(question.id, "down")}
+                    >
+                      Descer
+                    </button>
+                    <button
+                      type="button"
+                      className="refresh"
+                      disabled={!canManageEvaluationQuestions}
+                      onClick={() => handleEvaluationLibraryQuestionDelete(question.id)}
+                    >
+                      Remover
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </>
         ) : (
           <>
@@ -572,9 +480,7 @@ export function EvaluationLibraryPanel({
                       <div className="list-card compact-list-card" key={competency.id}>
                         <div className="row">
                           <strong>{competency.name}</strong>
-                          <span className="badge">
-                            {draft.status === "active" ? "Ativa" : "Inativa"}
-                          </span>
+                          <span className="badge">{draft.status === "active" ? "Ativa" : "Inativa"}</span>
                         </div>
                         <div className="compact-actions structure-actions">
                           <label className="field">
@@ -585,10 +491,7 @@ export function EvaluationLibraryPanel({
                               onChange={(event) =>
                                 setCompetencyDrafts((current) => ({
                                   ...current,
-                                  [competency.id]: {
-                                    ...draft,
-                                    name: event.target.value
-                                  }
+                                  [competency.id]: { ...draft, name: event.target.value }
                                 }))
                               }
                             />
@@ -601,10 +504,7 @@ export function EvaluationLibraryPanel({
                               onChange={(event) =>
                                 setCompetencyDrafts((current) => ({
                                   ...current,
-                                  [competency.id]: {
-                                    ...draft,
-                                    key: event.target.value
-                                  }
+                                  [competency.id]: { ...draft, key: event.target.value }
                                 }))
                               }
                             />
@@ -616,10 +516,7 @@ export function EvaluationLibraryPanel({
                               onChange={(event) =>
                                 setCompetencyDrafts((current) => ({
                                   ...current,
-                                  [competency.id]: {
-                                    ...draft,
-                                    status: event.target.value
-                                  }
+                                  [competency.id]: { ...draft, status: event.target.value }
                                 }))
                               }
                             >
@@ -639,19 +536,12 @@ export function EvaluationLibraryPanel({
                             onChange={(event) =>
                               setCompetencyDrafts((current) => ({
                                 ...current,
-                                [competency.id]: {
-                                  ...draft,
-                                  description: event.target.value
-                                }
+                                [competency.id]: { ...draft, description: event.target.value }
                               }))
                             }
                           />
                         </label>
-                        <button
-                          className="secondary-button"
-                          type="button"
-                          onClick={() => onCompetencySave(competency.id)}
-                        >
+                        <button className="secondary-button" type="button" onClick={() => onCompetencySave(competency.id)}>
                           Salvar competencia
                         </button>
                       </div>
@@ -698,9 +588,7 @@ export function EvaluationLibraryPanel({
               <Textarea
                 label="Descricao"
                 value={competencyForm.description}
-                onChange={(value) =>
-                  setCompetencyForm({ ...competencyForm, description: value })
-                }
+                onChange={(value) => setCompetencyForm({ ...competencyForm, description: value })}
               />
               <button className="primary-button" type="submit">
                 Cadastrar competencia

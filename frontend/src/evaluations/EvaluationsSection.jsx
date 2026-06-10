@@ -161,6 +161,10 @@ export function EvaluationsSection(props) {
     handleCustomLibraryUpdate,
     handleCustomLibraryTemplateDownload,
     handleCustomLibraryPublish,
+    handleEvaluationLibraryQuestionCreate,
+    handleEvaluationLibraryQuestionUpdate,
+    handleEvaluationLibraryQuestionDelete,
+    handleEvaluationLibraryQuestionsReorder,
     handleForceCrossFunctionalPairing,
     handleBlockCrossFunctionalPairing,
     handleTransversalConfigSubmit,
@@ -380,12 +384,17 @@ export function EvaluationsSection(props) {
         customLibraryDraft={props.customLibraryDraft}
         customLibraryPublishForm={props.customLibraryPublishForm}
         evaluationLibrary={evaluationLibrary}
+        canManageEvaluationQuestions={roleKey === "hr"}
         handleCompetencyCreate={handleCompetencyCreate}
         handleCompetencyUpdate={handleCompetencyUpdate}
         handleCustomLibraryImport={handleCustomLibraryImport}
         handleCustomLibraryUpdate={handleCustomLibraryUpdate}
         handleCustomLibraryTemplateDownload={handleCustomLibraryTemplateDownload}
         handleCustomLibraryPublish={handleCustomLibraryPublish}
+        handleEvaluationLibraryQuestionCreate={handleEvaluationLibraryQuestionCreate}
+        handleEvaluationLibraryQuestionUpdate={handleEvaluationLibraryQuestionUpdate}
+        handleEvaluationLibraryQuestionDelete={handleEvaluationLibraryQuestionDelete}
+        handleEvaluationLibraryQuestionsReorder={handleEvaluationLibraryQuestionsReorder}
         setCustomLibraryPublishForm={setCustomLibraryPublishForm}
         showEvaluationLibrary={showEvaluationLibrary}
       />
@@ -548,8 +557,8 @@ export function EvaluationsSection(props) {
                 </div>
                 {cycle.supportsConfig === false ? (
                   <p className="muted">
-                    Este ambiente ainda nao suporta switches de ciclo. Atualize o schema do MySQL
-                    para habilitar ativacao e controle por questionario.
+                    Este ambiente ainda nao possui os controles avancados de ativacao por
+                    questionario. Atualize o schema do MySQL para liberar esse ajuste.
                   </p>
                 ) : (
                   <div className="checkbox-stack">
@@ -764,8 +773,8 @@ export function EvaluationsSection(props) {
                   <strong>Configuracao do Feedback transversal</strong>
                   <span>
                     {operationsStructure?.transversal?.indicators?.previousCycleTitle
-                      ? `Historico: ${operationsStructure.transversal.indicators.previousCycleTitle}`
-                      : "Sem historico anterior"}
+                      ? `Ultimo ciclo comparavel: ${operationsStructure.transversal.indicators.previousCycleTitle}`
+                      : "Sem ciclo anterior comparavel"}
                   </span>
                 </div>
                 <div className="dashboard-filter-grid">
@@ -803,7 +812,7 @@ export function EvaluationsSection(props) {
                   />
                 </div>
                 <button className="primary-button" type="submit">
-                  Salvar configuracao
+                  Salvar regras do pareamento
                 </button>
                 {Object.entries(
                   operationsStructure?.transversal?.config?.unitOverrides || {}
@@ -833,6 +842,7 @@ export function EvaluationsSection(props) {
                 <div className="stack-list">
                   <div className="list-card">
                     <strong>Pareamentos do Feedback transversal</strong>
+                    <p className="muted">Revise quem avalia quem antes de abrir excecoes.</p>
                   </div>
                   <div className="metrics-grid">
                     {operationsStructure.transversal.pairings.map((pairing) => (
@@ -891,12 +901,14 @@ export function EvaluationsSection(props) {
                   ) : (
                     <div className="list-card">
                       <strong>Sem elegiveis no recorte</strong>
+                      <p className="muted">Ajuste unidade, modalidade ou composicao do ciclo para ampliar a base.</p>
                     </div>
                   )}
                 </div>
                 <div className="stack-list">
                   <div className="list-card">
                     <strong>Sem pareamento elegivel</strong>
+                    <p className="muted">Quem aparecer aqui ainda precisa de combinacao manual ou ficou fora das regras.</p>
                   </div>
                   {(operationsStructure?.transversal?.ineligible || []).length ? (
                     (operationsStructure.transversal.ineligible || []).map((person) => (
@@ -917,13 +929,14 @@ export function EvaluationsSection(props) {
                   ) : (
                     <div className="list-card">
                       <strong>Sem pendencias de pareamento</strong>
+                      <p className="muted">Todos os participantes elegiveis ja possuem combinacao suficiente.</p>
                     </div>
                   )}
                 </div>
               </div>
               <form className="list-card" onSubmit={handleForceCrossFunctionalPairing}>
                 <div className="card-header">
-                  <strong>Forcar pareamento</strong>
+                  <strong>Criar excecao manual</strong>
                   <span>Excecao auditada</span>
                 </div>
                 <SafeSelect
@@ -972,13 +985,14 @@ export function EvaluationsSection(props) {
                   }
                 />
                 <button className="primary-button" type="submit">
-                  Salvar excecao
+                  Registrar excecao
                 </button>
               </form>
               {(operationsStructure?.transversal?.exceptions || []).length ? (
                 <div className="stack-list">
                   <div className="list-card">
                     <strong>Excecoes registradas</strong>
+                    <p className="muted">Historico auditado de bloqueios e ajustes manuais do pareamento.</p>
                   </div>
                   {(operationsStructure.transversal.exceptions || []).map((item) => (
                     <article className="list-card compact-list-card" key={item.id}>
@@ -1026,6 +1040,7 @@ export function EvaluationsSection(props) {
           ) : (
             <div className="list-card">
               <strong>Sem inadimplentes no ciclo</strong>
+              <p className="muted">Nenhum avaliador esta em atraso neste momento.</p>
             </div>
           )}
           {operationsStructure?.participants?.length ? (

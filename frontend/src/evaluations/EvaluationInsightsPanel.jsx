@@ -39,7 +39,7 @@ export function EvaluationInsightsPanel({
       <div className="card card-span">
         <div className="card-header">
           <h3>Leituras do ciclo</h3>
-          <span>Consolidado</span>
+          <span>Resumo</span>
         </div>
         <div className="evaluation-cycle-grid">
           <div className="list-card">
@@ -74,7 +74,7 @@ export function EvaluationInsightsPanel({
               }
               onChange={setComparisonEvaluationCycleId}
             />
-            {comparisonCycleModuleSummary ? (
+              {comparisonCycleModuleSummary ? (
               <>
                 <div className="metrics-grid evaluation-cycle-metrics">
                   <MiniMetric label="Assignments" value={comparisonCycleModuleSummary.totalAssignments} />
@@ -104,7 +104,7 @@ export function EvaluationInsightsPanel({
                 ) : null}
               </>
             ) : (
-              <p className="muted">Nenhum ciclo disponivel para comparacao.</p>
+              <p className="muted">Nenhum outro ciclo disponivel para comparacao.</p>
             )}
           </div>
         </div>
@@ -163,8 +163,8 @@ export function EvaluationInsightsPanel({
             ))
           ) : (
             <div className="list-card">
-              <strong>Sem historico para este submodulo</strong>
-              <p className="muted">Nenhum dado registrado.</p>
+              <strong>Sem historico para esta modalidade</strong>
+              <p className="muted">Os ciclos processados desta modalidade aparecerao aqui.</p>
             </div>
           )}
         </div>

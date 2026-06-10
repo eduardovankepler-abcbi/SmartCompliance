@@ -160,6 +160,25 @@ export const api = {
     }),
   getEvaluationTemplate: () => request("/api/evaluations/template"),
   getEvaluationLibrary: () => request("/api/evaluations/library"),
+  createEvaluationLibraryQuestion: (payload) =>
+    request("/api/evaluations/library/questions", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    }),
+  updateEvaluationLibraryQuestion: (questionId, payload) =>
+    request(`/api/evaluations/library/questions/${questionId}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload)
+    }),
+  deleteEvaluationLibraryQuestion: (questionId) =>
+    request(`/api/evaluations/library/questions/${questionId}`, {
+      method: "DELETE"
+    }),
+  reorderEvaluationLibraryQuestions: (relationshipType, questionIds) =>
+    request("/api/evaluations/library/questions/reorder", {
+      method: "POST",
+      body: JSON.stringify({ relationshipType, questionIds })
+    }),
   getEvaluationQuestionnaires: (filters = {}) => {
     const params = new URLSearchParams();
     Object.entries(filters || {}).forEach(([key, value]) => {

@@ -157,6 +157,10 @@ const ANONYMOUS_RESPONSE_STORAGE_FILE = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "anonymous-responses.json"
 );
+const MANUAL_EVALUATION_LIBRARY_ID = "manual_evaluation_question_bank";
+const MANUAL_EVALUATION_LIBRARY_NAME = "Perguntas manuais de avaliacao";
+const MANUAL_EVALUATION_LIBRARY_DESCRIPTION =
+  "Banco ativo de perguntas editavel pelo RH, criado a partir das perguntas padrao.";
 
 const cloneSeed = () => JSON.parse(JSON.stringify(seed));
 
@@ -1202,6 +1206,9 @@ function buildTemplateFromQuestionnaire(questionnaire, policy = null) {
 }
 
 function buildEvaluationLibraryPayload(customLibraries = []) {
+  const manualLibrary =
+    findPublishedLibrary(customLibraries, MANUAL_EVALUATION_LIBRARY_ID) ||
+    buildManualEvaluationLibrary();
   const defaultLibrary = {
     id: DEFAULT_EVALUATION_LIBRARY_ID,
     name: DEFAULT_EVALUATION_LIBRARY_NAME,
@@ -1213,16 +1220,26 @@ function buildEvaluationLibraryPayload(customLibraries = []) {
       0
     )
   };
-  const customLibrarySummaries = customLibraries.map((library) => ({
-    ...library,
-    sourceType: "custom"
-  }));
+  const manualLibrarySummary = {
+    ...manualLibrary,
+    sourceType: "manual",
+    templateCount: manualLibrary.templates?.length || 0,
+    questionCount: countLibraryQuestions(manualLibrary.templates || [])
+  };
+  const customLibrarySummaries = customLibraries
+    .filter((library) => library.id !== MANUAL_EVALUATION_LIBRARY_ID)
+    .map((library) => ({
+      ...library,
+      sourceType: "custom"
+    }));
 
   return {
     scale: evaluationLibrary.scale,
     weights: evaluationLibrary.weights,
     defaultLibrary,
-    cycleLibraries: [defaultLibrary, ...customLibrarySummaries].map((library) => ({
+    manualLibrary: manualLibrarySummary,
+    questionGroups: (manualLibrary.templates || []).map((template) => buildTemplate(template)),
+    cycleLibraries: [defaultLibrary, manualLibrarySummary, ...customLibrarySummaries].map((library) => ({
       id: library.id,
       name: library.name,
       description: library.description || "",
@@ -1242,6 +1259,127 @@ function countLibraryQuestions(templates = []) {
     (total, template) => total + ((template?.questions || []).length || 0),
     0
   );
+}
+
+function buildManualEvaluationLibrary() {
+  const templates = Object.values(evaluationLibrary.templates).map((template) => ({
+    ...template,
+    relationshipType: template.key,
+    key: template.key,
+    questions: (template.questions || []).map((question) => ({ ...question }))
+  }));
+
+  return {
+    id: MANUAL_EVALUATION_LIBRARY_ID,
+    name: MANUAL_EVALUATION_LIBRARY_NAME,
+    description: MANUAL_EVALUATION_LIBRARY_DESCRIPTION,
+    sourceType: "manual",
+    createdAt: new Date().toISOString(),
+    createdByUserId: null,
+    templateCount: templates.length,
+    questionCount: countLibraryQuestions(templates),
+    templates
+  };
+}
+
+function ensureManualEvaluationLibrary(customLibraryState) {
+  const existing = findPublishedLibrary(customLibraryState.published, MANUAL_EVALUATION_LIBRARY_ID);
+  if (existing) {
+    existing.sourceType = "manual";
+    existing.templateCount = existing.templates?.length || 0;
+    existing.questionCount = countLibraryQuestions(existing.templates || []);
+    return existing;
+  }
+
+  const manualLibrary = buildManualEvaluationLibrary();
+  customLibraryState.published.unshift(manualLibrary);
+  return manualLibrary;
+}
+
+function assertHrCanManageEvaluationQuestions(actorUser) {
+  if (actorUser?.roleKey !== "hr") {
+    throw new Error("Somente RH pode alterar perguntas de avaliacao.");
+  }
+}
+
+function findManualQuestionLocation(manualLibrary, questionId) {
+  for (const template of manualLibrary.templates || []) {
+    const questionIndex = (template.questions || []).findIndex(
+      (question) => question.id === questionId
+    );
+    if (questionIndex >= 0) {
+      return { template, questionIndex };
+    }
+  }
+  return null;
+}
+
+function getManualQuestionTemplate(manualLibrary, relationshipType) {
+  const template = findTemplateInPublishedLibrary(manualLibrary, relationshipType);
+  if (template) {
+    return template;
+  }
+
+  const baseTemplate = getTemplateForRelationship(relationshipType);
+  const nextTemplate = {
+    ...(baseTemplate || {}),
+    id: createId("template"),
+    relationshipType,
+    key: relationshipType,
+    modelName: baseTemplate?.modelName || relationshipType,
+    description: baseTemplate?.description || "",
+    questions: []
+  };
+  manualLibrary.templates.push(nextTemplate);
+  return nextTemplate;
+}
+
+function prepareManualEvaluationQuestionMutation({
+  customLibraryState,
+  payload,
+  actorUser,
+  existingQuestion = null,
+  fallbackRelationshipType = ""
+}) {
+  assertHrCanManageEvaluationQuestions(actorUser);
+  const manualLibrary = ensureManualEvaluationLibrary(customLibraryState);
+  const relationshipType = String(
+    payload?.relationshipType || fallbackRelationshipType || existingQuestion?.relationshipType || ""
+  ).trim();
+  if (!relationshipType) {
+    throw new Error("Tipo de avaliacao obrigatorio.");
+  }
+  const template = getManualQuestionTemplate(manualLibrary, relationshipType);
+  const sortOrder =
+    Number(payload?.sortOrder) > 0
+      ? Number(payload.sortOrder)
+      : existingQuestion?.sortOrder || (template.questions || []).length + 1;
+  const question = normalizeCustomLibraryQuestion(
+    {
+      ...(existingQuestion || {}),
+      ...(payload || {}),
+      id: existingQuestion?.id || payload?.id || createId("question"),
+      sortOrder
+    },
+    relationshipType,
+    sortOrder - 1
+  );
+
+  if (!question.prompt) {
+    throw new Error("Enunciado da pergunta obrigatorio.");
+  }
+  if (question.inputType === "multi-select" && !question.options.length) {
+    throw new Error("Perguntas de multipla escolha exigem ao menos uma opcao.");
+  }
+
+  return { manualLibrary, template, question };
+}
+
+function refreshManualLibrarySummary(manualLibrary) {
+  manualLibrary.templateCount = manualLibrary.templates?.length || 0;
+  manualLibrary.questionCount = countLibraryQuestions(manualLibrary.templates || []);
+  manualLibrary.updatedAt = new Date().toISOString();
+  return manualLibrary;
 }
 
 function normalizeCustomLibraryQuestion(question, templateKey, index) {
@@ -1491,7 +1629,9 @@ function getTemplateDefinitionForCycle({
 }) {
   const baseTemplate = getTemplateForRelationship(relationshipType);
   const customLibrary = findPublishedLibrary(customLibraries, cycle?.libraryId);
-  const customTemplate = findTemplateInPublishedLibrary(customLibrary, relationshipType);
+  const manualLibrary = findPublishedLibrary(customLibraries, MANUAL_EVALUATION_LIBRARY_ID);
+  const selectedLibrary = customLibrary || manualLibrary;
+  const customTemplate = findTemplateInPublishedLibrary(selectedLibrary, relationshipType);
 
   if (!customTemplate) {
     return baseTemplate;
@@ -3896,6 +4036,10 @@ function buildDashboardPayload({
   timeGrouping = "semester",
   performanceActorUser = null
 }) {
+  const scopedCycleIds = new Set((cycles || []).map((cycle) => cycle.id).filter(Boolean));
+  const scopedResponses = (responses || []).filter(
+    (response) => response?.cycleId && scopedCycleIds.has(response.cycleId)
+  );
   const submittedAssignments = assignments.filter((item) => item.status === "submitted").length;
   const pendingAssignments = assignments.filter((item) => item.status === "pending").length;
   const peopleCount = people.length;
@@ -3906,7 +4050,7 @@ function buildDashboardPayload({
     ? buildPerformance360Reviews({
         people,
         cycles,
-        responses,
+        responses: scopedResponses,
         actorUser: performanceActorUser
       })
     : [];
@@ -3982,20 +4126,20 @@ function buildDashboardPayload({
     satisfactionByArea: buildSatisfactionByAreaSeries(people),
     satisfactionQuestionAnalytics: buildSatisfactionQuestionAnalytics({
       cycles,
-      responses,
+      responses: scopedResponses,
       timeGrouping
     }),
     evaluationHighlights,
-    responseDistributions: buildQuestionDistributions(responses),
+    responseDistributions: buildQuestionDistributions(scopedResponses),
     evaluationMix: buildEvaluationMixSeries(assignments),
-    evaluationResultsSummary: buildEvaluationResultsSummarySeries(assignments, responses),
+    evaluationResultsSummary: buildEvaluationResultsSummarySeries(assignments, scopedResponses),
     performanceHealth,
     assignmentStatus: buildAssignmentStatusSeries(assignments),
     developmentByType: buildDevelopmentByTypeSeries(developmentRecords),
     cycleTimeline: buildCycleTimelineSeries({
       cycles,
       assignments,
-      responses,
+      responses: scopedResponses,
       timeGrouping
     }),
     timeGrouping
@@ -5252,6 +5396,11 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
       evaluationLibrary,
       buildEvaluationLibraryPayload,
       preparePublishedCustomLibraryUpdate,
+      ensureManualEvaluationLibrary,
+      assertHrCanManageEvaluationQuestions,
+      prepareManualEvaluationQuestionMutation,
+      findManualQuestionLocation,
+      refreshManualLibrarySummary,
       getTemplateDefinitionForCycle,
       presentCycle,
       presentCycleParticipantStructure,
@@ -6145,6 +6294,11 @@ function buildMysqlStore(
       evaluationLibrary,
       buildEvaluationLibraryPayload,
       preparePublishedCustomLibraryUpdate,
+      ensureManualEvaluationLibrary,
+      assertHrCanManageEvaluationQuestions,
+      prepareManualEvaluationQuestionMutation,
+      findManualQuestionLocation,
+      refreshManualLibrarySummary,
       getTemplateDefinitionForCycle,
       presentCycle,
       supportsCycleConfig,
@@ -6868,6 +7022,13 @@ function buildMysqlStore(
 export async function createStore() {
   const customLibraryState = await loadCustomLibraryState();
   const anonymousResponseState = await loadAnonymousResponseState();
+  const hadManualLibrary = Boolean(
+    findPublishedLibrary(customLibraryState.published, MANUAL_EVALUATION_LIBRARY_ID)
+  );
+  ensureManualEvaluationLibrary(customLibraryState);
+  if (!hadManualLibrary) {
+    await saveCustomLibraryState(customLibraryState);
+  }
 
   if (env.storageMode !== "mysql") {
     return buildMemoryStore(customLibraryState, anonymousResponseState);

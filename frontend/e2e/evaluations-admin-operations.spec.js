@@ -17,12 +17,13 @@ test("rh acessa operacao do feedback transversal e biblioteca", async ({ page })
   await openEvaluationModule(page, "Feedback transversal");
 
   await expect(page.getByText("Configuracao do Feedback transversal")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Salvar configuracao" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Salvar regras do pareamento" })).toBeVisible();
   await expect(page.getByText("Pareamentos do Feedback transversal")).toBeVisible();
 
   await page.getByRole("button", { name: "Biblioteca" }).click();
-  await expect(page.getByRole("heading", { name: "Biblioteca de avaliacoes" })).toBeVisible();
-  await expect(page.locator("strong", { hasText: "Bibliotecas publicadas" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Perguntas da avaliacao" })).toBeVisible();
+  await expect(page.locator("strong", { hasText: "Modalidades de avaliacao" })).toBeVisible();
+  await expect(page.getByText("RH editor")).toBeVisible();
   await expect(page.getByRole("button", { name: "Competencias" })).toBeVisible();
 });
 
@@ -41,7 +42,7 @@ test("rh salva configuracao transversal e encontra os dados apos recarregar", as
   await page.getByLabel("Avaliadores por pessoa").fill("2");
   await page.getByLabel("Unidade para override").fill("Sao Paulo");
   await page.getByLabel("Qtd. na unidade").fill("2");
-  await page.getByRole("button", { name: "Salvar configuracao" }).click();
+  await page.getByRole("button", { name: "Salvar regras do pareamento" }).click();
 
   await expect(
     page.getByText("Configuracao do Feedback transversal atualizada.")

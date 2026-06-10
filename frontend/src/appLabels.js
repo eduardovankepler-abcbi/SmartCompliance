@@ -20,24 +20,24 @@ export function getRelationshipDescription(type) {
 
 export function getEvaluationWorkspaceCopy(moduleKey, workspace = "respond") {
   const defaults = {
-    heading: workspace === "insights" ? "Leituras do submodulo" : "Responder avaliacao",
+    heading: workspace === "insights" ? "Leituras da modalidade" : "Responder avaliacao",
     description:
       workspace === "insights"
-        ? "Consolidado visivel para gestao no escopo permitido."
-        : "Area exclusiva de resposta das avaliacoes.",
+        ? "Leitura consolidada visivel no escopo permitido para o seu perfil."
+        : "Ambiente de resposta da modalidade selecionada.",
     selectionTitle: "Selecione um assignment",
     selectionDescription: "Escolha uma avaliacao da lista para abrir o formulario completo.",
-    emptyAssignmentsTitle: "Nenhum assignment neste submodulo",
+    emptyAssignmentsTitle: "Nenhum assignment nesta modalidade",
     emptyAssignmentsDescription:
-      "Troque o submodulo acima para navegar por outro tipo de avaliacao.",
+      "Troque a modalidade acima para navegar por outro tipo de avaliacao.",
     responseTitle: "Responder avaliacao",
     submitLabel: "Enviar avaliacao",
     evidenceLabel: "Evidencia",
     strengthsLabel: "Pontos fortes",
     developmentLabel: "Oportunidades de desenvolvimento",
-    insightsEmptyTitle: "Sem leitura agregada neste submodulo",
+    insightsEmptyTitle: "Sem leitura consolidada nesta modalidade",
     insightsEmptyDescription:
-      "O recorte atual ainda nao atingiu o minimo necessario ou nao usa agregacao."
+      "O recorte atual ainda nao atingiu o minimo necessario ou nao usa consolidacao anonima."
   };
 
   const byModule = {
@@ -154,7 +154,7 @@ export function getEvaluationWorkspaceCopy(moduleKey, workspace = "respond") {
 export function getEvaluationModuleExperience(moduleKey, workspace = "respond") {
   const defaults = {
     tone: "default",
-    spotlightTitle: workspace === "insights" ? "Leitura do submodulo" : "Jornada do submodulo",
+    spotlightTitle: workspace === "insights" ? "Leitura da modalidade" : "Jornada da modalidade",
     spotlightItems: []
   };
 

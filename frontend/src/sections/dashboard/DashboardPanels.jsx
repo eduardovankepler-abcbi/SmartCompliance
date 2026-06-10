@@ -29,6 +29,22 @@ export function DashboardTopPanels({
   storyCards,
   topKpis
 }) {
+  const areaFilterOptions = canFilterDashboardByArea
+    ? ["all", ...((dashboard?.areaOptions) || [])]
+    : [dashboard?.mode === "team" ? "team" : "scope"];
+
+  const renderAreaFilterLabel = (value) => {
+    if (canFilterDashboardByArea) {
+      return value === "all" ? "Todas as areas e setores" : value;
+    }
+
+    if (dashboard?.mode === "team") {
+      return "Equipe direta";
+    }
+
+    return dashboard?.scopeLabel || "Escopo atual";
+  };
+
   return (
     <>
       <div className="card card-span dashboard-command-card">
@@ -112,8 +128,8 @@ export function DashboardTopPanels({
           <DashboardFilterSelectCard
             label="Area"
             value={dashboardAreaFilter}
-            options={["all", ...((canFilterDashboardByArea && dashboard?.areaOptions) || [])]}
-            renderLabel={(value) => (value === "all" ? "Todas as areas e setores" : value)}
+            options={areaFilterOptions}
+            renderLabel={renderAreaFilterLabel}
             onChange={setDashboardAreaFilter}
           />
           <DashboardFilterSelectCard
@@ -196,7 +212,7 @@ export function DashboardTopPanels({
         <div className="card card-span dashboard-executive-brief-card">
           <DashboardCardHeader
             eyebrow="Resumo"
-            title="Leitura executiva do recorte"
+            title="Sintese rapida do recorte"
             subtitle="Sintese orientada a decisao"
             tone="primary"
           />
@@ -248,9 +264,9 @@ export function DashboardTopPanels({
           <div className="card-span dashboard-section-band summary">
             <div className="dashboard-section-band-copy">
               <span>Resumo</span>
-              <strong>Indicadores analiticos do recorte</strong>
+              <strong>Indicadores-base do recorte</strong>
             </div>
-            <p>Visao de base para aprofundar volume, distribuicao e variacoes do ciclo.</p>
+            <p>Base para aprofundar volume, distribuicao e variacoes do ciclo com mais contexto.</p>
           </div>
 
           <div className="card card-span">

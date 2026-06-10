@@ -37,6 +37,11 @@ export function createMemoryEvaluationReadStore({
   evaluationLibrary,
   buildEvaluationLibraryPayload,
   preparePublishedCustomLibraryUpdate,
+  ensureManualEvaluationLibrary,
+  assertHrCanManageEvaluationQuestions,
+  prepareManualEvaluationQuestionMutation,
+  findManualQuestionLocation,
+  refreshManualLibrarySummary,
   getTemplateDefinitionForCycle,
   presentCycle,
   presentCycleParticipantStructure,
@@ -169,6 +174,125 @@ export function createMemoryEvaluationReadStore({
       await saveCustomLibraryState(customLibraryState);
       return updatedLibrary;
     },
+    async createEvaluationLibraryQuestion(payload, actorUser) {
+      const { manualLibrary, template, question } = prepareManualEvaluationQuestionMutation({
+        customLibraryState,
+        payload,
+        actorUser
+      });
+      template.questions = [...(template.questions || []), question].sort(
+        (left, right) => Number(left.sortOrder || 0) - Number(right.sortOrder || 0)
+      );
+      refreshManualLibrarySummary(manualLibrary);
+      await saveCustomLibraryState(customLibraryState);
+      pushAuditLog(db.auditLogs, {
+        category: AUDIT_CATEGORIES.cycle,
+        action: "evaluation_question_created",
+        entityType: "evaluation_question",
+        entityId: question.id,
+        entityLabel: question.prompt,
+        actorUser,
+        summary: "Pergunta de avaliacao criada",
+        detail: `${payload.relationshipType} · ${question.inputType}`
+      });
+      return buildEvaluationLibraryPayload(customLibraryState.published);
+    },
+    async updateEvaluationLibraryQuestion(questionId, payload, actorUser) {
+      const manualLibrary = ensureManualEvaluationLibrary(customLibraryState);
+      const location = findManualQuestionLocation(manualLibrary, questionId);
+      if (!location) {
+        throw new Error("Pergunta de avaliacao nao encontrada.");
+      }
+      const existingQuestion = location.template.questions[location.questionIndex];
+      const { question } = prepareManualEvaluationQuestionMutation({
+        customLibraryState,
+        payload,
+        actorUser,
+        existingQuestion,
+        fallbackRelationshipType: location.template.relationshipType || location.template.key
+      });
+      location.template.questions[location.questionIndex] = question;
+      location.template.questions.sort(
+        (left, right) => Number(left.sortOrder || 0) - Number(right.sortOrder || 0)
+      );
+      refreshManualLibrarySummary(manualLibrary);
+      await saveCustomLibraryState(customLibraryState);
+      pushAuditLog(db.auditLogs, {
+        category: AUDIT_CATEGORIES.cycle,
+        action: "evaluation_question_updated",
+        entityType: "evaluation_question",
+        entityId: question.id,
+        entityLabel: question.prompt,
+        actorUser,
+        summary: "Pergunta de avaliacao atualizada",
+        detail: `${payload.relationshipType || location.template.relationshipType || location.template.key} · ${question.inputType}`
+      });
+      return buildEvaluationLibraryPayload(customLibraryState.published);
+    },
+    async deleteEvaluationLibraryQuestion(questionId, actorUser) {
+      const manualLibrary = ensureManualEvaluationLibrary(customLibraryState);
+      assertHrCanManageEvaluationQuestions(actorUser);
+      const location = findManualQuestionLocation(manualLibrary, questionId);
+      if (!location) {
+        throw new Error("Pergunta de avaliacao nao encontrada.");
+      }
+      if ((location.template.questions || []).length <= 1) {
+        throw new Error("A modalidade precisa manter ao menos uma pergunta.");
+      }
+      const [removed] = location.template.questions.splice(location.questionIndex, 1);
+      location.template.questions = location.template.questions.map((question, index) => ({
+        ...question,
+        sortOrder: index + 1
+      }));
+      refreshManualLibrarySummary(manualLibrary);
+      await saveCustomLibraryState(customLibraryState);
+      pushAuditLog(db.auditLogs, {
+        category: AUDIT_CATEGORIES.cycle,
+        action: "evaluation_question_deleted",
+        entityType: "evaluation_question",
+        entityId: removed.id,
+        entityLabel: removed.prompt,
+        actorUser,
+        summary: "Pergunta de avaliacao removida",
+        detail: location.template.relationshipType || location.template.key
+      });
+      return buildEvaluationLibraryPayload(customLibraryState.published);
+    },
+    async reorderEvaluationLibraryQuestions(relationshipType, questionIds, actorUser) {
+      assertHrCanManageEvaluationQuestions(actorUser);
+      const manualLibrary = ensureManualEvaluationLibrary(customLibraryState);
+      const template = (manualLibrary.templates || []).find(
+        (item) => (item.relationshipType || item.key) === relationshipType
+      );
+      if (!template) {
+        throw new Error("Modalidade de avaliacao nao encontrada.");
+      }
+      const questions = template.questions || [];
+      const questionById = new Map(questions.map((question) => [question.id, question]));
+      if (!Array.isArray(questionIds) || questionIds.length !== questions.length) {
+        throw new Error("Lista de perguntas invalida para reordenacao.");
+      }
+      if (questionIds.some((questionId) => !questionById.has(questionId))) {
+        throw new Error("Lista de perguntas contem itens invalidos.");
+      }
+      template.questions = questionIds.map((questionId, index) => ({
+        ...questionById.get(questionId),
+        sortOrder: index + 1
+      }));
+      refreshManualLibrarySummary(manualLibrary);
+      await saveCustomLibraryState(customLibraryState);
+      pushAuditLog(db.auditLogs, {
+        category: AUDIT_CATEGORIES.cycle,
+        action: "evaluation_questions_reordered",
+        entityType: "evaluation_question_group",
+        entityId: relationshipType,
+        entityLabel: relationshipType,
+        actorUser,
+        summary: "Perguntas de avaliacao reordenadas",
+        detail: `${relationshipType} · ${questionIds.length} pergunta(s)`
+      });
+      return buildEvaluationLibraryPayload(customLibraryState.published);
+    },
     async getEvaluationTemplateForCycleRelationship(cycleId, relationshipType) {
       const cycle = db.cycles.find((item) => item.id === cycleId);
       return buildTemplate(
@@ -296,6 +420,11 @@ export function createMysqlEvaluationReadStore({
   evaluationLibrary,
   buildEvaluationLibraryPayload,
   preparePublishedCustomLibraryUpdate,
+  ensureManualEvaluationLibrary,
+  assertHrCanManageEvaluationQuestions,
+  prepareManualEvaluationQuestionMutation,
+  findManualQuestionLocation,
+  refreshManualLibrarySummary,
   getTemplateDefinitionForCycle,
   presentCycle,
   supportsCycleConfig,
@@ -490,6 +619,125 @@ export function createMysqlEvaluationReadStore({
       customLibraryState.published[libraryIndex] = updatedLibrary;
       await saveCustomLibraryState(customLibraryState);
       return updatedLibrary;
+    },
+    async createEvaluationLibraryQuestion(payload, actorUser) {
+      const { manualLibrary, template, question } = prepareManualEvaluationQuestionMutation({
+        customLibraryState,
+        payload,
+        actorUser
+      });
+      template.questions = [...(template.questions || []), question].sort(
+        (left, right) => Number(left.sortOrder || 0) - Number(right.sortOrder || 0)
+      );
+      refreshManualLibrarySummary(manualLibrary);
+      await saveCustomLibraryState(customLibraryState);
+      await insertAuditLog(pool, {
+        category: AUDIT_CATEGORIES.cycle,
+        action: "evaluation_question_created",
+        entityType: "evaluation_question",
+        entityId: question.id,
+        entityLabel: question.prompt,
+        actorUser,
+        summary: "Pergunta de avaliacao criada",
+        detail: `${payload.relationshipType} · ${question.inputType}`
+      });
+      return buildEvaluationLibraryPayload(customLibraryState.published);
+    },
+    async updateEvaluationLibraryQuestion(questionId, payload, actorUser) {
+      const manualLibrary = ensureManualEvaluationLibrary(customLibraryState);
+      const location = findManualQuestionLocation(manualLibrary, questionId);
+      if (!location) {
+        throw new Error("Pergunta de avaliacao nao encontrada.");
+      }
+      const existingQuestion = location.template.questions[location.questionIndex];
+      const { question } = prepareManualEvaluationQuestionMutation({
+        customLibraryState,
+        payload,
+        actorUser,
+        existingQuestion,
+        fallbackRelationshipType: location.template.relationshipType || location.template.key
+      });
+      location.template.questions[location.questionIndex] = question;
+      location.template.questions.sort(
+        (left, right) => Number(left.sortOrder || 0) - Number(right.sortOrder || 0)
+      );
+      refreshManualLibrarySummary(manualLibrary);
+      await saveCustomLibraryState(customLibraryState);
+      await insertAuditLog(pool, {
+        category: AUDIT_CATEGORIES.cycle,
+        action: "evaluation_question_updated",
+        entityType: "evaluation_question",
+        entityId: question.id,
+        entityLabel: question.prompt,
+        actorUser,
+        summary: "Pergunta de avaliacao atualizada",
+        detail: `${payload.relationshipType || location.template.relationshipType || location.template.key} · ${question.inputType}`
+      });
+      return buildEvaluationLibraryPayload(customLibraryState.published);
+    },
+    async deleteEvaluationLibraryQuestion(questionId, actorUser) {
+      const manualLibrary = ensureManualEvaluationLibrary(customLibraryState);
+      assertHrCanManageEvaluationQuestions(actorUser);
+      const location = findManualQuestionLocation(manualLibrary, questionId);
+      if (!location) {
+        throw new Error("Pergunta de avaliacao nao encontrada.");
+      }
+      if ((location.template.questions || []).length <= 1) {
+        throw new Error("A modalidade precisa manter ao menos uma pergunta.");
+      }
+      const [removed] = location.template.questions.splice(location.questionIndex, 1);
+      location.template.questions = location.template.questions.map((question, index) => ({
+        ...question,
+        sortOrder: index + 1
+      }));
+      refreshManualLibrarySummary(manualLibrary);
+      await saveCustomLibraryState(customLibraryState);
+      await insertAuditLog(pool, {
+        category: AUDIT_CATEGORIES.cycle,
+        action: "evaluation_question_deleted",
+        entityType: "evaluation_question",
+        entityId: removed.id,
+        entityLabel: removed.prompt,
+        actorUser,
+        summary: "Pergunta de avaliacao removida",
+        detail: location.template.relationshipType || location.template.key
+      });
+      return buildEvaluationLibraryPayload(customLibraryState.published);
+    },
+    async reorderEvaluationLibraryQuestions(relationshipType, questionIds, actorUser) {
+      assertHrCanManageEvaluationQuestions(actorUser);
+      const manualLibrary = ensureManualEvaluationLibrary(customLibraryState);
+      const template = (manualLibrary.templates || []).find(
+        (item) => (item.relationshipType || item.key) === relationshipType
+      );
+      if (!template) {
+        throw new Error("Modalidade de avaliacao nao encontrada.");
+      }
+      const questions = template.questions || [];
+      const questionById = new Map(questions.map((question) => [question.id, question]));
+      if (!Array.isArray(questionIds) || questionIds.length !== questions.length) {
+        throw new Error("Lista de perguntas invalida para reordenacao.");
+      }
+      if (questionIds.some((questionId) => !questionById.has(questionId))) {
+        throw new Error("Lista de perguntas contem itens invalidos.");
+      }
+      template.questions = questionIds.map((questionId, index) => ({
+        ...questionById.get(questionId),
+        sortOrder: index + 1
+      }));
+      refreshManualLibrarySummary(manualLibrary);
+      await saveCustomLibraryState(customLibraryState);
+      await insertAuditLog(pool, {
+        category: AUDIT_CATEGORIES.cycle,
+        action: "evaluation_questions_reordered",
+        entityType: "evaluation_question_group",
+        entityId: relationshipType,
+        entityLabel: relationshipType,
+        actorUser,
+        summary: "Perguntas de avaliacao reordenadas",
+        detail: `${relationshipType} · ${questionIds.length} pergunta(s)`
+      });
+      return buildEvaluationLibraryPayload(customLibraryState.published);
     },
     async getEvaluationTemplateForCycleRelationship(cycleId, relationshipType) {
       const [rows] = await pool.query(
