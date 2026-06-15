@@ -185,11 +185,19 @@ const PEER_SAME_AREA_OPTION_POINTS = Object.freeze({
   E: 0.2143
 });
 
-function normalizePeerSameAreaOption(value) {
+const SELF_EVALUATION_OPTION_POINTS = Object.freeze({
+  A: 0,
+  B: 0.0188,
+  C: 0.0375,
+  D: 0.0563,
+  E: 0.075
+});
+
+function normalizePerformanceConcept(value) {
   const normalized = String(value || "")
     .trim()
     .toUpperCase();
-  if (PEER_SAME_AREA_OPTION_POINTS[normalized] !== undefined) {
+  if (["A", "B", "C", "D", "E"].includes(normalized)) {
     return normalized;
   }
 
@@ -214,7 +222,7 @@ function normalizePeerSameAreaOption(value) {
   return "";
 }
 
-function getPeerSameAreaOptionConcept(answer, templateDefinition) {
+function getEvaluationAnswerConcept(answer, templateDefinition) {
   const selectedOption = Array.isArray(answer.selectedOptions)
     ? answer.selectedOptions[0]
     : null;
@@ -226,18 +234,18 @@ function getPeerSameAreaOptionConcept(answer, templateDefinition) {
   );
 
   return (
-    normalizePeerSameAreaOption(option?.label) ||
-    normalizePeerSameAreaOption(selectedOption) ||
+    normalizePerformanceConcept(option?.label) ||
+    normalizePerformanceConcept(selectedOption) ||
     (Number.isFinite(Number(answer.score))
-      ? normalizePeerSameAreaOption(["", "A", "B", "C", "D", "E"][Number(answer.score)])
+      ? normalizePerformanceConcept(["", "A", "B", "C", "D", "E"][Number(answer.score)])
       : "")
   );
 }
 
-function calculatePeerSameAreaScore(answers = [], templateDefinition = null) {
+function calculateConceptScore(answers = [], templateDefinition = null, pointsByConcept = {}) {
   const total = answers.reduce((sum, answer) => {
-    const optionKey = getPeerSameAreaOptionConcept(answer, templateDefinition);
-    return sum + (PEER_SAME_AREA_OPTION_POINTS[optionKey] ?? 0);
+    const optionKey = getEvaluationAnswerConcept(answer, templateDefinition);
+    return sum + (pointsByConcept[optionKey] ?? 0);
   }, 0);
   return Number(total.toFixed(4));
 }
@@ -254,7 +262,9 @@ export function prepareEvaluationSubmission({
   const overallScore =
     assignment.relationshipType === "peer-same-area" ||
     templateDefinition?.key === "peer-same-area"
-      ? calculatePeerSameAreaScore(payload.answers, templateDefinition)
+      ? calculateConceptScore(payload.answers, templateDefinition, PEER_SAME_AREA_OPTION_POINTS)
+      : assignment.relationshipType === "self" || templateDefinition?.key === "self"
+        ? calculateConceptScore(payload.answers, templateDefinition, SELF_EVALUATION_OPTION_POINTS)
       : scaleScores.length
         ? Number(average(scaleScores).toFixed(2))
         : null;

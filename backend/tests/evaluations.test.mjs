@@ -324,6 +324,30 @@ export async function runEvaluationsRegression() {
       Array.isArray(selfTemplateFallback.questions) && selfTemplateFallback.questions.length > 0,
       "Ciclo com biblioteca customizada deve manter fallback da autoavaliacao padrao"
     );
+    const selfMaximumScoreSubmission = prepareEvaluationSubmission({
+      assignment: {
+        id: "assignment_self_maximum",
+        cycleId: createdCycle.id,
+        relationshipType: "self",
+        revieweePersonId: managerRevieweeEmployee.personId
+      },
+      templateDefinition: selfTemplateFallback,
+      payload: {
+        reviewerUserId: managerRevieweeEmployee.id,
+        answers: selfTemplateFallback.questions.map((question) => ({
+          questionId: question.id,
+          score: 5
+        }))
+      },
+      createId: (prefix) => `${prefix}_self_maximum`,
+      getAnsweredScaleScores: () => [],
+      average: () => 0
+    });
+    assert.equal(
+      selfMaximumScoreSubmission.overallScore,
+      1.5,
+      "Autoavaliacao com respostas maximas deve somar 1,5"
+    );
 
     const managerTemplateFallback = await store.getEvaluationTemplateForCycleRelationship(
       createdCycle.id,
@@ -504,6 +528,11 @@ export async function runEvaluationsRegression() {
       strengthsNote: "Ponto forte individual.",
       developmentNote: "Ponto de desenvolvimento individual."
     });
+    assert.equal(
+      individualizedSubmission.overallScore,
+      1.126,
+      "Autoavaliacao deve usar a pontuacao propria em vez da media 1-5"
+    );
 
     const hrResponsesBundle = await store.getEvaluationResponses(hr);
     const hrSelfResponse = hrResponsesBundle.individualResponses.find(

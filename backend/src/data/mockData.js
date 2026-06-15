@@ -134,7 +134,7 @@ function createMultiSelectQuestion({
 export const evaluationLibrary = {
   scale: satisfactionScale,
   weights: {
-    self: 0.15,
+    self: 1,
     peer: 0.15,
     "peer-same-area": 1,
     manager: 0.25,
@@ -363,10 +363,11 @@ export const evaluationLibrary = {
       policy: {
         strategy: "standard-library",
         managerCustomQuestionsLimit: 0,
-        scale: agreementScale,
+        scale: performanceScale,
         confidentiality: "private-to-employee-and-manager",
         showStrengthsNote: false,
-        showDevelopmentNote: false
+        showDevelopmentNote: false,
+        maxScore: 1.5
       },
       questions: [
         createScaleQuestion({
