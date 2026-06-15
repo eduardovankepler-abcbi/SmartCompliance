@@ -46,11 +46,13 @@ Configurar no servico do Render:
 - `MYSQL_SSL_MODE=required` quando o provedor exigir SSL
 - `MYSQL_SSL_REJECT_UNAUTHORIZED=false` para homologacao temporaria em provedores como Aiven
 - `CORS_ORIGIN=<url-do-frontend-publicado>` (ou `CORS_ORIGINS` em CSV)
+- `CORS_ADDITIONAL_ORIGINS=<urls-extras-em-csv>` quando houver dominio customizado ou preview adicional da Vercel
 
 Observacao:
 
 - em producao, `AUTH_SECRET` nao pode ficar no valor padrao
 - `PORT` normalmente e fornecida pela propria plataforma
+- o backend ja libera por padrao `localhost`, `127.0.0.1`, `smart-compliance-frontend*.vercel.app` e `smartcompliance*.vercel.app`
 
 ### Frontend
 
@@ -107,7 +109,7 @@ Para homologar especificamente a frente de `questionarios individuais` em MySQL 
 5. Valide o endpoint `GET /health`.
 6. Publique o frontend na Vercel.
 7. Configure `VITE_API_URL` apontando para o backend publicado.
-8. Atualize `CORS_ORIGIN` no backend com a URL final do frontend.
+8. Atualize `CORS_ORIGIN` ou `CORS_ADDITIONAL_ORIGINS` no backend com qualquer URL final do frontend fora dos dominios padrao.
 9. Rode um teste de login e navegacao completa.
 
 ## Checklist de validacao

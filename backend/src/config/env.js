@@ -18,18 +18,25 @@ function wildcardToRegex(pattern) {
   return new RegExp(`^${escaped}$`);
 }
 
+const DEFAULT_CORS_ORIGINS = [
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+  "https://smart-compliance-frontend.vercel.app",
+  "https://smart-compliance-frontend*.vercel.app",
+  "https://smartcompliance*.vercel.app"
+];
+
 function buildCorsOriginOption() {
   const canonical = process.env.CORS_ORIGIN;
   const legacy = process.env.CORS_ORIGINS;
+  const additional = process.env.CORS_ADDITIONAL_ORIGINS;
 
-  const configured = canonical ? parseCsv(canonical) : legacy ? parseCsv(legacy) : [];
-  const originRules = configured.length
-    ? configured
-    : [
-        "http://localhost:5173",
-        "https://smart-compliance-frontend.vercel.app",
-        "https://smart-compliance-frontend*.vercel.app"
-      ];
+  const configured = [
+    ...(canonical ? parseCsv(canonical) : []),
+    ...(legacy ? parseCsv(legacy) : []),
+    ...(additional ? parseCsv(additional) : [])
+  ];
+  const originRules = Array.from(new Set([...DEFAULT_CORS_ORIGINS, ...configured]));
   const matchers = originRules.map((rule) =>
     rule.includes("*") ? wildcardToRegex(rule) : rule
   );
