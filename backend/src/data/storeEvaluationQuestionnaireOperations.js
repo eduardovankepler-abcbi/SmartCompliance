@@ -7,10 +7,11 @@ const QUESTIONNAIRE_STATUS = Object.freeze({
 });
 
 const QUESTIONNAIRE_REQUIRED_COUNTS = Object.freeze({
-  manager: 15,
   self: 20,
   "peer-same-area": 7
 });
+
+const FLEXIBLE_QUESTIONNAIRE_TYPES = new Set(["manager"]);
 
 function canManageEvaluationQuestionnaires(actorUser, { isAdminUser, isHrUser }) {
   return isAdminUser(actorUser) || isHrUser(actorUser);
@@ -23,7 +24,10 @@ function assertCanManageEvaluationQuestionnaires(actorUser, guards) {
 }
 
 function assertValidQuestionnaireRelationshipType(relationshipType) {
-  if (!Object.keys(QUESTIONNAIRE_REQUIRED_COUNTS).includes(relationshipType)) {
+  if (
+    !Object.keys(QUESTIONNAIRE_REQUIRED_COUNTS).includes(relationshipType) &&
+    !FLEXIBLE_QUESTIONNAIRE_TYPES.has(relationshipType)
+  ) {
     throw new Error("Tipo de questionario individual invalido.");
   }
 }
@@ -218,13 +222,17 @@ function assertQuestionnaireEditable(questionnaire) {
 function validateQuestionnairePublication(questionnaire, questions) {
   assertQuestionnaireEditable(questionnaire);
   const requiredCount = getQuestionnaireRequiredQuestionCount(questionnaire.relationshipType);
-  if (!requiredCount) {
+  const isFlexibleQuestionnaire = FLEXIBLE_QUESTIONNAIRE_TYPES.has(questionnaire.relationshipType);
+  if (!requiredCount && !isFlexibleQuestionnaire) {
     throw new Error("Tipo de questionario sem configuracao de publicacao.");
   }
-  if (questions.length !== requiredCount) {
+  if (requiredCount && questions.length !== requiredCount) {
     throw new Error(
       `Questionario ${questionnaire.relationshipType} precisa ter exatamente ${requiredCount} perguntas.`
     );
+  }
+  if (isFlexibleQuestionnaire && questions.length < 1) {
+    throw new Error("Questionario precisa ter pelo menos uma pergunta para publicar.");
   }
 
   const seenSortOrders = new Set();

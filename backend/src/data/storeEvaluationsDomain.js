@@ -185,13 +185,41 @@ const PEER_SAME_AREA_OPTION_POINTS = Object.freeze({
   E: 0.2143
 });
 
-const SELF_EVALUATION_OPTION_POINTS = Object.freeze({
+const EMPLOYEE_SELF_EVALUATION_CONCEPT_FACTORS = Object.freeze({
   A: 0,
-  B: 0.0188,
-  C: 0.0375,
-  D: 0.0563,
-  E: 0.075
+  B: 0.25,
+  C: 0.5,
+  D: 0.75,
+  E: 1
 });
+const EMPLOYEE_SELF_EVALUATION_MAX_SCORE = 1.5;
+
+const LEADER_EVALUATION_CONCEPT_FACTORS = Object.freeze({
+  A: 0,
+  B: 0.25,
+  C: 0.5,
+  D: 0.75,
+  E: 1
+});
+const LEADER_EVALUATION_MAX_SCORE = 2.5;
+
+const LEADER_SELF_EVALUATION_CONCEPT_FACTORS = Object.freeze({
+  A: 0,
+  B: 0.25,
+  C: 0.5,
+  D: 0.75,
+  E: 1
+});
+const LEADER_SELF_EVALUATION_MAX_SCORE = 1.5;
+
+const MANAGER_EVALUATION_CONCEPT_FACTORS = Object.freeze({
+  A: 0,
+  B: 0.25,
+  C: 0.5,
+  D: 0.75,
+  E: 1
+});
+const MANAGER_EVALUATION_MAX_SCORE = 7;
 
 function normalizePerformanceConcept(value) {
   const normalized = String(value || "")
@@ -250,6 +278,83 @@ function calculateConceptScore(answers = [], templateDefinition = null, pointsBy
   return Number(total.toFixed(4));
 }
 
+function calculateProportionalConceptScore({
+  answers = [],
+  templateDefinition = null,
+  conceptFactors = {},
+  maxScore
+}) {
+  const scoredAnswers = answers.filter((answer) => {
+    const question = templateDefinition?.questions?.find(
+      (item) => item.id === answer.questionId
+    );
+    return question?.inputType !== "text";
+  });
+  if (!scoredAnswers.length || !Number.isFinite(Number(maxScore))) {
+    return null;
+  }
+
+  const pointsPerQuestion = Number(maxScore) / scoredAnswers.length;
+  const total = scoredAnswers.reduce((sum, answer) => {
+    const optionKey = getEvaluationAnswerConcept(answer, templateDefinition);
+    return sum + pointsPerQuestion * (conceptFactors[optionKey] ?? 0);
+  }, 0);
+
+  return Number(Math.min(total, Number(maxScore)).toFixed(4));
+}
+
+export function calculateEvaluationOverallScore({
+  relationshipType,
+  scoringContext = "",
+  templateDefinition,
+  answers = [],
+  getAnsweredScaleScores,
+  average
+}) {
+  if (relationshipType === "peer-same-area" || templateDefinition?.key === "peer-same-area") {
+    return calculateConceptScore(answers, templateDefinition, PEER_SAME_AREA_OPTION_POINTS);
+  }
+
+  if (relationshipType === "self" || templateDefinition?.key === "self") {
+    if (scoringContext === "leader-self") {
+      return calculateProportionalConceptScore({
+        answers,
+        templateDefinition,
+        conceptFactors: LEADER_SELF_EVALUATION_CONCEPT_FACTORS,
+        maxScore: LEADER_SELF_EVALUATION_MAX_SCORE
+      });
+    }
+
+    return calculateProportionalConceptScore({
+      answers,
+      templateDefinition,
+      conceptFactors: EMPLOYEE_SELF_EVALUATION_CONCEPT_FACTORS,
+      maxScore: EMPLOYEE_SELF_EVALUATION_MAX_SCORE
+    });
+  }
+
+  if (relationshipType === "leader" || templateDefinition?.key === "leader") {
+    return calculateProportionalConceptScore({
+      answers,
+      templateDefinition,
+      conceptFactors: LEADER_EVALUATION_CONCEPT_FACTORS,
+      maxScore: LEADER_EVALUATION_MAX_SCORE
+    });
+  }
+
+  if (relationshipType === "manager" || templateDefinition?.key === "manager") {
+    return calculateProportionalConceptScore({
+      answers,
+      templateDefinition,
+      conceptFactors: MANAGER_EVALUATION_CONCEPT_FACTORS,
+      maxScore: MANAGER_EVALUATION_MAX_SCORE
+    });
+  }
+
+  const scaleScores = getAnsweredScaleScores(answers);
+  return scaleScores.length ? Number(average(scaleScores).toFixed(2)) : null;
+}
+
 export function prepareEvaluationSubmission({
   assignment,
   templateDefinition,
@@ -258,16 +363,14 @@ export function prepareEvaluationSubmission({
   getAnsweredScaleScores,
   average
 }) {
-  const scaleScores = getAnsweredScaleScores(payload.answers);
-  const overallScore =
-    assignment.relationshipType === "peer-same-area" ||
-    templateDefinition?.key === "peer-same-area"
-      ? calculateConceptScore(payload.answers, templateDefinition, PEER_SAME_AREA_OPTION_POINTS)
-      : assignment.relationshipType === "self" || templateDefinition?.key === "self"
-        ? calculateConceptScore(payload.answers, templateDefinition, SELF_EVALUATION_OPTION_POINTS)
-      : scaleScores.length
-        ? Number(average(scaleScores).toFixed(2))
-        : null;
+  const overallScore = calculateEvaluationOverallScore({
+    relationshipType: assignment.relationshipType,
+    scoringContext: assignment.scoringContext || "",
+    templateDefinition,
+    answers: payload.answers,
+    getAnsweredScaleScores,
+    average
+  });
 
   return {
     id: createId("submission"),

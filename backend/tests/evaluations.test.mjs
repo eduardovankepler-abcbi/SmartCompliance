@@ -348,6 +348,62 @@ export async function runEvaluationsRegression() {
       1.5,
       "Autoavaliacao com respostas maximas deve somar 1,5"
     );
+    const selfFifteenQuestionMaximumScoreSubmission = prepareEvaluationSubmission({
+      assignment: {
+        id: "assignment_self_fifteen_maximum",
+        cycleId: createdCycle.id,
+        relationshipType: "self",
+        revieweePersonId: manager.personId,
+        scoringContext: "leader-self"
+      },
+      templateDefinition: {
+        ...selfTemplateFallback,
+        questions: selfTemplateFallback.questions.slice(0, 15)
+      },
+      payload: {
+        reviewerUserId: manager.id,
+        answers: selfTemplateFallback.questions.slice(0, 15).map((question) => ({
+          questionId: question.id,
+          score: 5
+        }))
+      },
+      createId: (prefix) => `${prefix}_self_fifteen_maximum`,
+      getAnsweredScaleScores: () => [],
+      average: () => 0
+    });
+    assert.equal(
+      selfFifteenQuestionMaximumScoreSubmission.overallScore,
+      1.5,
+      "Autoavaliacao do lider com 15 perguntas maximas deve ficar limitada a 1,5"
+    );
+    const selfFifteenQuestionMiddleScoreSubmission = prepareEvaluationSubmission({
+      assignment: {
+        id: "assignment_self_fifteen_middle",
+        cycleId: createdCycle.id,
+        relationshipType: "self",
+        revieweePersonId: manager.personId,
+        scoringContext: "leader-self"
+      },
+      templateDefinition: {
+        ...selfTemplateFallback,
+        questions: selfTemplateFallback.questions.slice(0, 15)
+      },
+      payload: {
+        reviewerUserId: manager.id,
+        answers: selfTemplateFallback.questions.slice(0, 15).map((question) => ({
+          questionId: question.id,
+          score: 3
+        }))
+      },
+      createId: (prefix) => `${prefix}_self_fifteen_middle`,
+      getAnsweredScaleScores: () => [],
+      average: () => 0
+    });
+    assert.equal(
+      selfFifteenQuestionMiddleScoreSubmission.overallScore,
+      0.75,
+      "Autoavaliacao do lider deve manter proporcionalidade dos conceitos ao mudar quantidade de perguntas"
+    );
 
     const managerTemplateFallback = await store.getEvaluationTemplateForCycleRelationship(
       createdCycle.id,
@@ -367,6 +423,184 @@ export async function runEvaluationsRegression() {
       managerTemplateFallback.policy.scale[0].label,
       "Muito abaixo do esperado",
       "Template gerencial deve usar escala de desempenho"
+    );
+    const managerMaximumScoreSubmission = prepareEvaluationSubmission({
+      assignment: {
+        id: "assignment_manager_maximum",
+        cycleId: createdCycle.id,
+        relationshipType: "manager",
+        revieweePersonId: managerRevieweeEmployee.personId
+      },
+      templateDefinition: managerTemplateFallback,
+      payload: {
+        reviewerUserId: manager.id,
+        answers: managerTemplateFallback.questions
+          .filter((question) => question.inputType !== "text")
+          .map((question) => ({
+            questionId: question.id,
+            score: 5
+          }))
+      },
+      createId: (prefix) => `${prefix}_manager_maximum`,
+      getAnsweredScaleScores: () => [],
+      average: () => 0
+    });
+    assert.equal(
+      managerMaximumScoreSubmission.overallScore,
+      7,
+      "Feedback do lider sobre o colaborador deve respeitar teto de 7"
+    );
+    const managerTwentyQuestionMiddleScoreSubmission = prepareEvaluationSubmission({
+      assignment: {
+        id: "assignment_manager_twenty_middle",
+        cycleId: createdCycle.id,
+        relationshipType: "manager",
+        revieweePersonId: managerRevieweeEmployee.personId
+      },
+      templateDefinition: managerTemplateFallback,
+      payload: {
+        reviewerUserId: manager.id,
+        answers: managerTemplateFallback.questions
+          .filter((question) => question.inputType !== "text")
+          .map((question) => ({
+            questionId: question.id,
+            score: 3
+          }))
+      },
+      createId: (prefix) => `${prefix}_manager_twenty_middle`,
+      getAnsweredScaleScores: () => [],
+      average: () => 0
+    });
+    assert.equal(
+      managerTwentyQuestionMiddleScoreSubmission.overallScore,
+      3.5,
+      "Feedback do lider deve pontuar Dentro do esperado como metade do teto"
+    );
+    const managerTenQuestionMaximumScoreSubmission = prepareEvaluationSubmission({
+      assignment: {
+        id: "assignment_manager_ten_maximum",
+        cycleId: createdCycle.id,
+        relationshipType: "manager",
+        revieweePersonId: managerRevieweeEmployee.personId
+      },
+      templateDefinition: {
+        ...managerTemplateFallback,
+        questions: managerTemplateFallback.questions
+          .filter((question) => question.inputType !== "text")
+          .slice(0, 10)
+      },
+      payload: {
+        reviewerUserId: manager.id,
+        answers: managerTemplateFallback.questions
+          .filter((question) => question.inputType !== "text")
+          .slice(0, 10)
+          .map((question) => ({
+            questionId: question.id,
+            score: 5
+          }))
+      },
+      createId: (prefix) => `${prefix}_manager_ten_maximum`,
+      getAnsweredScaleScores: () => [],
+      average: () => 0
+    });
+    assert.equal(
+      managerTenQuestionMaximumScoreSubmission.overallScore,
+      7,
+      "Feedback do lider deve manter teto 7 ao mudar quantidade de perguntas"
+    );
+    const leaderTemplateFallback = await store.getEvaluationTemplateForCycleRelationship(
+      createdCycle.id,
+      "leader"
+    );
+    const leaderMaximumScoreSubmission = prepareEvaluationSubmission({
+      assignment: {
+        id: "assignment_leader_maximum",
+        cycleId: createdCycle.id,
+        relationshipType: "leader",
+        revieweePersonId: manager.personId
+      },
+      templateDefinition: leaderTemplateFallback,
+      payload: {
+        reviewerUserId: managerRevieweeEmployee.id,
+        answers: leaderTemplateFallback.questions
+          .filter((question) => question.inputType !== "text")
+          .map((question) => ({
+            questionId: question.id,
+            score: 5
+          }))
+      },
+      createId: (prefix) => `${prefix}_leader_maximum`,
+      getAnsweredScaleScores: () => [],
+      average: () => 0
+    });
+    assert.equal(
+      leaderMaximumScoreSubmission.overallScore,
+      2.5,
+      "Avaliacao do colaborador sobre o lider deve respeitar teto de 2,5"
+    );
+    const leaderFifteenQuestionMaximumScoreSubmission = prepareEvaluationSubmission({
+      assignment: {
+        id: "assignment_leader_fifteen_maximum",
+        cycleId: createdCycle.id,
+        relationshipType: "leader",
+        revieweePersonId: manager.personId
+      },
+      templateDefinition: {
+        ...leaderTemplateFallback,
+        questions: leaderTemplateFallback.questions
+          .filter((question) => question.inputType !== "text")
+          .slice(0, 15)
+      },
+      payload: {
+        reviewerUserId: managerRevieweeEmployee.id,
+        answers: leaderTemplateFallback.questions
+          .filter((question) => question.inputType !== "text")
+          .slice(0, 15)
+          .map((question) => ({
+            questionId: question.id,
+            score: 5
+          }))
+      },
+      createId: (prefix) => `${prefix}_leader_fifteen_maximum`,
+      getAnsweredScaleScores: () => [],
+      average: () => 0
+    });
+    assert.equal(
+      leaderFifteenQuestionMaximumScoreSubmission.overallScore,
+      2.5,
+      "Avaliacao do lider com 15 perguntas maximas deve ficar limitada a 2,5"
+    );
+    const leaderFifteenQuestionMiddleScoreSubmission = prepareEvaluationSubmission({
+      assignment: {
+        id: "assignment_leader_fifteen_middle",
+        cycleId: createdCycle.id,
+        relationshipType: "leader",
+        revieweePersonId: manager.personId
+      },
+      templateDefinition: {
+        ...leaderTemplateFallback,
+        questions: leaderTemplateFallback.questions
+          .filter((question) => question.inputType !== "text")
+          .slice(0, 15)
+      },
+      payload: {
+        reviewerUserId: managerRevieweeEmployee.id,
+        answers: leaderTemplateFallback.questions
+          .filter((question) => question.inputType !== "text")
+          .slice(0, 15)
+          .map((question) => ({
+            questionId: question.id,
+            score: 3
+          }))
+      },
+      createId: (prefix) => `${prefix}_leader_fifteen_middle`,
+      getAnsweredScaleScores: () => [],
+      average: () => 0
+    });
+    assert.equal(
+      leaderFifteenQuestionMiddleScoreSubmission.overallScore,
+      1.25,
+      "Avaliacao do lider deve manter proporcionalidade dos conceitos ao mudar quantidade de perguntas"
     );
     const sameAreaPeerTemplateFallback = await store.getEvaluationTemplateForCycleRelationship(
       createdCycle.id,
@@ -433,6 +667,42 @@ export async function runEvaluationsRegression() {
       managerRevieweeEmployee.id
     );
     await store.updateEvaluationCycleStatus(createdCycle.id, "Liberado", admin);
+
+    const managedLeaderAssignment = managedAssignments.find(
+      (assignment) =>
+        assignment.relationshipType === "leader" && assignment.cycleId === createdCycle.id
+    );
+    assert.ok(
+      managedLeaderAssignment,
+      "Subordinado do gestor precisa receber assignment para avaliar o lider"
+    );
+    const managedLeaderTemplate = await store.getEvaluationTemplateForAssignment(
+      managedLeaderAssignment.id,
+      managerRevieweeEmployee.id
+    );
+    const leaderAnonymousSubmission = await store.submitEvaluationAssignment({
+      assignmentId: managedLeaderAssignment.id,
+      reviewerUserId: managerRevieweeEmployee.id,
+      answers: managedLeaderTemplate.questions.map((question) => ({
+        questionId: question.id,
+        score: question.inputType === "scale" ? 5 : null,
+        evidenceNote: "",
+        textValue: question.inputType === "text" ? "Observacao sobre a lideranca." : "",
+        selectedOptions: []
+      })),
+      strengthsNote: "",
+      developmentNote: ""
+    });
+    assert.equal(
+      leaderAnonymousSubmission.revieweePersonId,
+      managedLeaderAssignment.revieweePersonId,
+      "Avaliacao do colaborador sobre o lider deve pontuar o lider avaliado"
+    );
+    assert.equal(
+      leaderAnonymousSubmission.overallScore,
+      2.5,
+      "Submissao anonima de lider deve usar a pontuacao propria com teto de 2,5"
+    );
 
     const sameAreaPeerAssignments = await store.getEvaluationAssignmentsForUser(manager.id);
     const sameAreaPeerAssignment = sameAreaPeerAssignments.find(
@@ -530,7 +800,7 @@ export async function runEvaluationsRegression() {
     });
     assert.equal(
       individualizedSubmission.overallScore,
-      1.126,
+      1.125,
       "Autoavaliacao deve usar a pontuacao propria em vez da media 1-5"
     );
 
@@ -664,6 +934,21 @@ export async function runEvaluationsRegression() {
       strengthsNote: "Forca gerencial.",
       developmentNote: "Acompanhamento gerencial."
     });
+    assert.equal(
+      rawManagerSubmission.revieweePersonId,
+      rawManagerAssignment.revieweePersonId,
+      "Feedback do lider deve pontuar o colaborador avaliado"
+    );
+    assert.equal(
+      rawManagerSubmission.overallScore,
+      7,
+      "Submissao do feedback do lider deve aplicar teto de 7"
+    );
+    assert.equal(
+      rawManagerSubmission.weightedScore,
+      7,
+      "Feedback do lider nao deve multiplicar novamente o teto de 7"
+    );
 
     const hrResponsesBundleWithRawAccess = await store.getEvaluationResponses(hr);
     const hrRawManagerResponse = hrResponsesBundleWithRawAccess.individualResponses.find(

@@ -137,11 +137,11 @@ export const evaluationLibrary = {
     self: 1,
     peer: 0.15,
     "peer-same-area": 1,
-    manager: 0.25,
+    manager: 1,
     "cross-functional": 0.1,
     "client-internal": 0.1,
     "client-external": 0.1,
-    leader: 0.1,
+    leader: 1,
     company: 0.05
   },
   templates: {
@@ -669,6 +669,7 @@ export const evaluationLibrary = {
         strategy: "standard-library",
         managerCustomQuestionsLimit: 0,
         scale: performanceScale,
+        maxScore: 7,
         confidentiality: "private-to-employee-and-manager",
         showStrengthsNote: false,
         showDevelopmentNote: false
@@ -1137,10 +1138,11 @@ export const evaluationLibrary = {
       policy: {
         strategy: "standard-library",
         managerCustomQuestionsLimit: 0,
-        scale: agreementScale,
+        scale: performanceScale,
         confidentiality: "anonymous-aggregate",
         showStrengthsNote: false,
-        showDevelopmentNote: false
+        showDevelopmentNote: false,
+        maxScore: 2.5
       },
       questions: [
         createScaleQuestion({

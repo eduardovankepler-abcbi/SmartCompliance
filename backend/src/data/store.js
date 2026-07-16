@@ -66,6 +66,7 @@ import {
   buildFeedbackRequestCreateAuditDetail,
   buildFeedbackRequestItems,
   buildFeedbackRequestReviewAuditDetail,
+  calculateEvaluationOverallScore,
   filterReceivedManagerFeedback,
   prepareEvaluationCycle,
   prepareEvaluationSubmission,
@@ -2700,6 +2701,41 @@ function getUserByPersonId(users, personId) {
   return users.find((candidate) => candidate.personId === personId) || null;
 }
 
+function normalizeSearchText(value) {
+  return String(value || "")
+    .trim()
+    .toUpperCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function isLeaderPerson({ people = [], users = [], areas = [] } = {}, personId) {
+  if (!personId) {
+    return false;
+  }
+
+  const person = people.find((candidate) => candidate.id === personId);
+  const user = users.find((candidate) => candidate.personId === personId);
+  const roleTitle = normalizeSearchText(person?.roleTitle);
+
+  return (
+    user?.roleKey === "manager" ||
+    people.some((candidate) => candidate.managerPersonId === personId) ||
+    areas.some((candidate) => candidate.managerPersonId === personId) ||
+    ["LIDER", "GERENTE", "COORDENADOR", "SUPERVISOR"].some((term) => roleTitle.includes(term))
+  );
+}
+
+function resolveAssignmentScoringContextFromData({ people = [], users = [], areas = [] } = {}, assignment) {
+  if (assignment?.relationshipType !== "self") {
+    return "";
+  }
+
+  return isLeaderPerson({ people, users, areas }, assignment.revieweePersonId)
+    ? "leader-self"
+    : "employee-self";
+}
+
 function pushAssignment(assignments, nextAssignment) {
   const normalizedAssignment = {
     reminderCount: 0,
@@ -4331,7 +4367,14 @@ function buildResponsesBundle(responses, actorUser, options = {}) {
 }
 
 function createAnonymousSubmissionPayload(assignment, payload, templateDefinition) {
-  const scaleScores = getAnsweredScaleScores(payload.answers);
+  const overallScore = calculateEvaluationOverallScore({
+    relationshipType: assignment.relationshipType,
+    scoringContext: assignment.scoringContext || "",
+    templateDefinition,
+    answers: payload.answers,
+    getAnsweredScaleScores,
+    average
+  });
 
   return {
     id: createId("anonymous_submission"),
@@ -4339,7 +4382,7 @@ function createAnonymousSubmissionPayload(assignment, payload, templateDefinitio
     cycleId: assignment.cycleId,
     revieweePersonId: assignment.revieweePersonId,
     relationshipType: assignment.relationshipType,
-    overallScore: scaleScores.length ? Number(average(scaleScores).toFixed(2)) : null,
+    overallScore,
     strengthsNote: payload.strengthsNote || "",
     developmentNote: payload.developmentNote || "",
     submittedAt: new Date().toISOString(),
@@ -5794,6 +5837,8 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
       createAnonymousSubmissionPayload,
       updatePersonSatisfactionScoreInMemory,
       prepareEvaluationSubmission,
+      resolveAssignmentScoringContext: (assignment) =>
+        resolveAssignmentScoringContextFromData(db, assignment),
       getAnsweredScaleScores,
       average,
       buildEvaluationAnswerRows,
@@ -7010,6 +7055,17 @@ function buildMysqlStore(
       isAnonymousRelationship,
       createAnonymousSubmissionPayload,
       prepareEvaluationSubmission,
+      resolveAssignmentScoringContext: async (assignment) => {
+        const [people, users, areas] = await Promise.all([
+          fetchPeopleRows(pool),
+          fetchUserRows(pool),
+          fetchAreaRows(pool)
+        ]);
+        return resolveAssignmentScoringContextFromData(
+          { people, users, areas },
+          assignment
+        );
+      },
       getAnsweredScaleScores,
       average,
       buildEvaluationAnswerRows,

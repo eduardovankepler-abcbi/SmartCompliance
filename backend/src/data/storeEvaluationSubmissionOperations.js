@@ -11,6 +11,7 @@ export function createMemoryEvaluationSubmissionStore({
   createAnonymousSubmissionPayload,
   updatePersonSatisfactionScoreInMemory,
   prepareEvaluationSubmission,
+  resolveAssignmentScoringContext,
   getAnsweredScaleScores,
   average,
   buildEvaluationAnswerRows,
@@ -52,6 +53,9 @@ export function createMemoryEvaluationSubmissionStore({
       validateEvaluationAnswers(payload.answers, templateDefinition);
 
       if (isAnonymousRelationship(assignment.relationshipType)) {
+        assignment.scoringContext = resolveAssignmentScoringContext
+          ? await resolveAssignmentScoringContext(assignment)
+          : "";
         const anonymousSubmission = createAnonymousSubmissionPayload(
           assignment,
           payload,
@@ -72,7 +76,12 @@ export function createMemoryEvaluationSubmissionStore({
       }
 
       const submission = prepareEvaluationSubmission({
-        assignment,
+        assignment: {
+          ...assignment,
+          scoringContext: resolveAssignmentScoringContext
+            ? await resolveAssignmentScoringContext(assignment)
+            : ""
+        },
         templateDefinition,
         payload,
         createId,
@@ -150,6 +159,7 @@ export function createMysqlEvaluationSubmissionStore({
   isAnonymousRelationship,
   createAnonymousSubmissionPayload,
   prepareEvaluationSubmission,
+  resolveAssignmentScoringContext,
   getAnsweredScaleScores,
   average,
   buildEvaluationAnswerRows,
@@ -185,6 +195,9 @@ export function createMysqlEvaluationSubmissionStore({
       validateEvaluationAnswers(payload.answers, templateDefinition);
 
       if (isAnonymousRelationship(assignment.relationshipType)) {
+        assignment.scoringContext = resolveAssignmentScoringContext
+          ? await resolveAssignmentScoringContext(assignment)
+          : "";
         const anonymousSubmission = createAnonymousSubmissionPayload(
           assignment,
           payload,
@@ -222,7 +235,12 @@ export function createMysqlEvaluationSubmissionStore({
       }
 
       const submission = prepareEvaluationSubmission({
-        assignment,
+        assignment: {
+          ...assignment,
+          scoringContext: resolveAssignmentScoringContext
+            ? await resolveAssignmentScoringContext(assignment)
+            : ""
+        },
         templateDefinition,
         payload,
         createId,
