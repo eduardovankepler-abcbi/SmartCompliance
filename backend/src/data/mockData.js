@@ -27,6 +27,14 @@ export const performanceScale = [
   { value: 5, label: "Muito acima do esperado" }
 ];
 
+export const crossFunctionalVisibilityScale = [
+  { value: 1, label: "Nao" },
+  { value: 2, label: "Pouco" },
+  { value: 3, label: "Parcialmente" },
+  { value: 4, label: "Sim" },
+  { value: 5, label: "Completamente" }
+];
+
 export const sameAreaPeerOptions = [
   { value: "A", label: "Muito abaixo do esperado" },
   { value: "B", label: "Abaixo do esperado" },
@@ -38,7 +46,8 @@ export const sameAreaPeerOptions = [
 export const evaluationScaleProfiles = {
   satisfaction: satisfactionScale,
   agreement: agreementScale,
-  performance: performanceScale
+  performance: performanceScale,
+  visibility: crossFunctionalVisibilityScale
 };
 
 function createScaleQuestion({
@@ -138,7 +147,7 @@ export const evaluationLibrary = {
     peer: 0.15,
     "peer-same-area": 1,
     manager: 1,
-    "cross-functional": 0.1,
+    "cross-functional": 0,
     "client-internal": 0.1,
     "client-external": 0.1,
     leader: 1,
@@ -937,13 +946,14 @@ export const evaluationLibrary = {
     "cross-functional": {
       id: "t3b",
       key: "cross-functional",
-      modelName: "Feedback transversal organizacional",
+      modelName: "Colega de Outro Setor",
       description:
-        "Questionario enxuto para percepcao indireta entre areas, com foco em colaboracao, postura, cultura e sinais observaveis no ambiente organizacional.",
+        "Questionario de visibilidade entre areas. As respostas nao entram na pontuacao final do colaborador.",
       policy: {
         strategy: "standard-library",
         managerCustomQuestionsLimit: 0,
-        scale: satisfactionScale,
+        scale: crossFunctionalVisibilityScale,
+        scaleProfile: "visibility",
         confidentiality: "anonymous-aggregate",
         showStrengthsNote: false,
         showDevelopmentNote: false
@@ -951,181 +961,68 @@ export const evaluationLibrary = {
       questions: [
         createScaleQuestion({
           id: "q_cross_01",
-          sectionKey: "organizational-collaboration",
-          sectionTitle: "Colaboracao organizacional",
+          sectionKey: "cross-functional-visibility",
+          sectionTitle: "Colega de Outro Setor",
           sectionDescription:
-            "Considere apenas o que e perceptivel na convivencia organizacional e nas interacoes entre times.",
-          dimensionKey: "organizational-collaboration",
-          dimensionTitle: "Disposicao para colaborar",
-          prompt: "Demonstra disposicao para colaborar quando necessario",
+            "Mapeia o quanto colaboradores de outras areas conhecem o trabalho do avaliado.",
+          dimensionKey: "activity-awareness",
+          dimensionTitle: "Conhecimento das atividades",
+          prompt: "Voce sabe quais sao as principais atividades e responsabilidades do colaborador avaliado?",
           sortOrder: 1,
           visibility: "confidential",
-          scaleProfile: "satisfaction"
+          scaleProfile: "visibility"
         }),
         createScaleQuestion({
           id: "q_cross_02",
-          sectionKey: "organizational-collaboration",
-          sectionTitle: "Colaboracao organizacional",
+          sectionKey: "cross-functional-visibility",
+          sectionTitle: "Colega de Outro Setor",
           sectionDescription:
-            "Considere apenas o que e perceptivel na convivencia organizacional e nas interacoes entre times.",
-          dimensionKey: "organizational-collaboration",
-          dimensionTitle: "Acessibilidade entre times",
-          prompt: "E acessivel e aberto a interacoes com outros times",
+            "Mapeia o quanto colaboradores de outras areas conhecem o trabalho do avaliado.",
+          dimensionKey: "interaction",
+          dimensionTitle: "Interacao direta ou indireta",
+          prompt: "Voce ja teve algum tipo de interacao direta ou indireta com o colaborador avaliado?",
           sortOrder: 2,
           visibility: "confidential",
-          scaleProfile: "satisfaction"
+          scaleProfile: "visibility"
         }),
         createScaleQuestion({
           id: "q_cross_03",
-          sectionKey: "communication",
-          sectionTitle: "Comunicacao",
+          sectionKey: "cross-functional-visibility",
+          sectionTitle: "Colega de Outro Setor",
           sectionDescription:
-            "Avalie apenas sinais observaveis em reunioes, chats e interacoes compartilhadas.",
-          dimensionKey: "communication",
-          dimensionTitle: "Clareza em ambientes compartilhados",
-          prompt: "Comunica-se de forma clara em ambientes compartilhados (reunioes, chats, etc.)",
+            "Mapeia o quanto colaboradores de outras areas conhecem o trabalho do avaliado.",
+          dimensionKey: "deliverables-contact",
+          dimensionTitle: "Contato com entregas",
+          prompt: "Voce ja teve contato com entregas ou materiais desenvolvidos pelo colaborador avaliado?",
           sortOrder: 3,
           visibility: "confidential",
-          scaleProfile: "satisfaction"
+          scaleProfile: "visibility"
         }),
         createScaleQuestion({
           id: "q_cross_04",
-          sectionKey: "communication",
-          sectionTitle: "Comunicacao",
+          sectionKey: "cross-functional-visibility",
+          sectionTitle: "Colega de Outro Setor",
           sectionDescription:
-            "Avalie apenas sinais observaveis em reunioes, chats e interacoes compartilhadas.",
-          dimensionKey: "communication",
-          dimensionTitle: "Respeito na comunicacao",
-          prompt: "Demonstra respeito na comunicacao com outros",
+            "Mapeia o quanto colaboradores de outras areas conhecem o trabalho do avaliado.",
+          dimensionKey: "cross-area-impact",
+          dimensionTitle: "Impacto em outras areas",
+          prompt: "Com base no que voce conhece, voce considera que o trabalho do colaborador avaliado tem impacto em outras areas da empresa?",
           sortOrder: 4,
           visibility: "confidential",
-          scaleProfile: "satisfaction"
+          scaleProfile: "visibility"
         }),
         createScaleQuestion({
           id: "q_cross_05",
-          sectionKey: "professional-posture",
-          sectionTitle: "Postura profissional",
+          sectionKey: "cross-functional-visibility",
+          sectionTitle: "Colega de Outro Setor",
           sectionDescription:
-            "Considere o comportamento percebido no ambiente profissional e institucional.",
-          dimensionKey: "professional-posture",
-          dimensionTitle: "Comportamento profissional",
-          prompt: "Demonstra comportamento profissional adequado",
+            "Mapeia o quanto colaboradores de outras areas conhecem o trabalho do avaliado.",
+          dimensionKey: "evaluation-visibility",
+          dimensionTitle: "Visibilidade para avaliar",
+          prompt: "De forma geral, voce sente que tem visibilidade suficiente para avaliar o trabalho do colaborador avaliado?",
           sortOrder: 5,
           visibility: "confidential",
-          scaleProfile: "satisfaction"
-        }),
-        createScaleQuestion({
-          id: "q_cross_06",
-          sectionKey: "professional-posture",
-          sectionTitle: "Postura profissional",
-          sectionDescription:
-            "Considere o comportamento percebido no ambiente profissional e institucional.",
-          dimensionKey: "professional-posture",
-          dimensionTitle: "Etica e respeito",
-          prompt: "Age com etica e respeito no ambiente de trabalho",
-          sortOrder: 6,
-          visibility: "confidential",
-          scaleProfile: "satisfaction"
-        }),
-        createScaleQuestion({
-          id: "q_cross_07",
-          sectionKey: "culture",
-          sectionTitle: "Atitude e cultura",
-          sectionDescription:
-            "Observe a contribuicao geral para o clima e para a cultura da organizacao.",
-          dimensionKey: "culture",
-          dimensionTitle: "Ambiente positivo",
-          prompt: "Contribui para um ambiente de trabalho positivo",
-          sortOrder: 7,
-          visibility: "confidential",
-          scaleProfile: "satisfaction"
-        }),
-        createScaleQuestion({
-          id: "q_cross_08",
-          sectionKey: "culture",
-          sectionTitle: "Atitude e cultura",
-          sectionDescription:
-            "Observe a contribuicao geral para o clima e para a cultura da organizacao.",
-          dimensionKey: "culture",
-          dimensionTitle: "Atitude colaborativa organizacional",
-          prompt: "Demonstra atitude colaborativa com a organizacao como um todo",
-          sortOrder: 8,
-          visibility: "confidential",
-          scaleProfile: "satisfaction"
-        }),
-        createScaleQuestion({
-          id: "q_cross_09",
-          sectionKey: "visible-proactivity",
-          sectionTitle: "Proatividade perceptivel",
-          sectionDescription:
-            "Considere apenas iniciativas observaveis em interacoes institucionais ou entre areas.",
-          dimensionKey: "visible-proactivity",
-          dimensionTitle: "Iniciativa observavel",
-          prompt: "Demonstra iniciativa em interacoes organizacionais (reunioes, discussoes, etc.)",
-          sortOrder: 9,
-          visibility: "confidential",
-          scaleProfile: "satisfaction"
-        }),
-        createScaleQuestion({
-          id: "q_cross_10",
-          sectionKey: "visible-proactivity",
-          sectionTitle: "Proatividade perceptivel",
-          sectionDescription:
-            "Considere apenas iniciativas observaveis em interacoes institucionais ou entre areas.",
-          dimensionKey: "visible-proactivity",
-          dimensionTitle: "Engajamento perceptivel",
-          prompt: "Parece engajado com o trabalho e com a empresa",
-          sortOrder: 10,
-          visibility: "confidential",
-          scaleProfile: "satisfaction"
-        }),
-        createTextQuestion({
-          id: "q_cross_11",
-          sectionKey: "open-feedback",
-          sectionTitle: "Perguntas abertas",
-          sectionDescription:
-            "Use este espaco com base apenas na sua percepcao geral e em sinais observados no contexto organizacional.",
-          dimensionKey: "open-feedback",
-          dimensionTitle: "Pontos fortes percebidos",
-          prompt: "Com base na sua percepcao geral, quais sao os principais pontos fortes deste colaborador?",
-          sortOrder: 11,
-          visibility: "confidential"
-        }),
-        createTextQuestion({
-          id: "q_cross_12",
-          sectionKey: "open-feedback",
-          sectionTitle: "Perguntas abertas",
-          sectionDescription:
-            "Use este espaco com base apenas na sua percepcao geral e em sinais observados no contexto organizacional.",
-          dimensionKey: "open-feedback",
-          dimensionTitle: "Comportamentos a melhorar",
-          prompt: "Ha algum comportamento que poderia ser melhorado?",
-          sortOrder: 12,
-          visibility: "confidential"
-        }),
-        createTextQuestion({
-          id: "q_cross_13",
-          sectionKey: "open-feedback",
-          sectionTitle: "Perguntas abertas",
-          sectionDescription:
-            "Use este espaco com base apenas na sua percepcao geral e em sinais observados no contexto organizacional.",
-          dimensionKey: "open-feedback",
-          dimensionTitle: "Conforto de trabalho direto",
-          prompt: "Voce se sentiria confortavel trabalhando diretamente com essa pessoa? Por que?",
-          sortOrder: 13,
-          visibility: "confidential"
-        }),
-        createTextQuestion({
-          id: "q_cross_14",
-          sectionKey: "open-feedback",
-          sectionTitle: "Perguntas abertas",
-          sectionDescription:
-            "Use este espaco com base apenas na sua percepcao geral e em sinais observados no contexto organizacional.",
-          dimensionKey: "open-feedback",
-          dimensionTitle: "Destaque positivo",
-          prompt: "Existe algo positivo que voce observou e que merece destaque?",
-          sortOrder: 14,
-          visibility: "confidential"
+          scaleProfile: "visibility"
         })
       ]
     },

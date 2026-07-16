@@ -1725,6 +1725,10 @@ function isSensitiveQuestionDefinition(question) {
   return Boolean(question?.isSensitive || question?.visibility === "confidential");
 }
 
+function isLegacySensitiveQuestionId(questionId) {
+  return /^q_cross_\d+$/i.test(String(questionId || ""));
+}
+
 function findQuestionnaireByIdFromMemory(db, questionnaireId) {
   if (!questionnaireId) {
     return null;
@@ -2458,7 +2462,8 @@ function enrichSubmission(db, submission, customLibraries = []) {
         ...answer,
         questionPrompt: question?.promptText || question?.prompt || "",
         dimensionTitle: question?.dimensionTitle || "",
-        isSensitive: isSensitiveQuestionDefinition(question),
+        isSensitive:
+          isSensitiveQuestionDefinition(question) || isLegacySensitiveQuestionId(answer.questionId),
         selectedOptions: Array.isArray(answer.selectedOptions) ? answer.selectedOptions : []
       };
     });
@@ -5269,7 +5274,8 @@ async function fetchMysqlResponses(
           dimensionTitle: answer.dimensionTitle || fallbackQuestion?.dimensionTitle || "",
           isSensitive: isQuestionnaireAnswer
             ? Boolean(answer.isSensitive)
-            : isSensitiveQuestionDefinition(fallbackQuestion),
+            : isSensitiveQuestionDefinition(fallbackQuestion) ||
+              isLegacySensitiveQuestionId(answer.questionId),
           selectedOptions: Array.isArray(parsedSelectedOptions) ? parsedSelectedOptions : []
         };
       })

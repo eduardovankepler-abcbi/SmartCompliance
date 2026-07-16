@@ -881,6 +881,11 @@ export async function runEvaluationsRegression() {
       legacyCrossFunctionalSubmission.answers.every((answer) => answer.isSensitive),
       "Perguntas legadas com visibility confidential devem continuar marcadas como sensiveis"
     );
+    assert.equal(
+      legacyCrossFunctionalSubmission.weightedScore,
+      0,
+      "Colega de outro setor nao deve entrar na pontuacao final"
+    );
 
     const rawManagerQuestionnaire = await store.createEvaluationQuestionnaire(
       {
@@ -1005,18 +1010,18 @@ export async function runEvaluationsRegression() {
     );
     assert.equal(
       crossFunctionalTemplateFallback.modelName,
-      "Feedback transversal organizacional",
-      "Feedback transversal deve usar template proprio"
+      "Colega de Outro Setor",
+      "Colega de outro setor deve usar template proprio"
     );
     assert.equal(
       crossFunctionalTemplateFallback.questions.length,
-      14,
-      "Template transversal deve expor o conjunto enxuto de perguntas"
+      5,
+      "Colega de outro setor deve expor as 5 perguntas de visibilidade"
     );
     assert.equal(
       crossFunctionalTemplateFallback.policy.scale[0].label,
-      "Muito insatisfeito",
-      "Template transversal deve usar escala de percepcao organizacional"
+      "Nao",
+      "Colega de outro setor deve usar a escala Nao/Pouco/Parcialmente/Sim/Completamente"
     );
 
     const managerAssignments = await store.getEvaluationAssignmentsForUser(manager.id);
