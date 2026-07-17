@@ -1,4 +1,6 @@
-import { useId, useState } from "react";
+import { useState } from "react";
+import { DoughnutChart, LineAreaChart, formatChartNumber, formatChartPercent } from "./charts/index.js";
+import { getSeriesTone } from "./charts/chartTheme.js";
 
 function MetricGlyph({ label }) {
   const common = {
@@ -47,45 +49,6 @@ function MetricGlyph({ label }) {
   );
 }
 
-function getSeriesTone(seed) {
-  const palette = [
-    {
-      solid: "#4d88ff",
-      soft: "rgba(77, 136, 255, 0.22)",
-      gradient: "linear-gradient(180deg, rgba(109, 160, 255, 0.34), #4d88ff)"
-    },
-    {
-      solid: "#70a2ff",
-      soft: "rgba(112, 162, 255, 0.22)",
-      gradient: "linear-gradient(180deg, rgba(145, 183, 255, 0.32), #70a2ff)"
-    },
-    {
-      solid: "#34b8d8",
-      soft: "rgba(52, 184, 216, 0.2)",
-      gradient: "linear-gradient(180deg, rgba(90, 208, 235, 0.3), #34b8d8)"
-    },
-    {
-      solid: "#6a75f6",
-      soft: "rgba(106, 117, 246, 0.22)",
-      gradient: "linear-gradient(180deg, rgba(128, 138, 248, 0.3), #6a75f6)"
-    },
-    {
-      solid: "#3ec5a1",
-      soft: "rgba(62, 197, 161, 0.22)",
-      gradient: "linear-gradient(180deg, rgba(97, 215, 182, 0.3), #3ec5a1)"
-    },
-    {
-      solid: "#ff8f4d",
-      soft: "rgba(255, 143, 77, 0.2)",
-      gradient: "linear-gradient(180deg, rgba(255, 170, 119, 0.3), #ff8f4d)"
-    }
-  ];
-
-  const normalized = String(seed || "default");
-  const hash = normalized.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  return palette[hash % palette.length];
-}
-
 export function MetricCard({ label, value }) {
   return (
     <div className="mini-card stat-card">
@@ -102,15 +65,38 @@ export function MetricCard({ label, value }) {
 
 export function DashboardDonut({ item }) {
   const tone = getSeriesTone(item.key);
+  const completedValue = Number(item.value || 0);
+  const totalValue = Number(item.total || 0);
+  const remainingValue = Math.max(totalValue - completedValue, 0);
+  const chartValues = totalValue > 0 ? [completedValue, remainingValue] : [0, 1];
 
   return (
     <div className="mini-card donut-card">
-      <div
-        className="donut-visual"
-        style={{
-          background: `conic-gradient(${tone.solid} 0deg ${item.percentage * 3.6}deg, rgba(127, 138, 155, 0.18) ${item.percentage * 3.6}deg 360deg)`
-        }}
-      >
+      <div className="donut-visual">
+        <DoughnutChart
+          className="donut-chart-canvas"
+          labels={[item.label, "Restante"]}
+          options={{
+            cutout: "66%",
+            layout: {
+              padding: 0
+            },
+            plugins: {
+              tooltip: {
+                callbacks: {
+                  label: (context) => {
+                    const label = context.label ? `${context.label}: ` : "";
+                    const value = totalValue > 0 ? context.parsed : 0;
+                    return `${label}${formatChartNumber(value)}`;
+                  }
+                }
+              }
+            }
+          }}
+          segmentColors={[tone.solid, "rgba(127, 138, 155, 0.18)"]}
+          seed={item.key}
+          values={chartValues}
+        />
         <div className="donut-hole">
           <strong>{item.percentage}%</strong>
         </div>
@@ -262,22 +248,33 @@ export function FunnelSeriesChart({ items }) {
 export function ResponseDistributionChartCard({ question }) {
   const [isOpen, setIsOpen] = useState(false);
   const safeOptions = (question?.options || []).filter(Boolean);
-  const gradientStops = [];
-  let currentAngle = 0;
-
-  safeOptions.forEach((option) => {
-    const percentage = Math.max(Number(option.percentage || 0), 0);
-    const tone = getSeriesTone(`${question.questionId}-${option.value}`);
-    const slice = percentage * 3.6;
-    gradientStops.push(`${tone.solid} ${currentAngle}deg ${currentAngle + slice}deg`);
-    currentAngle += slice;
-  });
-
-  if (currentAngle < 360) {
-    gradientStops.push(`rgba(127, 138, 155, 0.14) ${currentAngle}deg 360deg`);
-  }
-
-  const pieBackground = `conic-gradient(${gradientStops.join(", ")})`;
+  const chartValues = safeOptions.map((option) => Math.max(Number(option.percentage || 0), 0));
+  const chartTotal = chartValues.reduce((total, value) => total + value, 0);
+  const chartLabels = chartTotal > 0 ? safeOptions.map((option) => option.label) : ["Sem respostas"];
+  const chartSegmentColors =
+    chartTotal > 0
+      ? safeOptions.map((option) => getSeriesTone(`${question.questionId}-${option.value}`).solid)
+      : ["rgba(127, 138, 155, 0.14)"];
+  const visualValues = chartTotal > 0 ? chartValues : [1];
+  const responseTooltipOptions = {
+    cutout: "62%",
+    layout: {
+      padding: 0
+    },
+    plugins: {
+      tooltip: {
+        callbacks: {
+          label: (context) => {
+            const option = chartTotal > 0 ? safeOptions[context.dataIndex] : null;
+            const label = context.label ? `${context.label}: ` : "";
+            const percentage = option ? Number(option.percentage || 0) : 0;
+            const total = option ? Number(option.total || 0) : 0;
+            return `${label}${formatChartPercent(percentage)} (${formatChartNumber(total)} resp.)`;
+          }
+        }
+      }
+    }
+  };
 
   return (
     <>
@@ -308,7 +305,15 @@ export function ResponseDistributionChartCard({ question }) {
         </div>
         <p className="muted response-chart-prompt">{question.questionPrompt}</p>
         <div className="response-pie-layout">
-          <div className="response-pie-visual" style={{ background: pieBackground }}>
+          <div className="response-pie-visual">
+            <DoughnutChart
+              className="response-pie-chart-canvas"
+              labels={chartLabels}
+              options={responseTooltipOptions}
+              segmentColors={chartSegmentColors}
+              seed={question.questionId}
+              values={visualValues}
+            />
             <div className="response-pie-hole">
               <strong>{question.totalAnswers}</strong>
               <span>resp.</span>
@@ -355,7 +360,15 @@ export function ResponseDistributionChartCard({ question }) {
             </div>
             <p className="muted response-modal-prompt">{question.questionPrompt}</p>
             <div className="response-pie-modal-layout">
-              <div className="response-pie-visual response-pie-visual-large" style={{ background: pieBackground }}>
+              <div className="response-pie-visual response-pie-visual-large">
+                <DoughnutChart
+                  className="response-pie-chart-canvas response-pie-chart-canvas-large"
+                  labels={chartLabels}
+                  options={responseTooltipOptions}
+                  segmentColors={chartSegmentColors}
+                  seed={`modal-${question.questionId}`}
+                  values={visualValues}
+                />
                 <div className="response-pie-hole response-pie-hole-large">
                   <strong>{question.totalAnswers}</strong>
                   <span>respostas</span>
@@ -396,7 +409,6 @@ export function TrendAreaChartCard({
   formatter = (value) => String(value ?? 0),
   detailFormatter = null
 }) {
-  const gradientId = useId().replace(/:/g, "");
   const safeItems = (items || []).filter(Boolean);
   if (!safeItems.length) {
     return (
@@ -409,19 +421,9 @@ export function TrendAreaChartCard({
   const values = safeItems.map((item) => Number(item?.[valueKey] || 0));
   const maxValue = Math.max(...values, 1);
   const minValue = Math.min(...values, 0);
-  const range = Math.max(maxValue - minValue, 1);
-  const width = 320;
-  const height = 160;
   const points = safeItems.map((item, index) => {
-    const x =
-      safeItems.length === 1 ? width / 2 : (index / (safeItems.length - 1)) * (width - 16) + 8;
-    const y = height - ((Number(item?.[valueKey] || 0) - minValue) / range) * (height - 28) - 12;
-    return { x, y, raw: Number(item?.[valueKey] || 0), label: item?.[labelKey] || `P${index + 1}` };
+    return { raw: Number(item?.[valueKey] || 0), label: item?.[labelKey] || `P${index + 1}` };
   });
-  const linePath = points
-    .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`)
-    .join(" ");
-  const areaPath = `${linePath} L ${points[points.length - 1].x} ${height} L ${points[0].x} ${height} Z`;
   const latest = points[points.length - 1];
   const previous = points.length > 1 ? points[points.length - 2] : null;
   const delta = previous ? Number((latest.raw - previous.raw).toFixed(1)) : null;
@@ -462,19 +464,26 @@ export function TrendAreaChartCard({
           </span>
         ) : null}
       </div>
-      <svg className="trend-chart" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
-        <defs>
-          <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={tone.solid} stopOpacity="0.34" />
-            <stop offset="100%" stopColor={tone.solid} stopOpacity="0.04" />
-          </linearGradient>
-        </defs>
-        <path d={areaPath} fill={`url(#${gradientId})`} />
-        <path d={linePath} fill="none" stroke={tone.solid} strokeWidth="3" strokeLinecap="round" />
-        {points.map((point) => (
-          <circle key={`${point.label}-${point.x}`} cx={point.x} cy={point.y} r="3.5" fill={tone.solid} />
-        ))}
-      </svg>
+      <LineAreaChart
+        className="trend-chart"
+        datasetLabel={latest.label}
+        labels={points.map((point) => point.label)}
+        options={{
+          scales: {
+            x: {
+              display: false
+            },
+            y: {
+              display: false,
+              min: minValue,
+              max: maxValue
+            }
+          }
+        }}
+        seed={`${valueKey}-${labelKey}`}
+        valueFormatter={formatter}
+        values={points.map((point) => point.raw)}
+      />
       <div className="trend-footer">
         {safeItems.map((item) => (
           <div className="trend-footer-item" key={`${item?.[labelKey]}-${item?.[valueKey]}`}>

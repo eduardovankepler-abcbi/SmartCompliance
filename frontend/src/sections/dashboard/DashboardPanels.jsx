@@ -1,6 +1,52 @@
 export { DashboardOperationsPanels } from "./DashboardAnalyticalPanels.jsx";
 export { DashboardInsightPanels } from "./DashboardInsightPanels.jsx";
 
+export function DashboardExecutiveHealthSection({ DashboardCardHeader, priorityActions, topKpis }) {
+  return (
+    <div className="card card-span dashboard-decision-card dashboard-executive-health-card">
+      <DashboardCardHeader
+        eyebrow="Decisao"
+        title="Central de prioridades"
+        subtitle="O que merece atencao agora"
+        tone="primary"
+      />
+      <div className="dashboard-decision-layout">
+        <div className="dashboard-decision-kpis">
+          {topKpis.map((item) => (
+            <article className={`dashboard-kpi-inline-card ${item.tone}`} key={item.label}>
+              <div className="dashboard-kpi-inline-head">
+                <span>{item.label}</span>
+                <b>{item.tone}</b>
+              </div>
+              <strong>{item.value}</strong>
+              <p>{item.detail}</p>
+            </article>
+          ))}
+        </div>
+        <div className="dashboard-priority-panel">
+          <div className="dashboard-priority-panel-head">
+            <strong>Sinais prioritarios</strong>
+            <span>{priorityActions.length} leituras</span>
+          </div>
+          <div className="dashboard-priority-queue">
+            {priorityActions.map((item) => (
+              <article className={`dashboard-priority-card ${item.tone}`} key={item.title}>
+                <div className="dashboard-priority-card-head">
+                  <span className="mini-label">{item.label}</span>
+                  <b>{item.tone}</b>
+                </div>
+                <strong>{item.title}</strong>
+                <p className="muted">{item.detail}</p>
+                <span>{item.action}</span>
+              </article>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function DashboardTopPanels({
   DashboardCardHeader,
   DashboardFilterSelectCard,
@@ -19,15 +65,13 @@ export function DashboardTopPanels({
   isExecutiveView,
   onSectionChange,
   profileName,
-  priorityActions,
   quickActions,
   setDashboardAnalyticalTheme,
   setDashboardAreaFilter,
   setDashboardCompositionFilter,
   setDashboardTimeGrouping,
   setDashboardViewMode,
-  storyCards,
-  topKpis
+  storyCards
 }) {
   const areaFilterOptions = canFilterDashboardByArea
     ? ["all", ...((dashboard?.areaOptions) || [])]
@@ -50,27 +94,44 @@ export function DashboardTopPanels({
       <div className="card card-span dashboard-command-card">
         <div className="dashboard-command-hero">
           <div className="dashboard-command-copy">
-            <p className="eyebrow">
-              {dashboard?.mode === "executive"
-                ? "Painel do administrador"
-                : dashboard?.mode === "team"
-                  ? "Painel gerencial"
-                  : "Painel individual"}
-            </p>
-            <h3>{`Ola, ${profileName || "time"}!`}</h3>
+            <div className="dashboard-command-kicker">
+              <p className="eyebrow">
+                {dashboard?.mode === "executive"
+                  ? "Painel do administrador"
+                  : dashboard?.mode === "team"
+                    ? "Painel gerencial"
+                    : "Painel individual"}
+              </p>
+              <span className="badge">Painel {isExecutiveView ? "executivo" : "analitico"}</span>
+            </div>
             <p className="dashboard-command-headline">{dashboardHeadline}</p>
             <p className="muted">
-              {dashboard?.notice ||
-                "Acompanhe cobertura, adesao, desenvolvimento e sinais do ciclo em uma leitura executiva mais objetiva."}
+              {dashboard?.notice || `Contexto de leitura para ${profileName || "time"}.`}
             </p>
           </div>
-          <div className="dashboard-command-meta">
-            <span className="badge">Painel {isExecutiveView ? "executivo" : "analitico"}</span>
-            <p className="muted">
-              {isExecutiveView
-                ? "Pronto para checkpoints, comites e leitura de prioridade."
-                : "Pronto para explorar distribuicao, cobertura e gargalos."}
-            </p>
+          <div className="dashboard-command-controls">
+            <div className="dashboard-view-toggle dashboard-command-toggle">
+              <button
+                type="button"
+                className={
+                  isExecutiveView ? "button-reset module-tab active" : "button-reset module-tab"
+                }
+                onClick={() => setDashboardViewMode("executive")}
+              >
+                <span className="module-tab-title">Leitura executiva</span>
+                <span className="module-tab-meta">Sintese para reunioes</span>
+              </button>
+              <button
+                type="button"
+                className={
+                  !isExecutiveView ? "button-reset module-tab active" : "button-reset module-tab"
+                }
+                onClick={() => setDashboardViewMode("analytical")}
+              >
+                <span className="module-tab-title">Leitura analitica</span>
+                <span className="module-tab-meta">Exploracao detalhada</span>
+              </button>
+            </div>
             <div className="dashboard-command-actions">
               {quickActions.map((action) => (
                 <button
@@ -86,107 +147,44 @@ export function DashboardTopPanels({
             </div>
           </div>
         </div>
-        <div className="dashboard-view-toggle dashboard-command-toggle">
-          <button
-            type="button"
-            className={
-              isExecutiveView ? "button-reset module-tab active" : "button-reset module-tab"
-            }
-            onClick={() => setDashboardViewMode("executive")}
-          >
-            <span className="module-tab-title">Leitura executiva</span>
-            <span className="module-tab-meta">Sintese para reunioes</span>
-          </button>
-          <button
-            type="button"
-            className={
-              !isExecutiveView ? "button-reset module-tab active" : "button-reset module-tab"
-            }
-            onClick={() => setDashboardViewMode("analytical")}
-          >
-            <span className="module-tab-title">Leitura analitica</span>
-            <span className="module-tab-meta">Exploracao detalhada</span>
-          </button>
-        </div>
-      </div>
-
-      <div className="card card-span dashboard-filter-card">
-        <div className="card-header">
-          <h3>Filtros do dashboard</h3>
-          <span>Defina o contexto da leitura</span>
-        </div>
-        <div className="dashboard-filter-grid">
-          <DashboardFilterSelectCard
-            label="Recorte"
-            value={dashboardCompositionFilter}
-            options={dashboardCompositionOptions.map((item) => item.value)}
-            renderLabel={(value) =>
-              dashboardCompositionOptions.find((item) => item.value === value)?.label || value
-            }
-            onChange={setDashboardCompositionFilter}
-          />
-          <DashboardFilterSelectCard
-            label="Area"
-            value={dashboardAreaFilter}
-            options={areaFilterOptions}
-            renderLabel={renderAreaFilterLabel}
-            onChange={setDashboardAreaFilter}
-          />
-          <DashboardFilterSelectCard
-            label="Consolidacao"
-            value={dashboardTimeGrouping}
-            options={dashboardTimeGroupingOptions.map((item) => item.value)}
-            renderLabel={(value) =>
-              dashboardTimeGroupingOptions.find((item) => item.value === value)?.label || value
-            }
-            onChange={setDashboardTimeGrouping}
-          />
-        </div>
-        <div className="dashboard-focus-strip">
-          {focusPills.map((item) => (
-            <div className={`dashboard-focus-pill ${item.tone}`} key={item.label}>
-              <span>{item.label}</span>
-              <strong>{item.value}</strong>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {isExecutiveView ? (
-        <div className="card card-span dashboard-decision-card">
-          <DashboardCardHeader
-            eyebrow="Decisao"
-            title="Central de prioridades"
-            subtitle="O que merece atencao agora"
-            tone="primary"
-          />
-          <div className="dashboard-decision-layout">
-            <div className="dashboard-decision-kpis">
-              {topKpis.map((item) => (
-                <article className={`dashboard-kpi-inline-card ${item.tone}`} key={item.label}>
-                  <div className="dashboard-kpi-inline-copy">
-                    <span>{item.label}</span>
-                    <strong>{item.value}</strong>
-                  </div>
-                  <p>{item.detail}</p>
-                </article>
-              ))}
-            </div>
-            <div className="dashboard-priority-queue">
-              {priorityActions.map((item) => (
-                <article className={`dashboard-priority-card ${item.tone}`} key={item.title}>
-                  <div>
-                    <p className="mini-label">{item.label}</p>
-                    <strong>{item.title}</strong>
-                  </div>
-                  <p className="muted">{item.detail}</p>
-                  <span>{item.action}</span>
-                </article>
-              ))}
-            </div>
+        <div className="dashboard-filter-toolbar" aria-label="Filtros do dashboard">
+          <div className="dashboard-filter-grid">
+            <DashboardFilterSelectCard
+              label="Recorte"
+              value={dashboardCompositionFilter}
+              options={dashboardCompositionOptions.map((item) => item.value)}
+              renderLabel={(value) =>
+                dashboardCompositionOptions.find((item) => item.value === value)?.label || value
+              }
+              onChange={setDashboardCompositionFilter}
+            />
+            <DashboardFilterSelectCard
+              label="Area"
+              value={dashboardAreaFilter}
+              options={areaFilterOptions}
+              renderLabel={renderAreaFilterLabel}
+              onChange={setDashboardAreaFilter}
+            />
+            <DashboardFilterSelectCard
+              label="Consolidacao"
+              value={dashboardTimeGrouping}
+              options={dashboardTimeGroupingOptions.map((item) => item.value)}
+              renderLabel={(value) =>
+                dashboardTimeGroupingOptions.find((item) => item.value === value)?.label || value
+              }
+              onChange={setDashboardTimeGrouping}
+            />
+          </div>
+          <div className="dashboard-focus-strip">
+            {focusPills.map((item) => (
+              <div className={`dashboard-focus-pill ${item.tone}`} key={item.label}>
+                <span>{item.label}</span>
+                <strong>{item.value}</strong>
+              </div>
+            ))}
           </div>
         </div>
-      ) : null}
+      </div>
 
       {!isExecutiveView ? (
         <div className="card-span dashboard-analytical-nav">

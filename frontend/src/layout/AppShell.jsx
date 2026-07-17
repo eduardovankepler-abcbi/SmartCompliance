@@ -1,3 +1,7 @@
+import { useEffect, useState } from "react";
+
+const SIDEBAR_COLLAPSED_STORAGE_KEY = "smartCompliance.sidebarCollapsed";
+
 function ThemeGlyph({ theme }) {
   if (theme === "dark") {
     return (
@@ -226,6 +230,24 @@ function UtilityGlyph({ type }) {
     );
   }
 
+  if (type === "collapse") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M15 6 9 12l6 6" {...common} />
+        <path d="M20 4v16" {...common} />
+      </svg>
+    );
+  }
+
+  if (type === "expand") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="m9 6 6 6-6 6" {...common} />
+        <path d="M4 4v16" {...common} />
+      </svg>
+    );
+  }
+
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <path d="M12 4a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z" {...common} />
@@ -259,13 +281,38 @@ export function AppShell({
   statusLabel,
   theme
 }) {
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    if (typeof window === "undefined") {
+      return false;
+    }
+
+    return window.localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) === "true";
+  });
+
+  useEffect(() => {
+    window.localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, String(isSidebarCollapsed));
+  }, [isSidebarCollapsed]);
+
+  const sidebarToggleLabel = isSidebarCollapsed ? "Expandir menu lateral" : "Recolher menu lateral";
+  const shellClassName = isSidebarCollapsed ? "app-shell sidebar-collapsed" : "app-shell";
+
   return (
-    <div className="app-shell">
+    <div className={shellClassName}>
       <aside className="sidebar">
         <div className="sidebar-topbar">
           <div className="sidebar-brand-card">
             <BrandLogo />
           </div>
+          <button
+            type="button"
+            className="sidebar-collapse-button"
+            onClick={() => setIsSidebarCollapsed((current) => !current)}
+            aria-label={sidebarToggleLabel}
+            title={sidebarToggleLabel}
+            aria-expanded={!isSidebarCollapsed}
+          >
+            <UtilityGlyph type={isSidebarCollapsed ? "expand" : "collapse"} />
+          </button>
         </div>
 
         <div className="brand-block">
@@ -283,6 +330,8 @@ export function AppShell({
                     type="button"
                     className={section.key === activeSection ? "nav-item active" : "nav-item"}
                     onClick={() => onSectionChange(section.key)}
+                    aria-label={section.label}
+                    title={section.label}
                   >
                     <span className="nav-icon-wrap">
                       <SectionGlyph icon={section.icon} />

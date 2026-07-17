@@ -97,8 +97,23 @@
   color: #5b6677;
 }
 
+:root[data-theme="light"] .dashboard-executive-section-head {
+  border-top-color: rgba(35, 49, 70, 0.12);
+}
+
+:root[data-theme="light"] .dashboard-executive-section-head > span {
+  background: rgba(226, 233, 243, 0.86);
+  border-color: rgba(35, 49, 70, 0.12);
+  color: #56647a;
+}
+
 :root[data-theme="light"] .dashboard-command-meta,
+:root[data-theme="light"] .dashboard-filter-toolbar,
+:root[data-theme="light"] .dashboard-subnav,
 :root[data-theme="light"] .dashboard-quick-action,
+:root[data-theme="light"] .dashboard-filter-select-card,
+:root[data-theme="light"] .dashboard-focus-pill,
+:root[data-theme="light"] .dashboard-priority-panel,
 :root[data-theme="light"] .dashboard-priority-card,
 :root[data-theme="light"] .dashboard-analytical-tab,
 :root[data-theme="light"] .dashboard-result-narrative-card,
@@ -131,6 +146,8 @@
 }
 
 :root[data-theme="light"] .dashboard-command-meta,
+:root[data-theme="light"] .dashboard-filter-toolbar,
+:root[data-theme="light"] .dashboard-subnav,
 :root[data-theme="light"] .dashboard-performance-area-panel {
   background:
     linear-gradient(135deg, rgba(63, 115, 232, 0.1), transparent 58%),
@@ -146,6 +163,7 @@
 
 :root[data-theme="light"] .dashboard-quick-action.primary,
 :root[data-theme="light"] .dashboard-analytical-tab.active,
+:root[data-theme="light"] .dashboard-subnav-tab.active,
 :root[data-theme="light"] .evaluation-history-card.active,
 :root[data-theme="light"] .evaluation-assignment-card.active {
   background:

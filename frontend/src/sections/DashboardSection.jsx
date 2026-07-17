@@ -1,3 +1,5 @@
+import { useId, useState } from "react";
+
 import {
   buildDashboardPriorityActions,
   buildDashboardStoryCards,
@@ -11,6 +13,7 @@ import {
   getSatisfactionQuestionAreaView
 } from "./dashboard/dashboardData.js";
 import {
+  DashboardExecutiveHealthSection,
   DashboardInsightPanels,
   DashboardOperationsPanels,
   DashboardTopPanels
@@ -54,6 +57,49 @@ function DashboardFilterSelectCard({ label, value, options, onChange, renderLabe
         </svg>
       </div>
     </label>
+  );
+}
+
+const dashboardSubtabs = [
+  {
+    key: "executive",
+    label: "Visão Executiva",
+    description: "Leitura atual consolidada do dashboard."
+  },
+  {
+    key: "results",
+    label: "Resultados",
+    description: "A organização temática desta área será feita na próxima etapa."
+  },
+  {
+    key: "performance",
+    label: "Desempenho 360",
+    description: "A organização temática desta área será feita na próxima etapa."
+  },
+  {
+    key: "people",
+    label: "Pessoas e Áreas",
+    description: "A organização temática desta área será feita na próxima etapa."
+  },
+  {
+    key: "compliance",
+    label: "Compliance e Riscos",
+    description: "A organização temática desta área será feita na próxima etapa."
+  },
+  {
+    key: "development",
+    label: "Desenvolvimento",
+    description: "A organização temática desta área será feita na próxima etapa."
+  }
+];
+
+function DashboardSubtabPlaceholder({ title, description }) {
+  return (
+    <div className="card card-span dashboard-subtab-placeholder">
+      <span className="dashboard-card-eyebrow secondary">Área temática</span>
+      <h3>{title}</h3>
+      <p className="muted">{description}</p>
+    </div>
   );
 }
 
@@ -107,6 +153,8 @@ export function DashboardSection({
   const SafeHeatmapMatrixCard = HeatmapMatrixCard || EmptyComponent;
   const SafeResponseDistributionChartCard = ResponseDistributionChartCard || EmptyComponent;
   const SafeTrendAreaChartCard = TrendAreaChartCard || EmptyComponent;
+  const [activeDashboardSubtab, setActiveDashboardSubtab] = useState("executive");
+  const dashboardSubtabBaseId = useId();
   const executiveHighlights = buildExecutiveHighlights({
     dashboard,
     dashboardAreaFilter,
@@ -349,6 +397,33 @@ export function DashboardSection({
     }));
   }
 
+  function handleDashboardSubtabKeyDown(event) {
+    const currentIndex = dashboardSubtabs.findIndex((item) => item.key === activeDashboardSubtab);
+    const lastIndex = dashboardSubtabs.length - 1;
+    let nextIndex = currentIndex;
+
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+      nextIndex = currentIndex >= lastIndex ? 0 : currentIndex + 1;
+    } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+      nextIndex = currentIndex <= 0 ? lastIndex : currentIndex - 1;
+    } else if (event.key === "Home") {
+      nextIndex = 0;
+    } else if (event.key === "End") {
+      nextIndex = lastIndex;
+    } else {
+      return;
+    }
+
+    event.preventDefault();
+    const nextSubtab = dashboardSubtabs[nextIndex];
+    setActiveDashboardSubtab(nextSubtab.key);
+    window.requestAnimationFrame(() => {
+      event.currentTarget
+        .querySelector(`[data-dashboard-subtab-index="${nextIndex}"]`)
+        ?.focus();
+    });
+  }
+
   return (
     <section className="page-grid dashboard-grid">
       <DashboardTopPanels
@@ -377,79 +452,155 @@ export function DashboardSection({
         setDashboardTimeGrouping={setDashboardTimeGrouping}
         setDashboardViewMode={setDashboardViewMode}
         storyCards={storyCards}
-        topKpis={topKpis}
       />
 
-      <DashboardOperationsPanels
-        DashboardCardHeader={DashboardCardHeader}
-        SafeBarMetricRow={SafeBarMetricRow}
-        SafeDashboardDonut={SafeDashboardDonut}
-        SafeFunnelSeriesChart={SafeFunnelSeriesChart}
-        SafeHeatmapMatrixCard={SafeHeatmapMatrixCard}
-        SafeResponseDistributionChartCard={SafeResponseDistributionChartCard}
-        SafeTrendAreaChartCard={SafeTrendAreaChartCard}
-        analyticalRelationshipItems={analyticalRelationshipItems}
-        applauseCoverageMetric={applauseCoverageMetric}
-        cycleTimelineItems={cycleTimelineItems}
-        dashboard={dashboard}
-        dashboardAnalyticalTheme={dashboardAnalyticalTheme}
-        dashboardTimeGroupingLabel={dashboardTimeGroupingLabel}
-        developmentByTypeItems={developmentByTypeItems}
-        developmentCoverageMetric={developmentCoverageMetric}
-        dimensionFilters={dimensionFilters}
-        evaluationMixItems={evaluationMixItems}
-        filteredDevelopmentByTypeItems={filteredDevelopmentByTypeItems}
-        funnelItems={funnelItems}
-        getRelationshipLabel={getRelationshipLabel}
-        isExecutiveView={isExecutiveView}
-        isSatisfactionAnalyticsSelected={isSatisfactionAnalyticsSelected}
-        onSectionChange={onSectionChange}
-        performanceAreaHighlights={performanceAreaHighlights}
-        performanceAreaSeries={performanceAreaSeries}
-        performanceDistributionItems={performanceDistributionItems}
-        performanceHealth={performanceHealth}
-        performanceRecommendations={performanceRecommendations}
-        resolvedSatisfactionQuestionAreaFilter={resolvedSatisfactionQuestionAreaFilter}
-        rhythmInsightDetail={rhythmInsightDetail}
-        rhythmInsightTitle={rhythmInsightTitle}
-        rhythmMiniMetrics={rhythmMiniMetrics}
-        satisfactionQuestionAreaOptions={satisfactionQuestionAreaOptions}
-        satisfactionQuestionTrendItems={satisfactionQuestionTrendItems}
-        selectedAnalyticalRelationship={selectedAnalyticalRelationship}
-        selectedDashboardCompositionMeta={selectedDashboardCompositionMeta}
-        setDashboardCompositionFilter={setDashboardCompositionFilter}
-        setDimensionFilterForGroup={setDimensionFilterForGroup}
-        setSatisfactionQuestionAreaFilter={setSatisfactionQuestionAreaFilter}
-        summary={summary}
-        visibleRelationshipTypes={visibleRelationshipTypes}
-      />
+      <div className="card-span dashboard-subnav-shell">
+        <div
+          className="dashboard-subnav"
+          role="tablist"
+          aria-label="Áreas do dashboard"
+          onKeyDown={handleDashboardSubtabKeyDown}
+        >
+          {dashboardSubtabs.map((item, index) => {
+            const isActive = activeDashboardSubtab === item.key;
+            const tabId = `${dashboardSubtabBaseId}-${item.key}-tab`;
+            const panelId = `${dashboardSubtabBaseId}-${item.key}-panel`;
 
-      <DashboardInsightPanels
-        DashboardCardHeader={DashboardCardHeader}
-        SafeBarMetricRow={SafeBarMetricRow}
-        SafeColumnMetricCard={SafeColumnMetricCard}
-        SafeHeatmapMatrixCard={SafeHeatmapMatrixCard}
-        assignmentStatusItems={assignmentStatusItems}
-        cycleTimelineItems={cycleTimelineItems}
-        dashboardAnalyticalTheme={dashboardAnalyticalTheme}
-        dashboardTimeGroupingLabel={dashboardTimeGroupingLabel}
-        developmentByTypeItems={developmentByTypeItems}
-        developmentView={developmentView}
-        evaluationMixItems={evaluationMixItems}
-        executiveComparisons={executiveComparisons}
-        filteredDevelopmentByTypeItems={filteredDevelopmentByTypeItems}
-        filteredSatisfactionByAreaItems={filteredSatisfactionByAreaItems}
-        getAssignmentStatusLabel={getAssignmentStatusLabel}
-        getRelationshipLabel={getRelationshipLabel}
-        isExecutiveView={isExecutiveView}
-        performanceAreaSeries={performanceAreaSeries}
-        performanceRecommendations={performanceRecommendations}
-        satisfactionByAreaItems={satisfactionByAreaItems}
-        satisfactionView={satisfactionView}
-        selectedDashboardCompositionMeta={selectedDashboardCompositionMeta}
-        setDevelopmentView={setDevelopmentView}
-        setSatisfactionView={setSatisfactionView}
-      />
+            return (
+              <button
+                key={item.key}
+                type="button"
+                role="tab"
+                id={tabId}
+                aria-selected={isActive}
+                aria-controls={panelId}
+                tabIndex={isActive ? 0 : -1}
+                className={isActive ? "button-reset dashboard-subnav-tab active" : "button-reset dashboard-subnav-tab"}
+                data-dashboard-subtab-index={index}
+                onClick={() => setActiveDashboardSubtab(item.key)}
+              >
+                {item.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div
+        className="dashboard-subtab-panel"
+        role="tabpanel"
+        id={`${dashboardSubtabBaseId}-executive-panel`}
+        aria-labelledby={`${dashboardSubtabBaseId}-executive-tab`}
+        hidden={activeDashboardSubtab !== "executive"}
+      >
+        {isExecutiveView ? (
+          <section className="card-span dashboard-executive-section dashboard-executive-health-section">
+            <div className="dashboard-executive-section-head">
+              <span>01</span>
+              <div>
+                <strong>Saúde geral</strong>
+                <p>Indicadores prioritarios, sinais e leituras de acao imediata.</p>
+              </div>
+            </div>
+            <DashboardExecutiveHealthSection
+              DashboardCardHeader={DashboardCardHeader}
+              priorityActions={priorityActions}
+              topKpis={topKpis}
+            />
+          </section>
+        ) : null}
+
+        <section className="card-span dashboard-executive-section dashboard-executive-trend-section">
+          <DashboardOperationsPanels
+            DashboardCardHeader={DashboardCardHeader}
+            SafeBarMetricRow={SafeBarMetricRow}
+            SafeDashboardDonut={SafeDashboardDonut}
+            SafeFunnelSeriesChart={SafeFunnelSeriesChart}
+            SafeHeatmapMatrixCard={SafeHeatmapMatrixCard}
+            SafeResponseDistributionChartCard={SafeResponseDistributionChartCard}
+            SafeTrendAreaChartCard={SafeTrendAreaChartCard}
+            analyticalRelationshipItems={analyticalRelationshipItems}
+            applauseCoverageMetric={applauseCoverageMetric}
+            cycleTimelineItems={cycleTimelineItems}
+            dashboard={dashboard}
+            dashboardAnalyticalTheme={dashboardAnalyticalTheme}
+            dashboardTimeGroupingLabel={dashboardTimeGroupingLabel}
+            developmentByTypeItems={developmentByTypeItems}
+            developmentCoverageMetric={developmentCoverageMetric}
+            dimensionFilters={dimensionFilters}
+            evaluationMixItems={evaluationMixItems}
+            filteredDevelopmentByTypeItems={filteredDevelopmentByTypeItems}
+            funnelItems={funnelItems}
+            getRelationshipLabel={getRelationshipLabel}
+            isExecutiveView={isExecutiveView}
+            isSatisfactionAnalyticsSelected={isSatisfactionAnalyticsSelected}
+            onSectionChange={onSectionChange}
+            performanceAreaHighlights={performanceAreaHighlights}
+            performanceAreaSeries={performanceAreaSeries}
+            performanceDistributionItems={performanceDistributionItems}
+            performanceHealth={performanceHealth}
+            performanceRecommendations={performanceRecommendations}
+            resolvedSatisfactionQuestionAreaFilter={resolvedSatisfactionQuestionAreaFilter}
+            rhythmInsightDetail={rhythmInsightDetail}
+            rhythmInsightTitle={rhythmInsightTitle}
+            rhythmMiniMetrics={rhythmMiniMetrics}
+            satisfactionQuestionAreaOptions={satisfactionQuestionAreaOptions}
+            satisfactionQuestionTrendItems={satisfactionQuestionTrendItems}
+            selectedAnalyticalRelationship={selectedAnalyticalRelationship}
+            selectedDashboardCompositionMeta={selectedDashboardCompositionMeta}
+            setDashboardCompositionFilter={setDashboardCompositionFilter}
+            setDimensionFilterForGroup={setDimensionFilterForGroup}
+            setSatisfactionQuestionAreaFilter={setSatisfactionQuestionAreaFilter}
+            summary={summary}
+            visibleRelationshipTypes={visibleRelationshipTypes}
+          />
+        </section>
+
+        <DashboardInsightPanels
+          DashboardCardHeader={DashboardCardHeader}
+          SafeBarMetricRow={SafeBarMetricRow}
+          SafeColumnMetricCard={SafeColumnMetricCard}
+          SafeHeatmapMatrixCard={SafeHeatmapMatrixCard}
+          assignmentStatusItems={assignmentStatusItems}
+          cycleTimelineItems={cycleTimelineItems}
+          dashboardAnalyticalTheme={dashboardAnalyticalTheme}
+          dashboardTimeGroupingLabel={dashboardTimeGroupingLabel}
+          developmentByTypeItems={developmentByTypeItems}
+          developmentView={developmentView}
+          evaluationMixItems={evaluationMixItems}
+          executiveComparisons={executiveComparisons}
+          filteredDevelopmentByTypeItems={filteredDevelopmentByTypeItems}
+          filteredSatisfactionByAreaItems={filteredSatisfactionByAreaItems}
+          getAssignmentStatusLabel={getAssignmentStatusLabel}
+          getRelationshipLabel={getRelationshipLabel}
+          isExecutiveView={isExecutiveView}
+          performanceAreaSeries={performanceAreaSeries}
+          performanceRecommendations={performanceRecommendations}
+          satisfactionByAreaItems={satisfactionByAreaItems}
+          satisfactionView={satisfactionView}
+          selectedDashboardCompositionMeta={selectedDashboardCompositionMeta}
+          setDevelopmentView={setDevelopmentView}
+          setSatisfactionView={setSatisfactionView}
+        />
+      </div>
+
+      {dashboardSubtabs
+        .filter((item) => item.key !== "executive")
+        .map((item) => (
+          <div
+            key={item.key}
+            className="dashboard-subtab-panel"
+            role="tabpanel"
+            id={`${dashboardSubtabBaseId}-${item.key}-panel`}
+            aria-labelledby={`${dashboardSubtabBaseId}-${item.key}-tab`}
+            hidden={activeDashboardSubtab !== item.key}
+          >
+            <DashboardSubtabPlaceholder
+              title={item.label}
+              description={item.description}
+            />
+          </div>
+        ))}
     </section>
   );
 }

@@ -3,12 +3,101 @@
     grid-template-columns: 1fr;
   }
 
+  .app-shell.sidebar-collapsed {
+    grid-template-columns: 1fr;
+  }
+
   .sidebar {
     position: relative;
     top: auto;
     align-self: stretch;
     height: auto;
     padding-bottom: 24px;
+  }
+
+  .sidebar-collapsed .sidebar {
+    align-items: stretch;
+    padding: 12px 14px 24px;
+  }
+
+  .sidebar-collapsed .sidebar-topbar {
+    justify-content: flex-start;
+  }
+
+  .sidebar-collapse-button {
+    display: none;
+  }
+
+  .sidebar-collapsed .sidebar-brand-card,
+  .sidebar-collapsed .brand-block,
+  .sidebar-collapsed .nav-group-title,
+  .sidebar-collapsed .sidebar-user-card,
+  .sidebar-collapsed .sidebar-footer {
+    position: static;
+    width: auto;
+    height: auto;
+    margin: 0;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
+  }
+
+  .sidebar-collapsed .sidebar-brand-card {
+    flex: 1;
+    min-width: 0;
+    padding: 8px 10px 7px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    overflow: hidden;
+  }
+
+  .sidebar-collapsed .brand-block {
+    display: grid;
+    padding: 0 4px 2px;
+  }
+
+  .sidebar-collapsed .nav-group-title {
+    margin: 0 4px 1px;
+  }
+
+  .sidebar-collapsed .sidebar-user-card {
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+  }
+
+  .sidebar-collapsed .sidebar-footer {
+    margin: 0 4px 2px;
+  }
+
+  .sidebar-collapsed .sidebar-nav-scroll {
+    width: auto;
+    padding: 4px 4px 6px 0;
+  }
+
+  .sidebar-collapsed .nav-group,
+  .sidebar-collapsed .nav-list {
+    justify-items: stretch;
+    width: auto;
+  }
+
+  .sidebar-collapsed .nav-item {
+    width: auto;
+    height: auto;
+    min-height: 44px;
+    padding: 8px 10px;
+    justify-content: flex-start;
+    border-radius: 16px;
+  }
+
+  .sidebar-collapsed .nav-title {
+    position: static;
+    width: auto;
+    height: auto;
+    padding: 0;
+    margin: 0;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
+    border: 0;
   }
 
   .page-grid {
@@ -22,6 +111,10 @@
   .dashboard-filter-grid,
   .hero-panel,
   .dashboard-command-hero,
+  .dashboard-command-controls,
+  .dashboard-filter-toolbar,
+  .dashboard-subtab-panel,
+  .dashboard-executive-section,
   .dashboard-decision-layout {
     grid-template-columns: 1fr;
   }
@@ -40,8 +133,20 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .dashboard-priority-panel {
+    padding: 12px;
+  }
+
   .dashboard-board-grid {
     grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .dashboard-subnav {
+    flex-wrap: wrap;
+  }
+
+  .dashboard-subnav-tab {
+    flex: 1 1 180px;
   }
 
   .dashboard-board-grid > .card {
@@ -60,6 +165,19 @@
     grid-row: span 1;
   }
 
+  .dashboard-board-grid-executive {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboard-board-grid-executive .dashboard-executive-main-card {
+    grid-column: 1 / -1;
+    grid-row: auto;
+  }
+
+  .dashboard-board-grid-executive .dashboard-executive-side-card {
+    grid-column: auto;
+  }
+
   .dashboard-insight-grid {
     grid-template-columns: repeat(6, minmax(0, 1fr));
   }
@@ -69,15 +187,28 @@
   }
 
   .dashboard-insight-grid-executive {
-    columns: 2;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboard-insight-grid-analytical {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboard-insight-grid .dashboard-insight-card-compact {
+    grid-column: span 1;
+  }
+
+  .dashboard-insight-grid .dashboard-insight-card-medium,
+  .dashboard-insight-grid .dashboard-insight-card-wide {
+    grid-column: 1 / -1;
   }
 
   .dashboard-card-tall {
     grid-row: span 1;
   }
 
-  .dashboard-insight-grid-analytical > .card {
-    margin-bottom: 14px;
+  .dashboard-insight-grid .dashboard-card-tall {
+    grid-row: auto;
   }
 
   .response-pie-layout,
@@ -88,6 +219,10 @@
   .response-pie-visual-large {
     width: 180px;
     height: 180px;
+  }
+
+  .response-pie-chart-canvas-large {
+    min-height: 180px;
   }
 
   .response-pie-hole-large {
@@ -214,6 +349,14 @@
     flex: 1 1 220px;
   }
 
+  .dashboard-command-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboard-focus-strip {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .table-row {
     grid-template-columns: 1fr;
   }
@@ -224,6 +367,14 @@
     gap: 14px;
   }
 
+  .dashboard-subtab-panel {
+    gap: 14px;
+  }
+
+  .dashboard-executive-section {
+    gap: 12px;
+  }
+
   .dashboard-filter-card,
   .dashboard-grid .card,
   .dashboard-grid .hero-panel {
@@ -232,13 +383,13 @@
 
   .hero-panel,
   .dashboard-command-hero,
+  .dashboard-command-controls,
   .dashboard-decision-layout {
     grid-template-columns: 1fr;
   }
 
   .dashboard-command-kpis,
   .dashboard-decision-kpis,
-  .dashboard-priority-queue,
   .dashboard-analytical-nav {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -263,6 +414,19 @@
     grid-row: span 1;
   }
 
+  .dashboard-board-grid-executive {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboard-board-grid-executive .dashboard-executive-main-card {
+    grid-column: 1 / -1;
+    grid-row: auto;
+  }
+
+  .dashboard-board-grid-executive .dashboard-executive-side-card {
+    grid-column: auto;
+  }
+
   .dashboard-insight-grid {
     grid-template-columns: repeat(8, minmax(0, 1fr));
   }
@@ -273,11 +437,40 @@
   }
 
   .dashboard-insight-grid-executive {
-    columns: 2 300px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .dashboard-insight-grid-analytical {
-    columns: 2 300px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboard-insight-grid .dashboard-insight-card-compact {
+    grid-column: span 1;
+  }
+
+  .dashboard-insight-grid .dashboard-insight-card-medium,
+  .dashboard-insight-grid .dashboard-insight-card-wide {
+    grid-column: 1 / -1;
+  }
+
+  .dashboard-filter-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-filter-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .dashboard-command-actions {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .dashboard-subnav {
+    flex-wrap: wrap;
+  }
+
+  .dashboard-subnav-tab {
+    flex: 1 1 180px;
   }
 }
 
@@ -326,12 +519,49 @@
   }
 
   .dashboard-decision-kpis,
-  .dashboard-priority-queue,
   .dashboard-analytical-nav,
+  .dashboard-command-controls,
+  .dashboard-filter-toolbar,
   .dashboard-theme-split,
   .dashboard-theme-action-row,
   .dashboard-satisfaction-question-grid {
     grid-template-columns: 1fr;
+  }
+
+  .dashboard-command-card {
+    padding: 16px;
+  }
+
+  .dashboard-command-kicker {
+    align-items: flex-start;
+  }
+
+  .dashboard-command-actions,
+  .dashboard-decision-kpis,
+  .dashboard-filter-grid,
+  .dashboard-focus-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-command-toggle {
+    flex-direction: column;
+  }
+
+  .dashboard-executive-section-head {
+    align-items: flex-start;
+  }
+
+  .dashboard-subnav {
+    flex-wrap: nowrap;
+    margin: 0 -16px;
+    padding: 8px 16px;
+    border-right: 0;
+    border-left: 0;
+    border-radius: 0;
+  }
+
+  .dashboard-subnav-tab {
+    flex: 0 0 auto;
   }
 
   .dashboard-satisfaction-analytics-panel .dashboard-dimension-summary-head,
@@ -362,6 +592,20 @@
     grid-row: auto;
   }
 
+  .dashboard-board-grid-executive .dashboard-executive-main-card,
+  .dashboard-board-grid-executive .dashboard-executive-side-card {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
+  .dashboard-executive-pulse-card .trend-chart {
+    height: 190px;
+  }
+
+  .dashboard-executive-rhythm-card .trend-chart {
+    height: 150px;
+  }
+
   .dashboard-insight-grid {
     grid-template-columns: 1fr;
   }
@@ -371,11 +615,11 @@
   }
 
   .dashboard-insight-grid-executive {
-    columns: 1;
+    grid-template-columns: 1fr;
   }
 
   .dashboard-insight-grid-analytical {
-    columns: 1;
+    grid-template-columns: 1fr;
   }
 
   .dashboard-card-tall {
@@ -384,6 +628,12 @@
 
   .dashboard-rhythm-metrics {
     grid-template-columns: 1fr;
+  }
+
+  .dashboard-insight-grid .dashboard-insight-card-compact,
+  .dashboard-insight-grid .dashboard-insight-card-medium,
+  .dashboard-insight-grid .dashboard-insight-card-wide {
+    grid-column: auto;
   }
 
   .dashboard-board-grid-analytical > .card:not(.dashboard-board-featured),

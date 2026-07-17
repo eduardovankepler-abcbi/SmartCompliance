@@ -530,6 +530,33 @@
   padding: 18px;
 }
 
+.dashboard-chart-shell {
+  position: relative;
+  width: 100%;
+  min-height: 180px;
+}
+
+.dashboard-chart-shell canvas {
+  display: block;
+}
+
+.dashboard-chart-state {
+  min-height: 180px;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  border: 1px dashed var(--line);
+  border-radius: 16px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.dashboard-chart-state.error {
+  color: var(--accent-red);
+  border-color: rgba(229, 55, 34, 0.28);
+  background: var(--accent-red-soft);
+}
+
 .stat-card strong,
 .highlight-card strong {
   font-size: 1.8rem;
@@ -832,6 +859,7 @@
 }
 
 .donut-visual {
+  position: relative;
   width: 120px;
   height: 120px;
   border-radius: 50%;
@@ -839,7 +867,15 @@
   place-items: center;
 }
 
+.donut-chart-canvas {
+  position: absolute;
+  inset: 0;
+  min-height: 120px;
+}
+
 .donut-hole {
+  position: relative;
+  z-index: 1;
   width: 78px;
   height: 78px;
   border-radius: 50%;
@@ -902,6 +938,7 @@
 }
 
 .response-pie-visual {
+  position: relative;
   width: 132px;
   height: 132px;
   border-radius: 50%;
@@ -911,7 +948,15 @@
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
+.response-pie-chart-canvas {
+  position: absolute;
+  inset: 0;
+  min-height: 132px;
+}
+
 .response-pie-hole {
+  position: relative;
+  z-index: 1;
   width: 82px;
   height: 82px;
   border-radius: 50%;
@@ -1011,6 +1056,10 @@
 .response-pie-visual-large {
   width: 220px;
   height: 220px;
+}
+
+.response-pie-chart-canvas-large {
+  min-height: 220px;
 }
 
 .response-pie-hole-large {

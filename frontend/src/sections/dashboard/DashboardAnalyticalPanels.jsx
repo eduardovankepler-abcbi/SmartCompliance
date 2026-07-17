@@ -55,14 +55,14 @@ export function DashboardOperationsPanels({
     <>
       <div className="card-span dashboard-section-band operations">
         <div className="dashboard-section-band-copy">
-          <span>Operacao</span>
+          <span>{isExecutiveView ? "Tendencia e cobertura" : "Operacao"}</span>
           <strong>
-            {isExecutiveView ? "Cobertura, pulso e ritmo do ciclo" : "Distribuicao e cobertura do fluxo"}
+            {isExecutiveView ? "Pulso do ciclo, cobertura e ritmo" : "Distribuicao e cobertura do fluxo"}
           </strong>
         </div>
         <p>
           {isExecutiveView
-            ? "Blocos dedicados a cobertura, adesao e volume do periodo em andamento."
+            ? "Leitura temporal dominante combinada com cobertura e volume do periodo."
             : "Leitura detalhada da distribuicao das respostas, funil e evolucao temporal."}
         </p>
       </div>
@@ -74,19 +74,8 @@ export function DashboardOperationsPanels({
       >
         {isExecutiveView ? (
           <>
-            {(dashboard?.donutMetrics || []).length ? (
-              <div className="card dashboard-visual-card dashboard-board-featured">
-                <DashboardCardHeader eyebrow="Cobertura" title="Panorama de cobertura" subtitle="Vista rapida do ciclo" tone="primary" />
-                <div className="donut-grid">
-                  {(dashboard?.donutMetrics || []).filter(Boolean).map((item) => (
-                    <SafeDashboardDonut key={item.key || item.label} item={item} />
-                  ))}
-                </div>
-              </div>
-            ) : null}
-
             {cycleTimelineItems.length ? (
-              <div className="card dashboard-visual-card dashboard-board-featured">
+              <div className="card dashboard-visual-card dashboard-executive-main-card dashboard-executive-pulse-card">
                 <DashboardCardHeader eyebrow="Pulso" title="Pulso do ciclo" subtitle={`Adesao por ${dashboardTimeGroupingLabel.toLowerCase()}`} tone="success" />
                 <SafeTrendAreaChartCard
                   items={cycleTimelineItems}
@@ -98,8 +87,19 @@ export function DashboardOperationsPanels({
               </div>
             ) : null}
 
+            {(dashboard?.donutMetrics || []).length ? (
+              <div className="card dashboard-visual-card dashboard-executive-side-card dashboard-executive-coverage-card">
+                <DashboardCardHeader eyebrow="Cobertura" title="Panorama de cobertura" subtitle="Vista rapida do ciclo" tone="primary" />
+                <div className="donut-grid">
+                  {(dashboard?.donutMetrics || []).filter(Boolean).map((item) => (
+                    <SafeDashboardDonut key={item.key || item.label} item={item} />
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
             {cycleTimelineItems.length ? (
-              <div className="card dashboard-visual-card dashboard-board-tall">
+              <div className="card dashboard-visual-card dashboard-executive-side-card dashboard-executive-rhythm-card">
                 <DashboardCardHeader eyebrow="Ritmo" title="Ritmo de distribuicao" subtitle="Volume no tempo" tone="warning" />
                 <SafeTrendAreaChartCard
                   items={cycleTimelineItems}
