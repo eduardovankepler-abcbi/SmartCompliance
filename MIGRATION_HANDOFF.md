@@ -224,17 +224,21 @@ Preparacao concluida em 2026-07-21:
 - Preflight CORS para a URL Angular publicada respondeu 200 no Render, mas ainda sem
   `Access-Control-Allow-Origin`; `backend/src/config/env.js` foi preparado com
   `https://smart-compliance-angular*.vercel.app` e precisa ser reimplantado no backend.
+- Deploy backend `565124a` validado: preflight de `POST /api/auth/login` para
+  `https://smart-compliance-angular-ln3fmbsnl-eduardos-projects-e211db16.vercel.app` retornou 204
+  com `Access-Control-Allow-Origin` correto. CORS da URL Angular publicada esta liberado.
+- Deployment Protection desativada no projeto Vercel Angular; `/login` e `/app/dashboard` publicados
+  respondem 200 com fallback SPA.
+- Validacao publicada concluida: login admin, Dashboard, Compliance, Pessoas, Avaliacoes,
+  Desenvolvimento/Formacao e PDI e Aplause carregaram com sucesso contra o backend Render; todas as
+  chamadas criticas observadas retornaram 200.
 
 Plano de corte recomendado:
 
 1. Publicar o Angular em uma URL de homologacao/producao separada, sem substituir o React primeiro.
-2. Desativar Deployment Protection do projeto Angular na Vercel ou tornar o deploy publico.
-3. Reimplantar o backend com a origem Angular liberada no CORS.
-4. Validar login, Dashboard, Compliance, Pessoas, Avaliacoes, Desenvolvimento e Aplause no Angular
-   publicado contra `https://smartcompliance.onrender.com`.
-5. Manter `https://smart-compliance-frontend.vercel.app/` disponivel como rollback durante a janela
+2. Manter `https://smart-compliance-frontend.vercel.app/` disponivel como rollback durante a janela
    de estabilizacao.
-6. Trocar o apontamento oficial para Angular somente apos aceite.
+3. Trocar o apontamento oficial para Angular somente apos aceite.
 
 Comandos manuais recomendados para publicar em Vercel separado:
 
@@ -446,8 +450,8 @@ Avaliacoes:
     validacao de importacao, publicacao e atualizacao de biblioteca customizada.
 11. [x] **Fase 8.1 - Matriz final:** matriz por rota, papel e endpoint registrada; comparacao
     React x Angular, homologacao Aplause, cenarios reais de erro e escopo Power BI futuro validados.
-12. [-] **Fase 8.2 - Corte controlado:** build producao e configuracao de deploy Angular preparados;
-    faltam publicar Angular, liberar CORS da URL publicada, homologar e executar aceite/rollback.
+12. [-] **Fase 8.2 - Corte controlado:** Angular publicado e validado em URL separada; faltam
+    aceite final, troca do apontamento oficial e encerramento da janela de rollback do React.
 
 ### Checklist de Aceite 1:1
 

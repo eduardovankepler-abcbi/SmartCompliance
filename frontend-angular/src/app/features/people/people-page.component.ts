@@ -1,0 +1,247 @@
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { firstValueFrom, forkJoin } from 'rxjs';
+
+import { AuthService } from '../../core/auth/auth.service';
+import { ApiError } from '../../core/http/api-error';
+import { Area, AreasService } from '../areas/areas.service';
+import { AuditService, AuditEntry } from '../audit/audit.service';
+import { AuditTrailComponent } from '../audit/audit-trail.component';
+import { EmploymentType, Person, PersonPayload, PeopleService, WorkMode } from './people.service';
+
+@Component({
+  selector: 'app-people-page',
+  imports: [ReactiveFormsModule, AuditTrailComponent],
+  template: `
+    <section class="people" aria-labelledby="people-title">
+      <header class="people__header">
+        <div>
+          <p class="people__eyebrow">Cadastro</p>
+          <h1 id="people-title">Pessoas</h1>
+          <p>Organize a estrutura, a hierarquia e os vinculos da organizacao.</p>
+        </div>
+        <button type="button" (click)="startCreate()">Nova pessoa</button>
+      </header>
+
+      @if (errorMessage()) { <p class="people__error" role="alert">{{ errorMessage() }}</p> }
+
+      @if (isEditing()) {
+        <form class="people__form" [formGroup]="form" (ngSubmit)="save()">
+          <label>Nome <input formControlName="name" autocomplete="name" /></label>
+          <label>Cargo <input formControlName="roleTitle" autocomplete="organization-title" /></label>
+          <label>
+            Area
+            <select formControlName="area">
+              <option value="" disabled>Selecione uma area</option>
+              @for (area of areas(); track area.id) { <option [value]="area.name">{{ area.name }}</option> }
+            </select>
+          </label>
+          <label>
+            Gestor direto
+            <select formControlName="managerPersonId">
+              <option value="">Sem gestor direto definido</option>
+              @for (manager of managerOptions(); track manager.id) {
+                <option [value]="manager.id">{{ manager.name }} · {{ manager.area }}</option>
+              }
+            </select>
+          </label>
+          <label>
+            Lider da area
+            <select formControlName="isAreaManager">
+              <option value="no">Nao</option>
+              <option value="yes">Sim</option>
+            </select>
+          </label>
+          <label>Unidade de trabalho <input formControlName="workUnit" autocomplete="organization" /></label>
+          <label>
+            Modalidade
+            <select formControlName="workMode">
+              <option value="onsite">Presencial</option>
+              <option value="hybrid">Hibrido</option>
+              <option value="remote">100% Home Office</option>
+            </select>
+          </label>
+          <label>
+            Vinculo
+            <select formControlName="employmentType">
+              <option value="internal">Interno</option>
+              <option value="consultant">Consultor</option>
+            </select>
+          </label>
+          @if (validationMessage()) { <p class="people__validation" role="alert">{{ validationMessage() }}</p> }
+          @if (leadershipWarning()) { <p class="people__warning">{{ leadershipWarning() }}</p> }
+          <div class="people__form-actions">
+            <button type="button" class="people__secondary" (click)="cancelEdit()">Cancelar</button>
+            <button type="submit" [disabled]="isSaving() || areas().length === 0">
+              {{ isSaving() ? 'Salvando...' : editingPerson() ? 'Salvar alteracoes' : 'Cadastrar pessoa' }}
+            </button>
+          </div>
+          @if (areas().length === 0) { <p class="people__validation">Cadastre uma area antes de cadastrar pessoas.</p> }
+        </form>
+      }
+
+      @if (isLoading()) {
+        <p class="people__state">Carregando estrutura de pessoas...</p>
+      } @else if (people().length === 0) {
+        <p class="people__state">Nenhuma pessoa cadastrada no seu escopo.</p>
+      } @else {
+        <div class="people__table-wrap">
+          <table>
+            <thead><tr><th>Pessoa</th><th>Area e cargo</th><th>Hierarquia</th><th>Vinculo</th><th><span class="visually-hidden">Acoes</span></th></tr></thead>
+            <tbody>
+              @for (person of people(); track person.id) {
+                <tr>
+                  <td><strong>{{ person.name }}</strong><small>{{ person.workUnit || '-' }} · {{ workModeLabel(person.workMode) }}</small></td>
+                  <td>{{ person.area }}<small>{{ person.roleTitle }}</small></td>
+                  <td>Gestor: {{ person.managerName || '-' }}<small>Lider da area: {{ person.areaManagerName || '-' }}</small></td>
+                  <td>{{ employmentTypeLabel(person.employmentType) }}</td>
+                  <td><button type="button" class="people__secondary" (click)="startEdit(person)">Editar</button></td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+      <app-audit-trail [entries]="auditEntries()" title="Trilha da estrutura" subtitle="Criacoes e atualizacoes recentes de cadastro" emptyMessage="Eventos de pessoas aparecerao aqui." />
+    </section>
+  `,
+  styles: `
+    .people { max-width: 1120px; } .people__header { display:flex; align-items:start; justify-content:space-between; gap:24px; }
+    .people__eyebrow { margin:0 0 8px; color:#175cd3; font-size:13px; font-weight:700; text-transform:uppercase; } h1 { margin:0; font-size:24px; }
+    .people__header p:not(.people__eyebrow), .people__state { color:#475467; } button { min-height:36px; padding:0 12px; color:#fff; font-weight:600; cursor:pointer; background:#175cd3; border:0; border-radius:6px; }
+    button:disabled { cursor:wait; background:#84adff; } .people__secondary { color:#344054; background:#fff; border:1px solid #98a2b3; }
+    .people__error, .people__form, .people__table-wrap { margin-top:24px; background:#fff; border:1px solid #d0d5dd; border-radius:8px; }
+    .people__error, .people__validation, .people__warning { padding:12px; } .people__error, .people__validation { color:#b42318; background:#fef3f2; border:1px solid #fecdca; border-radius:6px; }
+    .people__warning { color:#854a0e; background:#fffaeb; border:1px solid #fedf89; border-radius:6px; }
+    .people__form { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:16px; padding:20px; } label { display:grid; gap:6px; color:#344054; font-weight:600; }
+    input, select { box-sizing:border-box; width:100%; min-height:40px; padding:8px 10px; border:1px solid #98a2b3; border-radius:6px; font:inherit; }
+    .people__validation, .people__warning, .people__form-actions { grid-column:1 / -1; margin:0; } .people__form-actions { display:flex; gap:8px; justify-content:end; }
+    .people__state { margin:24px 0; } .people__table-wrap { overflow-x:auto; } table { width:100%; border-collapse:collapse; } th, td { padding:14px 16px; text-align:left; vertical-align:top; border-bottom:1px solid #eaecf0; }
+    th { color:#475467; font-size:12px; text-transform:uppercase; } td strong, td small { display:block; } td small { margin-top:4px; color:#667085; } td:last-child, th:last-child { width:1%; white-space:nowrap; }
+    .visually-hidden { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+    @media (max-width:720px) { .people__header { align-items:stretch; flex-direction:column; } .people__form { grid-template-columns:1fr; } }
+  `,
+})
+export class PeoplePageComponent implements OnInit {
+  private readonly auth = inject(AuthService);
+  private readonly areasService = inject(AreasService);
+  private readonly peopleService = inject(PeopleService);
+  private readonly auditService = inject(AuditService);
+  private readonly formBuilder = inject(FormBuilder);
+
+  readonly areas = signal<Area[]>([]);
+  readonly people = signal<Person[]>([]);
+  readonly auditEntries = signal<AuditEntry[]>([]);
+  readonly editingPerson = signal<Person | null>(null);
+  readonly errorMessage = signal('');
+  readonly isEditing = signal(false);
+  readonly isLoading = signal(true);
+  readonly isSaving = signal(false);
+  readonly form = this.formBuilder.nonNullable.group({
+    name: ['', [Validators.required, Validators.maxLength(160)]],
+    roleTitle: ['', [Validators.required, Validators.maxLength(160)]],
+    area: ['', Validators.required],
+    workUnit: ['', [Validators.required, Validators.maxLength(160)]],
+    workMode: ['hybrid' as WorkMode],
+    managerPersonId: [''],
+    isAreaManager: ['no' as 'yes' | 'no'],
+    employmentType: ['internal' as EmploymentType],
+  });
+  readonly managerOptions = computed(() => {
+    const editingId = this.editingPerson()?.id;
+    const roleKey = this.auth.user()?.roleKey;
+    if (roleKey === 'manager') {
+      const ownPersonId = this.auth.user()?.person?.id;
+      return this.people().filter((person) => person.id === ownPersonId && person.id !== editingId);
+    }
+    return this.people().filter((person) => person.id !== editingId);
+  });
+  validationMessage(): string {
+    const value = this.form.getRawValue();
+    if (!value.name.trim()) return 'Informe o nome da pessoa.';
+    if (!value.roleTitle.trim()) return 'Informe o cargo da pessoa.';
+    if (!value.area) return 'Selecione a area da pessoa.';
+    if (!value.workUnit.trim()) return 'Informe a unidade de trabalho.';
+    if (value.managerPersonId && value.managerPersonId === this.editingPerson()?.id) return 'Uma pessoa nao pode ser gestora direta de si mesma.';
+    const duplicate = this.people().some((person) =>
+      person.id !== this.editingPerson()?.id &&
+      person.name.trim().toLocaleLowerCase() === value.name.trim().toLocaleLowerCase() &&
+      person.area === value.area &&
+      person.roleTitle.trim().toLocaleLowerCase() === value.roleTitle.trim().toLocaleLowerCase(),
+    );
+    return duplicate ? 'Ja existe uma pessoa com mesmo nome, area e cargo.' : '';
+  }
+
+  leadershipWarning(): string {
+    const value = this.form.getRawValue();
+    if (value.isAreaManager !== 'yes') return '';
+    const selectedArea = this.areas().find((area) => area.name === value.area);
+    const currentLeaderId = selectedArea?.managerPersonId;
+    if (currentLeaderId && currentLeaderId !== this.editingPerson()?.id) {
+      return `Salvar vai substituir ${selectedArea?.managerName || 'a lideranca atual'} como lider da area.`;
+    }
+    return '';
+  }
+
+  ngOnInit(): void { void this.loadData(); }
+
+  startCreate(): void {
+    this.errorMessage.set('');
+    this.editingPerson.set(null);
+    this.form.reset({ name: '', roleTitle: '', area: this.areas()[0]?.name ?? '', workUnit: '', workMode: 'hybrid', managerPersonId: this.defaultManagerId(), isAreaManager: 'no', employmentType: 'internal' });
+    this.isEditing.set(true);
+  }
+
+  startEdit(person: Person): void {
+    this.errorMessage.set('');
+    this.editingPerson.set(person);
+    this.form.reset({ name: person.name, roleTitle: person.roleTitle, area: person.area, workUnit: person.workUnit || '', workMode: person.workMode || 'hybrid', managerPersonId: person.managerPersonId || '', isAreaManager: person.areaManagerPersonId === person.id ? 'yes' : 'no', employmentType: person.employmentType });
+    this.isEditing.set(true);
+  }
+
+  cancelEdit(): void {
+    this.isEditing.set(false);
+    this.editingPerson.set(null);
+    this.form.reset();
+  }
+
+  async save(): Promise<void> {
+    if (this.form.invalid || this.validationMessage()) {
+      this.form.markAllAsTouched();
+      return;
+    }
+    this.errorMessage.set('');
+    this.isSaving.set(true);
+    try {
+      const value = this.form.getRawValue();
+      const payload: PersonPayload = { ...value, managerPersonId: value.managerPersonId || null };
+      const person = this.editingPerson();
+      if (person) await firstValueFrom(this.peopleService.update(person.id, payload));
+      else await firstValueFrom(this.peopleService.create(payload));
+      this.cancelEdit();
+      await this.loadData();
+    } catch (error) {
+      this.errorMessage.set(error instanceof ApiError ? error.message : 'Nao foi possivel salvar a pessoa.');
+    } finally { this.isSaving.set(false); }
+  }
+
+  workModeLabel(value: WorkMode | null): string {
+    return value === 'onsite' ? 'Presencial' : value === 'remote' ? '100% Home Office' : 'Hibrido';
+  }
+
+  employmentTypeLabel(value: EmploymentType): string { return value === 'consultant' ? 'Consultor' : 'Interno'; }
+
+  private defaultManagerId(): string {
+    return this.auth.user()?.roleKey === 'manager' ? this.auth.user()?.person?.id || '' : '';
+  }
+
+  private async loadData(): Promise<void> {
+    this.isLoading.set(true); this.errorMessage.set('');
+    try {
+      const { areas, people, audit } = await firstValueFrom(forkJoin({ areas: this.areasService.list(), people: this.peopleService.list(), audit: this.auditService.list('registry') }));
+      this.areas.set(areas); this.people.set(people); this.auditEntries.set(audit);
+    } catch (error) {
+      this.errorMessage.set(error instanceof ApiError ? error.message : 'Nao foi possivel carregar a estrutura de pessoas.');
+    } finally { this.isLoading.set(false); }
+  }
+}
