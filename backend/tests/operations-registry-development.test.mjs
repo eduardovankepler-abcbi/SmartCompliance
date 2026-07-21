@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { createTestContext } from "./testContext.mjs";
+import { createMysqlApplauseStore } from "../src/data/storeApplauseOperations.js";
 
 export async function runOperationsRegistryDevelopmentRegression() {
   const context = await createTestContext();
@@ -17,6 +18,46 @@ export async function runOperationsRegistryDevelopmentRegression() {
       admin && manager && hr && employee && compliance && managerRevieweeEmployee,
       "Usuarios demo obrigatorios para operacao e estrutura"
     );
+
+    const mysqlQueries = [];
+    const mysqlApplauseStore = createMysqlApplauseStore({
+      pool: {
+        async query(sql, params = []) {
+          mysqlQueries.push({ sql, params });
+          if (sql.includes("SELECT sender_person_id")) return [[]];
+          if (sql.includes("SELECT id, name FROM people")) {
+            return [[{ id: "sender", name: "Remetente" }, { id: "receiver", name: "Destinatario" }]];
+          }
+          return [{}];
+        }
+      },
+      createId: () => "applause-mysql-test",
+      assertCanCreateApplause: () => {},
+      insertAuditLog: async () => {},
+      AUDIT_CATEGORIES: { applause: "applause" },
+      buildApplauseAuditDetail: () => "",
+      isFullAccessUser: () => true,
+      isManagerUser: () => false,
+      fetchPeopleRows: async () => [],
+      getTeamPeople: () => [],
+      assertCanManageApplauseEntry: () => {},
+      isOrgWideUser: () => true,
+      assertValidApplauseStatus: () => {}
+    });
+    const mysqlApplause = await mysqlApplauseStore.createApplauseEntry({
+      senderPersonId: "sender",
+      receiverPersonId: "receiver",
+      category: "Colaboracao",
+      impact: "Teste de persistencia MySQL.",
+      contextNote: "Verifica a conversao de data antes do INSERT."
+    });
+    const applauseInsert = mysqlQueries.find((item) => item.sql.includes("INSERT INTO applause_entries"));
+    assert.match(
+      applauseInsert.params[6],
+      /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/,
+      "Aplause MySQL deve persistir created_at sem o sufixo ISO"
+    );
+    assert.match(mysqlApplause.createdAt, /T.*Z$/, "API deve continuar retornando createdAt em ISO");
 
     const createdCycle = await store.createEvaluationCycle(
       {

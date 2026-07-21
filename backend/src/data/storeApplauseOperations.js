@@ -1,3 +1,5 @@
+import { toMysqlDateTime } from "./mysqlDateTime.js";
+
 export function createMemoryApplauseStore({
   db,
   createId,
@@ -198,7 +200,7 @@ export function createMysqlApplauseStore({
           applause.category,
           applause.impact,
           applause.contextNote,
-          applause.createdAt,
+          toMysqlDateTime(applause.createdAt),
           applause.status
         ]
       );
