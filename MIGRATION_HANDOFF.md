@@ -232,6 +232,8 @@ Preparacao concluida em 2026-07-21:
 - Validacao publicada concluida: login admin, Dashboard, Compliance, Pessoas, Avaliacoes,
   Desenvolvimento/Formacao e PDI e Aplause carregaram com sucesso contra o backend Render; todas as
   chamadas criticas observadas retornaram 200.
+- Pre-corte em 2026-07-21: Angular publicado `/login` respondeu 200 e React oficial
+  `https://smart-compliance-frontend.vercel.app/` respondeu 200, mantendo rollback disponivel.
 
 Plano de corte recomendado:
 
@@ -239,6 +241,9 @@ Plano de corte recomendado:
 2. Manter `https://smart-compliance-frontend.vercel.app/` disponivel como rollback durante a janela
    de estabilizacao.
 3. Trocar o apontamento oficial para Angular somente apos aceite.
+
+Status de corte: **pronto para aceite final**. A troca do apontamento oficial deve ser feita apenas
+com confirmacao explicita, pois muda a experiencia de producao dos usuarios.
 
 Comandos manuais recomendados para publicar em Vercel separado:
 
