@@ -203,6 +203,59 @@ Estimativa: 20-30 creditos.
 8. Manter React disponivel durante a janela de estabilizacao acordada.
 9. Arquivar ou desativar o React somente apos aceite final e janela de reversao encerrada.
 
+### Fase 8.2 - Corte controlado em andamento
+
+Preparacao concluida em 2026-07-21:
+
+- `environment.production.ts` do Angular aponta para `https://smartcompliance.onrender.com`.
+- `npx ng build --configuration=production` passou e gerou artefatos em
+  `frontend-angular/dist/frontend-angular/browser`.
+- Build production gerou apenas warning de budget: bundle inicial `526.87 kB` contra aviso de
+  `500 kB`; transferencia estimada `116.47 kB`.
+- `frontend-angular/vercel.json` adicionado para deploy SPA com output
+  `dist/frontend-angular/browser` e rewrite de todas as rotas para `/index.html`.
+- `npx ng serve --configuration=production --host localhost --port 4200` validado com rota profunda
+  `/app/dashboard`, login `admin@demo.local` e `GET /api/dashboards/overview?timeGrouping=semester`
+  retornando 200 contra `https://smartcompliance.onrender.com`.
+- Projeto Vercel Angular separado criado como `smart-compliance-angular` e deploy iniciado em
+  `https://smart-compliance-angular-ln3fmbsnl-eduardos-projects-e211db16.vercel.app`.
+- Primeiro acesso publico retornou redirecionamento para `vercel.com/sso-api`, indicando Deployment
+  Protection ativa no projeto Angular.
+- Preflight CORS para a URL Angular publicada respondeu 200 no Render, mas ainda sem
+  `Access-Control-Allow-Origin`; `backend/src/config/env.js` foi preparado com
+  `https://smart-compliance-angular*.vercel.app` e precisa ser reimplantado no backend.
+
+Plano de corte recomendado:
+
+1. Publicar o Angular em uma URL de homologacao/producao separada, sem substituir o React primeiro.
+2. Desativar Deployment Protection do projeto Angular na Vercel ou tornar o deploy publico.
+3. Reimplantar o backend com a origem Angular liberada no CORS.
+4. Validar login, Dashboard, Compliance, Pessoas, Avaliacoes, Desenvolvimento e Aplause no Angular
+   publicado contra `https://smartcompliance.onrender.com`.
+5. Manter `https://smart-compliance-frontend.vercel.app/` disponivel como rollback durante a janela
+   de estabilizacao.
+6. Trocar o apontamento oficial para Angular somente apos aceite.
+
+Comandos manuais recomendados para publicar em Vercel separado:
+
+```powershell
+cd "E:\Smart Compliance\frontend-angular"
+npm run build -- --configuration=production
+npx vercel --prod
+```
+
+Ao responder as perguntas do Vercel, usar este diretorio como projeto Angular separado e confirmar:
+
+- Build command: `npm run build -- --configuration=production`
+- Output directory: `dist/frontend-angular/browser`
+- SPA fallback: ja configurado em `frontend-angular/vercel.json`.
+
+Rollback:
+
+- Se o Angular publicado falhar em autenticacao, CORS, rota profunda ou fluxo critico, manter o React
+  publicado como frontend oficial e corrigir o Angular fora da janela de corte.
+- Nao arquivar nem desativar o React antes do aceite final.
+
 ## Auditoria Dura de Paridade 1:1
 
 Ultima varredura: 2026-07-20, na branch `codex/angular-pilot`.
@@ -226,13 +279,13 @@ auditoria e testes de fluxo critico estao cobertos no Angular.
 | Desenvolvimento | `features/development` | Fase 6 concluida | Revalidar paridade visual e indice 360 na rodada final de aceite. |
 | Aplause | `features/applause` | Fase 6 concluida | Revalidar paridade visual na rodada final de aceite. |
 | Avaliacoes | `features/evaluations` | Fase 7 concluida | Revalidar paridade visual e fluxos de importacao na rodada final de aceite. |
-| Power BI/Analytics | Integração externa de dados, sem UI React/Angular | Fora do corte de UI | Manter endpoints analíticos; validar dataset e RLS com o responsável pelo relatório antes da homologação. |
+| Power BI/Analytics | Integração futura de dados, sem UI React/Angular | Fora do corte atual | Manter endpoints analíticos como contrato futuro; corte atual usa dashboards nativos da aplicação. |
 
-### Matriz final por rota, papel e endpoint — Fase 8.1 em andamento
+### Matriz final por rota, papel e endpoint — Fase 8.1 concluida
 
 Status: **Coberto** = rota, serviço tipado e cenário Playwright focado existem; **Revisão final** =
 contrato coberto, mas ainda exige comparação visual/funcional lado a lado com o React antes do corte;
-**Decisão pendente** = depende de escopo corporativo.
+**Futuro** = contrato preservado, mas fora do aceite da migracao atual.
 
 | Rota Angular | Perfis e bloqueios esperados | Endpoints/fluxos cobertos | Evidência automatizada | Status |
 | --- | --- | --- | --- | --- |
@@ -248,24 +301,13 @@ contrato coberto, mas ainda exige comparação visual/funcional lado a lado com 
 | `/app/evaluations` — operação | Admin/RH; colaborador bloqueado | Transições, participantes, inadimplência, notificações e transversal | `evaluations-operations.spec.ts` | Coberto; revisar estados de erro reais |
 | `/app/evaluations` — feedback/360 | Leitura por employee; aprovação por admin/RH | Solicitações, acknowledgement, 360, histórico e comparação | `evaluations-feedback.spec.ts` | Coberto; revisar dados reais por papel |
 | `/app/evaluations` — bibliotecas customizadas | Apenas admin/RH; colaborador bloqueado | Template, importação, validação, publicação e atualização | `evaluations-custom-libraries.spec.ts` | Coberto; executar importação com arquivo corporativo de homologação |
-| Power BI/Analytics | Admin/RH no contrato de dados | `GET /api/analytics/powerbi/evaluation-results` e `GET /api/analytics/powerbi/rls-viewers` | Sem UI Angular por decisão | Integração externa: validar dataset e RLS em homologação |
+| Power BI/Analytics | Admin/RH no contrato de dados | `GET /api/analytics/powerbi/evaluation-results` e `GET /api/analytics/powerbi/rls-viewers` | Sem UI Angular por decisão | Futuro: nao ha relatorio Power BI consumidor no corte atual |
 
 #### Pendências objetivas para encerrar a 8.1
 
-1. Executar uma rodada visual lado a lado React × Angular para Dashboard, Compliance, Pessoas e Avaliações.
-2. Corrigir CORS no backend de homologação para a origem do Angular e repetir login/rotas no navegador.
-   No Render, incluir `http://localhost:4200` em `CORS_ORIGIN` junto da origem React
-   (`https://smart-compliance-frontend.vercel.app`) e reimplantar; em 2026-07-21, somente a
-   origem React recebeu `Access-Control-Allow-Origin` no preflight de `POST /api/auth/login`.
-3. Reexecutar os cenários de erro contra o backend de homologação, sem mocks Playwright, principalmente
-   publicação, importação, notificações e respostas de avaliação.
-4. Reimplantar a correção de persistência MySQL de datas no backend de homologação. Em 2026-07-21,
-   `POST /api/applause` retornou 400 porque `created_at` recebeu `2026-07-21T14:31:25.472Z`, formato
-   ISO rejeitado pelo MySQL remoto; a correção local converte o valor do `INSERT` e passou na regressão
-   do backend. Nova validacao em 2026-07-21 11:41 BRT ainda recebeu 400 com
-   `2026-07-21T14:41:35.325Z`, indicando que o Render ainda nao esta executando a correcao.
-5. Validar, com o responsável pelo relatório Power BI, o refresh do dataset e as regras de RLS em homologação.
-6. Marcar a 8.1 como concluída somente depois dos cinco itens anteriores e atualizar a coluna de status.
+Nenhuma pendencia objetiva restante. A validacao Power BI foi reclassificada como integracao futura
+porque ainda nao existe relatorio Power BI consumindo os dados; por enquanto, o escopo de analytics
+permanece nos dashboards nativos da propria aplicacao.
 
 #### Evidência funcional consolidada
 
@@ -281,17 +323,39 @@ contrato coberto, mas ainda exige comparação visual/funcional lado a lado com 
 - Revalidacao posterior de Aplause com marcador `[AUDIT-8.1-HOMOLOG-1784644888367]`: login, Pessoas,
   Aplause e Auditoria responderam 200, mas `POST /api/applause` voltou 400 por `created_at` ISO.
   Nenhum arquivamento foi executado porque a criacao falhou.
+- Deploy `26443a3` validado em 2026-07-21: Angular local em homologacao criou Aplause com marcador
+  `[AUDIT-8.1-HOMOLOG-1784645775199]` (`POST /api/applause` 201, id `applause_qnr4e6m1`) e arquivou
+  o registro (`PATCH /api/applause/applause_qnr4e6m1` 200). O bloqueio de data MySQL foi resolvido
+  no Render.
+- CORS de homologacao validado para `http://localhost:4200`: login Angular, Pessoas, Aplause e
+  Auditoria responderam com sucesso contra `https://smartcompliance.onrender.com`.
+- Rodada visual React x Angular concluida em viewport 1440x1100 para Dashboard, Compliance, Pessoas
+  e Avaliacoes. Nao houve 404 nas rotas testadas, e as APIs principais retornaram 200 nos dois
+  frontends. Evidencias salvas em `frontend-angular/test-results/visual-parity-8-1/`.
+- Diferenca visual registrada: React publicado usa tema escuro executivo, cards mais densos, atalhos
+  e submodulos expostos na primeira dobra; Angular local usa tema claro operacional, com fluxos
+  equivalentes em estrutura mais simples. Tratar como decisao de aceite visual antes do corte, nao
+  como bloqueio funcional.
+- Cenarios reais de erro de Avaliacoes reexecutados contra homologacao, sem mocks: publicacao de
+  questionario inexistente retornou 400, notificacao de ciclo inexistente retornou 400, envio de
+  assignment inexistente retornou 400, tentativa de publicacao por colaborador retornou 403 e
+  importacao de CSV invalido retornou draft 201 com erros de validacao por linha.
+- Validacao tecnica Power BI/RLS em homologacao concluida: admin acessou
+  `GET /api/analytics/powerbi/evaluation-results` com 200; RH acessou
+  `GET /api/analytics/powerbi/rls-viewers` com 200; gestor e colaborador receberam 403; dataset
+  retornou `evaluationResults=8`, `questionResults=6`, `rlsViewers=5`, flags de privacidade sem
+  comentarios brutos/respostas individuais e sem campos sensiveis obvios serializados.
 - Comparação visual pública: o login Angular é claro e compacto, enquanto a raiz do React é uma
   experiência escura/executiva; além disso, `https://smart-compliance-frontend.vercel.app/login`
   responde 404, indicando falta de fallback SPA para deep links no deploy React.
 
 #### Decisão de escopo: Power BI/Analytics
 
-Power BI permanece uma **integração externa de dados**, fora do corte de UI Angular. O React não
-possui rota, embed ou chamada aos endpoints `/api/analytics/*`; os endpoints atuais fornecem o
-dataset de avaliações e os visualizadores de RLS para um relatório externo, com acesso de admin/RH.
-O corte preservará esses contratos sem criar uma tela Angular duplicada. A evidência pendente é a
-validação operacional do refresh e do RLS no ambiente de homologação.
+Power BI permanece uma **integracao futura de dados**, fora do corte de UI Angular e fora do aceite
+da migracao atual. Nao existe relatorio Power BI consumindo esses dados no momento; por enquanto,
+trabalharemos apenas com dashboards nativos da propria aplicacao. O React tambem nao possui rota,
+embed ou chamada aos endpoints `/api/analytics/*`. O corte preservara os contratos tecnicos ja
+existentes sem criar uma tela Angular duplicada.
 
 ### Inventario de contratos mapeados para Angular
 
@@ -380,10 +444,10 @@ Avaliacoes:
    insights, historico e comparacao de ciclos.
 10. [x] **Fase 7.5 - Importacao/publicacao de bibliotecas:** migrar download de template, upload,
     validacao de importacao, publicacao e atualizacao de biblioteca customizada.
-11. [-] **Fase 8.1 - Matriz final:** matriz por rota, papel e endpoint registrada; faltam comparacao
-    React x Angular antes de qualquer corte.
-12. **Fase 8.2 - Corte controlado:** build producao, configuracao CORS/proxy, homologacao,
-    aceite, plano de reversao e janela de estabilizacao com React preservado.
+11. [x] **Fase 8.1 - Matriz final:** matriz por rota, papel e endpoint registrada; comparacao
+    React x Angular, homologacao Aplause, cenarios reais de erro e escopo Power BI futuro validados.
+12. [-] **Fase 8.2 - Corte controlado:** build producao e configuracao de deploy Angular preparados;
+    faltam publicar Angular, liberar CORS da URL publicada, homologar e executar aceite/rollback.
 
 ### Checklist de Aceite 1:1
 
