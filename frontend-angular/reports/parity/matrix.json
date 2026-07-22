@@ -1,0 +1,357 @@
+{
+  "generatedAt": "2026-07-22T17:04:51.008Z",
+  "summary": {
+    "covered": 11,
+    "partial": 0,
+    "missing": 0
+  },
+  "areaSummary": [
+    {
+      "area": "Aplause",
+      "covered": 1,
+      "partial": 0,
+      "missing": 0,
+      "total": 1
+    },
+    {
+      "area": "Avaliacoes",
+      "covered": 5,
+      "partial": 0,
+      "missing": 0,
+      "total": 5
+    },
+    {
+      "area": "Cadastro",
+      "covered": 1,
+      "partial": 0,
+      "missing": 0,
+      "total": 1
+    },
+    {
+      "area": "Compliance",
+      "covered": 1,
+      "partial": 0,
+      "missing": 0,
+      "total": 1
+    },
+    {
+      "area": "Dashboard",
+      "covered": 1,
+      "partial": 0,
+      "missing": 0,
+      "total": 1
+    },
+    {
+      "area": "Desenvolvimento",
+      "covered": 1,
+      "partial": 0,
+      "missing": 0,
+      "total": 1
+    },
+    {
+      "area": "Shell",
+      "covered": 1,
+      "partial": 0,
+      "missing": 0,
+      "total": 1
+    }
+  ],
+  "blockSummary": [
+    {
+      "id": "1",
+      "name": "Rotas profundas de Avaliacoes",
+      "capabilityIds": [
+        "evaluations-deep-routes"
+      ],
+      "status": "covered",
+      "capabilities": [
+        "Rotas profundas, slugs legados e workspaces de Avaliacoes"
+      ]
+    },
+    {
+      "id": "2",
+      "name": "Respostas individuais e agregadas",
+      "capabilityIds": [
+        "evaluations-responses"
+      ],
+      "status": "covered",
+      "capabilities": [
+        "Respostas individuais, agregadas, anonimato e snapshots"
+      ]
+    },
+    {
+      "id": "3",
+      "name": "Dashboard executivo/analitico",
+      "capabilityIds": [
+        "executive-dashboard"
+      ],
+      "status": "covered",
+      "capabilities": [
+        "Dashboard executivo/analitico, comparacao e historico por ciclo"
+      ]
+    },
+    {
+      "id": "4",
+      "name": "Tema e acabamento do shell",
+      "capabilityIds": [
+        "auth-navigation-shell"
+      ],
+      "status": "covered",
+      "capabilities": [
+        "Autenticacao, navegacao estrutural e shell responsivo"
+      ]
+    },
+    {
+      "id": "5",
+      "name": "Matriz automatizada de paridade",
+      "capabilityIds": [],
+      "status": "covered",
+      "capabilities": [
+        "Automacao gerada por este script"
+      ]
+    },
+    {
+      "id": "6",
+      "name": "Ajustes de CRUDs e demais modulos",
+      "capabilityIds": [
+        "people-users-registry",
+        "compliance-incidents-crud",
+        "development",
+        "applause"
+      ],
+      "status": "covered",
+      "capabilities": [
+        "Pessoas, usuarios, areas e competencias",
+        "CRUD de incidentes, tratamento, escopo por perfil e estados de fila",
+        "Trilhas e desenvolvimento",
+        "Reconhecimento entre pares"
+      ]
+    }
+  ],
+  "gaps": [],
+  "reactSpecs": [
+    "frontend\\e2e\\auth-and-navigation.spec.js",
+    "frontend\\e2e\\dashboard-manager-results.spec.js",
+    "frontend\\e2e\\dashboard-results.spec.js",
+    "frontend\\e2e\\evaluations-360-homologation.spec.js",
+    "frontend\\e2e\\evaluations-admin-operations.spec.js",
+    "frontend\\e2e\\evaluations-employee.spec.js",
+    "frontend\\e2e\\evaluations-individual-questionnaires.spec.js"
+  ],
+  "angularSpecs": [
+    "frontend-angular\\e2e\\applause.spec.ts",
+    "frontend-angular\\e2e\\auth-navigation-and-areas.spec.ts",
+    "frontend-angular\\e2e\\development.spec.ts",
+    "frontend-angular\\e2e\\evaluations-base.spec.ts",
+    "frontend-angular\\e2e\\evaluations-custom-libraries.spec.ts",
+    "frontend-angular\\e2e\\evaluations-feedback.spec.ts",
+    "frontend-angular\\e2e\\evaluations-library.spec.ts",
+    "frontend-angular\\e2e\\evaluations-operations.spec.ts",
+    "frontend-angular\\e2e\\visual-parity.spec.ts"
+  ],
+  "rows": [
+    {
+      "id": "auth-navigation-shell",
+      "area": "Shell",
+      "capability": "Autenticacao, navegacao estrutural e shell responsivo",
+      "status": "covered",
+      "reactFiles": [
+        "auth-and-navigation.spec.js"
+      ],
+      "angularFiles": [
+        "auth-navigation-and-areas.spec.ts"
+      ],
+      "hits": [
+        "restaura a sessao",
+        "Atualizar dados",
+        "areas"
+      ],
+      "missingPatterns": []
+    },
+    {
+      "id": "evaluations-deep-routes",
+      "area": "Avaliacoes",
+      "capability": "Rotas profundas, slugs legados e workspaces de Avaliacoes",
+      "status": "covered",
+      "reactFiles": [
+        "evaluations-employee.spec.js",
+        "evaluations-individual-questionnaires.spec.js"
+      ],
+      "angularFiles": [
+        "evaluations-base.spec.ts",
+        "evaluations-library.spec.ts",
+        "evaluations-feedback.spec.ts"
+      ],
+      "hits": [
+        "rota profunda",
+        "normaliza slug legado",
+        "/app/evaluations/manager/insights/360"
+      ],
+      "missingPatterns": []
+    },
+    {
+      "id": "evaluations-responses",
+      "area": "Avaliacoes",
+      "capability": "Respostas individuais, agregadas, anonimato e snapshots",
+      "status": "covered",
+      "reactFiles": [
+        "evaluations-360-homologation.spec.js"
+      ],
+      "angularFiles": [
+        "evaluations-feedback.spec.ts"
+      ],
+      "hits": [
+        "Respostas individuais",
+        "Agregados por ciclo",
+        "Snapshots processados",
+        "Resposta protegida"
+      ],
+      "missingPatterns": []
+    },
+    {
+      "id": "executive-dashboard",
+      "area": "Avaliacoes",
+      "capability": "Dashboard executivo/analitico, comparacao e historico por ciclo",
+      "status": "covered",
+      "reactFiles": [
+        "evaluations-360-homologation.spec.js"
+      ],
+      "angularFiles": [
+        "evaluations-feedback.spec.ts"
+      ],
+      "hits": [
+        "Dashboard executivo",
+        "Historico executivo por ciclo",
+        "Ciclo ativo exige atencao executiva",
+        "Abaixo do ciclo comparado"
+      ],
+      "missingPatterns": []
+    },
+    {
+      "id": "evaluations-operations",
+      "area": "Avaliacoes",
+      "capability": "Operacao de ciclos, inadimplencia, configuracao e pareamentos",
+      "status": "covered",
+      "reactFiles": [
+        "evaluations-admin-operations.spec.js"
+      ],
+      "angularFiles": [
+        "evaluations-operations.spec.ts"
+      ],
+      "hits": [
+        "notifica inadimplentes",
+        "pairings",
+        "config"
+      ],
+      "missingPatterns": []
+    },
+    {
+      "id": "evaluations-library-questionnaires",
+      "area": "Avaliacoes",
+      "capability": "Biblioteca, perguntas, questionarios individuais e publicacao",
+      "status": "covered",
+      "reactFiles": [
+        "evaluations-individual-questionnaires.spec.js"
+      ],
+      "angularFiles": [
+        "evaluations-library.spec.ts",
+        "evaluations-custom-libraries.spec.ts"
+      ],
+      "hits": [
+        "Nova pergunta",
+        "Novo questionario",
+        "custom",
+        "import"
+      ],
+      "missingPatterns": []
+    },
+    {
+      "id": "people-users-registry",
+      "area": "Cadastro",
+      "capability": "Pessoas, usuarios, areas e competencias",
+      "status": "covered",
+      "reactFiles": [
+        "auth-and-navigation.spec.js"
+      ],
+      "angularFiles": [
+        "auth-navigation-and-areas.spec.ts"
+      ],
+      "hits": [
+        "Nova area",
+        "Competencias",
+        "Pessoa E2E",
+        "suggestedUserEmail",
+        "roleKey"
+      ],
+      "missingPatterns": []
+    },
+    {
+      "id": "compliance-incidents-crud",
+      "area": "Compliance",
+      "capability": "CRUD de incidentes, tratamento, escopo por perfil e estados de fila",
+      "status": "covered",
+      "reactFiles": [
+        "auth-and-navigation.spec.js"
+      ],
+      "angularFiles": [
+        "auth-navigation-and-areas.spec.ts"
+      ],
+      "hits": [
+        "Novo relato",
+        "Registrar relato",
+        "Tratar",
+        "Salvar tratamento",
+        "Nenhum incidente no seu escopo",
+        "Falha E2E ao carregar incidentes"
+      ],
+      "missingPatterns": []
+    },
+    {
+      "id": "dashboard-results",
+      "area": "Dashboard",
+      "capability": "Dashboard geral e resultados por perfil",
+      "status": "covered",
+      "reactFiles": [
+        "dashboard-results.spec.js",
+        "dashboard-manager-results.spec.js"
+      ],
+      "angularFiles": [
+        "auth-navigation-and-areas.spec.ts"
+      ],
+      "hits": [
+        "Dashboard",
+        "cards",
+        "gestor"
+      ],
+      "missingPatterns": []
+    },
+    {
+      "id": "development",
+      "area": "Desenvolvimento",
+      "capability": "Trilhas e desenvolvimento",
+      "status": "covered",
+      "reactFiles": [],
+      "angularFiles": [
+        "development.spec.ts"
+      ],
+      "hits": [
+        "Desenvolvimento"
+      ],
+      "missingPatterns": []
+    },
+    {
+      "id": "applause",
+      "area": "Aplause",
+      "capability": "Reconhecimento entre pares",
+      "status": "covered",
+      "reactFiles": [],
+      "angularFiles": [
+        "applause.spec.ts"
+      ],
+      "hits": [
+        "Aplause"
+      ],
+      "missingPatterns": []
+    }
+  ]
+}

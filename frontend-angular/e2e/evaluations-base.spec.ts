@@ -46,8 +46,10 @@ test('abre questionario e envia respostas tipadas', async ({ page }) => {
   });
 
   await page.goto('/app/evaluations');
+  await expect(page).toHaveURL(/\/app\/evaluations\/self\/respond$/);
   await expect(page.getByRole('heading', { name: 'Ciclos e respostas' })).toBeVisible();
   await page.getByRole('button', { name: 'Responder avaliacao' }).click();
+  await expect(page).toHaveURL(/\/app\/evaluations\/self\/respond\/assignment-e2e$/);
   await expect(page.getByRole('heading', { name: 'Questionario E2E' })).toBeVisible();
 
   const textQuestion = page.locator('.question').filter({ hasText: 'Descreva um aprendizado.' });
@@ -59,6 +61,7 @@ test('abre questionario e envia respostas tipadas', async ({ page }) => {
   await page.getByRole('button', { name: 'Enviar avaliacao' }).click();
 
   await expect.poll(() => submittedPayload).not.toBeUndefined();
+  await expect(page).toHaveURL(/\/app\/evaluations\/self\/respond$/);
   expect(submittedPayload).toMatchObject({
     assignmentId: assignment.id,
     strengthsNote: 'Boa capacidade de entrega.',
@@ -71,12 +74,80 @@ test('abre questionario e envia respostas tipadas', async ({ page }) => {
   });
 });
 
+test('abre resposta individual por rota profunda', async ({ page }) => {
+  await login(page);
+  await page.route('**/api/evaluations/cycles', (route) => route.fulfill({ status: 200, json: [cycle] }));
+  await page.route('**/api/evaluations/assignments', (route) => route.fulfill({ status: 200, json: [assignment] }));
+  await page.route('**/api/evaluations/assignments/assignment-e2e', (route) => route.fulfill({ status: 200, json: {
+    assignment,
+    template: {
+      id: 'template-e2e', key: 'self', title: 'Questionario E2E', description: 'Fluxo base da avaliacao.',
+      questions: [{ id: 'q-scale', dimensionTitle: 'Entrega', prompt: 'Como foi a entrega?', inputType: 'scale', isRequired: true }],
+    },
+  } }));
+  await page.goto('/app/evaluations/self/respond/assignment-e2e');
+  await expect(page.getByRole('heading', { name: 'Questionario E2E' })).toBeVisible();
+  await page.getByRole('button', { name: 'Voltar' }).click();
+  await expect(page).toHaveURL(/\/app\/evaluations\/self\/respond$/);
+  await expect(page.getByText('Pessoa Avaliada E2E')).toBeVisible();
+});
+
+test('normaliza slugs legados do React para rotas canonicas', async ({ page }) => {
+  await login(page);
+  await page.route('**/api/evaluations/cycles', (route) => route.fulfill({ status: 200, json: [cycle] }));
+  await page.route('**/api/evaluations/assignments', (route) => route.fulfill({ status: 200, json: [assignment] }));
+  await page.route('**/api/evaluations/assignments/assignment-e2e', (route) => route.fulfill({ status: 200, json: {
+    assignment,
+    template: {
+      id: 'template-e2e', key: 'self', title: 'Questionario E2E', description: 'Fluxo base da avaliacao.',
+      questions: [{ id: 'q-scale', dimensionTitle: 'Entrega', prompt: 'Como foi a entrega?', inputType: 'scale', isRequired: true }],
+    },
+  } }));
+  await page.goto('/app/evaluations/autoavaliacao/responder/assignment-e2e');
+  await expect(page).toHaveURL(/\/app\/evaluations\/self\/respond\/assignment-e2e$/);
+  await expect(page.getByRole('heading', { name: 'Questionario E2E' })).toBeVisible();
+});
+
 test('exibe estado vazio sem atribuicoes', async ({ page }) => {
   await login(page);
   await page.route('**/api/evaluations/cycles', (route) => route.fulfill({ status: 200, json: [] }));
   await page.route('**/api/evaluations/assignments', (route) => route.fulfill({ status: 200, json: [] }));
   await page.goto('/app/evaluations');
-  await expect(page.getByText('Nenhuma avaliacao atribuida ao seu usuario.')).toBeVisible();
+  await expect(page.getByText('Nenhuma avaliacao atribuida ao seu usuario nesta modalidade.')).toBeVisible();
+});
+
+test('filtra avaliacoes pela modalidade da rota', async ({ page }) => {
+  await login(page);
+  const managerAssignment = { ...assignment, id: 'assignment-manager', revieweeName: 'Pessoa Gestor E2E', relationshipType: 'manager' };
+  await page.route('**/api/evaluations/cycles', (route) => route.fulfill({ status: 200, json: [cycle] }));
+  await page.route('**/api/evaluations/assignments', (route) => route.fulfill({ status: 200, json: [assignment, managerAssignment] }));
+  await page.goto('/app/evaluations/manager/respond');
+  await expect(page.getByText('Pessoa Gestor E2E')).toBeVisible();
+  await expect(page.getByText('Pessoa Avaliada E2E')).toHaveCount(0);
+  await expect(page.locator('.metrics')).toContainText('1');
+  await page.getByRole('button', { name: /Autoavaliacao/ }).click();
+  await expect(page).toHaveURL(/\/app\/evaluations\/self\/respond$/);
+  await expect(page.getByText('Pessoa Avaliada E2E')).toBeVisible();
+  await expect(page.getByText('Pessoa Gestor E2E')).toHaveCount(0);
+});
+
+test('abre rota profunda de ciclos diretamente', async ({ page }) => {
+  await login(page);
+  await page.route('**/api/evaluations/cycles', (route) => route.fulfill({ status: 200, json: [cycle] }));
+  await page.route('**/api/evaluations/assignments', (route) => route.fulfill({ status: 200, json: [] }));
+  await page.goto('/app/evaluations/self/cycles');
+  await expect(page).toHaveURL(/\/app\/evaluations\/self\/cycles$/);
+  await expect(page.getByRole('heading', { name: 'Ciclos disponiveis' })).toBeVisible();
+  await expect(page.getByText('Ciclo E2E')).toBeVisible();
+});
+
+test('colaborador nao acessa rota profunda administrativa', async ({ page }) => {
+  await login(page);
+  await page.route('**/api/evaluations/cycles', (route) => route.fulfill({ status: 200, json: [] }));
+  await page.route('**/api/evaluations/assignments', (route) => route.fulfill({ status: 200, json: [] }));
+  await page.goto('/app/evaluations/self/operations');
+  await expect(page).toHaveURL(/\/app\/evaluations\/self\/respond$/);
+  await expect(page.getByText('Nenhuma avaliacao atribuida ao seu usuario nesta modalidade.')).toBeVisible();
 });
 
 test('exibe erro quando Avaliacoes falha', async ({ page }) => {

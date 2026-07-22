@@ -1,6 +1,5 @@
 import { Routes } from '@angular/router';
 
-import { AppShellComponent } from './core/layout/app-shell.component';
 import { authGuard } from './core/auth/auth.guard';
 import { competenciesAccessGuard } from './core/auth/competencies-access.guard';
 import { dashboardAccessGuard } from './core/auth/dashboard-access.guard';
@@ -9,56 +8,75 @@ import { sectionAccessGuard } from './core/navigation/section-access.guard';
 import { areaManagementGuard } from './core/auth/area-management.guard';
 import { peopleAccessGuard } from './core/auth/people-access.guard';
 import { usersAccessGuard } from './core/auth/users-access.guard';
-import { AreasPageComponent } from './features/areas/areas-page.component';
-import { ApplausePageComponent } from './features/applause/applause-page.component';
-import { CompetenciesPageComponent } from './features/competencies/competencies-page.component';
-import { IncidentsPageComponent } from './features/incidents/incidents-page.component';
-import { DashboardPageComponent } from './features/dashboard/dashboard-page.component';
-import { DevelopmentPageComponent } from './features/development/development-page.component';
-import { EvaluationsPageComponent } from './features/evaluations/evaluations-page.component';
-import { LoginPageComponent } from './features/auth/login-page.component';
-import { PeoplePageComponent } from './features/people/people-page.component';
-import { UsersPageComponent } from './features/users/users-page.component';
-import { WorkspacePageComponent } from './features/workspace/workspace-page.component';
 
 export const routes: Routes = [
   {
     path: 'login',
-    component: LoginPageComponent,
+    loadComponent: () => import('./features/auth/login-page.component').then((m) => m.LoginPageComponent),
     canActivate: [guestGuard],
   },
   {
     path: 'app',
-    component: AppShellComponent,
+    loadComponent: () => import('./core/layout/app-shell.component').then((m) => m.AppShellComponent),
     canActivate: [authGuard],
     children: [
       {
         path: 'people/areas',
-        component: AreasPageComponent,
+        loadComponent: () => import('./features/areas/areas-page.component').then((m) => m.AreasPageComponent),
         canActivate: [areaManagementGuard],
       },
       {
         path: 'people/competencies',
-        component: CompetenciesPageComponent,
+        loadComponent: () =>
+          import('./features/competencies/competencies-page.component').then((m) => m.CompetenciesPageComponent),
         canActivate: [competenciesAccessGuard],
       },
       {
         path: 'dashboard',
-        component: DashboardPageComponent,
+        loadComponent: () => import('./features/dashboard/dashboard-page.component').then((m) => m.DashboardPageComponent),
         canActivate: [dashboardAccessGuard],
       },
-      { path: 'compliance', component: IncidentsPageComponent },
-      { path: 'development', component: DevelopmentPageComponent },
-      { path: 'applause', component: ApplausePageComponent },
-      { path: 'evaluations', component: EvaluationsPageComponent },
+      {
+        path: 'compliance',
+        loadComponent: () => import('./features/incidents/incidents-page.component').then((m) => m.IncidentsPageComponent),
+      },
+      {
+        path: 'development',
+        loadComponent: () =>
+          import('./features/development/development-page.component').then((m) => m.DevelopmentPageComponent),
+      },
+      {
+        path: 'applause',
+        loadComponent: () => import('./features/applause/applause-page.component').then((m) => m.ApplausePageComponent),
+      },
+      {
+        path: 'evaluations',
+        pathMatch: 'full',
+        redirectTo: 'evaluations/company/respond',
+      },
+      {
+        path: 'evaluations/:module',
+        loadComponent: () =>
+          import('./features/evaluations/evaluations-page.component').then((m) => m.EvaluationsPageComponent),
+      },
+      {
+        path: 'evaluations/:module/:workspace',
+        loadComponent: () =>
+          import('./features/evaluations/evaluations-page.component').then((m) => m.EvaluationsPageComponent),
+      },
+      {
+        path: 'evaluations/:module/:workspace/:detail',
+        loadComponent: () =>
+          import('./features/evaluations/evaluations-page.component').then((m) => m.EvaluationsPageComponent),
+      },
       {
         path: 'people',
-        component: PeoplePageComponent,
+        loadComponent: () => import('./features/people/people-page.component').then((m) => m.PeoplePageComponent),
         canActivate: [peopleAccessGuard],
       },
       {
         path: 'users',
-        component: UsersPageComponent,
+        loadComponent: () => import('./features/users/users-page.component').then((m) => m.UsersPageComponent),
         canActivate: [usersAccessGuard],
       },
       {
@@ -68,7 +86,7 @@ export const routes: Routes = [
       },
       {
         path: ':section',
-        component: WorkspacePageComponent,
+        loadComponent: () => import('./features/workspace/workspace-page.component').then((m) => m.WorkspacePageComponent),
         canActivate: [sectionAccessGuard],
       },
     ],

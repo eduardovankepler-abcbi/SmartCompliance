@@ -1,4 +1,14 @@
 services:
+  - type: static
+    name: smart-compliance-frontend-angular
+    rootDir: frontend-angular
+    buildCommand: npm install && npm run build -- --configuration=production
+    staticPublishPath: dist/frontend-angular/browser
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
   - type: web
     name: smart-compliance-backend
     runtime: node

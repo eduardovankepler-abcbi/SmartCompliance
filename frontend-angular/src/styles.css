@@ -1,6 +1,19 @@
 :root {
-  color: #1d2939;
-  background: #f7f8fa;
+  --abc-blue: #2563EB;
+  --abc-blue-dark: #1D4ED8;
+  --abc-navy: #0F172A;
+  --abc-text: #020817;
+  --abc-text-muted: #64748B;
+  --abc-surface: #FFFFFF;
+  --abc-surface-muted: #F1F5F9;
+  --abc-border: #E2E8F0;
+  --abc-success: #16A34A;
+  --abc-danger: #EF4444;
+  --abc-warning: #F59E0B;
+  --abc-on-blue: #F8FAFC;
+  --abc-radius: 8px;
+  color: var(--abc-text);
+  background: var(--abc-surface-muted);
   font-family: Arial, Helvetica, sans-serif;
   font-synthesis: none;
 }
@@ -18,4 +31,155 @@ body {
 button,
 input {
   font: inherit;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 22px;
+  padding: 18px 20px;
+  background: var(--abc-surface);
+  border: 1px solid var(--abc-border);
+  border-radius: var(--abc-radius);
+}
+
+.topbar p,
+.topbar h1 {
+  margin: 0;
+}
+
+.topbar p {
+  color: var(--abc-blue-dark);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.topbar h1 {
+  margin-top: 4px;
+  font-size: 24px;
+}
+
+.topbar span {
+  display: block;
+  margin-top: 4px;
+  color: var(--abc-text-muted);
+}
+
+.topbar__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.topbar__actions button {
+  min-height: 38px;
+  padding: 0 12px;
+  color: var(--abc-text);
+  cursor: pointer;
+  background: var(--abc-surface);
+  border: 1px solid var(--abc-border);
+  border-radius: var(--abc-radius);
+  font-weight: 700;
+}
+
+.topbar__avatar {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  color: var(--abc-on-blue);
+  font-weight: 800;
+  place-items: center;
+  background: var(--abc-blue);
+  border-radius: var(--abc-radius);
+}
+
+@media (max-width: 720px) {
+  .shell,
+  .shell--collapsed {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    min-height: auto;
+    height: auto;
+    padding: 10px;
+    position: static;
+  }
+
+  .sidebar__navigation {
+    display: flex;
+    gap: 8px;
+    padding: 8px;
+    overflow-x: auto;
+  }
+
+  .sidebar__topbar {
+    justify-content: space-between;
+  }
+
+  .sidebar__brand-card {
+    max-width: 220px;
+  }
+
+  .sidebar__group,
+  .sidebar__group + .sidebar__group {
+    min-width: max-content;
+    margin: 0;
+    padding-top: 0;
+    border-top: 0;
+  }
+
+  .sidebar__group-label,
+  .sidebar__profile,
+  .sidebar__footer,
+  .sidebar__app-name {
+    display: none;
+  }
+
+  .sidebar__links {
+    display: flex;
+  }
+
+  .sidebar__link {
+    min-width: max-content;
+  }
+
+  .shell__content {
+    padding: 16px;
+  }
+
+  .topbar {
+    align-items: flex-start;
+    flex-direction: column;
+    margin-bottom: 16px;
+    padding: 14px;
+    border-radius: 18px;
+  }
+
+  .topbar h1 {
+    font-size: 21px;
+  }
+
+  .topbar__actions {
+    width: 100%;
+  }
+
+  .topbar__actions button {
+    flex: 1;
+  }
+}
+
+@media (max-width: 420px) {
+  .topbar__actions {
+    flex-wrap: wrap;
+  }
+
+  .topbar__avatar {
+    width: 38px;
+    height: 38px;
+  }
 }

@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Comparacao visual React x Angular</title>
+  <style>
+    :root { color-scheme: light; font-family: Inter, Segoe UI, Arial, sans-serif; color: #101828; background: #f8fafc; }
+    body { margin: 0; padding: 32px; }
+    header { max-width: 1200px; margin: 0 auto 28px; }
+    h1 { margin: 0; font-size: 28px; }
+    p { color: #475467; }
+    .summary { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 16px; }
+    .pill { padding: 8px 12px; border: 1px solid #d0d5dd; border-radius: 999px; background: #fff; font-weight: 700; }
+    .pill.ok { color: #067647; background: #ecfdf3; border-color: #abefc6; }
+    .pill.warn { color: #b54708; background: #fffaeb; border-color: #fedf89; }
+    main { display: grid; gap: 28px; max-width: 1440px; margin: 0 auto; }
+    section { padding: 20px; background: #fff; border: 1px solid #d0d5dd; border-radius: 14px; box-shadow: 0 10px 24px rgba(16,24,40,.06); }
+    section h2 { margin: 0 0 16px; font-size: 20px; }
+    .pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
+    figure { margin: 0; border: 1px solid #eaecf0; border-radius: 12px; overflow: hidden; background: #f9fafb; }
+    figcaption { padding: 10px 12px; font-weight: 700; color: #344054; background: #fff; border-bottom: 1px solid #eaecf0; }
+    img { display: block; width: 100%; height: auto; }
+    .missing { padding: 24px; color: #b42318; background: #fef3f2; }
+    .review-index { max-width: 1440px; margin: 0 auto 28px; padding: 20px; background: #fff; border: 1px solid #d0d5dd; border-radius: 14px; }
+    .review-index h2 { margin: 0 0 12px; }
+    .review-index table { width: 100%; border-collapse: collapse; }
+    .review-index th, .review-index td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #eaecf0; }
+    .review-index th { color: #475467; font-size: 12px; text-transform: uppercase; }
+    .status { display: inline-block; padding: 4px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+    .status-pendente { color: #344054; background: #f2f4f7; }
+    .status-ok { color: #067647; background: #ecfdf3; }
+    .status-atencao { color: #b54708; background: #fffaeb; }
+    .status-corrigir { color: #b42318; background: #fef3f2; }
+    .checklist { margin-top: 14px; padding: 14px; background: #f8fafc; border: 1px dashed #d0d5dd; border-radius: 10px; }
+    .checklist strong { display: block; margin-bottom: 8px; }
+    .checklist ul { margin: 0; padding-left: 20px; color: #475467; }
+    @media (max-width: 900px) { body { padding: 16px; } .pair { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Comparacao visual React x Angular</h1>
+    <p>Gerado em 2026-07-22T17:05:02.722Z. Use este relatorio para revisar equivalencia visual, hierarquia, densidade, estados e contraste entre os fronts.</p>
+    <div class="summary">
+      <span class="pill ok">6/6 pares completos</span>
+      <span class="pill ok">Bloco 7 fechado: capturas completas e sem divergencias visuais bloqueantes.</span>
+      <span class="pill ok">Gate visual minimo: aprovado.</span>
+      <span class="pill">React x Angular</span>
+      <span class="pill">Viewport 1440x1000</span>
+    </div>
+  </header>
+  <section class="review-index" aria-labelledby="review-index-title">
+    <h2 id="review-index-title">Indice de revisao visual</h2>
+    <p>Atualize <code>review-checklist.md</code> com status <code>ok</code>, <code>atencao</code> ou <code>corrigir</code> conforme a revisao humana.</p>
+    <table>
+      <thead><tr><th>Rota</th><th>Status manual</th><th>Ir para capturas</th></tr></thead>
+      <tbody>
+        <tr><td>Dashboard</td><td><span class="status status-ok">ok</span></td><td><a href="#dashboard">abrir comparacao</a></td></tr><tr><td>Compliance / Incidentes</td><td><span class="status status-ok">ok</span></td><td><a href="#compliance">abrir comparacao</a></td></tr><tr><td>Desenvolvimento</td><td><span class="status status-ok">ok</span></td><td><a href="#development">abrir comparacao</a></td></tr><tr><td>Aplause</td><td><span class="status status-ok">ok</span></td><td><a href="#applause">abrir comparacao</a></td></tr><tr><td>Pessoas</td><td><span class="status status-ok">ok</span></td><td><a href="#people">abrir comparacao</a></td></tr><tr><td>Usuarios</td><td><span class="status status-ok">ok</span></td><td><a href="#users">abrir comparacao</a></td></tr>
+      </tbody>
+    </table>
+  </section>
+  <main>
+    
+      <section id="dashboard">
+        <h2>Dashboard</h2>
+        <div class="pair">
+          <figure>
+            <figcaption>React</figcaption>
+            <img src="./dashboard-react.png" alt="Dashboard no React" />
+          </figure>
+          <figure>
+            <figcaption>Angular</figcaption>
+            <img src="./dashboard-angular.png" alt="Dashboard no Angular" />
+          </figure>
+        </div>
+        <div class="checklist">
+          <strong>Checklist de revisao</strong>
+          <ul>
+            <li>Estrutura e ordem dos blocos principais.</li>
+            <li>Densidade, espacamento e hierarquia visual.</li>
+            <li>Estados vazios, listas, metricas e acoes primarias.</li>
+            <li>Contraste, legibilidade e responsividade base.</li>
+          </ul>
+        </div>
+      </section>
+    
+      <section id="compliance">
+        <h2>Compliance / Incidentes</h2>
+        <div class="pair">
+          <figure>
+            <figcaption>React</figcaption>
+            <img src="./compliance-react.png" alt="Compliance / Incidentes no React" />
+          </figure>
+          <figure>
+            <figcaption>Angular</figcaption>
+            <img src="./compliance-angular.png" alt="Compliance / Incidentes no Angular" />
+          </figure>
+        </div>
+        <div class="checklist">
+          <strong>Checklist de revisao</strong>
+          <ul>
+            <li>Estrutura e ordem dos blocos principais.</li>
+            <li>Densidade, espacamento e hierarquia visual.</li>
+            <li>Estados vazios, listas, metricas e acoes primarias.</li>
+            <li>Contraste, legibilidade e responsividade base.</li>
+          </ul>
+        </div>
+      </section>
+    
+      <section id="development">
+        <h2>Desenvolvimento</h2>
+        <div class="pair">
+          <figure>
+            <figcaption>React</figcaption>
+            <img src="./development-react.png" alt="Desenvolvimento no React" />
+          </figure>
+          <figure>
+            <figcaption>Angular</figcaption>
+            <img src="./development-angular.png" alt="Desenvolvimento no Angular" />
+          </figure>
+        </div>
+        <div class="checklist">
+          <strong>Checklist de revisao</strong>
+          <ul>
+            <li>Estrutura e ordem dos blocos principais.</li>
+            <li>Densidade, espacamento e hierarquia visual.</li>
+            <li>Estados vazios, listas, metricas e acoes primarias.</li>
+            <li>Contraste, legibilidade e responsividade base.</li>
+          </ul>
+        </div>
+      </section>
+    
+      <section id="applause">
+        <h2>Aplause</h2>
+        <div class="pair">
+          <figure>
+            <figcaption>React</figcaption>
+            <img src="./applause-react.png" alt="Aplause no React" />
+          </figure>
+          <figure>
+            <figcaption>Angular</figcaption>
+            <img src="./applause-angular.png" alt="Aplause no Angular" />
+          </figure>
+        </div>
+        <div class="checklist">
+          <strong>Checklist de revisao</strong>
+          <ul>
+            <li>Estrutura e ordem dos blocos principais.</li>
+            <li>Densidade, espacamento e hierarquia visual.</li>
+            <li>Estados vazios, listas, metricas e acoes primarias.</li>
+            <li>Contraste, legibilidade e responsividade base.</li>
+          </ul>
+        </div>
+      </section>
+    
+      <section id="people">
+        <h2>Pessoas</h2>
+        <div class="pair">
+          <figure>
+            <figcaption>React</figcaption>
+            <img src="./people-react.png" alt="Pessoas no React" />
+          </figure>
+          <figure>
+            <figcaption>Angular</figcaption>
+            <img src="./people-angular.png" alt="Pessoas no Angular" />
+          </figure>
+        </div>
+        <div class="checklist">
+          <strong>Checklist de revisao</strong>
+          <ul>
+            <li>Estrutura e ordem dos blocos principais.</li>
+            <li>Densidade, espacamento e hierarquia visual.</li>
+            <li>Estados vazios, listas, metricas e acoes primarias.</li>
+            <li>Contraste, legibilidade e responsividade base.</li>
+          </ul>
+        </div>
+      </section>
+    
+      <section id="users">
+        <h2>Usuarios</h2>
+        <div class="pair">
+          <figure>
+            <figcaption>React</figcaption>
+            <img src="./users-react.png" alt="Usuarios no React" />
+          </figure>
+          <figure>
+            <figcaption>Angular</figcaption>
+            <img src="./users-angular.png" alt="Usuarios no Angular" />
+          </figure>
+        </div>
+        <div class="checklist">
+          <strong>Checklist de revisao</strong>
+          <ul>
+            <li>Estrutura e ordem dos blocos principais.</li>
+            <li>Densidade, espacamento e hierarquia visual.</li>
+            <li>Estados vazios, listas, metricas e acoes primarias.</li>
+            <li>Contraste, legibilidade e responsividade base.</li>
+          </ul>
+        </div>
+      </section>
+    
+  </main>
+</body>
+</html>

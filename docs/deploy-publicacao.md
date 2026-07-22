@@ -10,11 +10,15 @@ Este projeto pode ser publicado sem depender da maquina local usando:
 
 ### Frontend
 
-- plataforma: `Vercel`
-- diretorio raiz do projeto na Vercel: `frontend`
-- framework: `Vite`
-- build command: `npm run build`
-- output directory: `dist`
+- plataforma recomendada apos a migracao: `Render Static Site`
+- diretorio raiz do servico: `frontend-angular`
+- framework: `Angular`
+- build command: `npm install && npm run build -- --configuration=production`
+- output directory: `dist/frontend-angular/browser`
+- SPA rewrite: `/*` para `/index.html`
+
+Observacao: o app React em `frontend/` foi preservado para historico/transicao. Para ver a
+padronizacao visual ABC, o deploy precisa apontar para `frontend-angular/`.
 
 ### Backend
 
@@ -56,14 +60,10 @@ Observacao:
 
 ### Frontend
 
-Configurar na Vercel:
+O Angular usa `src/environments/environment.production.ts` para apontar para o backend publico:
 
-- `VITE_API_URL=<url-publica-do-backend>`
-
-Exemplo:
-
-```bash
-VITE_API_URL=https://smartcompliance.onrender.com
+```ts
+apiUrl: 'https://smartcompliance.onrender.com'
 ```
 
 ## Banco de dados
@@ -107,8 +107,8 @@ Para homologar especificamente a frente de `questionarios individuais` em MySQL 
 3. Configure as variaveis de ambiente do backend.
 4. Execute `schema.sql` e `seed.sql` no banco.
 5. Valide o endpoint `GET /health`.
-6. Publique o frontend na Vercel.
-7. Configure `VITE_API_URL` apontando para o backend publicado.
+6. Publique o frontend Angular como Static Site no Render, usando `frontend-angular`.
+7. Confira se o servico estatico usa `dist/frontend-angular/browser` como publish path.
 8. Atualize `CORS_ORIGIN` ou `CORS_ADDITIONAL_ORIGINS` no backend com qualquer URL final do frontend fora dos dominios padrao.
 9. Rode um teste de login e navegacao completa.
 
@@ -155,7 +155,7 @@ Se esses 4 pontos estiverem corretos, o deploy tende a ser direto.
 
 Para evitar ambiguidade, o desenho operacional atual do projeto e:
 
-- `frontend` na Vercel
+- `frontend-angular` no Render Static Site
 - `backend` no Render
 - `mysql` gerenciado externo
 

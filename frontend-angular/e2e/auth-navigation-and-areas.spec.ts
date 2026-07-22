@@ -14,6 +14,16 @@ async function login(page: Page, email: string) {
   await expect(page).toHaveURL(/\/app\/dashboard$/);
 }
 
+function suggestedUserEmail(personName: string): string {
+  return `${personName
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '.')
+    .replace(/^\.+|\.+$/g, '')
+    .replace(/\.{2,}/g, '.')}@empresa.local`;
+}
+
 test('restaura a sessao apos atualizar a pagina', async ({ page }) => {
   await login(page, 'admin@demo.local');
   await expect(page).toHaveURL(/\/app\/dashboard$/);
@@ -94,9 +104,25 @@ test('permite administrador cadastrar uma pessoa com estrutura', async ({ page }
   await expect(page.getByText(personName, { exact: true })).toBeVisible();
 });
 
+test('permite administrador editar pessoa inline', async ({ page }) => {
+  await login(page, 'admin@demo.local');
+  await page.goto('/app/people');
+  await expect(page.locator('#people-title')).toHaveText('Pessoas');
+
+  const personRow = page.getByRole('row').filter({ hasText: 'Colaborador Demo 01' });
+  await personRow.getByRole('button', { name: 'Editar' }).click();
+  const inlineForm = page.locator('.people__inline-form');
+
+  await expect(inlineForm.getByLabel('Nome')).toHaveValue('Colaborador Demo 01');
+  await inlineForm.getByLabel('Modalidade').selectOption('remote');
+  await inlineForm.getByRole('button', { name: 'Salvar vinculos' }).click();
+
+  await expect(personRow).toContainText('100% Home Office');
+});
+
 test('permite administrador provisionar usuario para pessoa sem acesso', async ({ page }) => {
   const personName = `Pessoa Usuario E2E ${Date.now()}`;
-  const email = `usuario.${Date.now()}@empresa.local`;
+  const email = suggestedUserEmail(personName);
 
   await login(page, 'admin@demo.local');
   await page.goto('/app/people');
@@ -111,23 +137,41 @@ test('permite administrador provisionar usuario para pessoa sem acesso', async (
   await expect(page.getByText(personName, { exact: true })).toBeVisible();
 
   await page.goto('/app/users');
-  await expect(page.getByRole('heading', { name: 'Usuarios' })).toBeVisible();
+  await expect(page.locator('#users-title')).toHaveText('Usuarios');
   await page.getByRole('button', { name: 'Novo usuario' }).click();
   const personField = page.locator('select[formcontrolname="personId"]');
   const personId = await personField.locator('option', { hasText: personName }).getAttribute('value');
   await personField.selectOption(personId!);
-  await page.getByLabel('E-mail').fill(email);
+  await expect(page.getByLabel('E-mail')).toHaveValue(email);
+  await expect(page.locator('select[formcontrolname="roleKey"]')).toHaveValue('employee');
   await page.getByLabel('Senha inicial').fill('demo123');
   await page.getByRole('button', { name: 'Criar usuario' }).click();
 
   await expect(page.getByText(email, { exact: true })).toBeVisible();
 });
 
+test('permite administrador editar usuario inline', async ({ page }) => {
+  await login(page, 'admin@demo.local');
+  await page.goto('/app/users');
+  await expect(page.locator('#users-title')).toHaveText('Usuarios');
+
+  const userRow = page.getByRole('row').filter({ hasText: 'Colaborador Demo 01' });
+  await userRow.getByRole('button', { name: 'Editar' }).click();
+  const inlineForm = page.locator('.inline-edit');
+
+  await expect(inlineForm.getByLabel('Pessoa')).toHaveValue('Colaborador Demo 01');
+  await inlineForm.getByLabel('Status').selectOption('inactive');
+  await inlineForm.getByRole('button', { name: 'Atualizar acesso' }).click();
+
+  await expect(userRow).toContainText('Inativo');
+});
+
 test('permite administrador registrar um incidente', async ({ page }) => {
   const title = `Incidente E2E ${Date.now()}`;
   await login(page, 'admin@demo.local');
   await page.goto('/app/compliance');
-  await page.getByRole('button', { name: 'Novo relato' }).click();
+  await expect(page.getByRole('button', { name: 'Novo relato' })).toBeVisible();
+  await expect(page.getByLabel('Titulo')).toBeVisible();
   await page.getByLabel('Titulo').fill(title);
   await page.getByLabel('Descricao').fill('Descricao do incidente criada no teste E2E.');
   await page.getByRole('button', { name: 'Registrar relato' }).click();
@@ -180,7 +224,7 @@ test('exibe os indicadores do overview retornado pela API', async ({ page }) => 
     (response) =>
       response.request().method() === 'GET' && response.url().includes('/api/dashboards/overview'),
   );
-  await page.getByRole('button', { name: 'Atualizar dados' }).click();
+  await page.locator('.dashboard').getByRole('button', { name: 'Atualizar dados' }).click();
   const overview = (await (await overviewResponse).json()) as DashboardOverviewResponse;
 
   for (const card of overview.cards) {

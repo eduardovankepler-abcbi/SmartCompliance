@@ -23,15 +23,15 @@ import { Incident, IncidentAnonymity, IncidentsService, UpdateIncidentPayload } 
       @if (creating()) { <app-incident-create-form [form]="form" [areas]="areas()" [people]="people()" [saving]="saving()" (submitted)="create()" (cancelled)="cancelCreate()" /> }
       @if (loading()) { <p class="state">Carregando fila...</p> }
       @else if (!incidents().length) { <p class="state">Nenhum incidente no seu escopo.</p> }
-      @else { <div class="queue">@for (incident of incidents(); track incident.id) {
-        <article><div class="row"><strong>{{ incident.title }}</strong><span>{{ incident.status }}</span></div><p>{{ incident.category }} · {{ incident.classification }}</p><p>{{ incident.description }}</p><small>Area: {{ incident.responsibleArea }} · Responsavel: {{ incident.assignedTo }} · {{ incident.createdAt | date:'short' }}</small>
+      @else { <section class="queue" aria-label="Fila de tratamento"><header><h2>Fila de tratamento</h2><span>Casos visiveis para RH, administracao e compliance</span></header>@for (incident of incidents(); track incident.id) {
+        <article><div class="row"><strong>{{ incident.title }}</strong><span>{{ incident.status }}</span></div><p>{{ incident.category }} · {{ incident.classification }}</p><p>{{ incident.description }}</p><small>Area responsavel: {{ incident.responsibleArea }} · Responsavel: {{ incident.assignedTo }} · Abertura: {{ incident.createdAt | date:'short' }}</small>
           @if (canTreat()) { <button class="secondary" (click)="editing.set(incident)">Tratar</button> }
           @if (editing()?.id === incident.id) { <app-incident-treatment-form [incident]="incident" [areas]="areas()" [people]="people()" (saved)="update(incident, $event)" (cancelled)="editing.set(null)" /> }
-        </article> }</div> }
+        </article> }</section> }
       <app-audit-trail [entries]="auditEntries()" title="Trilha de Compliance" subtitle="Relatos e tratamentos recentes" emptyMessage="Eventos de incidentes aparecerao aqui." />
     </section>
   `,
-  styles: `.incidents{max-width:980px}.incidents__header,.row,.error{display:flex;align-items:start;justify-content:space-between;gap:16px}.incidents__header p{margin:0;color:#175cd3;font-weight:700;text-transform:uppercase;font-size:13px}h1{margin:4px 0}.incidents__header span,.state,article p,article small{color:#667085}button{padding:9px 12px;background:#175cd3;color:#fff;border:0;border-radius:6px;font-weight:600}.secondary{background:#fff;color:#344054;border:1px solid #98a2b3}.error{margin-top:20px;padding:12px;color:#b42318;background:#fef3f2;border:1px solid #fecdca;border-radius:8px}.queue{display:grid;gap:14px;margin-top:20px}.queue article{padding:16px;background:#fff;border:1px solid #d0d5dd;border-radius:8px}.queue article>.secondary{margin-top:12px}.state{margin-top:24px}`,
+  styles: `.incidents{max-width:1040px}.incidents__header,.row,.error,.queue header{display:flex;align-items:start;justify-content:space-between;gap:16px}.incidents__header p{margin:0;color:#175cd3;font-weight:700;text-transform:uppercase;font-size:13px}h1{margin:4px 0}.incidents__header span,.state,article p,article small,.queue header span{color:#667085}button{padding:9px 12px;background:#175cd3;color:#fff;border:0;border-radius:6px;font-weight:600}.secondary{background:#fff;color:#344054;border:1px solid #98a2b3}.error{margin-top:20px;padding:12px;color:#b42318;background:#fef3f2;border:1px solid #fecdca;border-radius:8px}.queue{display:grid;gap:14px;margin-top:16px;padding:16px;background:#111827;border:1px solid #253044;border-radius:8px}.queue h2{margin:0;color:#f8fafc;font-size:18px}.queue article{padding:14px;background:#0f172a;border:1px solid #253044;border-radius:8px;color:#f8fafc}.queue article p{margin:10px 0;color:#cbd5e1}.queue article small{display:block;color:#98a2b3}.queue article .row span{padding:5px 10px;color:#fecaca;background:#7f1d1d;border-radius:999px;font-size:12px}.queue article>.secondary{margin-top:12px;background:#111827;color:#e2e8f0;border-color:#334155}.state{margin-top:24px}@media(max-width:720px){.incidents__header,.row,.error,.queue header{display:grid}}`,
 })
 export class IncidentsPageComponent implements OnInit {
   private readonly api = inject(IncidentsService);
@@ -58,7 +58,10 @@ export class IncidentsPageComponent implements OnInit {
     responsibleArea: ['', Validators.required], assignedPersonId: [''],
   });
 
-  ngOnInit(): void { void this.load(); }
+  async ngOnInit(): Promise<void> {
+    await this.load();
+    this.openCreate();
+  }
   openCreate(): void {
     const area = this.areas()[0];
     this.form.reset({ title:'', description:'', category:'Conduta Impropria', classification:'Nao classificado', anonymity:'anonymous', reporterLabel:'', responsibleArea:area?.name || '', assignedPersonId:area?.managerPersonId || '' });
