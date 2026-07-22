@@ -82,3 +82,20 @@ test('colaborador nao visualiza a fila de integracoes de aprendizagem', async ({
   await expect(page.getByRole('heading', { name: 'Formacao e PDI' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Fila de revisao' })).toHaveCount(0);
 });
+
+test('renderiza dados principais antes da fila de aprendizagem', async ({ page }) => {
+  await login(page, 'admin@demo.local');
+  await page.route('**/api/development/records', (route) => route.fulfill({ status: 200, json: [{
+    id:'record-fast', personId:'person-1', personName:'Colaborador Demo', recordType:'Curso', title:'Curso carregado primeiro', providerName:'Escola E2E', completedAt:'2026-07-21', skillSignal:'Angular', notes:'', status:'active', archivedAt:null,
+  }]}));
+  await page.route('**/api/development/plans', (route) => route.fulfill({ status: 200, json: [] }));
+  await page.route('**/api/development/integrations/learning-events', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    return route.fulfill({ status: 200, json: [] });
+  });
+
+  await page.goto('/app/development');
+
+  await expect(page.getByText('Curso carregado primeiro')).toBeVisible();
+  await expect(page.getByText('Carregando fila de aprendizagem...')).toBeVisible();
+});

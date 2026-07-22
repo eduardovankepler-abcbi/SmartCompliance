@@ -90,7 +90,9 @@ test('admin filtra participantes, notifica inadimplentes e configura transversal
   await mockOperations(page);
   await page.goto('/app/evaluations');
   await page.getByRole('button', { name: 'Operacao' }).click();
+  await expect(page).toHaveURL(/\/app\/evaluations\/company\/operations\/cycle-73$/);
   await page.locator('.toolbar select').nth(1).selectOption('Norte');
+  await expect(page).toHaveURL(/\/app\/evaluations\/company\/operations\/cycle-73\?unit=Norte$/);
   await expect(page.locator('.participants')).toContainText('Ana Unidade Norte');
   await expect(page.locator('.participants')).not.toContainText('Bruno Unidade Sul');
   await page.getByRole('button', { name: 'Notificar inadimplentes' }).click();
@@ -100,6 +102,16 @@ test('admin filtra participantes, notifica inadimplentes e configura transversal
   await page.getByLabel('Qtd. na unidade').fill('3');
   await page.getByRole('button', { name: 'Salvar regras' }).click();
   await expect(page.getByText(/Norte: 3/)).toBeVisible();
+});
+
+test('abre rota profunda de operacao com ciclo e filtros', async ({ page }) => {
+  cycle.id = 'cycle-73'; cycle.title = 'Ciclo operacional'; cycle.status = 'Planejamento';
+  await login(page, 'admin@demo.local');
+  await mockOperations(page);
+  await page.goto('/app/evaluations/company/operations/cycle-73?unit=Norte&mode=Remoto');
+  await expect(page.getByRole('heading', { name: 'Ciclo operacional' })).toBeVisible();
+  await expect(page.locator('.participants')).toContainText('Ana Unidade Norte');
+  await expect(page.locator('.participants')).not.toContainText('Bruno Unidade Sul');
 });
 
 test('colaborador nao acessa a operacao de ciclos', async ({ page }) => {

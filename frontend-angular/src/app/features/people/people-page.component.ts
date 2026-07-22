@@ -25,7 +25,25 @@ import { EmploymentType, Person, PersonPayload, PeopleService, WorkMode } from '
 
       @if (errorMessage()) { <p class="people__error" role="alert">{{ errorMessage() }}</p> }
 
-      @if (isEditing()) {
+      <section class="people__modules" aria-label="Modulos de cadastro">
+        <article>
+          <div><span>Cadastro de pessoas</span><strong>{{ people().length }}</strong><small>Pessoas no escopo</small></div>
+          <button type="button" class="people__secondary" (click)="startCreate()">Abrir cadastro de pessoas</button>
+        </article>
+        <article>
+          <div><span>Estrutura organizacional</span><strong>{{ areas().length }}</strong><small>Areas cadastradas</small></div>
+          <a class="people__link" href="/app/people/areas">Gerenciar areas</a>
+        </article>
+      </section>
+
+      <section class="people__steps" aria-label="Passo a passo do cadastro">
+        <article [class.people__step--done]="areas().length > 0"><strong>1. Area base</strong><span>{{ areas().length ? 'Ha pelo menos uma area disponivel para iniciar o cadastro.' : 'Cadastre uma area antes de criar pessoas.' }}</span></article>
+        <article [class.people__step--done]="form.controls.name.value.trim()"><strong>2. Pessoa preenchida</strong><span>Informe nome, cargo, vinculo e unidade.</span></article>
+        <article [class.people__step--done]="form.controls.managerPersonId.value || form.controls.isAreaManager.value === 'yes'"><strong>3. Estrutura pronta</strong><span>Defina gestor direto ou lideranca da area.</span></article>
+        <article [class.people__step--done]="people().length > 0"><strong>4. Acesso</strong><span>Crie usuario depois que a estrutura da pessoa estiver pronta.</span></article>
+      </section>
+
+      @if (isEditing() && !editingPerson()) {
         <form class="people__form" [formGroup]="form" (ngSubmit)="save()">
           <label>Nome <input formControlName="name" autocomplete="name" /></label>
           <label>Cargo <input formControlName="roleTitle" autocomplete="organization-title" /></label>
@@ -97,6 +115,61 @@ import { EmploymentType, Person, PersonPayload, PeopleService, WorkMode } from '
                   <td>{{ employmentTypeLabel(person.employmentType) }}</td>
                   <td><button type="button" class="people__secondary" (click)="startEdit(person)">Editar</button></td>
                 </tr>
+                @if (editingPerson()?.id === person.id) {
+                  <tr class="people__inline-row">
+                    <td colspan="5">
+                      <form class="people__form people__inline-form" [formGroup]="form" (ngSubmit)="save()">
+                        <label>Nome <input formControlName="name" autocomplete="name" /></label>
+                        <label>Cargo <input formControlName="roleTitle" autocomplete="organization-title" /></label>
+                        <label>
+                          Area
+                          <select formControlName="area">
+                            <option value="" disabled>Selecione uma area</option>
+                            @for (area of areas(); track area.id) { <option [value]="area.name">{{ area.name }}</option> }
+                          </select>
+                        </label>
+                        <label>
+                          Gestor direto
+                          <select formControlName="managerPersonId">
+                            <option value="">Sem gestor direto definido</option>
+                            @for (manager of managerOptions(); track manager.id) {
+                              <option [value]="manager.id">{{ manager.name }} · {{ manager.area }}</option>
+                            }
+                          </select>
+                        </label>
+                        <label>
+                          Lider da area
+                          <select formControlName="isAreaManager">
+                            <option value="no">Nao</option>
+                            <option value="yes">Sim</option>
+                          </select>
+                        </label>
+                        <label>Unidade de trabalho <input formControlName="workUnit" autocomplete="organization" /></label>
+                        <label>
+                          Modalidade
+                          <select formControlName="workMode">
+                            <option value="onsite">Presencial</option>
+                            <option value="hybrid">Hibrido</option>
+                            <option value="remote">100% Home Office</option>
+                          </select>
+                        </label>
+                        <label>
+                          Vinculo
+                          <select formControlName="employmentType">
+                            <option value="internal">Interno</option>
+                            <option value="consultant">Consultor</option>
+                          </select>
+                        </label>
+                        @if (validationMessage()) { <p class="people__validation" role="alert">{{ validationMessage() }}</p> }
+                        @if (leadershipWarning()) { <p class="people__warning">{{ leadershipWarning() }}</p> }
+                        <div class="people__form-actions">
+                          <button type="button" class="people__secondary" (click)="cancelEdit()">Cancelar</button>
+                          <button type="submit" [disabled]="isSaving()">{{ isSaving() ? 'Salvando...' : 'Salvar vinculos' }}</button>
+                        </div>
+                      </form>
+                    </td>
+                  </tr>
+                }
               }
             </tbody>
           </table>
@@ -107,19 +180,30 @@ import { EmploymentType, Person, PersonPayload, PeopleService, WorkMode } from '
   `,
   styles: `
     .people { max-width: 1120px; } .people__header { display:flex; align-items:start; justify-content:space-between; gap:24px; }
-    .people__eyebrow { margin:0 0 8px; color:#175cd3; font-size:13px; font-weight:700; text-transform:uppercase; } h1 { margin:0; font-size:24px; }
-    .people__header p:not(.people__eyebrow), .people__state { color:#475467; } button { min-height:36px; padding:0 12px; color:#fff; font-weight:600; cursor:pointer; background:#175cd3; border:0; border-radius:6px; }
-    button:disabled { cursor:wait; background:#84adff; } .people__secondary { color:#344054; background:#fff; border:1px solid #98a2b3; }
-    .people__error, .people__form, .people__table-wrap { margin-top:24px; background:#fff; border:1px solid #d0d5dd; border-radius:8px; }
-    .people__error, .people__validation, .people__warning { padding:12px; } .people__error, .people__validation { color:#b42318; background:#fef3f2; border:1px solid #fecdca; border-radius:6px; }
-    .people__warning { color:#854a0e; background:#fffaeb; border:1px solid #fedf89; border-radius:6px; }
-    .people__form { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:16px; padding:20px; } label { display:grid; gap:6px; color:#344054; font-weight:600; }
-    input, select { box-sizing:border-box; width:100%; min-height:40px; padding:8px 10px; border:1px solid #98a2b3; border-radius:6px; font:inherit; }
+    .people__eyebrow { margin:0 0 8px; color:#84adff; font-size:13px; font-weight:700; text-transform:uppercase; } h1 { margin:0; font-size:24px; }
+    .people__header p:not(.people__eyebrow), .people__state, .people__modules small, .people__steps span { color:#98a2b3; } button { min-height:36px; padding:0 12px; color:#fff; font-weight:600; cursor:pointer; background:#dc2626; border:0; border-radius:6px; }
+    button:disabled { cursor:wait; background:#7f1d1d; } .people__secondary { color:#e2e8f0; background:#111827; border:1px solid #334155; }
+    .people__modules, .people__steps { display:grid; gap:14px; margin-top:24px; }
+    .people__modules { grid-template-columns:repeat(2, minmax(0, 1fr)); }
+    .people__steps { grid-template-columns:repeat(4, minmax(0, 1fr)); }
+    .people__modules article, .people__steps article, .people__error, .people__form, .people__table-wrap { color:#f8fafc; background:#111827; border:1px solid #253044; border-radius:8px; }
+    .people__modules article, .people__steps article { display:grid; gap:12px; padding:16px; }
+    .people__modules span { display:block; color:#84adff; font-size:12px; font-weight:700; text-transform:uppercase; }
+    .people__modules strong { display:block; margin-top:6px; font-size:24px; }
+    .people__link { display:inline-flex; align-items:center; justify-content:center; min-height:36px; padding:0 12px; color:#e2e8f0; font-weight:600; text-decoration:none; background:#111827; border:1px solid #334155; border-radius:6px; }
+    .people__step--done { border-color:#1d4ed8 !important; background:#0f172a !important; }
+    .people__error, .people__form, .people__table-wrap { margin-top:24px; }
+    .people__error, .people__validation, .people__warning { padding:12px; } .people__error, .people__validation { color:#fecaca; background:#450a0a; border:1px solid #7f1d1d; border-radius:6px; }
+    .people__warning { color:#fed7aa; background:#431407; border:1px solid #7c2d12; border-radius:6px; }
+    .people__form { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:16px; padding:20px; } label { display:grid; gap:6px; color:#cbd5e1; font-weight:600; }
+    input, select { box-sizing:border-box; width:100%; min-height:40px; padding:8px 10px; color:#f8fafc; background:#0b1220; border:1px solid #334155; border-radius:6px; font:inherit; }
     .people__validation, .people__warning, .people__form-actions { grid-column:1 / -1; margin:0; } .people__form-actions { display:flex; gap:8px; justify-content:end; }
     .people__state { margin:24px 0; } .people__table-wrap { overflow-x:auto; } table { width:100%; border-collapse:collapse; } th, td { padding:14px 16px; text-align:left; vertical-align:top; border-bottom:1px solid #eaecf0; }
-    th { color:#475467; font-size:12px; text-transform:uppercase; } td strong, td small { display:block; } td small { margin-top:4px; color:#667085; } td:last-child, th:last-child { width:1%; white-space:nowrap; }
+    th { color:#98a2b3; font-size:12px; text-transform:uppercase; } th, td { border-bottom-color:#253044; } td strong, td small { display:block; } td small { margin-top:4px; color:#98a2b3; } td:last-child, th:last-child { width:1%; white-space:nowrap; }
+    .people__inline-row td { padding:0 16px 16px; background:#0f172a; } .people__inline-form { margin-top:0; padding:16px; background:#0b1220; }
     .visually-hidden { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
-    @media (max-width:720px) { .people__header { align-items:stretch; flex-direction:column; } .people__form { grid-template-columns:1fr; } }
+    @media (max-width:960px) { .people__steps { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
+    @media (max-width:720px) { .people__header { align-items:stretch; flex-direction:column; } .people__modules, .people__steps, .people__form { grid-template-columns:1fr; } }
   `,
 })
 export class PeoplePageComponent implements OnInit {
@@ -183,7 +267,10 @@ export class PeoplePageComponent implements OnInit {
     return '';
   }
 
-  ngOnInit(): void { void this.loadData(); }
+  async ngOnInit(): Promise<void> {
+    await this.loadData();
+    this.startCreate();
+  }
 
   startCreate(): void {
     this.errorMessage.set('');

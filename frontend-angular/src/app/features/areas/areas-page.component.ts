@@ -29,6 +29,9 @@ import { Area, AreasService } from './areas.service';
             Nome da area
             <input formControlName="name" autocomplete="off" />
           </label>
+          @if (validationMessage()) {
+            <p class="areas__validation" role="alert">{{ validationMessage() }}</p>
+          }
           <div class="areas__form-actions">
             <button type="button" class="areas__secondary" (click)="cancelEdit()">Cancelar</button>
             <button type="submit" [disabled]="isSaving()">
@@ -128,11 +131,18 @@ import { Area, AreasService } from './areas.service';
       border-radius: 8px;
     }
 
-    .areas__error {
+    .areas__error,
+    .areas__validation {
       padding: 12px;
       color: #b42318;
       background: #fef3f2;
       border-color: #fecdca;
+    }
+
+    .areas__validation {
+      margin: 0;
+      border: 1px solid #fecdca;
+      border-radius: 8px;
     }
 
     .areas__form {
@@ -247,6 +257,13 @@ export class AreasPageComponent implements OnInit {
     this.isEditing.set(false);
     this.selectedArea.set(null);
     this.form.reset({ name: '' });
+  }
+
+  validationMessage(): string {
+    const name = this.form.getRawValue().name.trim();
+    if (!name) return 'Informe o nome da area.';
+    if (name.length > 120) return 'O nome da area deve ter no maximo 120 caracteres.';
+    return '';
   }
 
   async save(): Promise<void> {

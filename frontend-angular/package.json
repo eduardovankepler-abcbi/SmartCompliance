@@ -6,7 +6,15 @@
     "start": "ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "e2e": "playwright test"
+    "build:budget": "ng build --stats-json && npm run bundle:budget",
+    "bundle:budget": "node scripts/bundle-budget.mjs",
+    "e2e": "playwright test",
+    "visual:parity": "playwright test --config=playwright.visual.config.ts",
+    "visual:report": "node scripts/visual-report.mjs",
+    "visual:parity:report": "npm run visual:parity && npm run visual:report",
+    "parity:matrix": "node scripts/parity-matrix.mjs",
+    "parity:check": "node scripts/parity-matrix.mjs --fail-on-missing",
+    "parity:strict": "node scripts/parity-matrix.mjs --fail-on-partial"
   },
   "private": true,
   "packageManager": "npm@10.9.8",
@@ -17,6 +25,7 @@
     "@angular/forms": "^21.2.0",
     "@angular/platform-browser": "^21.2.0",
     "@angular/router": "^21.2.0",
+    "@lucide/angular": "^1.25.0",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0"
   },

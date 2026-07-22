@@ -51,6 +51,9 @@ import {
             Descricao
             <textarea formControlName="description" rows="4"></textarea>
           </label>
+          @if (validationMessage()) {
+            <p class="competencies__validation" role="alert">{{ validationMessage() }}</p>
+          }
           <div class="competencies__form-actions">
             <button type="button" class="competencies__secondary" (click)="cancelEdit()">
               Cancelar
@@ -119,7 +122,8 @@ import {
     button:disabled { cursor: wait; background: #84adff; }
     .competencies__secondary { color: #344054; background: #fff; border: 1px solid #98a2b3; }
     .competencies__error, .competencies__form, .competencies__table-wrap { margin-top: 24px; background: #fff; border: 1px solid #d0d5dd; border-radius: 8px; }
-    .competencies__error { padding: 12px; color: #b42318; background: #fef3f2; border-color: #fecdca; }
+    .competencies__error, .competencies__validation { padding: 12px; color: #b42318; background: #fef3f2; border-color: #fecdca; }
+    .competencies__validation { grid-column: 1 / -1; margin: 0; border: 1px solid #fecdca; border-radius: 8px; }
     .competencies__form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; padding: 20px; }
     label { display: grid; gap: 6px; color: #344054; font-weight: 600; }
     input, select, textarea { box-sizing: border-box; width: 100%; min-height: 40px; padding: 8px 10px; border: 1px solid #98a2b3; border-radius: 6px; font: inherit; }
@@ -197,6 +201,15 @@ export class CompetenciesPageComponent implements OnInit {
     this.isEditing.set(false);
     this.selectedCompetency.set(null);
     this.form.reset({ name: '', key: '', description: '', status: 'active' });
+  }
+
+  validationMessage(): string {
+    const value = this.form.getRawValue();
+    if (!value.name.trim()) return 'Informe o nome da competencia.';
+    if (value.name.trim().length > 120) return 'O nome da competencia deve ter no maximo 120 caracteres.';
+    if (value.key.trim().length > 120) return 'A chave deve ter no maximo 120 caracteres.';
+    if (value.description.trim().length > 1000) return 'A descricao deve ter no maximo 1000 caracteres.';
+    return '';
   }
 
   async save(): Promise<void> {

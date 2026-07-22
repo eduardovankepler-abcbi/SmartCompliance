@@ -56,6 +56,29 @@ export interface Performance360Review {
   guidance: string; developmentPlanSuggestion: string; visibility: string;
 }
 
+export interface EvaluationResponseAnswer {
+  id?: string; questionId: string; questionPrompt: string; dimensionTitle: string; score: number | null;
+  evidenceNote?: string; textValue?: string; selectedOptions?: string[]; isSensitive?: boolean; masked?: boolean;
+}
+
+export interface EvaluationIndividualResponse {
+  id: string; assignmentId: string; cycleId: string; relationshipType: string; reviewerName?: string; revieweeName?: string;
+  revieweeArea?: string; overallScore: number | null; weightedScore?: number | null; strengthsNote?: string; developmentNote?: string;
+  submittedAt: string; answers: EvaluationResponseAnswer[];
+}
+
+export interface EvaluationAggregateResponse {
+  id?: string; cycleId?: string; relationshipType: string; totalResponses: number; averageScore: number | null; generatedAt?: string;
+  questionAverages?: Array<{ questionId: string; questionPrompt: string; dimensionTitle: string; totalResponses: number; averageScore: number | null }>;
+}
+
+export interface EvaluationResponsesBundle {
+  individualResponses: EvaluationIndividualResponse[];
+  aggregateResponses: EvaluationAggregateResponse[];
+  cycleAggregateResponses: EvaluationAggregateResponse[];
+  reportSnapshots: EvaluationAggregateResponse[];
+}
+
 export interface EvaluationAssignment {
   id: string;
   cycleId: string;
@@ -269,6 +292,7 @@ export class EvaluationsService {
   reviewFeedbackRequest(id: string, status: 'approved' | 'rejected'): Observable<EvaluationFeedbackRequest> { return this.api.patch(`/api/evaluations/feedback-requests/${id}`, { status }); }
   listReceivedFeedback(): Observable<ReceivedManagerFeedback[]> { return this.api.get('/api/evaluations/received-feedback'); }
   acknowledgeFeedback(id: string, status: 'agreed' | 'disagreed', note: string): Observable<ReceivedManagerFeedback> { return this.api.patch(`/api/evaluations/responses/${id}/acknowledgement`, { status, note }); }
+  listResponses(): Observable<EvaluationResponsesBundle> { return this.api.get('/api/evaluations/responses'); }
   listPerformance360(): Observable<Performance360Review[]> { return this.api.get('/api/evaluations/performance-360'); }
   downloadCustomLibraryTemplate(): Observable<Blob> { return this.api.getBlob('/api/evaluations/custom-libraries/template'); }
   importCustomLibrary(file: File): Observable<CustomLibraryDraft> { const form=new FormData(); form.append('file',file); return this.api.postForm('/api/evaluations/custom-libraries/import',form); }
