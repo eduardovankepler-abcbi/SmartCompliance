@@ -203,7 +203,7 @@ Estimativa: 20-30 creditos.
 8. Manter React disponivel durante a janela de estabilizacao acordada.
 9. Arquivar ou desativar o React somente apos aceite final e janela de reversao encerrada.
 
-### Fase 8.2 - Corte controlado em andamento
+### Fase 8.2 - Corte controlado concluido
 
 Preparacao concluida em 2026-07-21:
 
@@ -234,6 +234,18 @@ Preparacao concluida em 2026-07-21:
   chamadas criticas observadas retornaram 200.
 - Pre-corte em 2026-07-21: Angular publicado `/login` respondeu 200 e React oficial
   `https://smart-compliance-frontend.vercel.app/` respondeu 200, mantendo rollback disponivel.
+- Corte oficial em 2026-07-24: o alias `https://smart-compliance-frontend.vercel.app` foi apontado
+  para o deployment Angular
+  `https://smart-compliance-angular-f428rq6kv-eduardos-projects-e211db16.vercel.app`.
+- Smoke publicado pos-corte em 2026-07-24: `/login`, `/app/dashboard`, `/app/compliance`,
+  `/app/people`, `/app/users`, `/app/evaluations`, `/app/development` e `/app/applause`
+  retornaram 200 e serviram HTML Angular (`<app-root>`), sem root React.
+- Smoke autenticado pos-corte em 2026-07-24: login `admin@demo.local`, `/api/auth/me`,
+  Dashboard, Incidentes, Pessoas, Usuarios, Ciclos de Avaliacoes, Desenvolvimento e Aplause
+  retornaram 200 contra `https://smartcompliance.onrender.com` com
+  `Access-Control-Allow-Origin: https://smart-compliance-frontend.vercel.app`.
+- Rollback React preservado no deployment especifico
+  `https://smart-compliance-frontend-eq1qmi9n7-eduardos-projects-e211db16.vercel.app`.
 
 Plano de corte recomendado:
 
@@ -242,8 +254,8 @@ Plano de corte recomendado:
    de estabilizacao.
 3. Trocar o apontamento oficial para Angular somente apos aceite.
 
-Status de corte: **pronto para aceite final**. A troca do apontamento oficial deve ser feita apenas
-com confirmacao explicita, pois muda a experiencia de producao dos usuarios.
+Status de corte: **concluido e em janela de estabilizacao**. O Angular agora responde pelo dominio
+oficial; o React permanece disponivel apenas como rollback temporario.
 
 Comandos manuais recomendados para publicar em Vercel separado:
 
@@ -261,8 +273,9 @@ Ao responder as perguntas do Vercel, usar este diretorio como projeto Angular se
 
 Rollback:
 
-- Se o Angular publicado falhar em autenticacao, CORS, rota profunda ou fluxo critico, manter o React
-  publicado como frontend oficial e corrigir o Angular fora da janela de corte.
+- Se o Angular publicado falhar em autenticacao, CORS, rota profunda ou fluxo critico, reatribuir o
+  alias `https://smart-compliance-frontend.vercel.app` ao deployment React de rollback e corrigir o
+  Angular fora da janela de corte.
 - Nao arquivar nem desativar o React antes do aceite final.
 
 ## Auditoria Dura de Paridade 1:1
@@ -455,8 +468,8 @@ Avaliacoes:
     validacao de importacao, publicacao e atualizacao de biblioteca customizada.
 11. [x] **Fase 8.1 - Matriz final:** matriz por rota, papel e endpoint registrada; comparacao
     React x Angular, homologacao Aplause, cenarios reais de erro e escopo Power BI futuro validados.
-12. [-] **Fase 8.2 - Corte controlado:** Angular publicado e validado em URL separada; faltam
-    aceite final, troca do apontamento oficial e encerramento da janela de rollback do React.
+12. [-] **Fase 8.2 - Corte controlado:** Angular publicado, validado e apontado para o dominio
+    oficial; falta encerrar a janela de rollback do React apos estabilizacao.
 
 ### Checklist de Aceite 1:1
 
