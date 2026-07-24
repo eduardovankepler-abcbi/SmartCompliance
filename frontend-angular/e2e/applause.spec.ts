@@ -63,7 +63,7 @@ test('exibe erro quando a consulta de Aplause falha', async ({ page }) => {
   );
   await page.goto('/app/applause');
 
-  await expect(page.getByRole('alert')).toContainText('Falha E2E no Aplause.');
+  await expect(page.locator('.error[role="alert"]')).toContainText('Falha E2E no Aplause.');
 });
 
 test('colaborador nao visualiza acoes administrativas do Aplause', async ({ page }) => {

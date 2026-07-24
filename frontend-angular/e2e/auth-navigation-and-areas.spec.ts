@@ -164,6 +164,11 @@ test('permite administrador editar usuario inline', async ({ page }) => {
   await inlineForm.getByRole('button', { name: 'Atualizar acesso' }).click();
 
   await expect(userRow).toContainText('Inativo');
+
+  await userRow.getByRole('button', { name: 'Editar' }).click();
+  await inlineForm.getByLabel('Status').selectOption('active');
+  await inlineForm.getByRole('button', { name: 'Atualizar acesso' }).click();
+  await expect(userRow).toContainText('Ativo');
 });
 
 test('permite administrador registrar um incidente', async ({ page }) => {
@@ -213,7 +218,7 @@ test('exibe erro quando a fila de incidentes falha', async ({ page }) => {
   );
   await page.goto('/app/compliance');
 
-  await expect(page.getByRole('alert')).toContainText('Falha E2E ao carregar incidentes.');
+  await expect(page.locator('.error[role="alert"]')).toContainText('Falha E2E ao carregar incidentes.');
 });
 
 test('exibe os indicadores do overview retornado pela API', async ({ page }) => {
