@@ -6,9 +6,11 @@ import {
   LucideClipboardCheck,
   LucideLayoutDashboard,
   LucideLogOut,
+  LucideMoon,
   LucideRefreshCw,
   LucideShieldAlert,
   LucideSparkles,
+  LucideSun,
   LucideTrendingUp,
   LucideUserCog,
   LucideUsers,
@@ -19,6 +21,7 @@ import { AuthService } from '../auth/auth.service';
 import { getNavigationSection, visibleNavigationGroups } from '../navigation/navigation.config';
 
 const SIDEBAR_COLLAPSED_STORAGE_KEY = 'smartCompliance.sidebarCollapsed';
+const THEME_STORAGE_KEY = 'smartCompliance.theme';
 
 @Component({
   selector: 'app-shell',
@@ -31,15 +34,25 @@ const SIDEBAR_COLLAPSED_STORAGE_KEY = 'smartCompliance.sidebarCollapsed';
     LucideClipboardCheck,
     LucideLayoutDashboard,
     LucideLogOut,
+    LucideMoon,
     LucideRefreshCw,
     LucideShieldAlert,
     LucideSparkles,
+    LucideSun,
     LucideTrendingUp,
     LucideUserCog,
     LucideUsers,
   ],
   template: `
     <div class="shell" [class.shell--collapsed]="isSidebarCollapsed()">
+      @if (!isSidebarCollapsed()) {
+        <button
+          class="shell__scrim"
+          type="button"
+          aria-label="Fechar menu lateral"
+          (click)="toggleSidebar()"
+        ></button>
+      }
       <aside class="sidebar">
         <div class="sidebar__topbar">
           <div class="sidebar__brand-card">
@@ -127,6 +140,20 @@ const SIDEBAR_COLLAPSED_STORAGE_KEY = 'smartCompliance.sidebarCollapsed';
             <span>{{ activeSection()?.description || 'Ambiente executivo e operacional.' }}</span>
           </div>
           <div class="topbar__actions">
+            <button
+              type="button"
+              (click)="toggleTheme()"
+              [attr.aria-label]="themeToggleLabel()"
+              [title]="themeToggleLabel()"
+            >
+              @if (isDarkTheme()) {
+                <svg lucideSun aria-hidden="true" />
+                <span>Claro</span>
+              } @else {
+                <svg lucideMoon aria-hidden="true" />
+                <span>Escuro</span>
+              }
+            </button>
             <button type="button" (click)="refresh()" aria-label="Atualizar dados" title="Atualizar dados">
               <svg lucideRefreshCw aria-hidden="true" />
               <span>Atualizar</span>
@@ -144,258 +171,7 @@ const SIDEBAR_COLLAPSED_STORAGE_KEY = 'smartCompliance.sidebarCollapsed';
       </main>
     </div>
   `,
-  styles: `
-    .shell {
-      --shell-text: var(--abc-text);
-      display: grid;
-      grid-template-columns: 256px minmax(0, 1fr);
-      min-height: 100vh;
-      color: var(--shell-text);
-      background: var(--abc-surface-muted);
-      transition: grid-template-columns 180ms ease;
-    }
-
-    .sidebar {
-      position: sticky;
-      top: 0;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      min-height: 100vh;
-      height: 100vh;
-      padding: 12px 14px 14px;
-      color: var(--abc-on-blue);
-      overflow: hidden;
-      background: var(--abc-navy);
-      border-right: 1px solid rgba(255, 255, 255, 0.08);
-    }
-
-    .sidebar__topbar {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .sidebar__brand-card {
-      flex: 1;
-      min-width: 0;
-      padding: 8px 10px;
-      background: var(--abc-surface);
-      border: 1px solid var(--abc-border);
-      border-radius: var(--abc-radius);
-      overflow: hidden;
-    }
-
-    .sidebar__brand-card img {
-      display: block;
-      width: 100%;
-      height: 42px;
-      object-fit: contain;
-    }
-
-    .sidebar__app-name {
-      padding: 0 4px 2px;
-      color: var(--abc-on-blue);
-      font-size: 14px;
-      font-weight: 800;
-      text-align: center;
-    }
-
-    .sidebar__toggle,
-    .sidebar__profile button {
-      color: var(--abc-on-blue);
-      cursor: pointer;
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: var(--abc-radius);
-    }
-
-    .sidebar__toggle:hover,
-    .sidebar__profile button:hover,
-    .sidebar__link:hover {
-      transform: translateY(-1px);
-    }
-
-    .sidebar__toggle {
-      width: 38px;
-      height: 38px;
-      margin-left: auto;
-      display: grid;
-      place-items: center;
-      background: transparent;
-    }
-
-    .sidebar__toggle svg,
-    .sidebar__link-mark svg,
-    .topbar__actions button svg {
-      width: 18px;
-      height: 18px;
-      stroke-width: 2;
-    }
-
-    .sidebar__navigation {
-      flex: 1;
-      padding: 4px 4px 6px 0;
-      overflow-y: auto;
-      overflow-x: hidden;
-    }
-
-    .sidebar__group + .sidebar__group {
-      margin-top: 8px;
-      padding-top: 8px;
-      border-top: 1px solid rgba(255, 255, 255, 0.06);
-    }
-
-    .sidebar__group-label {
-      margin: 0 4px 5px;
-      color: rgba(201, 210, 227, 0.6);
-      font-size: 12px;
-      font-weight: 700;
-      letter-spacing: 0.2em;
-      text-transform: uppercase;
-    }
-
-    .sidebar__links {
-      display: grid;
-      gap: 4px;
-    }
-
-    .sidebar__link {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      min-height: 44px;
-      padding: 8px 10px;
-      color: #f5f7fb;
-      font-size: 14px;
-      font-weight: 600;
-      text-decoration: none;
-      border: 1px solid transparent;
-      border-radius: var(--abc-radius);
-    }
-
-    .sidebar__link:hover,
-    .sidebar__link--active {
-      color: var(--abc-on-blue);
-      background: var(--abc-blue);
-    }
-
-    .sidebar__link-mark {
-      display: grid;
-      width: 34px;
-      height: 34px;
-      color: rgba(255, 255, 255, 0.88);
-      place-items: center;
-      border: 1px solid rgba(255, 255, 255, 0.055);
-      border-radius: var(--abc-radius);
-    }
-
-    .sidebar__link--active .sidebar__link-mark {
-      color: #ffffff;
-      background: rgba(255, 255, 255, 0.12);
-    }
-
-    .sidebar__profile {
-      display: grid;
-      grid-template-columns: 38px minmax(0, 1fr);
-      gap: 10px;
-      align-items: center;
-      padding: 12px;
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: var(--abc-radius);
-    }
-
-    .sidebar__avatar {
-      display: grid;
-      width: 38px;
-      height: 38px;
-      color: var(--abc-on-blue);
-      font-size: 13px;
-      font-weight: 800;
-      place-items: center;
-      background: var(--abc-blue);
-      border-radius: var(--abc-radius);
-    }
-
-    .sidebar__profile-copy {
-      min-width: 0;
-      display: grid;
-      gap: 2px;
-    }
-
-    .sidebar__profile strong {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .sidebar__profile span {
-      color: rgba(201, 210, 227, 0.72);
-      font-size: 13px;
-      text-transform: capitalize;
-    }
-
-    .sidebar__profile button {
-      grid-column: 1 / -1;
-      margin-top: 8px;
-      min-height: 34px;
-    }
-
-    .sidebar__footer {
-      margin: 0;
-      color: rgba(201, 210, 227, 0.48);
-      font-size: 12px;
-      text-align: center;
-    }
-
-    .shell__content {
-      min-width: 0;
-      padding: 32px;
-    }
-
-    .topbar__title {
-      margin: 0.67em 0;
-      color: var(--abc-text);
-      font-size: 2em;
-      font-weight: 700;
-      line-height: 1.2;
-    }
-
-    .topbar__actions button {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .shell--collapsed {
-      grid-template-columns: 88px minmax(0, 1fr);
-    }
-
-    .shell--collapsed .sidebar__brand-card,
-    .shell--collapsed .sidebar__app-name,
-    .shell--collapsed .sidebar__group-label,
-    .shell--collapsed .sidebar__link-label,
-    .shell--collapsed .sidebar__profile,
-    .shell--collapsed .sidebar__footer {
-      display: none;
-    }
-
-    .shell--collapsed .sidebar__topbar {
-      justify-content: center;
-      padding: 0;
-    }
-
-    .shell--collapsed .sidebar__toggle {
-      margin: 0;
-    }
-
-    .shell--collapsed .sidebar__link {
-      width: 48px;
-      height: 48px;
-      justify-content: center;
-      padding: 6px;
-    }
-
-  `,
+  styles: ``,
 })
 export class AppShellComponent {
   protected readonly auth = inject(AuthService);
@@ -404,11 +180,15 @@ export class AppShellComponent {
   protected readonly isSidebarCollapsed = signal(
     localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) === 'true',
   );
+  protected readonly isDarkTheme = signal(localStorage.getItem(THEME_STORAGE_KEY) === 'dark');
   protected readonly navigation = computed(() =>
     visibleNavigationGroups(this.auth.user()?.roleKey ?? null),
   );
   protected readonly sidebarToggleLabel = computed(() =>
     this.isSidebarCollapsed() ? 'Expandir menu lateral' : 'Recolher menu lateral',
+  );
+  protected readonly themeToggleLabel = computed(() =>
+    this.isDarkTheme() ? 'Ativar tema claro' : 'Ativar tema escuro',
   );
   protected readonly activeSection = computed(() => {
     const [, , sectionKey] = this.activePath().split('/');
@@ -429,6 +209,7 @@ export class AppShellComponent {
   });
 
   constructor() {
+    this.applyThemeClass();
     this.router.events.pipe(filter((event) => event instanceof NavigationEnd)).subscribe(() => {
       this.activePath.set(this.router.url);
     });
@@ -447,5 +228,18 @@ export class AppShellComponent {
 
   refresh(): void {
     location.reload();
+  }
+
+  toggleTheme(): void {
+    const next = !this.isDarkTheme();
+    this.isDarkTheme.set(next);
+    localStorage.setItem(THEME_STORAGE_KEY, next ? 'dark' : 'light');
+    this.applyThemeClass();
+  }
+
+  private applyThemeClass(): void {
+    const dark = this.isDarkTheme();
+    document.documentElement.classList.toggle('theme-dark', dark);
+    document.body.classList.toggle('theme-dark', dark);
   }
 }

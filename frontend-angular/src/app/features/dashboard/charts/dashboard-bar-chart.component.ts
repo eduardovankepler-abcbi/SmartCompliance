@@ -25,11 +25,11 @@ export interface DashboardChartDatum {
   styles: `
     .bar-chart { display: grid; gap: 14px; }
     .bar-chart__row { display: grid; gap: 6px; }
-    .bar-chart__labels { display: flex; justify-content: space-between; gap: 12px; color: #475467; font-size: 13px; }
-    .bar-chart__labels strong { color: #101828; }
-    .bar-chart__track { height: 10px; overflow: hidden; background: #eaecf0; border-radius: 999px; }
-    .bar-chart__fill { display: block; min-width: 2px; height: 100%; background: #175cd3; border-radius: inherit; }
-    .bar-chart__empty { margin: 0; color: #667085; }
+    .bar-chart__labels { display: flex; justify-content: space-between; gap: 12px; color: var(--abc-text-muted); font-size: 13px; }
+    .bar-chart__labels strong { color: var(--abc-text); }
+    .bar-chart__track { height: 10px; overflow: hidden; background: var(--abc-border); border-radius: 999px; }
+    .bar-chart__fill { display: block; min-width: 2px; height: 100%; background: var(--abc-blue); border-radius: inherit; }
+    .bar-chart__empty { margin: 0; color: var(--abc-text-muted); }
   `,
 })
 export class DashboardBarChartComponent {

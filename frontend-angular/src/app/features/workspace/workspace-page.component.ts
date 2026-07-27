@@ -22,7 +22,7 @@ import { AuthService } from '../../core/auth/auth.service';
   styles: `
     .workspace__eyebrow {
       margin: 0 0 8px;
-      color: #175cd3;
+      color: var(--abc-blue);
       font-size: 13px;
       font-weight: 700;
       text-transform: uppercase;
@@ -35,13 +35,13 @@ import { AuthService } from '../../core/auth/auth.service';
 
     p {
       margin: 8px 0 0;
-      color: #475467;
+      color: var(--abc-text-muted);
     }
 
     .workspace__link {
       display: inline-block;
       margin-top: 20px;
-      color: #175cd3;
+      color: var(--abc-blue);
       font-weight: 600;
     }
   `,

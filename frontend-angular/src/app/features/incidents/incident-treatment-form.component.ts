@@ -15,7 +15,7 @@ import { Incident, IncidentStatus, UpdateIncidentPayload } from './incidents.ser
       <div class="actions"><button class="secondary" (click)="cancelled.emit()">Cancelar</button><button (click)="save(classification.value, status.value, area.value, assignee.value)">Salvar tratamento</button></div>
     </div>
   `,
-  styles: `.treatment{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px;padding:14px;background:#f9fafb;border-radius:6px}label{display:grid;gap:5px}select{padding:8px}.actions{grid-column:1/-1;display:flex;justify-content:end;gap:8px}button{padding:8px 12px;background:#175cd3;color:#fff;border:0;border-radius:5px}.secondary{background:#fff;color:#344054;border:1px solid #98a2b3}`,
+  styles: `.treatment{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px;padding:14px;background:var(--abc-surface-muted);border-radius:var(--abc-radius)}label{display:grid;gap:5px}select{padding:8px}.actions{grid-column:1/-1;display:flex;justify-content:end;gap:8px}button{padding:8px 12px;background:var(--abc-blue);color:var(--abc-on-blue);border:0;border-radius:var(--abc-radius);font-weight:700}.secondary{background:var(--abc-surface);color:var(--abc-text);border:1px solid var(--abc-border)}`,
 })
 export class IncidentTreatmentFormComponent {
   readonly incident = input.required<Incident>();

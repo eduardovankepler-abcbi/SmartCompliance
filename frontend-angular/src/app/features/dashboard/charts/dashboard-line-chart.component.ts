@@ -31,13 +31,13 @@ import { DashboardChartDatum } from './dashboard-bar-chart.component';
   styles: `
     .line-chart { margin: 0; }
     svg { display: block; width: 100%; min-height: 180px; overflow: visible; }
-    .line-chart__grid { stroke: #eaecf0; stroke-width: 1; }
-    .line-chart__line { fill: none; stroke: #175cd3; stroke-linecap: round; stroke-linejoin: round; stroke-width: 3; }
-    .line-chart__point { fill: #175cd3; stroke: #fff; stroke-width: 2; }
-    .line-chart__label { fill: #667085; font-size: 9px; text-anchor: middle; }
-    .line-chart__legend { display: flex; flex-wrap: wrap; gap: 6px 12px; margin-top: 8px; color: #667085; font-size: 12px; }
-    .line-chart__legend strong { color: #344054; }
-    .line-chart__empty { margin: 0; color: #667085; }
+    .line-chart__grid { stroke: var(--abc-border); stroke-width: 1; }
+    .line-chart__line { fill: none; stroke: var(--abc-blue); stroke-linecap: round; stroke-linejoin: round; stroke-width: 3; }
+    .line-chart__point { fill: var(--abc-blue); stroke: var(--abc-surface); stroke-width: 2; }
+    .line-chart__label { fill: var(--abc-text-muted); font-size: 9px; text-anchor: middle; }
+    .line-chart__legend { display: flex; flex-wrap: wrap; gap: 6px 12px; margin-top: 8px; color: var(--abc-text-muted); font-size: 12px; }
+    .line-chart__legend strong { color: var(--abc-text); }
+    .line-chart__empty { margin: 0; color: var(--abc-text-muted); }
   `,
 })
 export class DashboardLineChartComponent {

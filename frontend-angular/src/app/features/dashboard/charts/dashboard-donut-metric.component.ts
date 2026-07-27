@@ -20,12 +20,12 @@ import { DashboardDonutMetric } from '../dashboard.service';
     .donut { text-align: center; }
     svg { width: 112px; height: 112px; transform: rotate(-90deg); }
     circle { fill: none; stroke-width: 10; }
-    .donut__track { stroke: #eaecf0; }
-    .donut__value { stroke: #175cd3; stroke-linecap: round; }
-    .donut__percentage { fill: #101828; font-size: 16px; font-weight: 700; text-anchor: middle; transform: rotate(90deg); transform-origin: center; }
+    .donut__track { stroke: var(--abc-border); }
+    .donut__value { stroke: var(--abc-blue); stroke-linecap: round; }
+    .donut__percentage { fill: var(--abc-text); font-size: 16px; font-weight: 700; text-anchor: middle; transform: rotate(90deg); transform-origin: center; }
     strong, span { display: block; }
-    strong { margin-top: 4px; color: #344054; font-size: 13px; }
-    span { margin-top: 4px; color: #667085; font-size: 12px; }
+    strong { margin-top: 4px; color: var(--abc-text); font-size: 13px; }
+    span { margin-top: 4px; color: var(--abc-text-muted); font-size: 12px; }
   `,
 })
 export class DashboardDonutMetricComponent {

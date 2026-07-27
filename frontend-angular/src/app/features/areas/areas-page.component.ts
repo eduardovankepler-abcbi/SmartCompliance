@@ -85,7 +85,7 @@ import { Area, AreasService } from './areas.service';
 
     .areas__eyebrow {
       margin: 0 0 8px;
-      color: #175cd3;
+      color: var(--abc-blue);
       font-size: 13px;
       font-weight: 700;
       text-transform: uppercase;
@@ -97,51 +97,51 @@ import { Area, AreasService } from './areas.service';
     }
 
     .areas__header p:not(.areas__eyebrow) {
-      color: #475467;
+      color: var(--abc-text-muted);
     }
 
     button {
       min-height: 36px;
       padding: 0 12px;
-      color: #ffffff;
+      color: var(--abc-surface);
       font-weight: 600;
       cursor: pointer;
-      background: #175cd3;
+      background: var(--abc-blue);
       border: 0;
       border-radius: 6px;
     }
 
     button:disabled {
       cursor: wait;
-      background: #84adff;
+      background: color-mix(in srgb, var(--abc-blue) 45%, var(--abc-surface));
     }
 
     .areas__secondary {
-      color: #344054;
-      background: #ffffff;
-      border: 1px solid #98a2b3;
+      color: var(--abc-text);
+      background: var(--abc-surface);
+      border: 1px solid var(--abc-text-muted);
     }
 
     .areas__error,
     .areas__form,
     .areas__table-wrap {
       margin-top: 24px;
-      background: #ffffff;
-      border: 1px solid #d0d5dd;
+      background: var(--abc-surface);
+      border: 1px solid var(--abc-border);
       border-radius: 8px;
     }
 
     .areas__error,
     .areas__validation {
       padding: 12px;
-      color: #b42318;
-      background: #fef3f2;
-      border-color: #fecdca;
+      color: var(--abc-danger);
+      background: color-mix(in srgb, var(--abc-danger) 8%, var(--abc-surface));
+      border-color: color-mix(in srgb, var(--abc-danger) 24%, var(--abc-border));
     }
 
     .areas__validation {
       margin: 0;
-      border: 1px solid #fecdca;
+      border: 1px solid color-mix(in srgb, var(--abc-danger) 24%, var(--abc-border));
       border-radius: 8px;
     }
 
@@ -154,14 +154,14 @@ import { Area, AreasService } from './areas.service';
     label {
       display: grid;
       gap: 6px;
-      color: #344054;
+      color: var(--abc-text);
       font-weight: 600;
     }
 
     input {
       min-height: 40px;
       padding: 8px 10px;
-      border: 1px solid #98a2b3;
+      border: 1px solid var(--abc-text-muted);
       border-radius: 6px;
     }
 
@@ -173,7 +173,7 @@ import { Area, AreasService } from './areas.service';
 
     .areas__state {
       margin: 24px 0;
-      color: #475467;
+      color: var(--abc-text-muted);
     }
 
     .areas__table-wrap {
@@ -189,11 +189,11 @@ import { Area, AreasService } from './areas.service';
     td {
       padding: 14px 16px;
       text-align: left;
-      border-bottom: 1px solid #eaecf0;
+      border-bottom: 1px solid var(--abc-border);
     }
 
     th {
-      color: #475467;
+      color: var(--abc-text-muted);
       font-size: 12px;
       text-transform: uppercase;
     }

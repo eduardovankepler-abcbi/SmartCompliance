@@ -11,9 +11,12 @@ import { ApiError } from '../../core/http/api-error';
   template: `
     <main class="login-page">
       <form class="login-panel" aria-labelledby="login-title" [formGroup]="form" (ngSubmit)="submit()">
-        <p class="login-panel__brand">Smart Compliance</p>
-        <h1 id="login-title">Acessar</h1>
-        <p class="login-panel__intro">Use suas credenciais corporativas.</p>
+        <div class="login-panel__brand-card">
+          <img src="logo_abc_app.png" alt="abc technology group" />
+        </div>
+        <p class="login-panel__product">SmartCompliance</p>
+        <h1 id="login-title">Acessar workspace</h1>
+        <p class="login-panel__intro">Use suas credenciais corporativas para continuar.</p>
 
         @if (errorMessage()) {
           <p class="login-panel__error" role="alert">{{ errorMessage() }}</p>
@@ -40,81 +43,109 @@ import { ApiError } from '../../core/http/api-error';
       display: grid;
       min-height: 100vh;
       padding: 24px;
+      background: var(--abc-surface-muted);
       place-items: center;
     }
 
     .login-panel {
-      width: min(100%, 400px);
+      width: min(100%, 424px);
       padding: 32px;
-      background: #ffffff;
-      border: 1px solid #d0d5dd;
-      border-radius: 8px;
-      box-shadow: 0 1px 2px rgb(16 24 40 / 8%);
+      background: var(--abc-surface);
+      border: 1px solid var(--abc-border);
+      border-radius: 12px;
+      box-shadow: 0 16px 40px rgb(15 23 42 / 8%);
     }
 
-    .login-panel__brand {
-      margin: 0 0 24px;
-      color: #344054;
-      font-weight: 700;
+    .login-panel__brand-card {
+      padding: 12px 14px;
+      background: var(--abc-surface);
+      border: 1px solid var(--abc-border);
+      border-radius: var(--abc-radius);
+    }
+
+    .login-panel__brand-card img {
+      display: block;
+      width: 100%;
+      height: 52px;
+      object-fit: contain;
+    }
+
+    .login-panel__product {
+      margin: 16px 0 4px;
+      color: var(--abc-blue-dark);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
     }
 
     h1 {
       margin: 0;
+      color: var(--abc-text);
       font-size: 24px;
+      font-weight: 800;
+      line-height: 1.2;
     }
 
     .login-panel__intro {
-      color: #475467;
+      margin: 8px 0 0;
+      color: var(--abc-text-muted);
       line-height: 1.5;
     }
 
     .login-panel__error {
+      margin: 18px 0 0;
       padding: 10px 12px;
-      color: #b42318;
-      background: #fef3f2;
-      border: 1px solid #fecdca;
-      border-radius: 6px;
+      color: var(--abc-danger);
+      background: color-mix(in srgb, var(--abc-danger) 8%, var(--abc-surface));
+      border: 1px solid color-mix(in srgb, var(--abc-danger) 24%, var(--abc-border));
+      border-radius: var(--abc-radius);
     }
 
     label {
       display: grid;
       gap: 6px;
       margin-top: 16px;
-      color: #344054;
-      font-weight: 600;
+      color: var(--abc-text);
+      font-size: 14px;
+      font-weight: 700;
     }
 
     input {
       width: 100%;
-      min-height: 40px;
-      padding: 8px 10px;
-      color: #1d2939;
-      background: #ffffff;
-      border: 1px solid #98a2b3;
-      border-radius: 6px;
+      min-height: 42px;
+      padding: 9px 11px;
+      color: var(--abc-text);
+      background: var(--abc-surface);
+      border: 1px solid var(--abc-border);
+      border-radius: var(--abc-radius);
     }
 
     input:focus {
-      outline: 2px solid #84adff;
+      outline: 2px solid var(--abc-blue);
       outline-offset: 1px;
-      border-color: #175cd3;
+      border-color: var(--abc-blue);
     }
 
     button {
       width: 100%;
-      min-height: 40px;
+      min-height: 42px;
       margin-top: 24px;
-      color: #ffffff;
-      font-weight: 600;
+      color: var(--abc-on-blue);
+      font-weight: 700;
       cursor: pointer;
-      background: #175cd3;
+      background: var(--abc-blue);
       border: 0;
-      border-radius: 6px;
+      border-radius: var(--abc-radius);
+    }
+
+    button:hover:not(:disabled) {
+      background: var(--abc-blue-dark);
     }
 
     button:disabled {
       cursor: wait;
-      background: #84adff;
+      opacity: 0.72;
     }
   `,
 })

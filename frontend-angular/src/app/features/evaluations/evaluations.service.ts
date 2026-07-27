@@ -196,7 +196,7 @@ export interface EvaluationQuestionnaire {
   id: string;
   cycleId: string;
   revieweePersonId: string;
-  relationshipType: 'manager' | 'self' | 'peer-same-area';
+  relationshipType: 'manager' | 'self' | 'leader' | 'peer-same-area' | 'cross-functional';
   sourceLibraryId: string | null;
   title: string;
   description: string;
