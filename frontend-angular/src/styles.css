@@ -310,6 +310,14 @@ body.theme-dark .sidebar__brand-card,
   grid-column: 1 / -1;
   min-height: 34px;
   margin-top: 8px;
+  color: var(--abc-on-blue);
+  background: #2596be;
+  border-color: #2596be;
+}
+
+.sidebar__profile button:hover {
+  background: #1f7fa1;
+  border-color: #1f7fa1;
 }
 
 .sidebar__footer {
