@@ -332,7 +332,8 @@ export function DevelopmentSection({
   const SafeSelect = Select || EmptyComponent;
   const SafeTextarea = Textarea || EmptyComponent;
   const isEmployeeJourney = roleKey === "employee";
-  const isManagerJourney = roleKey === "manager";
+  const hasTeamDevelopmentView = developmentViewOptions.some((view) => view.key === "team");
+  const isManagerJourney = roleKey === "manager" || hasTeamDevelopmentView;
   const isOrganizationAdminJourney =
     ["admin", "hr"].includes(roleKey) && activeDevelopmentView === "organization";
   const managerDevelopmentViewCopy = {
@@ -367,7 +368,8 @@ export function DevelopmentSection({
   const showDevelopmentPersonSelect = developmentFormPeopleOptions.length > 1;
   const showDevelopmentPlanPersonSelect = developmentPlanPeopleOptions.length > 1;
   const showLearningIntegrations = Boolean(learningIntegrationSummary);
-  const canStructureDevelopmentPlan = ["admin", "hr", "manager"].includes(roleKey);
+  const canStructureDevelopmentPlan =
+    ["admin", "hr", "manager"].includes(roleKey) || hasTeamDevelopmentView;
   const developmentScopeCards = developmentScopeSummary
     ? [
         {

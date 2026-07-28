@@ -303,6 +303,21 @@ export function useDevelopmentFlow({
   const [developmentPersonFilter, setDevelopmentPersonFilter] = useState("all");
   const [learningIntegrationDrafts, setLearningIntegrationDrafts] = useState({});
 
+  const directReportPeopleOptions = useMemo(
+    () =>
+      people
+        .filter((person) => person.managerPersonId === user?.person?.id)
+        .map((person) => ({
+          value: person.id,
+          label: person.name,
+          area: person.area || "Sem area",
+          managerPersonId: person.managerPersonId || null
+        })),
+    [people, user]
+  );
+  const canViewEffectiveTeamDevelopment =
+    canViewTeamDevelopment || directReportPeopleOptions.length > 0;
+
   const developmentPeopleOptions = useMemo(() => {
     const peopleOptions = people.map((person) => ({
       value: person.id,
@@ -315,8 +330,16 @@ export function useDevelopmentFlow({
       return peopleOptions;
     }
 
+    if (directReportPeopleOptions.length > 0) {
+      const visiblePersonIds = new Set([
+        user?.person?.id,
+        ...directReportPeopleOptions.map((person) => person.value)
+      ]);
+      return peopleOptions.filter((person) => visiblePersonIds.has(person.value));
+    }
+
     return peopleOptions.filter((person) => person.value === user?.person?.id);
-  }, [canManageDevelopmentScope, people, user]);
+  }, [canManageDevelopmentScope, directReportPeopleOptions, people, user]);
 
   const teamDevelopmentPeopleOptions = useMemo(
     () =>
@@ -330,7 +353,7 @@ export function useDevelopmentFlow({
   const developmentViewOptions = useMemo(() => {
     const views = [{ key: "personal", ...developmentViewLabels.personal }];
 
-    if (canViewTeamDevelopment) {
+    if (canViewEffectiveTeamDevelopment) {
       views.push({ key: "team", ...developmentViewLabels.team });
     }
 
@@ -339,7 +362,7 @@ export function useDevelopmentFlow({
     }
 
     return views;
-  }, [canViewOrganizationDevelopment, canViewTeamDevelopment]);
+  }, [canViewEffectiveTeamDevelopment, canViewOrganizationDevelopment]);
 
   const scopedDevelopmentPeopleOptions = useMemo(() => {
     if (!user) {
@@ -628,7 +651,9 @@ export function useDevelopmentFlow({
     const managerDefaultView = developmentViewOptions.some((view) => view.key === "team")
       ? "team"
       : "personal";
-    const defaultView = canViewTeamDevelopment ? managerDefaultView : developmentViewOptions[0].key;
+    const defaultView = canViewEffectiveTeamDevelopment
+      ? managerDefaultView
+      : developmentViewOptions[0].key;
 
     if (!developmentViewOptions.some((view) => view.key === activeDevelopmentView)) {
       setActiveDevelopmentView(defaultView);
@@ -638,11 +663,11 @@ export function useDevelopmentFlow({
 
     if (!hasInitializedDevelopmentViewRef.current) {
       hasInitializedDevelopmentViewRef.current = true;
-      if (canViewTeamDevelopment && activeDevelopmentView === "personal") {
+      if (canViewEffectiveTeamDevelopment && activeDevelopmentView === "personal") {
         setActiveDevelopmentView(defaultView);
       }
     }
-  }, [activeDevelopmentView, canViewTeamDevelopment, developmentViewOptions]);
+  }, [activeDevelopmentView, canViewEffectiveTeamDevelopment, developmentViewOptions]);
 
   useEffect(() => {
     if (activeDevelopmentView !== "organization") {
@@ -810,7 +835,7 @@ export function useDevelopmentFlow({
   }
 
   function resetDevelopmentFlow() {
-    setActiveDevelopmentView(canViewTeamDevelopment ? "team" : "personal");
+    setActiveDevelopmentView(canViewEffectiveTeamDevelopment ? "team" : "personal");
     setDevelopmentAreaFilter("all");
     setDevelopmentPersonFilter("all");
     setDevelopmentForm(emptyDevelopment);
