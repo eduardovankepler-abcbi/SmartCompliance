@@ -45,9 +45,15 @@ const progressLabels: Record<string, string> = {
               }
             </div>
           }
+          @if (activeDevelopmentView() === 'organization') {
+            <div class="scope-filters" aria-label="Filtros de desenvolvimento">
+              <label>Area / equipe<select [value]="developmentAreaFilter()" (change)="setDevelopmentAreaFilter($any($event.target).value)"><option value="all">Empresa inteira</option>@for (area of developmentAreaOptions(); track area) { <option [value]="area">{{ area }}</option> }</select></label>
+              <label>Colaborador<select [value]="developmentPersonFilter()" (change)="setDevelopmentPersonFilter($any($event.target).value)"><option value="all">Todos os colaboradores</option>@for (person of developmentPersonFilterOptions(); track person.id) { <option [value]="person.id">{{ person.name }}</option> }</select></label>
+            </div>
+          }
           <div class="trail-panel__hero">
-            <article><span>{{ activeDevelopmentView() === 'team' ? 'Gestao direta' : 'Leitura privada' }}</span><strong>{{ plansInProgress() ? 'Em evolucao' : '-' }}</strong><small>{{ plansInProgress() ? 'Planos PDI em andamento no recorte.' : 'Sem leitura 360 suficiente' }}</small></article>
-            <article><span>{{ activeDevelopmentView() === 'team' ? 'Equipe' : 'Organizacao' }}</span><strong>{{ activeDevelopmentView() === 'team' ? 'Visao macro da equipe' : 'Visao ampla de desenvolvimento' }}</strong><small>{{ activeDevelopmentView() === 'team' ? 'Planos abertos e registros concluidos dos reportes diretos.' : 'Indicadores consolidados para RH e administracao.' }}</small></article>
+            <article><span>{{ activeDevelopmentView() === 'team' ? 'Gestao direta' : activeDevelopmentView() === 'organization' ? 'Recorte organizacional' : 'Leitura privada' }}</span><strong>{{ plansInProgress() ? 'Em evolucao' : '-' }}</strong><small>{{ plansInProgress() ? 'Planos PDI em andamento no recorte.' : 'Sem leitura 360 suficiente' }}</small></article>
+            <article><span>{{ activeDevelopmentView() === 'team' ? 'Equipe' : activeDevelopmentView() === 'organization' ? 'Empresa' : 'Organizacao' }}</span><strong>{{ activeDevelopmentView() === 'team' ? 'Visao macro da equipe' : activeDevelopmentView() === 'organization' ? 'Visao macro da empresa' : 'Visao ampla de desenvolvimento' }}</strong><small>{{ activeDevelopmentView() === 'team' ? 'Planos abertos e registros concluidos dos reportes diretos.' : activeDevelopmentView() === 'organization' ? 'Indicadores por empresa, area ou colaborador.' : 'Indicadores consolidados para RH e administracao.' }}</small></article>
           </div>
           <div class="trail-panel__metrics">
             <article><strong>{{ activeRecords().length }}</strong><span>Registros no recorte</span></article>
@@ -130,7 +136,7 @@ const progressLabels: Record<string, string> = {
     </section>
   `,
   styles: `
-    .development{width:100%;max-width:min(100%,1400px)}.development__header,.error,.panel__heading,.card__top,.form-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}.development__header p,.panel__heading p,.form-heading p{margin:0;color:color-mix(in srgb, var(--abc-blue) 45%, var(--abc-surface));font-size:13px;font-weight:700;text-transform:uppercase}.development__header h1,.form-heading h2{margin:4px 0}.development__header span,.panel__heading>span,.state,.card p,.card small{color:var(--abc-text-muted)}.actions,.card-actions{display:flex;flex-wrap:wrap;gap:8px}button{padding:9px 12px;background:var(--abc-blue);color:var(--abc-on-blue);border:0;border-radius:var(--abc-radius);font-weight:700}.secondary{background:var(--abc-surface);color:var(--abc-text);border:1px solid var(--abc-border)}.danger{background:var(--abc-surface);color:color-mix(in srgb, var(--abc-danger) 28%, var(--abc-surface));border:1px solid color-mix(in srgb, var(--abc-danger) 55%, var(--abc-navy))}button:disabled{opacity:.6}.error,.validation{margin-top:20px;padding:12px;color:color-mix(in srgb, var(--abc-danger) 28%, var(--abc-surface));background:color-mix(in srgb, var(--abc-danger) 30%, var(--abc-navy));border:1px solid color-mix(in srgb, var(--abc-danger) 55%, var(--abc-navy));border-radius:8px}.validation{margin:0}.form-panel,.metrics article,.integration-metrics article,.panel,.card,.trail-panel{background:var(--abc-surface);border:1px solid var(--abc-border);border-radius:10px;color:var(--abc-text);box-shadow:0 8px 24px color-mix(in srgb, var(--abc-navy) 6%, transparent)}.trail-panel{display:grid;gap:14px;margin-top:20px;padding:18px}.view-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.view-tabs button{display:grid;gap:4px;text-align:left;background:var(--abc-surface);color:var(--abc-text);border:1px solid var(--abc-border)}.view-tabs button.active{background:var(--abc-blue);color:var(--abc-on-blue);border-color:var(--abc-blue)}.view-tabs small{color:inherit;opacity:.8}.trail-panel__hero,.trail-panel__metrics{display:grid;gap:14px}.trail-panel__hero{grid-template-columns:1.2fr 1fr}.trail-panel__hero article,.trail-panel__metrics article{display:grid;gap:6px;padding:16px;background:var(--abc-surface);border:1px solid var(--abc-border);border-radius:10px}.trail-panel span,.trail-panel small{color:var(--abc-text-muted)}.trail-panel__hero strong{font-size:20px}.trail-panel__metrics{grid-template-columns:repeat(4,minmax(0,1fr))}.trail-panel__metrics strong{font-size:26px}.form-panel{margin-top:20px;padding:18px}.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:18px 0}.form-grid label,.progress-form label,.integration-form label{display:grid;gap:6px;color:var(--abc-text);font-size:14px;font-weight:600}.form-grid .wide,.integration-form .wide{grid-column:1/-1}input,select,textarea{box-sizing:border-box;width:100%;padding:9px 10px;border:1px solid var(--abc-border);border-radius:var(--abc-radius);background:var(--abc-surface);color:var(--abc-text);font:inherit}.metrics,.integration-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:24px}.integration-metrics{grid-template-columns:repeat(4,minmax(0,1fr));margin-top:16px}.metrics article,.integration-metrics article{display:grid;gap:4px;padding:18px}.metrics strong,.integration-metrics strong{font-size:26px}.metrics span,.integration-metrics span{color:var(--abc-text-muted)}.panel{margin-top:20px;padding:18px}.panel__heading h2{margin:3px 0 0}.integrations{border-color:var(--abc-border);background:var(--abc-surface)}.cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:16px}.card{padding:16px;background:var(--abc-surface)}.card__top>div{display:grid;gap:4px}.card__top>div span{color:var(--abc-text-muted);font-size:14px}.badge{padding:4px 8px;border-radius:999px;background:var(--abc-blue-dark);color:color-mix(in srgb, var(--abc-blue) 16%, var(--abc-surface));font-size:12px;font-weight:700}.badge--warning{background:color-mix(in srgb, var(--abc-warning) 65%, var(--abc-text));color:color-mix(in srgb, var(--abc-warning) 30%, var(--abc-border))}.card p{margin:14px 0;color:var(--abc-text)}.card dl{display:grid;gap:9px;margin:0}.card dl div{display:grid;gap:2px}.card dt{color:var(--abc-text-muted);font-size:12px}.card dd{margin:0;color:var(--abc-text)}.card small{display:block;margin-top:12px}.card-actions{margin-top:16px}.progress-form,.integration-form{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px;padding-top:14px;border-top:1px solid var(--abc-border)}.progress-form button{align-self:end}.state{margin:20px 0 4px}@media(max-width:760px){.metrics,.integration-metrics,.cards,.form-grid,.progress-form,.integration-form,.trail-panel__hero,.trail-panel__metrics,.view-tabs{grid-template-columns:1fr}.form-grid .wide,.integration-form .wide{grid-column:auto}.development__header,.panel__heading{align-items:stretch;flex-direction:column}.actions{justify-content:flex-start}}
+    .development{width:100%;max-width:min(100%,1400px)}.development__header,.error,.panel__heading,.card__top,.form-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}.development__header p,.panel__heading p,.form-heading p{margin:0;color:color-mix(in srgb, var(--abc-blue) 45%, var(--abc-surface));font-size:13px;font-weight:700;text-transform:uppercase}.development__header h1,.form-heading h2{margin:4px 0}.development__header span,.panel__heading>span,.state,.card p,.card small{color:var(--abc-text-muted)}.actions,.card-actions{display:flex;flex-wrap:wrap;gap:8px}button{padding:9px 12px;background:var(--abc-blue);color:var(--abc-on-blue);border:0;border-radius:var(--abc-radius);font-weight:700}.secondary{background:var(--abc-surface);color:var(--abc-text);border:1px solid var(--abc-border)}.danger{background:var(--abc-surface);color:color-mix(in srgb, var(--abc-danger) 28%, var(--abc-surface));border:1px solid color-mix(in srgb, var(--abc-danger) 55%, var(--abc-navy))}button:disabled{opacity:.6}.error,.validation{margin-top:20px;padding:12px;color:color-mix(in srgb, var(--abc-danger) 28%, var(--abc-surface));background:color-mix(in srgb, var(--abc-danger) 30%, var(--abc-navy));border:1px solid color-mix(in srgb, var(--abc-danger) 55%, var(--abc-navy));border-radius:8px}.validation{margin:0}.form-panel,.metrics article,.integration-metrics article,.panel,.card,.trail-panel{background:var(--abc-surface);border:1px solid var(--abc-border);border-radius:10px;color:var(--abc-text);box-shadow:0 8px 24px color-mix(in srgb, var(--abc-navy) 6%, transparent)}.trail-panel{display:grid;gap:14px;margin-top:20px;padding:18px}.view-tabs,.scope-filters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.view-tabs button{display:grid;gap:4px;text-align:left;background:var(--abc-surface);color:var(--abc-text);border:1px solid var(--abc-border)}.view-tabs button.active{background:var(--abc-blue);color:var(--abc-on-blue);border-color:var(--abc-blue)}.view-tabs small{color:inherit;opacity:.8}.scope-filters label{display:grid;gap:6px;color:var(--abc-text);font-size:14px;font-weight:600}.trail-panel__hero,.trail-panel__metrics{display:grid;gap:14px}.trail-panel__hero{grid-template-columns:1.2fr 1fr}.trail-panel__hero article,.trail-panel__metrics article{display:grid;gap:6px;padding:16px;background:var(--abc-surface);border:1px solid var(--abc-border);border-radius:10px}.trail-panel span,.trail-panel small{color:var(--abc-text-muted)}.trail-panel__hero strong{font-size:20px}.trail-panel__metrics{grid-template-columns:repeat(4,minmax(0,1fr))}.trail-panel__metrics strong{font-size:26px}.form-panel{margin-top:20px;padding:18px}.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:18px 0}.form-grid label,.progress-form label,.integration-form label{display:grid;gap:6px;color:var(--abc-text);font-size:14px;font-weight:600}.form-grid .wide,.integration-form .wide{grid-column:1/-1}input,select,textarea{box-sizing:border-box;width:100%;padding:9px 10px;border:1px solid var(--abc-border);border-radius:var(--abc-radius);background:var(--abc-surface);color:var(--abc-text);font:inherit}.metrics,.integration-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:24px}.integration-metrics{grid-template-columns:repeat(4,minmax(0,1fr));margin-top:16px}.metrics article,.integration-metrics article{display:grid;gap:4px;padding:18px}.metrics strong,.integration-metrics strong{font-size:26px}.metrics span,.integration-metrics span{color:var(--abc-text-muted)}.panel{margin-top:20px;padding:18px}.panel__heading h2{margin:3px 0 0}.integrations{border-color:var(--abc-border);background:var(--abc-surface)}.cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:16px}.card{padding:16px;background:var(--abc-surface)}.card__top>div{display:grid;gap:4px}.card__top>div span{color:var(--abc-text-muted);font-size:14px}.badge{padding:4px 8px;border-radius:999px;background:var(--abc-blue-dark);color:color-mix(in srgb, var(--abc-blue) 16%, var(--abc-surface));font-size:12px;font-weight:700}.badge--warning{background:color-mix(in srgb, var(--abc-warning) 65%, var(--abc-text));color:color-mix(in srgb, var(--abc-warning) 30%, var(--abc-border))}.card p{margin:14px 0;color:var(--abc-text)}.card dl{display:grid;gap:9px;margin:0}.card dl div{display:grid;gap:2px}.card dt{color:var(--abc-text-muted);font-size:12px}.card dd{margin:0;color:var(--abc-text)}.card small{display:block;margin-top:12px}.card-actions{margin-top:16px}.progress-form,.integration-form{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px;padding-top:14px;border-top:1px solid var(--abc-border)}.progress-form button{align-self:end}.state{margin:20px 0 4px}@media(max-width:760px){.metrics,.integration-metrics,.cards,.form-grid,.progress-form,.integration-form,.trail-panel__hero,.trail-panel__metrics,.view-tabs,.scope-filters{grid-template-columns:1fr}.form-grid .wide,.integration-form .wide{grid-column:auto}.development__header,.panel__heading{align-items:stretch;flex-direction:column}.actions{justify-content:flex-start}}
   `,
 })
 export class DevelopmentPageComponent implements OnInit {
@@ -156,16 +162,39 @@ export class DevelopmentPageComponent implements OnInit {
   readonly editingPlan = signal<DevelopmentPlan | null>(null);
   readonly progressPlan = signal<DevelopmentPlan | null>(null);
   readonly reviewingLearningEvent = signal<LearningIntegrationEvent | null>(null);
-  readonly activeDevelopmentView = signal<'team' | 'personal'>('personal');
+  readonly activeDevelopmentView = signal<'organization' | 'team' | 'personal'>('personal');
+  readonly developmentAreaFilter = signal('all');
+  readonly developmentPersonFilter = signal('all');
+  readonly canViewOrganizationDevelopment = computed(() => ['admin', 'hr'].includes(this.auth.user()?.roleKey || ''));
   readonly canManageLearningIntegrations = computed(() => ['admin', 'hr'].includes(this.auth.user()?.roleKey || ''));
   readonly directReportPeople = computed(() => this.peopleOptions().filter((person) => person.managerPersonId === this.auth.user()?.person?.id));
   readonly canViewTeamDevelopment = computed(() => this.auth.user()?.roleKey === 'manager' || this.directReportPeople().length > 0);
-  readonly developmentViews = computed(() => this.canViewTeamDevelopment() ? [
-    { key: 'team' as const, label: 'PDI da equipe', description: 'Planos abertos e registros concluidos dos reportes diretos.' },
-    { key: 'personal' as const, label: 'Meu PDI', description: 'Seu desenvolvimento individual e registros concluidos.' },
-  ] : []);
+  readonly developmentViews = computed(() => {
+    if (this.canViewOrganizationDevelopment()) {
+      return [
+        { key: 'organization' as const, label: 'Empresa', description: 'Visao macro da empresa, por area ou colaborador.' },
+        { key: 'personal' as const, label: 'Meu PDI', description: 'Seu desenvolvimento individual e registros concluidos.' },
+      ];
+    }
+    return this.canViewTeamDevelopment() ? [
+      { key: 'team' as const, label: 'PDI da equipe', description: 'Planos abertos e registros concluidos dos reportes diretos.' },
+      { key: 'personal' as const, label: 'Meu PDI', description: 'Seu desenvolvimento individual e registros concluidos.' },
+    ] : [];
+  });
+  readonly developmentAreaOptions = computed(() => [...new Set(this.peopleOptions().map((person) => person.area || 'Sem area'))].sort((a, b) => a.localeCompare(b, 'pt-BR')));
+  readonly areaFilteredPeopleOptions = computed(() => {
+    if (this.developmentAreaFilter() === 'all') return this.peopleOptions();
+    return this.peopleOptions().filter((person) => (person.area || 'Sem area') === this.developmentAreaFilter());
+  });
+  readonly developmentPersonFilterOptions = computed(() => this.areaFilteredPeopleOptions());
   readonly scopedPeopleOptions = computed(() => {
     const userPersonId = this.auth.user()?.person?.id || '';
+    if (this.activeDevelopmentView() === 'organization' && this.canViewOrganizationDevelopment()) {
+      if (this.developmentPersonFilter() !== 'all') {
+        return this.areaFilteredPeopleOptions().filter((person) => person.id === this.developmentPersonFilter());
+      }
+      return this.areaFilteredPeopleOptions();
+    }
     if (this.activeDevelopmentView() === 'team' && this.canViewTeamDevelopment()) {
       return this.directReportPeople().length ? this.directReportPeople() : this.peopleOptions().filter((person) => person.id !== userPersonId);
     }
@@ -196,7 +225,9 @@ export class DevelopmentPageComponent implements OnInit {
 
   async ngOnInit(): Promise<void> {
     await this.load();
-    if (this.canViewTeamDevelopment()) {
+    if (this.canViewOrganizationDevelopment()) {
+      this.setDevelopmentView('organization');
+    } else if (this.canViewTeamDevelopment()) {
       this.setDevelopmentView('team');
     }
     this.openRecordForm();
@@ -204,8 +235,23 @@ export class DevelopmentPageComponent implements OnInit {
   }
   progressLabel(status: string): string { return progressLabels[status] ?? status; }
   developmentViewDescription(): string { return this.developmentViews().find((view) => view.key === this.activeDevelopmentView())?.description || 'Sua trilha individual de formacao, certificacoes e marcos recentes'; }
-  setDevelopmentView(view: 'team' | 'personal'): void {
+  setDevelopmentView(view: 'organization' | 'team' | 'personal'): void {
     this.activeDevelopmentView.set(view);
+    if (view !== 'organization') {
+      this.developmentAreaFilter.set('all');
+      this.developmentPersonFilter.set('all');
+    }
+    if (this.showRecordForm()) this.openRecordForm(this.editingRecord());
+    if (this.showPlanForm()) this.openPlanForm(this.editingPlan());
+  }
+  setDevelopmentAreaFilter(value: string): void {
+    this.developmentAreaFilter.set(value);
+    this.developmentPersonFilter.set('all');
+    if (this.showRecordForm()) this.openRecordForm(this.editingRecord());
+    if (this.showPlanForm()) this.openPlanForm(this.editingPlan());
+  }
+  setDevelopmentPersonFilter(value: string): void {
+    this.developmentPersonFilter.set(value);
     if (this.showRecordForm()) this.openRecordForm(this.editingRecord());
     if (this.showPlanForm()) this.openPlanForm(this.editingPlan());
   }
