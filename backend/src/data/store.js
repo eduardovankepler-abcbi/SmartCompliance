@@ -67,6 +67,7 @@ import {
   buildFeedbackRequestItems,
   buildFeedbackRequestReviewAuditDetail,
   calculateEvaluationOverallScore,
+  countScoredEvaluationAnswers,
   filterReceivedManagerFeedback,
   prepareEvaluationCycle,
   prepareEvaluationSubmission,
@@ -2480,6 +2481,13 @@ function enrichSubmission(db, submission, customLibraries = []) {
         (evaluationLibrary.weights[assignment?.relationshipType || "peer"] || 0)
       ).toFixed(2)
     ),
+    scoredQuestionCount:
+      Number(submission.scoredQuestionCount) ||
+      answers.filter(
+        (answer) =>
+          Number.isFinite(Number(answer.score)) ||
+          (Array.isArray(answer.selectedOptions) && answer.selectedOptions.length > 0)
+      ).length,
     reviewerName: reviewerPerson?.name || "",
     reviewerArea: reviewerPerson?.area || "",
     respondentArea:
@@ -4388,6 +4396,7 @@ function createAnonymousSubmissionPayload(assignment, payload, templateDefinitio
     revieweePersonId: assignment.revieweePersonId,
     relationshipType: assignment.relationshipType,
     overallScore,
+    scoredQuestionCount: countScoredEvaluationAnswers(payload.answers, templateDefinition),
     strengthsNote: payload.strengthsNote || "",
     developmentNote: payload.developmentNote || "",
     submittedAt: new Date().toISOString(),
@@ -5262,6 +5271,12 @@ async function fetchMysqlResponses(
         (evaluationLibrary.weights[submission.relationshipType] || 0)
       ).toFixed(2)
     ),
+    scoredQuestionCount: answers.filter(
+      (answer) =>
+        answer.submissionId === submission.id &&
+        (Number.isFinite(Number(answer.score)) ||
+          parseJsonValue(answer.answerOptionsJson, []).length > 0)
+    ).length,
     answers: answers
       .filter((answer) => answer.submissionId === submission.id)
       .map((answer) => {

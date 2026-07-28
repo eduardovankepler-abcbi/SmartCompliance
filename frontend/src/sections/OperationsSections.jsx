@@ -283,17 +283,22 @@ export function DevelopmentSection({
   Select,
   Textarea,
   activeDevelopmentView,
+  developmentAreaFilter = "all",
+  developmentAreaOptions = ["all"],
   developmentForm,
   developmentPlanForm,
   developmentPlanCycleOptions,
   developmentPlanCompetencyOptions,
   developmentPlanPeopleOptions,
   developmentPlanProgressStatusOptions = [],
+  developmentScopeSummary = null,
   developmentPlanStatusOptions,
   developmentFormPeopleOptions,
   developmentHighlights,
   developmentMetrics,
   developmentPerformanceSummary,
+  developmentPersonFilter = "all",
+  developmentPersonFilterOptions = [],
   developmentPlans,
   developmentRecordTypes,
   developmentEditablePlanPeopleOptions,
@@ -314,8 +319,10 @@ export function DevelopmentSection({
   handleLearningIntegrationApply,
   roleKey,
   setActiveDevelopmentView,
+  setDevelopmentAreaFilter,
   setDevelopmentForm,
   setLearningIntegrationDraft,
+  setDevelopmentPersonFilter,
   setDevelopmentPlanForm
 }) {
   const SafeDevelopmentPlanAdminCard = DevelopmentPlanAdminCard || EmptyComponent;
@@ -325,27 +332,87 @@ export function DevelopmentSection({
   const SafeSelect = Select || EmptyComponent;
   const SafeTextarea = Textarea || EmptyComponent;
   const isEmployeeJourney = roleKey === "employee";
-  const showDevelopmentViews = developmentViewOptions.length > 1;
+  const isManagerJourney = roleKey === "manager";
+  const isOrganizationAdminJourney =
+    ["admin", "hr"].includes(roleKey) && activeDevelopmentView === "organization";
+  const managerDevelopmentViewCopy = {
+    team: {
+      label: "PDI da equipe",
+      description: "Visao macro dos Planos PDI em acompanhamento e dos registros concluidos da equipe."
+    },
+    personal: {
+      label: "Meu PDI",
+      description: "Seus Planos PDI em acompanhamento e seus registros de desenvolvimento concluidos."
+    }
+  };
+  const displayedDevelopmentViewOptions = isManagerJourney
+    ? [...developmentViewOptions]
+        .filter((view) => view.key === "team" || view.key === "personal")
+        .sort((left, right) => {
+          const order = { team: 0, personal: 1 };
+          return order[left.key] - order[right.key];
+        })
+        .map((view) => ({
+          ...view,
+          ...(managerDevelopmentViewCopy[view.key] || {})
+        }))
+    : developmentViewOptions;
+  const activeDevelopmentViewCopy =
+    displayedDevelopmentViewOptions.find((view) => view.key === activeDevelopmentView) ||
+    developmentViewLabels[activeDevelopmentView];
+  const showDevelopmentViews = displayedDevelopmentViewOptions.length > 1;
   const showDevelopmentMetrics = !isEmployeeJourney;
+  const showOrganizationScopeFilters =
+    isOrganizationAdminJourney && Boolean(setDevelopmentAreaFilter && setDevelopmentPersonFilter);
   const showDevelopmentPersonSelect = developmentFormPeopleOptions.length > 1;
   const showDevelopmentPlanPersonSelect = developmentPlanPeopleOptions.length > 1;
   const showLearningIntegrations = Boolean(learningIntegrationSummary);
   const canStructureDevelopmentPlan = ["admin", "hr", "manager"].includes(roleKey);
+  const developmentScopeCards = developmentScopeSummary
+    ? [
+        {
+          label: "Cobertura de PDI aberto",
+          value: `${developmentScopeSummary.openDevelopmentPlanCoverage}%`,
+          detail: `${developmentScopeSummary.peopleWithOpenPdi}/${developmentScopeSummary.peopleInScope} pessoas com Plano PDI em acompanhamento`
+        },
+        {
+          label: "Cobertura de registros",
+          value: `${developmentScopeSummary.developmentRecordCoverage}%`,
+          detail: `${developmentScopeSummary.peopleWithDevelopmentRecord}/${developmentScopeSummary.peopleInScope} pessoas com evidencia concluida`
+        },
+        {
+          label: "Planos vencidos",
+          value: developmentScopeSummary.overdueDevelopmentPlans,
+          detail: "PDI ativo com prazo ultrapassado"
+        },
+        {
+          label: "Planos concluidos",
+          value: developmentScopeSummary.completedDevelopmentPlans,
+          detail: "PDI finalizado no recorte"
+        }
+      ]
+    : [];
 
   return (
     <section className="page-grid">
       <div className="card card-span compact-card">
         <div className="card-header">
-          <h3>{isEmployeeJourney ? "Meu desenvolvimento" : "Trilha de desenvolvimento"}</h3>
+          <h3>
+            {isEmployeeJourney
+              ? "Meu desenvolvimento"
+              : isManagerJourney
+                ? "PDI gerencial"
+                : "Trilha de desenvolvimento"}
+          </h3>
           <span>
-            {developmentViewLabels[activeDevelopmentView]?.description ||
+            {activeDevelopmentViewCopy?.description ||
               "Acompanhamento de evolucao academica e profissional"}
           </span>
         </div>
         <DevelopmentPerformanceSummaryCard summary={developmentPerformanceSummary} />
         {showDevelopmentViews ? (
           <div className="module-grid">
-            {developmentViewOptions.map((view) => (
+            {displayedDevelopmentViewOptions.map((view) => (
               <button
                 key={view.key}
                 type="button"
@@ -362,10 +429,44 @@ export function DevelopmentSection({
             ))}
           </div>
         ) : null}
+        {showOrganizationScopeFilters ? (
+          <div className="module-grid">
+            <SafeSelect
+              label="Area / equipe"
+              value={developmentAreaFilter}
+              options={developmentAreaOptions}
+              renderLabel={(value) => (value === "all" ? "Empresa inteira" : value)}
+              onChange={setDevelopmentAreaFilter}
+            />
+            <SafeSelect
+              label="Colaborador"
+              value={developmentPersonFilter}
+              options={developmentPersonFilterOptions.map((person) => person.value)}
+              renderLabel={(value) =>
+                developmentPersonFilterOptions.find((person) => person.value === value)?.label ||
+                value
+              }
+              onChange={setDevelopmentPersonFilter}
+            />
+          </div>
+        ) : null}
         {showDevelopmentMetrics ? (
           <div className="metrics-grid">
             {developmentMetrics.map((item) => (
               <SafeMetricCard key={item.label} label={item.label} value={item.value} />
+            ))}
+          </div>
+        ) : null}
+        {developmentScopeCards.length ? (
+          <div className="stack-list">
+            {developmentScopeCards.map((item) => (
+              <article className="list-card" key={item.label}>
+                <div className="row">
+                  <strong>{item.label}</strong>
+                  <span className="badge">{item.value}</span>
+                </div>
+                <p className="muted">{item.detail}</p>
+              </article>
             ))}
           </div>
         ) : null}
@@ -478,10 +579,10 @@ export function DevelopmentSection({
           <h3>{isEmployeeJourney ? "Registrar marco" : "Novo registro"}</h3>
           <span>
             {activeDevelopmentView === "team"
-              ? "Registrar marcos da equipe"
+              ? "Registrar evidencia concluida da equipe"
               : activeDevelopmentView === "organization"
-                ? "Registrar marcos da organizacao"
-                : "Registrar sua propria evolucao"}
+                ? "Registrar evidencia concluida da organizacao"
+                : "Registrar sua propria evidencia concluida"}
           </span>
         </div>
         {showDevelopmentPersonSelect ? (
@@ -535,8 +636,8 @@ export function DevelopmentSection({
       {!canStructureDevelopmentPlan ? (
         <div className="card card-span compact-card development-plan-readonly-note">
           <div className="card-header">
-            <h3>{isEmployeeJourney ? "Meu PDI" : "PDI"}</h3>
-            <span>Plano definido pelo gestor</span>
+          <h3>{isEmployeeJourney ? "Meu PDI" : "PDI"}</h3>
+            <span>Plano em acompanhamento definido pela lideranca</span>
           </div>
           <p className="muted">
             O foco, a ação, o prazo e a evidência esperada são combinados pelo gestor. Colaboradores
@@ -546,13 +647,13 @@ export function DevelopmentSection({
       ) : (
         <form className="card card-span compact-card admin-form-card development-plan-form" onSubmit={handleDevelopmentPlanSubmit}>
           <div className="card-header">
-            <h3>Novo PDI</h3>
+            <h3>Novo Plano PDI</h3>
             <span>
               {activeDevelopmentView === "team"
-                ? "Plano de desenvolvimento para reportes diretos"
+                ? "Direcionamento aberto para reportes diretos"
                 : activeDevelopmentView === "organization"
-                  ? "Plano estruturado para pessoas da organizacao"
-                  : "Plano de desenvolvimento individual com acao e evidencia"}
+                  ? "Direcionamento aberto para pessoas da organizacao"
+                  : "Direcionamento individual com acao e evidencia"}
             </span>
           </div>
           {showDevelopmentPlanPersonSelect ? (
@@ -651,11 +752,11 @@ export function DevelopmentSection({
 
       <div className="card card-span compact-card">
         <div className="card-header">
-          <h3>{isEmployeeJourney ? "Meu PDI ativo" : "Planos de desenvolvimento"}</h3>
+          <h3>{isEmployeeJourney ? "Meu Plano PDI aberto" : "Planos PDI em acompanhamento"}</h3>
           <span>
             {isEmployeeJourney
-              ? "Acoes combinadas a partir do seu ciclo"
-              : "Acompanhamento estruturado de foco, acao e evidencia"}
+              ? "Direcionamentos abertos combinados a partir do seu ciclo"
+              : "Direcionamentos abertos com foco, acao, prazo e evidencia"}
           </span>
         </div>
         <div className="stack-list">
@@ -682,7 +783,7 @@ export function DevelopmentSection({
             <div className="list-card">
               <strong>Nenhum PDI encontrado</strong>
               <p className="muted">
-                Registre um plano com foco, acao e evidencia para acompanhar a evolucao.
+                Registre um Plano PDI com foco, acao e evidencia para iniciar o acompanhamento.
               </p>
             </div>
           )}
@@ -691,11 +792,11 @@ export function DevelopmentSection({
 
       <div className="card card-span compact-card">
         <div className="card-header">
-          <h3>{isEmployeeJourney ? "Meu historico" : "Historico"}</h3>
+          <h3>{isEmployeeJourney ? "Meus registros concluidos" : "Registros de desenvolvimento concluidos"}</h3>
           <span>
             {isEmployeeJourney
-              ? "Seus registros academicos e profissionais"
-              : "Evidencias de evolucao academica e profissional"}
+              ? "Historico de cursos, formacao, certificacoes e marcos finalizados"
+              : "Evidencias realizadas de evolucao academica e profissional"}
           </span>
         </div>
         <div className="stack-list">
@@ -717,7 +818,7 @@ export function DevelopmentSection({
             <div className="list-card">
               <strong>Nenhum registro encontrado</strong>
               <p className="muted">
-                O recorte selecionado ainda nao possui historico de desenvolvimento.
+                O recorte selecionado ainda nao possui evidencias concluidas de desenvolvimento.
               </p>
             </div>
           )}

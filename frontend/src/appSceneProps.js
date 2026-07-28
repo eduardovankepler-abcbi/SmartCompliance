@@ -480,6 +480,8 @@ export function buildAppSceneProps(context) {
       canViewAuditTrail: capabilities.canViewAuditTrail,
       data: {
         activeDevelopmentView: developmentState.activeDevelopmentView,
+        developmentAreaFilter: developmentState.developmentAreaFilter,
+        developmentAreaOptions: developmentState.developmentAreaOptions,
         developmentEditablePeopleOptions: developmentState.developmentEditablePeopleOptions,
         developmentEditablePlanPeopleOptions:
           developmentState.developmentEditablePlanPeopleOptions,
@@ -488,6 +490,8 @@ export function buildAppSceneProps(context) {
         developmentHighlights: developmentState.developmentHighlights,
         developmentMetrics: developmentState.developmentMetrics,
         developmentPerformanceSummary: developmentState.developmentPerformanceSummary,
+        developmentPersonFilter: developmentState.developmentPersonFilter,
+        developmentPersonFilterOptions: developmentState.developmentPersonFilterOptions,
         developmentPlans: developmentState.filteredDevelopmentPlans,
         developmentPlanCompetencyOptions:
           developmentState.developmentPlanCompetencyOptions,
@@ -496,6 +500,7 @@ export function buildAppSceneProps(context) {
         developmentPlanPeopleOptions: developmentState.developmentPlanPeopleOptions,
         developmentPlanProgressStatusOptions:
           developmentState.developmentPlanProgressStatusOptions,
+        developmentScopeSummary: developmentState.developmentScopeSummary,
         developmentViewOptions: developmentState.developmentViewOptions,
         filteredDevelopmentPlans: developmentState.filteredDevelopmentPlans,
         filteredDevelopmentRecords: developmentState.filteredDevelopmentRecords,
@@ -525,8 +530,10 @@ export function buildAppSceneProps(context) {
       roleKey: user?.roleKey,
       setters: {
         setActiveDevelopmentView: developmentState.setActiveDevelopmentView,
+        setDevelopmentAreaFilter: developmentState.setDevelopmentAreaFilter,
         setDevelopmentForm: developmentState.setDevelopmentForm,
         setDevelopmentPlanForm: developmentState.setDevelopmentPlanForm,
+        setDevelopmentPersonFilter: developmentState.setDevelopmentPersonFilter,
         setLearningIntegrationDraft: developmentState.setLearningIntegrationDraft
       }
     }),

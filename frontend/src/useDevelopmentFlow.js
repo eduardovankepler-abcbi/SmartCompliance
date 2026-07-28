@@ -107,31 +107,41 @@ function buildAreaRows(reviews) {
     .sort((left, right) => Number(left.score10 ?? 99) - Number(right.score10 ?? 99));
 }
 
-function buildDevelopmentPerformanceSummary({ activeDevelopmentView, people, reviews, user }) {
+function buildDevelopmentPerformanceSummary({
+  activeDevelopmentView,
+  people,
+  reviews,
+  scopedPeopleOptions,
+  user
+}) {
   if (!user?.person?.id) {
     return null;
   }
 
   const latestByPerson = getLatestReviewByPerson(reviews);
   const latestReviews = [...latestByPerson.values()];
+  const scopedPersonIds = new Set((scopedPeopleOptions || []).map((person) => person.value));
+  const scopedLatestReviews = scopedPersonIds.size
+    ? latestReviews.filter((review) => scopedPersonIds.has(review.personId))
+    : latestReviews;
 
   if (activeDevelopmentView === "organization") {
-    const score10 = getAverageScore(latestReviews);
+    const score10 = getAverageScore(scopedLatestReviews);
     return {
       mode: "organization",
       title: "Desempenho por área",
       eyebrow: "Visão macro",
       scoreLabel: score10 === null ? "-" : `${score10.toFixed(1)}/10`,
-      detail: latestReviews.length
-        ? `${latestReviews.length} colaboradores com leitura 360`
+      detail: scopedLatestReviews.length
+        ? `${scopedLatestReviews.length} colaboradores com leitura 360`
         : "Sem leituras 360 suficientes",
       tone: getPerformanceTone(score10),
       guidance:
         score10 === null
           ? "Assim que houver leituras suficientes, o painel indicará áreas que precisam de apoio."
           : "Use esta visão para priorizar suporte preventivo por área.",
-      rows: buildAreaRows(latestReviews),
-      distribution: buildDistribution(latestReviews)
+      rows: buildAreaRows(scopedLatestReviews),
+      distribution: buildDistribution(scopedLatestReviews)
     };
   }
 
@@ -200,6 +210,75 @@ function buildDevelopmentPerformanceSummary({ activeDevelopmentView, people, rev
   };
 }
 
+function isDevelopmentPlanOverdue(plan) {
+  if ((plan.status || "active") !== "active" || !plan.dueDate) {
+    return false;
+  }
+
+  const dueDate = new Date(plan.dueDate);
+  if (Number.isNaN(dueDate.getTime())) {
+    return false;
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  dueDate.setHours(0, 0, 0, 0);
+
+  return dueDate < today;
+}
+
+function buildDevelopmentScopeSummary({ plans, records, peopleOptions, activeDevelopmentView }) {
+  const planItems = plans || [];
+  const recordItems = records || [];
+  const activeRecords = recordItems.filter((record) => (record.status || "active") !== "archived");
+  const openDevelopmentPlans = planItems.filter((plan) => (plan.status || "active") === "active");
+  const completedDevelopmentPlans = planItems.filter((plan) => plan.status === "completed");
+  const blockedDevelopmentPlans = openDevelopmentPlans.filter(
+    (plan) => plan.progressStatus === "blocked"
+  );
+  const overdueDevelopmentPlans = openDevelopmentPlans.filter(isDevelopmentPlanOverdue);
+  const academicRecords = activeRecords.filter((record) =>
+    academicDevelopmentTypes.has(record.recordType)
+  );
+  const certificationRecords = activeRecords.filter(
+    (record) => record.recordType === "Certificacao"
+  );
+  const continuousLearningRecords = activeRecords.filter(
+    (record) =>
+      !academicDevelopmentTypes.has(record.recordType) &&
+      record.recordType !== "Certificacao"
+  );
+  const peopleInScope = peopleOptions?.length
+    ? peopleOptions.length
+    : new Set([
+        ...planItems.map((plan) => plan.personId),
+        ...activeRecords.map((record) => record.personId)
+      ]).size;
+  const peopleWithOpenPdi = new Set(openDevelopmentPlans.map((plan) => plan.personId)).size;
+  const peopleWithDevelopmentRecord = new Set(activeRecords.map((record) => record.personId)).size;
+
+  return {
+    activeDevelopmentView,
+    peopleInScope,
+    openDevelopmentPlans: openDevelopmentPlans.length,
+    blockedDevelopmentPlans: blockedDevelopmentPlans.length,
+    overdueDevelopmentPlans: overdueDevelopmentPlans.length,
+    completedDevelopmentPlans: completedDevelopmentPlans.length,
+    developmentRecords: activeRecords.length,
+    academicRecords: academicRecords.length,
+    certificationRecords: certificationRecords.length,
+    continuousLearningRecords: continuousLearningRecords.length,
+    peopleWithOpenPdi,
+    peopleWithDevelopmentRecord,
+    openDevelopmentPlanCoverage: peopleInScope
+      ? Math.round((peopleWithOpenPdi / peopleInScope) * 100)
+      : 0,
+    developmentRecordCoverage: peopleInScope
+      ? Math.round((peopleWithDevelopmentRecord / peopleInScope) * 100)
+      : 0
+  };
+}
+
 export function useDevelopmentFlow({
   auditTrail,
   canManageDevelopmentScope,
@@ -219,10 +298,17 @@ export function useDevelopmentFlow({
   const [activeDevelopmentView, setActiveDevelopmentView] = useState("personal");
   const [developmentForm, setDevelopmentForm] = useState(emptyDevelopment);
   const [developmentPlanForm, setDevelopmentPlanForm] = useState(emptyDevelopmentPlan);
+  const [developmentAreaFilter, setDevelopmentAreaFilter] = useState("all");
+  const [developmentPersonFilter, setDevelopmentPersonFilter] = useState("all");
   const [learningIntegrationDrafts, setLearningIntegrationDrafts] = useState({});
 
   const developmentPeopleOptions = useMemo(() => {
-    const peopleOptions = people.map((person) => ({ value: person.id, label: person.name }));
+    const peopleOptions = people.map((person) => ({
+      value: person.id,
+      label: person.name,
+      area: person.area || "Sem area",
+      managerPersonId: person.managerPersonId || null
+    }));
 
     if (canManageDevelopmentScope) {
       return peopleOptions;
@@ -254,46 +340,7 @@ export function useDevelopmentFlow({
     return views;
   }, [canViewOrganizationDevelopment, canViewTeamDevelopment]);
 
-  const filteredDevelopmentRecords = useMemo(() => {
-    if (!user) {
-      return [];
-    }
-
-    if (activeDevelopmentView === "organization") {
-      return developmentRecords;
-    }
-
-    if (activeDevelopmentView === "team") {
-      const visibleIds = new Set(teamDevelopmentPeopleOptions.map((person) => person.value));
-      return developmentRecords.filter((record) => visibleIds.has(record.personId));
-    }
-
-    return developmentRecords.filter((record) => record.personId === user.person.id);
-  }, [activeDevelopmentView, developmentRecords, teamDevelopmentPeopleOptions, user]);
-
-  const filteredDevelopmentPlans = useMemo(() => {
-    if (!user) {
-      return [];
-    }
-
-    if (activeDevelopmentView === "organization") {
-      return developmentPlans;
-    }
-
-    if (activeDevelopmentView === "team") {
-      const visibleIds = new Set(teamDevelopmentPeopleOptions.map((person) => person.value));
-      return developmentPlans.filter((plan) => visibleIds.has(plan.personId));
-    }
-
-    return developmentPlans.filter((plan) => plan.personId === user.person.id);
-  }, [activeDevelopmentView, developmentPlans, teamDevelopmentPeopleOptions, user]);
-
-  const activeDevelopmentRecords = useMemo(
-    () => filteredDevelopmentRecords.filter((record) => (record.status || "active") !== "archived"),
-    [filteredDevelopmentRecords]
-  );
-
-  const developmentFormPeopleOptions = useMemo(() => {
+  const scopedDevelopmentPeopleOptions = useMemo(() => {
     if (!user) {
       return [];
     }
@@ -308,6 +355,67 @@ export function useDevelopmentFlow({
 
     return developmentPeopleOptions.filter((person) => person.value === user.person.id);
   }, [activeDevelopmentView, developmentPeopleOptions, teamDevelopmentPeopleOptions, user]);
+
+  const developmentAreaOptions = useMemo(
+    () => [
+      "all",
+      ...Array.from(
+        new Set(scopedDevelopmentPeopleOptions.map((person) => person.area || "Sem area"))
+      ).sort((left, right) => left.localeCompare(right, "pt-BR"))
+    ],
+    [scopedDevelopmentPeopleOptions]
+  );
+
+  const areaFilteredDevelopmentPeopleOptions = useMemo(() => {
+    if (activeDevelopmentView !== "organization" || developmentAreaFilter === "all") {
+      return scopedDevelopmentPeopleOptions;
+    }
+
+    return scopedDevelopmentPeopleOptions.filter(
+      (person) => (person.area || "Sem area") === developmentAreaFilter
+    );
+  }, [activeDevelopmentView, developmentAreaFilter, scopedDevelopmentPeopleOptions]);
+
+  const developmentPersonFilterOptions = useMemo(
+    () => [{ value: "all", label: "Todos os colaboradores" }, ...areaFilteredDevelopmentPeopleOptions],
+    [areaFilteredDevelopmentPeopleOptions]
+  );
+
+  const filteredDevelopmentPeopleOptions = useMemo(() => {
+    if (activeDevelopmentView !== "organization" || developmentPersonFilter === "all") {
+      return areaFilteredDevelopmentPeopleOptions;
+    }
+
+    return areaFilteredDevelopmentPeopleOptions.filter(
+      (person) => person.value === developmentPersonFilter
+    );
+  }, [activeDevelopmentView, areaFilteredDevelopmentPeopleOptions, developmentPersonFilter]);
+
+  const filteredDevelopmentRecords = useMemo(() => {
+    if (!user) {
+      return [];
+    }
+
+    const visibleIds = new Set(filteredDevelopmentPeopleOptions.map((person) => person.value));
+    return developmentRecords.filter((record) => visibleIds.has(record.personId));
+  }, [developmentRecords, filteredDevelopmentPeopleOptions, user]);
+
+  const filteredDevelopmentPlans = useMemo(() => {
+    if (!user) {
+      return [];
+    }
+
+    const visibleIds = new Set(filteredDevelopmentPeopleOptions.map((person) => person.value));
+    return developmentPlans.filter((plan) => visibleIds.has(plan.personId));
+  }, [developmentPlans, filteredDevelopmentPeopleOptions, user]);
+
+  const developmentFormPeopleOptions = useMemo(() => {
+    if (!user) {
+      return [];
+    }
+
+    return filteredDevelopmentPeopleOptions;
+  }, [filteredDevelopmentPeopleOptions, user]);
 
   const developmentEditablePeopleOptions = useMemo(() => {
     const visiblePeople = new Map();
@@ -335,16 +443,8 @@ export function useDevelopmentFlow({
       return [];
     }
 
-    if (activeDevelopmentView === "organization") {
-      return developmentPeopleOptions;
-    }
-
-    if (activeDevelopmentView === "team") {
-      return teamDevelopmentPeopleOptions;
-    }
-
-    return developmentPeopleOptions.filter((person) => person.value === user.person.id);
-  }, [activeDevelopmentView, developmentPeopleOptions, teamDevelopmentPeopleOptions, user]);
+    return filteredDevelopmentPeopleOptions;
+  }, [filteredDevelopmentPeopleOptions, user]);
 
   const developmentEditablePlanPeopleOptions = useMemo(() => {
     const visiblePeople = new Map();
@@ -389,31 +489,41 @@ export function useDevelopmentFlow({
     [competencies]
   );
 
-  const developmentMetrics = useMemo(() => {
-    const peopleInScope = new Set(activeDevelopmentRecords.map((record) => record.personId)).size;
-    const academicRecords = activeDevelopmentRecords.filter((record) =>
-      academicDevelopmentTypes.has(record.recordType)
-    ).length;
-    const certificationRecords = activeDevelopmentRecords.filter(
-      (record) => record.recordType === "Certificacao"
-    ).length;
-    const continuousLearningRecords = activeDevelopmentRecords.filter(
-      (record) =>
-        !academicDevelopmentTypes.has(record.recordType) &&
-        record.recordType !== "Certificacao"
-    ).length;
+  const developmentScopeSummary = useMemo(
+    () =>
+      buildDevelopmentScopeSummary({
+        plans: filteredDevelopmentPlans,
+        records: filteredDevelopmentRecords,
+        peopleOptions: developmentPlanPeopleOptions,
+        activeDevelopmentView
+      }),
+    [
+      activeDevelopmentView,
+      developmentPlanPeopleOptions,
+      filteredDevelopmentPlans,
+      filteredDevelopmentRecords
+    ]
+  );
 
+  const activeDevelopmentRecords = useMemo(
+    () => filteredDevelopmentRecords.filter((record) => (record.status || "active") !== "archived"),
+    [filteredDevelopmentRecords]
+  );
+
+  const developmentMetrics = useMemo(() => {
     return [
-      { label: "Registros no recorte", value: activeDevelopmentRecords.length },
-      { label: "Formacao academica", value: academicRecords },
-      { label: "Certificacoes", value: certificationRecords },
+      { label: "Planos PDI abertos", value: developmentScopeSummary.openDevelopmentPlans },
+      { label: "Registros concluidos", value: developmentScopeSummary.developmentRecords },
+      { label: "PDI bloqueado", value: developmentScopeSummary.blockedDevelopmentPlans },
+      { label: "Formacao academica", value: developmentScopeSummary.academicRecords },
+      { label: "Certificacoes", value: developmentScopeSummary.certificationRecords },
       {
         label: activeDevelopmentView === "personal" ? "Pessoas em foco" : "Pessoas no recorte",
-        value: peopleInScope
+        value: developmentScopeSummary.peopleInScope
       },
-      { label: "Aprendizagem continua", value: continuousLearningRecords }
+      { label: "Aprendizagem continua", value: developmentScopeSummary.continuousLearningRecords }
     ];
-  }, [activeDevelopmentView, activeDevelopmentRecords]);
+  }, [activeDevelopmentView, developmentScopeSummary]);
 
   const developmentHighlights = useMemo(
     () =>
@@ -450,9 +560,10 @@ export function useDevelopmentFlow({
         activeDevelopmentView,
         people,
         reviews: performance360Reviews,
+        scopedPeopleOptions: filteredDevelopmentPeopleOptions,
         user
       }),
-    [activeDevelopmentView, people, performance360Reviews, user]
+    [activeDevelopmentView, filteredDevelopmentPeopleOptions, people, performance360Reviews, user]
   );
 
   const developmentAuditEntries = useMemo(
@@ -513,6 +624,32 @@ export function useDevelopmentFlow({
       setActiveDevelopmentView(developmentViewOptions[0]?.key || "personal");
     }
   }, [activeDevelopmentView, developmentViewOptions]);
+
+  useEffect(() => {
+    if (activeDevelopmentView !== "organization") {
+      if (developmentAreaFilter !== "all") {
+        setDevelopmentAreaFilter("all");
+      }
+      if (developmentPersonFilter !== "all") {
+        setDevelopmentPersonFilter("all");
+      }
+    }
+  }, [activeDevelopmentView, developmentAreaFilter, developmentPersonFilter]);
+
+  useEffect(() => {
+    if (!developmentAreaOptions.includes(developmentAreaFilter)) {
+      setDevelopmentAreaFilter("all");
+    }
+  }, [developmentAreaFilter, developmentAreaOptions]);
+
+  useEffect(() => {
+    if (
+      developmentPersonFilter !== "all" &&
+      !developmentPersonFilterOptions.some((person) => person.value === developmentPersonFilter)
+    ) {
+      setDevelopmentPersonFilter("all");
+    }
+  }, [developmentPersonFilter, developmentPersonFilterOptions]);
 
   useEffect(() => {
     if (!user) {
@@ -655,12 +792,16 @@ export function useDevelopmentFlow({
 
   function resetDevelopmentFlow() {
     setActiveDevelopmentView("personal");
+    setDevelopmentAreaFilter("all");
+    setDevelopmentPersonFilter("all");
     setDevelopmentForm(emptyDevelopment);
     setDevelopmentPlanForm(emptyDevelopmentPlan);
   }
 
   return {
     activeDevelopmentView,
+    developmentAreaFilter,
+    developmentAreaOptions,
     developmentAuditEntries,
     developmentEditablePeopleOptions,
     developmentEditablePlanPeopleOptions,
@@ -669,11 +810,14 @@ export function useDevelopmentFlow({
     developmentHighlights,
     developmentMetrics,
     developmentPerformanceSummary,
+    developmentPersonFilter,
+    developmentPersonFilterOptions,
     developmentPlanCompetencyOptions,
     developmentPlanCycleOptions,
     developmentPlanForm,
     developmentPlanPeopleOptions,
     developmentPlanProgressStatusOptions,
+    developmentScopeSummary,
     developmentViewOptions,
     filteredDevelopmentPlans,
     filteredDevelopmentRecords,
@@ -688,8 +832,10 @@ export function useDevelopmentFlow({
     learningIntegrationSummary,
     resetDevelopmentFlow,
     setActiveDevelopmentView,
+    setDevelopmentAreaFilter,
     setDevelopmentForm,
     setLearningIntegrationDraft,
+    setDevelopmentPersonFilter,
     setDevelopmentPlanForm
   };
 }

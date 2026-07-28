@@ -303,6 +303,20 @@ function calculateProportionalConceptScore({
   return Number(Math.min(total, Number(maxScore)).toFixed(4));
 }
 
+export function countScoredEvaluationAnswers(answers = [], templateDefinition = null) {
+  return answers.filter((answer) => {
+    const question = templateDefinition?.questions?.find(
+      (item) => item.id === answer.questionId
+    );
+
+    return (
+      question?.inputType !== "text" &&
+      (Number.isFinite(Number(answer.score)) ||
+        (Array.isArray(answer.selectedOptions) && answer.selectedOptions.length > 0))
+    );
+  }).length;
+}
+
 export function calculateEvaluationOverallScore({
   relationshipType,
   scoringContext = "",
@@ -379,6 +393,7 @@ export function prepareEvaluationSubmission({
     reviewerUserId: payload.reviewerUserId,
     revieweePersonId: assignment.revieweePersonId,
     overallScore,
+    scoredQuestionCount: countScoredEvaluationAnswers(payload.answers, templateDefinition),
     strengthsNote: payload.strengthsNote || "",
     developmentNote: payload.developmentNote || "",
     submittedAt: new Date().toISOString()
