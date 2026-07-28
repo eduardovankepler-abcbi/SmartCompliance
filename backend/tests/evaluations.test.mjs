@@ -155,22 +155,14 @@ export async function runEvaluationsRegression() {
       }
     };
 
-    await buildQuestionnaireQuestions(createdQuestionnaire.id, 19, hr);
-
-    await assert.rejects(
-      () => store.publishEvaluationQuestionnaire(createdQuestionnaire.id, hr),
-      /exatamente 20 perguntas/i,
-      "Questionario self deve exigir exatamente 20 perguntas para publicar"
-    );
-
     const readyQuestionnaire = await store.addEvaluationQuestionnaireQuestion(
       createdQuestionnaire.id,
-      questionPayload(20),
+      questionPayload(1),
       hr
     );
     assert.equal(
       readyQuestionnaire.questionCount,
-      20,
+      1,
       "Questionario deve contabilizar perguntas adicionadas"
     );
 
@@ -229,8 +221,8 @@ export async function runEvaluationsRegression() {
     );
     assert.equal(
       individualizedTemplate.questions.length,
-      20,
-      "Assignment deve carregar o questionario individual publicado"
+      1,
+      "Assignment deve carregar o questionario individual publicado com quantidade flexivel"
     );
     assert.equal(
       individualizedTemplate.id,
@@ -416,8 +408,13 @@ export async function runEvaluationsRegression() {
     );
     assert.equal(
       managerTemplateFallback.questions.length,
+      21,
+      "Template gerencial deve expor 20 perguntas fechadas e 1 aberta"
+    );
+    assert.equal(
+      managerTemplateFallback.questions.filter((question) => question.inputType !== "text").length,
       20,
-      "Template gerencial deve expor o conjunto completo de perguntas padrao"
+      "Template gerencial deve manter 20 perguntas pontuaveis"
     );
     assert.equal(
       managerTemplateFallback.policy.scale[0].label,
@@ -449,6 +446,11 @@ export async function runEvaluationsRegression() {
       managerMaximumScoreSubmission.overallScore,
       7,
       "Feedback do lider sobre o colaborador deve respeitar teto de 7"
+    );
+    assert.equal(
+      managerMaximumScoreSubmission.scoredQuestionCount,
+      20,
+      "Feedback do lider deve expor a quantidade de perguntas pontuaveis usada no calculo"
     );
     const managerTwentyQuestionMiddleScoreSubmission = prepareEvaluationSubmission({
       assignment: {
@@ -507,6 +509,11 @@ export async function runEvaluationsRegression() {
       managerTenQuestionMaximumScoreSubmission.overallScore,
       7,
       "Feedback do lider deve manter teto 7 ao mudar quantidade de perguntas"
+    );
+    assert.equal(
+      managerTenQuestionMaximumScoreSubmission.scoredQuestionCount,
+      10,
+      "Feedback do lider deve recalcular a metrica de perguntas pontuaveis em questionario flexivel"
     );
     const leaderTemplateFallback = await store.getEvaluationTemplateForCycleRelationship(
       createdCycle.id,

@@ -6,12 +6,13 @@ const QUESTIONNAIRE_STATUS = Object.freeze({
   archived: "archived"
 });
 
-const QUESTIONNAIRE_REQUIRED_COUNTS = Object.freeze({
-  self: 20,
-  "peer-same-area": 7
-});
-
-const FLEXIBLE_QUESTIONNAIRE_TYPES = new Set(["manager"]);
+const SUPPORTED_QUESTIONNAIRE_TYPES = new Set([
+  "self",
+  "manager",
+  "leader",
+  "peer-same-area",
+  "cross-functional"
+]);
 
 function canManageEvaluationQuestionnaires(actorUser, { isAdminUser, isHrUser }) {
   return isAdminUser(actorUser) || isHrUser(actorUser);
@@ -24,10 +25,7 @@ function assertCanManageEvaluationQuestionnaires(actorUser, guards) {
 }
 
 function assertValidQuestionnaireRelationshipType(relationshipType) {
-  if (
-    !Object.keys(QUESTIONNAIRE_REQUIRED_COUNTS).includes(relationshipType) &&
-    !FLEXIBLE_QUESTIONNAIRE_TYPES.has(relationshipType)
-  ) {
+  if (!SUPPORTED_QUESTIONNAIRE_TYPES.has(relationshipType)) {
     throw new Error("Tipo de questionario individual invalido.");
   }
 }
@@ -140,10 +138,6 @@ function cloneValue(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
-function getQuestionnaireRequiredQuestionCount(relationshipType) {
-  return QUESTIONNAIRE_REQUIRED_COUNTS[relationshipType] || 0;
-}
-
 function buildDefaultQuestionnairePolicy() {
   return {
     canViewReviewee: false,
@@ -221,17 +215,10 @@ function assertQuestionnaireEditable(questionnaire) {
 
 function validateQuestionnairePublication(questionnaire, questions) {
   assertQuestionnaireEditable(questionnaire);
-  const requiredCount = getQuestionnaireRequiredQuestionCount(questionnaire.relationshipType);
-  const isFlexibleQuestionnaire = FLEXIBLE_QUESTIONNAIRE_TYPES.has(questionnaire.relationshipType);
-  if (!requiredCount && !isFlexibleQuestionnaire) {
+  if (!SUPPORTED_QUESTIONNAIRE_TYPES.has(questionnaire.relationshipType)) {
     throw new Error("Tipo de questionario sem configuracao de publicacao.");
   }
-  if (requiredCount && questions.length !== requiredCount) {
-    throw new Error(
-      `Questionario ${questionnaire.relationshipType} precisa ter exatamente ${requiredCount} perguntas.`
-    );
-  }
-  if (isFlexibleQuestionnaire && questions.length < 1) {
+  if (questions.length < 1) {
     throw new Error("Questionario precisa ter pelo menos uma pergunta para publicar.");
   }
 

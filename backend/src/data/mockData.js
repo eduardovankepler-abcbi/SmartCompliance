@@ -665,6 +665,19 @@ export const evaluationLibrary = {
             "Reflita sobre sua capacidade de atuar de forma independente, mantendo resultados satisfatorios.",
           sortOrder: 20,
           visibility: "private"
+        }),
+        createTextQuestion({
+          id: "q_self_21",
+          sectionKey: "final",
+          sectionTitle: "Consideracoes Finais",
+          sectionDescription:
+            "Espaco para voce registrar comentarios, feedbacks ou sugestoes adicionais que considere importantes.",
+          dimensionKey: "final-comments",
+          dimensionTitle: "Sugestoes e observacoes",
+          prompt:
+            "Escreva aqui suas sugestoes, ideias de melhoria, observacoes sobre processos, comunicacao, recursos, desenvolvimento da equipe, lideranca ou qualquer outro ponto relevante para aprimorar seu trabalho, sua equipe ou a empresa.",
+          sortOrder: 21,
+          visibility: "private"
         })
       ]
     },
@@ -686,259 +699,275 @@ export const evaluationLibrary = {
       questions: [
         createScaleQuestion({
           id: "q_manager_01",
-          sectionKey: "results",
-          sectionTitle: "Resultados",
+          sectionKey: "delivery",
+          sectionTitle: "Desempenho e Entregas",
           sectionDescription:
-            "Avalie consistencia de entrega, qualidade e responsabilizacao pelos resultados.",
-          dimensionKey: "results",
+            "Avalie prazos, qualidade, resolucao de problemas e organizacao das entregas do colaborador.",
+          dimensionKey: "delivery",
           dimensionTitle: "Cumprimento de prazos",
-          prompt: "Cumpre prazos e entregas com consistencia",
+          prompt: "1) O colaborador cumpre suas tarefas e entregas dentro dos prazos estabelecidos.",
           sortOrder: 1,
           visibility: "private",
           scaleProfile: "performance"
         }),
         createScaleQuestion({
           id: "q_manager_02",
-          sectionKey: "results",
-          sectionTitle: "Resultados",
+          sectionKey: "delivery",
+          sectionTitle: "Desempenho e Entregas",
           sectionDescription:
-            "Avalie consistencia de entrega, qualidade e responsabilizacao pelos resultados.",
-          dimensionKey: "results",
-          dimensionTitle: "Qualidade das entregas",
-          prompt: "Entrega trabalho com qualidade adequada",
+            "Avalie prazos, qualidade, resolucao de problemas e organizacao das entregas do colaborador.",
+          dimensionKey: "delivery",
+          dimensionTitle: "Qualidade e precisao",
+          prompt: "2) O colaborador realiza suas atividades com atencao a qualidade e precisao.",
           sortOrder: 2,
           visibility: "private",
           scaleProfile: "performance"
         }),
         createScaleQuestion({
           id: "q_manager_03",
-          sectionKey: "results",
-          sectionTitle: "Resultados",
+          sectionKey: "delivery",
+          sectionTitle: "Desempenho e Entregas",
           sectionDescription:
-            "Avalie consistencia de entrega, qualidade e responsabilizacao pelos resultados.",
-          dimensionKey: "results",
-          dimensionTitle: "Responsabilidade pelos resultados",
-          prompt: "Assume responsabilidade pelos resultados",
+            "Avalie prazos, qualidade, resolucao de problemas e organizacao das entregas do colaborador.",
+          dimensionKey: "delivery",
+          dimensionTitle: "Resolucao de problemas",
+          prompt: "3) O colaborador lida de forma eficiente com problemas ou obstaculos que surgem no trabalho.",
           sortOrder: 3,
           visibility: "private",
           scaleProfile: "performance"
         }),
         createScaleQuestion({
           id: "q_manager_04",
-          sectionKey: "teamwork",
-          sectionTitle: "Trabalho em equipe",
+          sectionKey: "delivery",
+          sectionTitle: "Desempenho e Entregas",
           sectionDescription:
-            "Considere colaboracao, convivencia profissional e contribuicao para o ambiente da equipe.",
-          dimensionKey: "teamwork",
-          dimensionTitle: "Colaboracao com a equipe",
-          prompt: "Colabora de forma efetiva com a equipe",
+            "Avalie prazos, qualidade, resolucao de problemas e organizacao das entregas do colaborador.",
+          dimensionKey: "delivery",
+          dimensionTitle: "Organizacao e resultados",
+          prompt: "4) O colaborador organiza suas atividades de forma a otimizar tempo e resultados.",
           sortOrder: 4,
           visibility: "private",
           scaleProfile: "performance"
         }),
         createScaleQuestion({
           id: "q_manager_05",
-          sectionKey: "teamwork",
-          sectionTitle: "Trabalho em equipe",
+          sectionKey: "knowledge",
+          sectionTitle: "Conhecimento e Desenvolvimento",
           sectionDescription:
-            "Considere colaboracao, convivencia profissional e contribuicao para o ambiente da equipe.",
-          dimensionKey: "teamwork",
-          dimensionTitle: "Respeito e ambiente positivo",
-          prompt: "Demonstra respeito e contribui para um ambiente positivo",
+            "Considere conhecimento tecnico, aprendizado, aplicacao pratica e abertura a feedbacks.",
+          dimensionKey: "knowledge",
+          dimensionTitle: "Conhecimentos da funcao",
+          prompt: "5) O colaborador possui os conhecimentos necessarios para desempenhar suas atividades com seguranca e qualidade.",
           sortOrder: 5,
           visibility: "private",
           scaleProfile: "performance"
         }),
         createScaleQuestion({
           id: "q_manager_06",
-          sectionKey: "communication",
-          sectionTitle: "Comunicacao",
+          sectionKey: "knowledge",
+          sectionTitle: "Conhecimento e Desenvolvimento",
           sectionDescription:
-            "Avalie clareza, objetividade e transparencia do colaborador na comunicacao do trabalho.",
-          dimensionKey: "communication",
-          dimensionTitle: "Comunicacao clara",
-          prompt: "Comunica-se de forma clara e objetiva",
+            "Considere conhecimento tecnico, aprendizado, aplicacao pratica e abertura a feedbacks.",
+          dimensionKey: "development",
+          dimensionTitle: "Aprendizado continuo",
+          prompt: "6) O colaborador busca aprender constantemente e desenvolver novas habilidades.",
           sortOrder: 6,
           visibility: "private",
           scaleProfile: "performance"
         }),
         createScaleQuestion({
           id: "q_manager_07",
-          sectionKey: "communication",
-          sectionTitle: "Comunicacao",
+          sectionKey: "knowledge",
+          sectionTitle: "Conhecimento e Desenvolvimento",
           sectionDescription:
-            "Avalie clareza, objetividade e transparencia do colaborador na comunicacao do trabalho.",
-          dimensionKey: "communication",
-          dimensionTitle: "Alinhamento com o gestor",
-          prompt: "Mantem o gestor informado sobre o andamento das atividades",
+            "Considere conhecimento tecnico, aprendizado, aplicacao pratica e abertura a feedbacks.",
+          dimensionKey: "development",
+          dimensionTitle: "Aplicacao de aprendizados",
+          prompt: "7) O colaborador aplica novos conhecimentos e aprendizados para melhorar seu desempenho profissional.",
           sortOrder: 7,
           visibility: "private",
           scaleProfile: "performance"
         }),
         createScaleQuestion({
           id: "q_manager_08",
-          sectionKey: "proactivity",
-          sectionTitle: "Proatividade",
+          sectionKey: "knowledge",
+          sectionTitle: "Conhecimento e Desenvolvimento",
           sectionDescription:
-            "Considere iniciativa, autonomia e contribuicao do colaborador diante de desafios.",
-          dimensionKey: "proactivity",
-          dimensionTitle: "Resolucao de problemas",
-          prompt: "Demonstra iniciativa na resolucao de problemas",
+            "Considere conhecimento tecnico, aprendizado, aplicacao pratica e abertura a feedbacks.",
+          dimensionKey: "development",
+          dimensionTitle: "Abertura a feedbacks",
+          prompt: "8) O colaborador demonstra abertura para receber feedbacks e utiliza-los para aprimorar seu desempenho.",
           sortOrder: 8,
           visibility: "private",
           scaleProfile: "performance"
         }),
         createScaleQuestion({
           id: "q_manager_09",
-          sectionKey: "proactivity",
-          sectionTitle: "Proatividade",
+          sectionKey: "teamwork",
+          sectionTitle: "Trabalho em Equipe e Colaboracao",
           sectionDescription:
-            "Considere iniciativa, autonomia e contribuicao do colaborador diante de desafios.",
-          dimensionKey: "proactivity",
-          dimensionTitle: "Melhorias e novas ideias",
-          prompt: "Propoe melhorias e novas ideias",
+            "Avalie colaboracao, compartilhamento de conhecimento, comunicacao e relacionamento profissional.",
+          dimensionKey: "collaboration",
+          dimensionTitle: "Colaboracao com a equipe",
+          prompt: "9) O colaborador colabora de forma produtiva com os colegas de equipe.",
           sortOrder: 9,
           visibility: "private",
           scaleProfile: "performance"
         }),
         createScaleQuestion({
           id: "q_manager_10",
-          sectionKey: "organization",
-          sectionTitle: "Organizacao",
+          sectionKey: "teamwork",
+          sectionTitle: "Trabalho em Equipe e Colaboracao",
           sectionDescription:
-            "Avalie capacidade de planejamento, priorizacao e tratamento de volume de trabalho.",
-          dimensionKey: "organization",
-          dimensionTitle: "Organizacao de tarefas",
-          prompt: "Organiza bem suas tarefas e prioridades",
+            "Avalie colaboracao, compartilhamento de conhecimento, comunicacao e relacionamento profissional.",
+          dimensionKey: "collaboration",
+          dimensionTitle: "Compartilhamento de conhecimentos",
+          prompt: "10) O colaborador compartilha conhecimentos e experiencias que contribuem para o desempenho da equipe.",
           sortOrder: 10,
           visibility: "private",
           scaleProfile: "performance"
         }),
         createScaleQuestion({
           id: "q_manager_11",
-          sectionKey: "organization",
-          sectionTitle: "Organizacao",
+          sectionKey: "teamwork",
+          sectionTitle: "Trabalho em Equipe e Colaboracao",
           sectionDescription:
-            "Avalie capacidade de planejamento, priorizacao e tratamento de volume de trabalho.",
-          dimensionKey: "organization",
-          dimensionTitle: "Multiplas demandas",
-          prompt: "Consegue lidar com multiplas demandas",
+            "Avalie colaboracao, compartilhamento de conhecimento, comunicacao e relacionamento profissional.",
+          dimensionKey: "communication",
+          dimensionTitle: "Comunicacao profissional",
+          prompt: "11) O colaborador mantem uma comunicacao clara, respeitosa e profissional com colegas e stakeholders.",
           sortOrder: 11,
           visibility: "private",
           scaleProfile: "performance"
         }),
         createScaleQuestion({
           id: "q_manager_12",
-          sectionKey: "technical-capability",
-          sectionTitle: "Capacidade tecnica",
+          sectionKey: "teamwork",
+          sectionTitle: "Trabalho em Equipe e Colaboracao",
           sectionDescription:
-            "Considere dominio tecnico, autonomia e resolucao de problemas na funcao atual.",
-          dimensionKey: "technical-capability",
-          dimensionTitle: "Conhecimento tecnico",
-          prompt: "Possui conhecimento tecnico adequado para a funcao",
+            "Avalie colaboracao, compartilhamento de conhecimento, comunicacao e relacionamento profissional.",
+          dimensionKey: "interpersonal",
+          dimensionTitle: "Conflitos e divergencias",
+          prompt: "12) O colaborador lida de forma construtiva com conflitos ou divergencias de opiniao.",
           sortOrder: 12,
           visibility: "private",
           scaleProfile: "performance"
         }),
         createScaleQuestion({
           id: "q_manager_13",
-          sectionKey: "technical-capability",
-          sectionTitle: "Capacidade tecnica",
+          sectionKey: "commitment",
+          sectionTitle: "Comprometimento e Responsabilidade",
           sectionDescription:
-            "Considere dominio tecnico, autonomia e resolucao de problemas na funcao atual.",
-          dimensionKey: "technical-capability",
-          dimensionTitle: "Autonomia tecnica",
-          prompt: "Resolve problemas com autonomia",
+            "Considere comprometimento, responsabilidade, conformidade e postura diante de desafios.",
+          dimensionKey: "commitment",
+          dimensionTitle: "Comprometimento com objetivos",
+          prompt: "13) O colaborador demonstra comprometimento com os objetivos da equipe e da empresa.",
           sortOrder: 13,
           visibility: "private",
           scaleProfile: "performance"
         }),
         createScaleQuestion({
           id: "q_manager_14",
-          sectionKey: "business-focus",
-          sectionTitle: "Foco no negocio",
+          sectionKey: "commitment",
+          sectionTitle: "Comprometimento e Responsabilidade",
           sectionDescription:
-            "Avalie entendimento do contexto de negocio e priorizacao do que gera mais valor.",
-          dimensionKey: "business-focus",
-          dimensionTitle: "Impacto no negocio",
-          prompt: "Entende o impacto do seu trabalho no negocio",
+            "Considere comprometimento, responsabilidade, conformidade e postura diante de desafios.",
+          dimensionKey: "responsibility",
+          dimensionTitle: "Responsabilidade por resultados",
+          prompt: "14) O colaborador assume responsabilidade por suas atividades e resultados.",
           sortOrder: 14,
           visibility: "private",
           scaleProfile: "performance"
         }),
         createScaleQuestion({
           id: "q_manager_15",
-          sectionKey: "business-focus",
-          sectionTitle: "Foco no negocio",
+          sectionKey: "commitment",
+          sectionTitle: "Comprometimento e Responsabilidade",
           sectionDescription:
-            "Avalie entendimento do contexto de negocio e priorizacao do que gera mais valor.",
-          dimensionKey: "business-focus",
-          dimensionTitle: "Prioridade de valor",
-          prompt: "Prioriza atividades de maior valor",
+            "Considere comprometimento, responsabilidade, conformidade e postura diante de desafios.",
+          dimensionKey: "responsibility",
+          dimensionTitle: "Conformidade com regras",
+          prompt: "15) O colaborador cumpre regras, normas e procedimentos da empresa de forma consistente.",
           sortOrder: 15,
           visibility: "private",
           scaleProfile: "performance"
         }),
         createScaleQuestion({
           id: "q_manager_16",
-          sectionKey: "overall",
-          sectionTitle: "Avaliacao geral",
+          sectionKey: "commitment",
+          sectionTitle: "Comprometimento e Responsabilidade",
           sectionDescription:
-            "Registre a leitura geral do desempenho atual e do potencial de crescimento do colaborador.",
-          dimensionKey: "overall",
-          dimensionTitle: "Desempenho geral",
-          prompt: "Desempenho geral do colaborador",
+            "Considere comprometimento, responsabilidade, conformidade e postura diante de desafios.",
+          dimensionKey: "adaptability",
+          dimensionTitle: "Postura diante de mudancas",
+          prompt: "16) O colaborador mantem uma postura positiva e produtiva diante de mudancas, desafios e situacoes inesperadas.",
           sortOrder: 16,
           visibility: "private",
           scaleProfile: "performance"
         }),
         createScaleQuestion({
           id: "q_manager_17",
-          sectionKey: "overall",
-          sectionTitle: "Avaliacao geral",
+          sectionKey: "growth",
+          sectionTitle: "Potencial e Crescimento",
           sectionDescription:
-            "Registre a leitura geral do desempenho atual e do potencial de crescimento do colaborador.",
-          dimensionKey: "overall",
-          dimensionTitle: "Potencial de crescimento",
-          prompt: "Potencial de crescimento",
+            "Considere disposicao para aprender, evolucao profissional, iniciativa e autonomia.",
+          dimensionKey: "growth",
+          dimensionTitle: "Disposicao para ampliar contribuicao",
+          prompt: "17) O colaborador demonstra disposicao para aprender novas atividades e ampliar sua contribuicao para a equipe.",
           sortOrder: 17,
           visibility: "private",
           scaleProfile: "performance"
         }),
-        createTextQuestion({
+        createScaleQuestion({
           id: "q_manager_18",
-          sectionKey: "open-feedback",
-          sectionTitle: "Perguntas abertas",
+          sectionKey: "growth",
+          sectionTitle: "Potencial e Crescimento",
           sectionDescription:
-            "Registre uma leitura qualitativa para orientar a devolutiva e o desenvolvimento do colaborador.",
-          dimensionKey: "open-feedback",
-          dimensionTitle: "Pontos fortes",
-          prompt: "Quais sao os principais pontos fortes do colaborador?",
+            "Considere disposicao para aprender, evolucao profissional, iniciativa e autonomia.",
+          dimensionKey: "growth",
+          dimensionTitle: "Busca de evolucao",
+          prompt: "18) O colaborador busca oportunidades para aprimorar seu desempenho e evolucao profissional.",
           sortOrder: 18,
-          visibility: "private"
+          visibility: "private",
+          scaleProfile: "performance"
         }),
-        createTextQuestion({
+        createScaleQuestion({
           id: "q_manager_19",
-          sectionKey: "open-feedback",
-          sectionTitle: "Perguntas abertas",
+          sectionKey: "growth",
+          sectionTitle: "Potencial e Crescimento",
           sectionDescription:
-            "Registre uma leitura qualitativa para orientar a devolutiva e o desenvolvimento do colaborador.",
-          dimensionKey: "open-feedback",
-          dimensionTitle: "Pontos de melhoria",
-          prompt: "Quais sao os principais pontos de melhoria?",
+            "Considere disposicao para aprender, evolucao profissional, iniciativa e autonomia.",
+          dimensionKey: "initiative",
+          dimensionTitle: "Iniciativa para melhorias",
+          prompt: "19) O colaborador demonstra iniciativa para propor melhorias ou solucoes para seu trabalho, equipe ou processos.",
           sortOrder: 19,
-          visibility: "private"
+          visibility: "private",
+          scaleProfile: "performance"
+        }),
+        createScaleQuestion({
+          id: "q_manager_20",
+          sectionKey: "growth",
+          sectionTitle: "Potencial e Crescimento",
+          sectionDescription:
+            "Considere disposicao para aprender, evolucao profissional, iniciativa e autonomia.",
+          dimensionKey: "autonomy",
+          dimensionTitle: "Autonomia com apoio",
+          prompt: "20) O colaborador atua de forma autonoma em suas atividades, buscando apoio quando necessario.",
+          sortOrder: 20,
+          visibility: "private",
+          scaleProfile: "performance"
         }),
         createTextQuestion({
-          id: "q_manager_20",
-          sectionKey: "open-feedback",
-          sectionTitle: "Perguntas abertas",
+          id: "q_manager_21",
+          sectionKey: "final",
+          sectionTitle: "Consideracoes Finais",
           sectionDescription:
-            "Registre uma leitura qualitativa para orientar a devolutiva e o desenvolvimento do colaborador.",
-          dimensionKey: "open-feedback",
-          dimensionTitle: "Recomendacao de desenvolvimento",
-          prompt: "Que tipo de desenvolvimento voce recomenda?",
-          sortOrder: 20,
+            "Espaco para resposta dissertativa sobre desenvolvimento e evolucao profissional.",
+          dimensionKey: "final-comments",
+          dimensionTitle: "Pontos fortes e desenvolvimento",
+          prompt:
+            "Descreva os principais pontos fortes do colaborador, oportunidades de desenvolvimento e quaisquer observacoes relevantes que possam contribuir para sua evolucao profissional.",
+          sortOrder: 21,
           visibility: "private"
         })
       ]
@@ -1044,307 +1073,225 @@ export const evaluationLibrary = {
       questions: [
         createScaleQuestion({
           id: "q_leader_01",
-          sectionKey: "results",
-          sectionTitle: "Gestao de Resultados e Organizacao",
+          sectionKey: "support",
+          sectionTitle: "Apoio e Orientacao",
           sectionDescription:
-            "Avalie se seu lider define metas claras, organiza tarefas, acompanha o progresso da equipe e garante entregas de qualidade e no prazo.",
-          dimensionKey: "results",
-          dimensionTitle: "Metas claras",
-          prompt: "1) Meu lider define metas claras e alcancaveis para a equipe.",
-          helperText:
-            "Avalie se o lider estabelece objetivos claros e realistas para todos.",
+            "Avalie disponibilidade, direcionamento, acompanhamento e suporte da lideranca.",
+          dimensionKey: "support",
+          dimensionTitle: "Disponibilidade para apoio",
+          prompt:
+            "1) Meu lider esta disponivel para orientar e apoiar quando preciso.",
           sortOrder: 1,
-          visibility: "confidential"
+          visibility: "confidential",
+          scaleProfile: "performance"
         }),
         createScaleQuestion({
           id: "q_leader_02",
-          sectionKey: "results",
-          sectionTitle: "Gestao de Resultados e Organizacao",
+          sectionKey: "communication",
+          sectionTitle: "Comunicacao e Escuta",
           sectionDescription:
-            "Avalie se seu lider define metas claras, organiza tarefas, acompanha o progresso da equipe e garante entregas de qualidade e no prazo.",
-          dimensionKey: "results",
-          dimensionTitle: "Distribuicao de tarefas",
-          prompt: "2) Meu lider organiza e distribui tarefas de forma eficiente.",
-          helperText:
-            "Considere se ele distribui responsabilidades de forma equilibrada e organizada.",
+            "Considere clareza, respeito, abertura para ouvir e qualidade das interacoes.",
+          dimensionKey: "communication",
+          dimensionTitle: "Clareza de alinhamentos",
+          prompt:
+            "2) Meu lider transmite informacoes, prioridades e alinhamentos de forma clara.",
           sortOrder: 2,
-          visibility: "confidential"
+          visibility: "confidential",
+          scaleProfile: "performance"
         }),
         createScaleQuestion({
           id: "q_leader_03",
-          sectionKey: "results",
-          sectionTitle: "Gestao de Resultados e Organizacao",
+          sectionKey: "communication",
+          sectionTitle: "Comunicacao e Escuta",
           sectionDescription:
-            "Avalie se seu lider define metas claras, organiza tarefas, acompanha o progresso da equipe e garante entregas de qualidade e no prazo.",
-          dimensionKey: "results",
-          dimensionTitle: "Acompanhamento do progresso",
-          prompt: "3) Meu lider acompanha o progresso da equipe e ajusta quando necessario.",
-          helperText:
-            "Reflita sobre o acompanhamento das atividades e a capacidade de corrigir desvios.",
+            "Considere clareza, respeito, abertura para ouvir e qualidade das interacoes.",
+          dimensionKey: "listening",
+          dimensionTitle: "Abertura para ouvir",
+          prompt:
+            "3) Meu lider demonstra abertura para ouvir duvidas, opinioes e sugestoes.",
           sortOrder: 3,
-          visibility: "confidential"
+          visibility: "confidential",
+          scaleProfile: "performance"
         }),
         createScaleQuestion({
           id: "q_leader_04",
-          sectionKey: "results",
-          sectionTitle: "Gestao de Resultados e Organizacao",
+          sectionKey: "communication",
+          sectionTitle: "Comunicacao e Escuta",
           sectionDescription:
-            "Avalie se seu lider define metas claras, organiza tarefas, acompanha o progresso da equipe e garante entregas de qualidade e no prazo.",
-          dimensionKey: "results",
-          dimensionTitle: "Qualidade e prazo",
+            "Considere clareza, respeito, abertura para ouvir e qualidade das interacoes.",
+          dimensionKey: "communication",
+          dimensionTitle: "Comunicacao respeitosa",
           prompt:
-            "4) Meu lider assegura que as entregas da equipe atendam aos padroes de qualidade e prazo.",
-          helperText:
-            "Avalie se ele garante que o trabalho seja consistente e entregue no tempo esperado.",
+            "4) Meu lider mantem uma comunicacao respeitosa e profissional no dia a dia.",
           sortOrder: 4,
-          visibility: "confidential"
+          visibility: "confidential",
+          scaleProfile: "performance"
         }),
         createScaleQuestion({
           id: "q_leader_05",
-          sectionKey: "development",
-          sectionTitle: "Desenvolvimento da Equipe",
+          sectionKey: "recognition",
+          sectionTitle: "Reconhecimento e Desenvolvimento",
           sectionDescription:
-            "Considere como ele identifica oportunidades de crescimento, oferece feedbacks, incentiva aprendizado e apoia o desenvolvimento dos colaboradores.",
-          dimensionKey: "development",
-          dimensionTitle: "Oportunidades por colaborador",
+            "Avalie reconhecimento, desenvolvimento profissional e confianca na lideranca.",
+          dimensionKey: "recognition",
+          dimensionTitle: "Reconhecimento de entregas",
           prompt:
-            "5) Meu lider identifica oportunidades de desenvolvimento para cada membro da equipe.",
-          helperText:
-            "Considere se ele percebe o potencial e necessidades de crescimento de cada colaborador.",
+            "5) Meu lider valoriza minhas entregas e contribuicoes por meio de feedbacks, elogios ou outras formas de reconhecimento.",
           sortOrder: 5,
-          visibility: "confidential"
+          visibility: "confidential",
+          scaleProfile: "performance"
         }),
         createScaleQuestion({
           id: "q_leader_06",
-          sectionKey: "development",
-          sectionTitle: "Desenvolvimento da Equipe",
+          sectionKey: "support",
+          sectionTitle: "Apoio e Orientacao",
           sectionDescription:
-            "Considere como ele identifica oportunidades de crescimento, oferece feedbacks, incentiva aprendizado e apoia o desenvolvimento dos colaboradores.",
-          dimensionKey: "development",
-          dimensionTitle: "Feedback regular e claro",
-          prompt: "6) Recebo feedbacks regulares, claros e construtivos do meu lider.",
-          helperText:
-            "Reflita se ele oferece orientacoes frequentes e uteis para seu desenvolvimento.",
+            "Avalie disponibilidade, direcionamento, acompanhamento e suporte da lideranca.",
+          dimensionKey: "direction",
+          dimensionTitle: "Direcionamento na execucao",
+          prompt:
+            "6) Quando necessario, meu lider fornece direcionamento para ajudar na execucao das atividades.",
           sortOrder: 6,
-          visibility: "confidential"
+          visibility: "confidential",
+          scaleProfile: "performance"
         }),
         createScaleQuestion({
           id: "q_leader_07",
-          sectionKey: "development",
-          sectionTitle: "Desenvolvimento da Equipe",
+          sectionKey: "support",
+          sectionTitle: "Apoio e Orientacao",
           sectionDescription:
-            "Considere como ele identifica oportunidades de crescimento, oferece feedbacks, incentiva aprendizado e apoia o desenvolvimento dos colaboradores.",
-          dimensionKey: "development",
-          dimensionTitle: "Incentivo ao aprendizado",
+            "Avalie disponibilidade, direcionamento, acompanhamento e suporte da lideranca.",
+          dimensionKey: "follow-up",
+          dimensionTitle: "Acompanhamento do trabalho",
           prompt:
-            "7) Meu lider incentiva o aprendizado continuo e aprimoramento das habilidades da equipe.",
-          helperText:
-            "Avalie se ele promove treinamentos e oportunidades de crescimento.",
+            "7) Meu lider demonstra que acompanha e considera o trabalho que realizo no dia a dia.",
           sortOrder: 7,
-          visibility: "confidential"
+          visibility: "confidential",
+          scaleProfile: "performance"
         }),
         createScaleQuestion({
           id: "q_leader_08",
-          sectionKey: "development",
-          sectionTitle: "Desenvolvimento da Equipe",
+          sectionKey: "support",
+          sectionTitle: "Apoio e Orientacao",
           sectionDescription:
-            "Considere como ele identifica oportunidades de crescimento, oferece feedbacks, incentiva aprendizado e apoia o desenvolvimento dos colaboradores.",
-          dimensionKey: "development",
-          dimensionTitle: "Apoio personalizado ao crescimento",
+            "Avalie disponibilidade, direcionamento, acompanhamento e suporte da lideranca.",
+          dimensionKey: "feedback",
+          dimensionTitle: "Orientacoes e correcoes",
           prompt:
-            "8) Meu lider apoia o crescimento profissional dos colaboradores, respeitando seus interesses e potencial.",
-          helperText:
-            "Considere se ele orienta o desenvolvimento da equipe de forma personalizada.",
+            "8) Recebo orientacoes e correcoes ao longo do trabalho, permitindo ajustes e aprimoramento das minhas atividades.",
           sortOrder: 8,
-          visibility: "confidential"
+          visibility: "confidential",
+          scaleProfile: "performance"
         }),
         createScaleQuestion({
           id: "q_leader_09",
-          sectionKey: "communication",
-          sectionTitle: "Comunicacao e Relacionamento",
+          sectionKey: "environment",
+          sectionTitle: "Ambiente e Tomada de Decisao",
           sectionDescription:
-            "Reflita sobre a clareza da comunicacao do lider, escuta ativa, promocao de colaboracao e habilidade de lidar com conflitos.",
-          dimensionKey: "communication",
-          dimensionTitle: "Comunicacao clara",
-          prompt: "9) Meu lider se comunica de forma clara, assertiva e transparente.",
-          helperText:
-            "Reflita sobre a clareza das informacoes e instrucoes recebidas.",
+            "Considere ambiente de trabalho, colaboracao, decisoes e equilibrio diante de desafios.",
+          dimensionKey: "environment",
+          dimensionTitle: "Ambiente respeitoso",
+          prompt:
+            "9) Meu lider contribui para manter um ambiente de trabalho respeitoso e colaborativo.",
           sortOrder: 9,
-          visibility: "confidential"
+          visibility: "confidential",
+          scaleProfile: "performance"
         }),
         createScaleQuestion({
           id: "q_leader_10",
-          sectionKey: "communication",
-          sectionTitle: "Comunicacao e Relacionamento",
+          sectionKey: "environment",
+          sectionTitle: "Ambiente e Tomada de Decisao",
           sectionDescription:
-            "Reflita sobre a clareza da comunicacao do lider, escuta ativa, promocao de colaboracao e habilidade de lidar com conflitos.",
-          dimensionKey: "communication",
-          dimensionTitle: "Escuta e valorizacao da equipe",
-          prompt: "10) Meu lider escuta e valoriza opinioes e ideias da equipe.",
-          helperText:
-            "Avalie se ele da espaco para sua participacao e respeita suas contribuicoes.",
+            "Considere ambiente de trabalho, colaboracao, decisoes e equilibrio diante de desafios.",
+          dimensionKey: "collaboration",
+          dimensionTitle: "Interacoes profissionais",
+          prompt:
+            "10) Meu lider promove alinhamentos e interacoes profissionais pautados no respeito, na colaboracao e na boa convivencia entre a equipe.",
           sortOrder: 10,
-          visibility: "confidential"
+          visibility: "confidential",
+          scaleProfile: "performance"
         }),
         createScaleQuestion({
           id: "q_leader_11",
-          sectionKey: "communication",
-          sectionTitle: "Comunicacao e Relacionamento",
+          sectionKey: "environment",
+          sectionTitle: "Ambiente e Tomada de Decisao",
           sectionDescription:
-            "Reflita sobre a clareza da comunicacao do lider, escuta ativa, promocao de colaboracao e habilidade de lidar com conflitos.",
-          dimensionKey: "trust",
-          dimensionTitle: "Colaboracao, respeito e confianca",
-          prompt: "11) Meu lider promove um ambiente de colaboracao, respeito e confianca.",
-          helperText:
-            "Considere se ele incentiva trabalho em equipe e cria um clima seguro.",
+            "Considere ambiente de trabalho, colaboracao, decisoes e equilibrio diante de desafios.",
+          dimensionKey: "decision",
+          dimensionTitle: "Decisoes coerentes",
+          prompt:
+            "11) Meu lider toma decisoes de forma coerente e alinhada as necessidades da equipe.",
           sortOrder: 11,
-          visibility: "confidential"
+          visibility: "confidential",
+          scaleProfile: "performance"
         }),
         createScaleQuestion({
           id: "q_leader_12",
-          sectionKey: "communication",
-          sectionTitle: "Comunicacao e Relacionamento",
+          sectionKey: "environment",
+          sectionTitle: "Ambiente e Tomada de Decisao",
           sectionDescription:
-            "Reflita sobre a clareza da comunicacao do lider, escuta ativa, promocao de colaboracao e habilidade de lidar com conflitos.",
-          dimensionKey: "trust",
-          dimensionTitle: "Conflitos e divergencias",
+            "Considere ambiente de trabalho, colaboracao, decisoes e equilibrio diante de desafios.",
+          dimensionKey: "balance",
+          dimensionTitle: "Equilibrio em desafios",
           prompt:
-            "12) Meu lider lida de forma construtiva com conflitos ou divergencias na equipe.",
-          helperText:
-            "Reflita sobre sua capacidade de resolver problemas de relacionamento e divergencias.",
+            "12) Meu lider demonstra equilibrio ao lidar com desafios, mudancas e situacoes inesperadas.",
           sortOrder: 12,
-          visibility: "confidential"
+          visibility: "confidential",
+          scaleProfile: "performance"
         }),
         createScaleQuestion({
           id: "q_leader_13",
-          sectionKey: "engagement",
-          sectionTitle: "Engajamento e Motivacao",
+          sectionKey: "environment",
+          sectionTitle: "Ambiente e Tomada de Decisao",
           sectionDescription:
-            "Avalie se ele demonstra comprometimento, inspira a equipe, reconhece esforcos e cria um ambiente de trabalho positivo.",
-          dimensionKey: "engagement",
-          dimensionTitle: "Comprometimento com objetivos",
+            "Considere ambiente de trabalho, colaboracao, decisoes e equilibrio diante de desafios.",
+          dimensionKey: "accessibility",
+          dimensionTitle: "Acessibilidade presencial/remota",
           prompt:
-            "13) Meu lider demonstra comprometimento com os objetivos da empresa e da equipe.",
-          helperText:
-            "Avalie se ele se envolve ativamente nos resultados e metas da equipe.",
+            "13) Meu lider esta acessivel para apoiar a equipe, tanto presencialmente quanto em home office, quando aplicavel.",
           sortOrder: 13,
-          visibility: "confidential"
+          visibility: "confidential",
+          scaleProfile: "performance"
         }),
         createScaleQuestion({
           id: "q_leader_14",
-          sectionKey: "engagement",
-          sectionTitle: "Engajamento e Motivacao",
+          sectionKey: "recognition",
+          sectionTitle: "Reconhecimento e Desenvolvimento",
           sectionDescription:
-            "Avalie se ele demonstra comprometimento, inspira a equipe, reconhece esforcos e cria um ambiente de trabalho positivo.",
-          dimensionKey: "engagement",
-          dimensionTitle: "Inspiracao e motivacao",
-          prompt: "14) Meu lider inspira e motiva a equipe a se empenhar nas atividades.",
-          helperText:
-            "Considere se ele incentiva engajamento, entusiasmo e participacao da equipe.",
+            "Avalie reconhecimento, desenvolvimento profissional e confianca na lideranca.",
+          dimensionKey: "development",
+          dimensionTitle: "Desenvolvimento profissional",
+          prompt:
+            "14) Meu lider cria oportunidades para que eu desenvolva novos conhecimentos e habilidades profissionais.",
           sortOrder: 14,
-          visibility: "confidential"
+          visibility: "confidential",
+          scaleProfile: "performance"
         }),
         createScaleQuestion({
           id: "q_leader_15",
-          sectionKey: "engagement",
-          sectionTitle: "Engajamento e Motivacao",
+          sectionKey: "recognition",
+          sectionTitle: "Reconhecimento e Desenvolvimento",
           sectionDescription:
-            "Avalie se ele demonstra comprometimento, inspira a equipe, reconhece esforcos e cria um ambiente de trabalho positivo.",
-          dimensionKey: "engagement",
-          dimensionTitle: "Reconhecimento de conquistas",
+            "Avalie reconhecimento, desenvolvimento profissional e confianca na lideranca.",
+          dimensionKey: "trust",
+          dimensionTitle: "Confianca na lideranca",
           prompt:
-            "15) Meu lider reconhece e valoriza conquistas e esforcos individuais e coletivos.",
-          helperText:
-            "Reflita se ele oferece reconhecimento adequado aos colaboradores.",
+            "15) De forma geral, sinto que posso contar com meu lider quando necessario.",
           sortOrder: 15,
-          visibility: "confidential"
-        }),
-        createScaleQuestion({
-          id: "q_leader_16",
-          sectionKey: "engagement",
-          sectionTitle: "Engajamento e Motivacao",
-          sectionDescription:
-            "Avalie se ele demonstra comprometimento, inspira a equipe, reconhece esforcos e cria um ambiente de trabalho positivo.",
-          dimensionKey: "engagement",
-          dimensionTitle: "Ambiente positivo e inclusivo",
-          prompt:
-            "16) Meu lider promove um ambiente de trabalho positivo, inclusivo e engajador.",
-          helperText:
-            "Avalie se ele contribui para um clima motivador, seguro e produtivo.",
-          sortOrder: 16,
-          visibility: "confidential"
-        }),
-        createScaleQuestion({
-          id: "q_leader_17",
-          sectionKey: "strategy",
-          sectionTitle: "Visao Estrategica e Autodesenvolvimento",
-          sectionDescription:
-            "Considere sua capacidade de tomar decisoes estrategicas, buscar aprendizado continuo e equilibrar orientacao e autonomia da equipe.",
-          dimensionKey: "strategy",
-          dimensionTitle: "Decisao estrategica",
-          prompt:
-            "17) Meu lider demonstra capacidade de tomar decisoes estrategicas e alinhadas aos objetivos da empresa.",
-          helperText:
-            "Considere se ele consegue tomar decisoes adequadas e consistentes com a estrategia da empresa.",
-          sortOrder: 17,
-          visibility: "confidential"
-        }),
-        createScaleQuestion({
-          id: "q_leader_18",
-          sectionKey: "strategy",
-          sectionTitle: "Visao Estrategica e Autodesenvolvimento",
-          sectionDescription:
-            "Considere sua capacidade de tomar decisoes estrategicas, buscar aprendizado continuo e equilibrar orientacao e autonomia da equipe.",
-          dimensionKey: "strategy",
-          dimensionTitle: "Autodesenvolvimento da lideranca",
-          prompt:
-            "18) Meu lider esta atento as proprias oportunidades de desenvolvimento e aprimoramento como lider.",
-          helperText:
-            "Avalie se ele busca evoluir continuamente em suas competencias de gestao.",
-          sortOrder: 18,
-          visibility: "confidential"
-        }),
-        createScaleQuestion({
-          id: "q_leader_19",
-          sectionKey: "strategy",
-          sectionTitle: "Visao Estrategica e Autodesenvolvimento",
-          sectionDescription:
-            "Considere sua capacidade de tomar decisoes estrategicas, buscar aprendizado continuo e equilibrar orientacao e autonomia da equipe.",
-          dimensionKey: "strategy",
-          dimensionTitle: "Aprendizado continuo",
-          prompt:
-            "19) Meu lider busca aprendizado continuo sobre gestao, lideranca e boas praticas.",
-          helperText:
-            "Reflita se ele se mantem atualizado e procura se aprimorar constantemente.",
-          sortOrder: 19,
-          visibility: "confidential"
-        }),
-        createScaleQuestion({
-          id: "q_leader_20",
-          sectionKey: "strategy",
-          sectionTitle: "Visao Estrategica e Autodesenvolvimento",
-          sectionDescription:
-            "Considere sua capacidade de tomar decisoes estrategicas, buscar aprendizado continuo e equilibrar orientacao e autonomia da equipe.",
-          dimensionKey: "strategy",
-          dimensionTitle: "Equilibrio entre orientacao e autonomia",
-          prompt:
-            "20) Meu lider equilibra orientacao e autonomia, permitindo que a equipe trabalhe com confianca e responsabilidade.",
-          helperText:
-            "Considere se ele delega adequadamente, dando suporte sem sobrecarregar ou restringir a equipe.",
-          sortOrder: 20,
-          visibility: "confidential"
+          visibility: "confidential",
+          scaleProfile: "performance"
         }),
         createTextQuestion({
-          id: "q_leader_21",
+          id: "q_leader_16",
           sectionKey: "final",
           sectionTitle: "Consideracoes Finais",
           sectionDescription:
-            "Espaco para voce registrar comentarios, feedbacks ou sugestoes adicionais que considere importantes.",
+            "Espaco para resposta dissertativa sobre lideranca.",
           dimensionKey: "final-comments",
           dimensionTitle: "Sugestoes e observacoes",
           prompt:
             "Escreva aqui suas sugestoes, ideias de melhoria, observacoes sobre processos, comunicacao, recursos, desenvolvimento da equipe, lideranca ou qualquer outro ponto relevante para aprimorar seu trabalho, sua equipe ou a empresa.",
-          sortOrder: 21,
+          sortOrder: 16,
           visibility: "confidential"
         })
       ]
