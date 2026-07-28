@@ -411,7 +411,7 @@ export function DevelopmentSection({
         </div>
         <DevelopmentPerformanceSummaryCard summary={developmentPerformanceSummary} />
         {showDevelopmentViews ? (
-          <div className="module-grid">
+          <div className="module-grid development-view-tabs" aria-label="Visões de PDI">
             {displayedDevelopmentViewOptions.map((view) => (
               <button
                 key={view.key}

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "./api";
 import {
   academicDevelopmentTypes,
@@ -296,6 +296,7 @@ export function useDevelopmentFlow({
   user
 }) {
   const [activeDevelopmentView, setActiveDevelopmentView] = useState("personal");
+  const hasInitializedDevelopmentViewRef = useRef(false);
   const [developmentForm, setDevelopmentForm] = useState(emptyDevelopment);
   const [developmentPlanForm, setDevelopmentPlanForm] = useState(emptyDevelopmentPlan);
   const [developmentAreaFilter, setDevelopmentAreaFilter] = useState("all");
@@ -620,10 +621,28 @@ export function useDevelopmentFlow({
   );
 
   useEffect(() => {
-    if (!developmentViewOptions.some((view) => view.key === activeDevelopmentView)) {
-      setActiveDevelopmentView(developmentViewOptions[0]?.key || "personal");
+    if (!developmentViewOptions.length) {
+      return;
     }
-  }, [activeDevelopmentView, developmentViewOptions]);
+
+    const managerDefaultView = developmentViewOptions.some((view) => view.key === "team")
+      ? "team"
+      : "personal";
+    const defaultView = canViewTeamDevelopment ? managerDefaultView : developmentViewOptions[0].key;
+
+    if (!developmentViewOptions.some((view) => view.key === activeDevelopmentView)) {
+      setActiveDevelopmentView(defaultView);
+      hasInitializedDevelopmentViewRef.current = true;
+      return;
+    }
+
+    if (!hasInitializedDevelopmentViewRef.current) {
+      hasInitializedDevelopmentViewRef.current = true;
+      if (canViewTeamDevelopment && activeDevelopmentView === "personal") {
+        setActiveDevelopmentView(defaultView);
+      }
+    }
+  }, [activeDevelopmentView, canViewTeamDevelopment, developmentViewOptions]);
 
   useEffect(() => {
     if (activeDevelopmentView !== "organization") {
@@ -791,7 +810,7 @@ export function useDevelopmentFlow({
   }
 
   function resetDevelopmentFlow() {
-    setActiveDevelopmentView("personal");
+    setActiveDevelopmentView(canViewTeamDevelopment ? "team" : "personal");
     setDevelopmentAreaFilter("all");
     setDevelopmentPersonFilter("all");
     setDevelopmentForm(emptyDevelopment);

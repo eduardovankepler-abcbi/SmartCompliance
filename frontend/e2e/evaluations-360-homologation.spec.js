@@ -21,9 +21,10 @@ test("gestor acompanha leituras do 360 e fecha a jornada com PDI da equipe", asy
   await expect(page.getByRole("heading", { name: "Historico armazenado por ciclo" })).toBeVisible();
 
   await openSection(page, "Desenvolvimento");
-  await expect(page.getByRole("button", { name: "Minha equipe" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /PDI da equipe/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Meu PDI/ })).toBeVisible();
   await expect(page.getByRole("button", { name: "Organizacao" })).toHaveCount(0);
-  await page.getByRole("button", { name: "Minha equipe" }).click();
+  await page.getByRole("button", { name: /PDI da equipe/ }).click();
 
   const developmentPlanForm = page.locator("form.development-plan-form");
 
