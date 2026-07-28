@@ -37,15 +37,22 @@ const progressLabels: Record<string, string> = {
 
       @if (!loading()) {
         <section class="trail-panel" aria-label="Trilha de desenvolvimento">
-          <div class="panel__heading"><div><p>Trilha de desenvolvimento</p><h2>Meu indice de desempenho</h2></div><span>Sua trilha individual de formacao, certificacoes e marcos recentes</span></div>
+          <div class="panel__heading"><div><p>{{ activeDevelopmentView() === 'team' ? 'PDI gerencial' : 'Trilha de desenvolvimento' }}</p><h2>{{ activeDevelopmentView() === 'team' ? 'PDI da equipe' : 'Meu indice de desempenho' }}</h2></div><span>{{ developmentViewDescription() }}</span></div>
+          @if (developmentViews().length > 1) {
+            <div class="view-tabs" aria-label="Visoes de PDI">
+              @for (view of developmentViews(); track view.key) {
+                <button type="button" [class.active]="activeDevelopmentView() === view.key" (click)="setDevelopmentView(view.key)"><span>{{ view.label }}</span><small>{{ view.description }}</small></button>
+              }
+            </div>
+          }
           <div class="trail-panel__hero">
-            <article><span>Leitura privada</span><strong>{{ plansInProgress() ? 'Em evolucao' : '-' }}</strong><small>{{ plansInProgress() ? 'PDIs em andamento no recorte.' : 'Sem leitura 360 suficiente' }}</small></article>
-            <article><span>Organizacao</span><strong>Visao ampla de desenvolvimento</strong><small>Indicadores consolidados para RH e administracao.</small></article>
+            <article><span>{{ activeDevelopmentView() === 'team' ? 'Gestao direta' : 'Leitura privada' }}</span><strong>{{ plansInProgress() ? 'Em evolucao' : '-' }}</strong><small>{{ plansInProgress() ? 'Planos PDI em andamento no recorte.' : 'Sem leitura 360 suficiente' }}</small></article>
+            <article><span>{{ activeDevelopmentView() === 'team' ? 'Equipe' : 'Organizacao' }}</span><strong>{{ activeDevelopmentView() === 'team' ? 'Visao macro da equipe' : 'Visao ampla de desenvolvimento' }}</strong><small>{{ activeDevelopmentView() === 'team' ? 'Planos abertos e registros concluidos dos reportes diretos.' : 'Indicadores consolidados para RH e administracao.' }}</small></article>
           </div>
           <div class="trail-panel__metrics">
             <article><strong>{{ activeRecords().length }}</strong><span>Registros no recorte</span></article>
             <article><strong>{{ activeRecords().length }}</strong><span>Formacao academica</span></article>
-            <article><strong>{{ activePlans().length }}</strong><span>Pessoas em foco</span></article>
+            <article><strong>{{ peopleInScope() }}</strong><span>Pessoas em foco</span></article>
             <article><strong>{{ pendingLearningEvents().length }}</strong><span>Aprendizagem continua</span></article>
           </div>
         </section>
@@ -55,7 +62,7 @@ const progressLabels: Record<string, string> = {
         <form class="form-panel" [formGroup]="recordForm" (ngSubmit)="saveRecord()">
           <div class="form-heading"><div><p>Registro de desenvolvimento</p><h2>{{ editingRecord() ? 'Editar registro' : 'Novo registro' }}</h2></div><button class="secondary" type="button" (click)="closeRecordForm()">Cancelar</button></div>
           <div class="form-grid">
-            <label>Pessoa<select formControlName="personId">@for (person of peopleOptions(); track person.id) { <option [value]="person.id">{{ person.name }}</option> }</select></label>
+            <label>Pessoa<select formControlName="personId">@for (person of scopedPeopleOptions(); track person.id) { <option [value]="person.id">{{ person.name }}</option> }</select></label>
             <label>Tipo<select formControlName="recordType">@for (type of recordTypes; track type) { <option [value]="type">{{ type }}</option> }</select></label>
             <label class="wide">Titulo<input formControlName="title" /></label>
             <label>Instituicao ou provedor<input formControlName="providerName" /></label>
@@ -72,7 +79,7 @@ const progressLabels: Record<string, string> = {
         <form class="form-panel" [formGroup]="planForm" (ngSubmit)="savePlan()">
           <div class="form-heading"><div><p>Plano de desenvolvimento individual</p><h2>{{ editingPlan() ? 'Editar PDI' : 'Novo PDI' }}</h2></div><button class="secondary" type="button" (click)="closePlanForm()">Cancelar</button></div>
           <div class="form-grid">
-            <label>Pessoa<select formControlName="personId">@for (person of peopleOptions(); track person.id) { <option [value]="person.id">{{ person.name }}</option> }</select></label>
+            <label>Pessoa<select formControlName="personId">@for (person of scopedPeopleOptions(); track person.id) { <option [value]="person.id">{{ person.name }}</option> }</select></label>
             <label>Competencia<select formControlName="competencyId"><option value="">Competencia livre</option>@for (competency of competencies(); track competency.id) { <option [value]="competency.id">{{ competency.name }}</option> }</select></label>
             <label class="wide">Foco do PDI<input formControlName="focusTitle" /></label>
             <label class="wide">Acao planejada<textarea rows="3" formControlName="actionText"></textarea></label>
@@ -94,7 +101,7 @@ const progressLabels: Record<string, string> = {
             @else if (!pendingLearningEvents().length) { <p class="state">Fila limpa. Novos cursos e treinamentos importados aparecerao aqui.</p> }
             @else { <div class="cards integration-cards">@for (event of pendingLearningEvents(); track event.id) {
               <article class="card"><div class="card__top"><div><strong>{{ event.title }}</strong><span>{{ event.personName || event.personEmail || 'Pessoa nao conciliada' }}</span></div><span class="badge" [class.badge--warning]="!event.personId">{{ event.personId ? 'Pronto' : 'Revisar' }}</span></div><p>{{ event.providerName }} · {{ learningTargetLabel(event) }}</p><dl><div><dt>Origem</dt><dd>{{ event.sourceSystem }} · {{ event.externalId }}</dd></div><div><dt>Carga e competencia</dt><dd>{{ event.workloadHours || 0 }}h · {{ event.competencyKey || 'Sem competencia' }}</dd></div></dl><div class="card-actions"><button class="secondary" type="button" (click)="openLearningReview(event)">Revisar e aplicar</button></div>
-                @if (reviewingLearningEvent()?.id === event.id) { <form class="integration-form" [formGroup]="learningForm" (ngSubmit)="applyLearningEvent(event)"><label>Pessoa<select formControlName="personId"><option value="">Selecione uma pessoa</option>@for (person of peopleOptions(); track person.id) { <option [value]="person.id">{{ person.name }}</option> }</select></label><label>Competencia<select formControlName="competencyId"><option value="">Mapeamento automatico</option>@for (competency of competencies(); track competency.id) { <option [value]="competency.id">{{ competency.name }}</option> }</select></label>@if (event.suggestedAction === 'development_plan_candidate') { <label>Prazo sugerido<input type="date" formControlName="dueDate" /></label> }<label class="wide">Nota de revisao<textarea rows="2" formControlName="reviewNote"></textarea></label><div class="card-actions wide"><button type="submit" [disabled]="saving() || !learningForm.controls.personId.value">{{ saving() ? 'Aplicando...' : 'Aplicar em ' + learningTargetLabel(event) }}</button><button class="secondary" type="button" (click)="reviewingLearningEvent.set(null)">Cancelar</button></div></form> }
+                @if (reviewingLearningEvent()?.id === event.id) { <form class="integration-form" [formGroup]="learningForm" (ngSubmit)="applyLearningEvent(event)"><label>Pessoa<select formControlName="personId"><option value="">Selecione uma pessoa</option>@for (person of scopedPeopleOptions(); track person.id) { <option [value]="person.id">{{ person.name }}</option> }</select></label><label>Competencia<select formControlName="competencyId"><option value="">Mapeamento automatico</option>@for (competency of competencies(); track competency.id) { <option [value]="competency.id">{{ competency.name }}</option> }</select></label>@if (event.suggestedAction === 'development_plan_candidate') { <label>Prazo sugerido<input type="date" formControlName="dueDate" /></label> }<label class="wide">Nota de revisao<textarea rows="2" formControlName="reviewNote"></textarea></label><div class="card-actions wide"><button type="submit" [disabled]="saving() || !learningForm.controls.personId.value">{{ saving() ? 'Aplicando...' : 'Aplicar em ' + learningTargetLabel(event) }}</button><button class="secondary" type="button" (click)="reviewingLearningEvent.set(null)">Cancelar</button></div></form> }
               </article>
             }</div> }
           </section>
@@ -123,7 +130,7 @@ const progressLabels: Record<string, string> = {
     </section>
   `,
   styles: `
-    .development{max-width:1080px}.development__header,.error,.panel__heading,.card__top,.form-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}.development__header p,.panel__heading p,.form-heading p{margin:0;color:color-mix(in srgb, var(--abc-blue) 45%, var(--abc-surface));font-size:13px;font-weight:700;text-transform:uppercase}.development__header h1,.form-heading h2{margin:4px 0}.development__header span,.panel__heading>span,.state,.card p,.card small{color:var(--abc-text-muted)}.actions,.card-actions{display:flex;flex-wrap:wrap;gap:8px}button{padding:9px 12px;background:var(--abc-blue);color:var(--abc-on-blue);border:0;border-radius:var(--abc-radius);font-weight:700}.secondary{background:var(--abc-surface);color:var(--abc-text);border:1px solid var(--abc-border)}.danger{background:var(--abc-surface);color:color-mix(in srgb, var(--abc-danger) 28%, var(--abc-surface));border:1px solid color-mix(in srgb, var(--abc-danger) 55%, var(--abc-navy))}button:disabled{opacity:.6}.error,.validation{margin-top:20px;padding:12px;color:color-mix(in srgb, var(--abc-danger) 28%, var(--abc-surface));background:color-mix(in srgb, var(--abc-danger) 30%, var(--abc-navy));border:1px solid color-mix(in srgb, var(--abc-danger) 55%, var(--abc-navy));border-radius:8px}.validation{margin:0}.form-panel,.metrics article,.integration-metrics article,.panel,.card,.trail-panel{background:var(--abc-surface);border:1px solid var(--abc-border);border-radius:10px;color:var(--abc-text);box-shadow:0 8px 24px color-mix(in srgb, var(--abc-navy) 6%, transparent)}.trail-panel{display:grid;gap:14px;margin-top:20px;padding:18px}.trail-panel__hero,.trail-panel__metrics{display:grid;gap:14px}.trail-panel__hero{grid-template-columns:1.2fr 1fr}.trail-panel__hero article,.trail-panel__metrics article{display:grid;gap:6px;padding:16px;background:var(--abc-surface);border:1px solid var(--abc-border);border-radius:10px}.trail-panel span,.trail-panel small{color:var(--abc-text-muted)}.trail-panel__hero strong{font-size:20px}.trail-panel__metrics{grid-template-columns:repeat(4,minmax(0,1fr))}.trail-panel__metrics strong{font-size:26px}.form-panel{margin-top:20px;padding:18px}.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:18px 0}.form-grid label,.progress-form label,.integration-form label{display:grid;gap:6px;color:var(--abc-text);font-size:14px;font-weight:600}.form-grid .wide,.integration-form .wide{grid-column:1/-1}input,select,textarea{box-sizing:border-box;width:100%;padding:9px 10px;border:1px solid var(--abc-border);border-radius:var(--abc-radius);background:var(--abc-surface);color:var(--abc-text);font:inherit}.metrics,.integration-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:24px}.integration-metrics{grid-template-columns:repeat(4,minmax(0,1fr));margin-top:16px}.metrics article,.integration-metrics article{display:grid;gap:4px;padding:18px}.metrics strong,.integration-metrics strong{font-size:26px}.metrics span,.integration-metrics span{color:var(--abc-text-muted)}.panel{margin-top:20px;padding:18px}.panel__heading h2{margin:3px 0 0}.integrations{border-color:var(--abc-border);background:var(--abc-surface)}.cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:16px}.card{padding:16px;background:var(--abc-surface)}.card__top>div{display:grid;gap:4px}.card__top>div span{color:var(--abc-text-muted);font-size:14px}.badge{padding:4px 8px;border-radius:999px;background:var(--abc-blue-dark);color:color-mix(in srgb, var(--abc-blue) 16%, var(--abc-surface));font-size:12px;font-weight:700}.badge--warning{background:color-mix(in srgb, var(--abc-warning) 65%, var(--abc-text));color:color-mix(in srgb, var(--abc-warning) 30%, var(--abc-border))}.card p{margin:14px 0;color:var(--abc-text)}.card dl{display:grid;gap:9px;margin:0}.card dl div{display:grid;gap:2px}.card dt{color:var(--abc-text-muted);font-size:12px}.card dd{margin:0;color:var(--abc-text)}.card small{display:block;margin-top:12px}.card-actions{margin-top:16px}.progress-form,.integration-form{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px;padding-top:14px;border-top:1px solid var(--abc-border)}.progress-form button{align-self:end}.state{margin:20px 0 4px}@media(max-width:760px){.metrics,.integration-metrics,.cards,.form-grid,.progress-form,.integration-form,.trail-panel__hero,.trail-panel__metrics{grid-template-columns:1fr}.form-grid .wide,.integration-form .wide{grid-column:auto}.development__header,.panel__heading{align-items:stretch;flex-direction:column}.actions{justify-content:flex-start}}
+    .development{max-width:1080px}.development__header,.error,.panel__heading,.card__top,.form-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}.development__header p,.panel__heading p,.form-heading p{margin:0;color:color-mix(in srgb, var(--abc-blue) 45%, var(--abc-surface));font-size:13px;font-weight:700;text-transform:uppercase}.development__header h1,.form-heading h2{margin:4px 0}.development__header span,.panel__heading>span,.state,.card p,.card small{color:var(--abc-text-muted)}.actions,.card-actions{display:flex;flex-wrap:wrap;gap:8px}button{padding:9px 12px;background:var(--abc-blue);color:var(--abc-on-blue);border:0;border-radius:var(--abc-radius);font-weight:700}.secondary{background:var(--abc-surface);color:var(--abc-text);border:1px solid var(--abc-border)}.danger{background:var(--abc-surface);color:color-mix(in srgb, var(--abc-danger) 28%, var(--abc-surface));border:1px solid color-mix(in srgb, var(--abc-danger) 55%, var(--abc-navy))}button:disabled{opacity:.6}.error,.validation{margin-top:20px;padding:12px;color:color-mix(in srgb, var(--abc-danger) 28%, var(--abc-surface));background:color-mix(in srgb, var(--abc-danger) 30%, var(--abc-navy));border:1px solid color-mix(in srgb, var(--abc-danger) 55%, var(--abc-navy));border-radius:8px}.validation{margin:0}.form-panel,.metrics article,.integration-metrics article,.panel,.card,.trail-panel{background:var(--abc-surface);border:1px solid var(--abc-border);border-radius:10px;color:var(--abc-text);box-shadow:0 8px 24px color-mix(in srgb, var(--abc-navy) 6%, transparent)}.trail-panel{display:grid;gap:14px;margin-top:20px;padding:18px}.view-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.view-tabs button{display:grid;gap:4px;text-align:left;background:var(--abc-surface);color:var(--abc-text);border:1px solid var(--abc-border)}.view-tabs button.active{background:var(--abc-blue);color:var(--abc-on-blue);border-color:var(--abc-blue)}.view-tabs small{color:inherit;opacity:.8}.trail-panel__hero,.trail-panel__metrics{display:grid;gap:14px}.trail-panel__hero{grid-template-columns:1.2fr 1fr}.trail-panel__hero article,.trail-panel__metrics article{display:grid;gap:6px;padding:16px;background:var(--abc-surface);border:1px solid var(--abc-border);border-radius:10px}.trail-panel span,.trail-panel small{color:var(--abc-text-muted)}.trail-panel__hero strong{font-size:20px}.trail-panel__metrics{grid-template-columns:repeat(4,minmax(0,1fr))}.trail-panel__metrics strong{font-size:26px}.form-panel{margin-top:20px;padding:18px}.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:18px 0}.form-grid label,.progress-form label,.integration-form label{display:grid;gap:6px;color:var(--abc-text);font-size:14px;font-weight:600}.form-grid .wide,.integration-form .wide{grid-column:1/-1}input,select,textarea{box-sizing:border-box;width:100%;padding:9px 10px;border:1px solid var(--abc-border);border-radius:var(--abc-radius);background:var(--abc-surface);color:var(--abc-text);font:inherit}.metrics,.integration-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:24px}.integration-metrics{grid-template-columns:repeat(4,minmax(0,1fr));margin-top:16px}.metrics article,.integration-metrics article{display:grid;gap:4px;padding:18px}.metrics strong,.integration-metrics strong{font-size:26px}.metrics span,.integration-metrics span{color:var(--abc-text-muted)}.panel{margin-top:20px;padding:18px}.panel__heading h2{margin:3px 0 0}.integrations{border-color:var(--abc-border);background:var(--abc-surface)}.cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:16px}.card{padding:16px;background:var(--abc-surface)}.card__top>div{display:grid;gap:4px}.card__top>div span{color:var(--abc-text-muted);font-size:14px}.badge{padding:4px 8px;border-radius:999px;background:var(--abc-blue-dark);color:color-mix(in srgb, var(--abc-blue) 16%, var(--abc-surface));font-size:12px;font-weight:700}.badge--warning{background:color-mix(in srgb, var(--abc-warning) 65%, var(--abc-text));color:color-mix(in srgb, var(--abc-warning) 30%, var(--abc-border))}.card p{margin:14px 0;color:var(--abc-text)}.card dl{display:grid;gap:9px;margin:0}.card dl div{display:grid;gap:2px}.card dt{color:var(--abc-text-muted);font-size:12px}.card dd{margin:0;color:var(--abc-text)}.card small{display:block;margin-top:12px}.card-actions{margin-top:16px}.progress-form,.integration-form{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px;padding-top:14px;border-top:1px solid var(--abc-border)}.progress-form button{align-self:end}.state{margin:20px 0 4px}@media(max-width:760px){.metrics,.integration-metrics,.cards,.form-grid,.progress-form,.integration-form,.trail-panel__hero,.trail-panel__metrics,.view-tabs{grid-template-columns:1fr}.form-grid .wide,.integration-form .wide{grid-column:auto}.development__header,.panel__heading{align-items:stretch;flex-direction:column}.actions{justify-content:flex-start}}
   `,
 })
 export class DevelopmentPageComponent implements OnInit {
@@ -149,9 +156,25 @@ export class DevelopmentPageComponent implements OnInit {
   readonly editingPlan = signal<DevelopmentPlan | null>(null);
   readonly progressPlan = signal<DevelopmentPlan | null>(null);
   readonly reviewingLearningEvent = signal<LearningIntegrationEvent | null>(null);
+  readonly activeDevelopmentView = signal<'team' | 'personal'>('personal');
   readonly canManageLearningIntegrations = computed(() => ['admin', 'hr'].includes(this.auth.user()?.roleKey || ''));
-  readonly activeRecords = computed(() => this.records().filter((item) => item.status !== 'archived'));
-  readonly activePlans = computed(() => this.plans().filter((item) => item.status !== 'archived'));
+  readonly directReportPeople = computed(() => this.peopleOptions().filter((person) => person.managerPersonId === this.auth.user()?.person?.id));
+  readonly canViewTeamDevelopment = computed(() => this.auth.user()?.roleKey === 'manager' || this.directReportPeople().length > 0);
+  readonly developmentViews = computed(() => this.canViewTeamDevelopment() ? [
+    { key: 'team' as const, label: 'PDI da equipe', description: 'Planos abertos e registros concluidos dos reportes diretos.' },
+    { key: 'personal' as const, label: 'Meu PDI', description: 'Seu desenvolvimento individual e registros concluidos.' },
+  ] : []);
+  readonly scopedPeopleOptions = computed(() => {
+    const userPersonId = this.auth.user()?.person?.id || '';
+    if (this.activeDevelopmentView() === 'team' && this.canViewTeamDevelopment()) {
+      return this.directReportPeople().length ? this.directReportPeople() : this.peopleOptions().filter((person) => person.id !== userPersonId);
+    }
+    return this.peopleOptions().filter((person) => person.id === userPersonId);
+  });
+  readonly scopedPersonIds = computed(() => new Set(this.scopedPeopleOptions().map((person) => person.id)));
+  readonly peopleInScope = computed(() => this.scopedPeopleOptions().length);
+  readonly activeRecords = computed(() => this.records().filter((item) => item.status !== 'archived' && this.scopedPersonIds().has(item.personId)));
+  readonly activePlans = computed(() => this.plans().filter((item) => item.status !== 'archived' && this.scopedPersonIds().has(item.personId)));
   readonly plansInProgress = computed(() => this.activePlans().filter((item) => item.progressStatus === 'in_progress').length);
   readonly pendingLearningEvents = computed(() => this.learningEvents().filter((item) => item.processingStatus !== 'applied'));
   readonly readyLearningEvents = computed(() => this.learningEvents().filter((item) => item.processingStatus === 'ready_for_review').length);
@@ -173,22 +196,31 @@ export class DevelopmentPageComponent implements OnInit {
 
   async ngOnInit(): Promise<void> {
     await this.load();
+    if (this.canViewTeamDevelopment()) {
+      this.setDevelopmentView('team');
+    }
     this.openRecordForm();
     this.openPlanForm();
   }
   progressLabel(status: string): string { return progressLabels[status] ?? status; }
+  developmentViewDescription(): string { return this.developmentViews().find((view) => view.key === this.activeDevelopmentView())?.description || 'Sua trilha individual de formacao, certificacoes e marcos recentes'; }
+  setDevelopmentView(view: 'team' | 'personal'): void {
+    this.activeDevelopmentView.set(view);
+    if (this.showRecordForm()) this.openRecordForm(this.editingRecord());
+    if (this.showPlanForm()) this.openPlanForm(this.editingPlan());
+  }
   recordValidationMessage(): string { const value = this.recordForm.getRawValue(); if (!value.personId) return 'Selecione a pessoa vinculada ao registro.'; if (!value.title.trim()) return 'Informe o titulo do registro.'; if (!value.providerName.trim()) return 'Informe a instituicao ou provedor.'; if (!value.completedAt) return 'Informe a data de conclusao.'; if (!value.skillSignal.trim()) return 'Informe o sinal de competencia.'; return ''; }
   planValidationMessage(): string { const value = this.planForm.getRawValue(); if (!value.personId) return 'Selecione a pessoa vinculada ao PDI.'; if (!value.focusTitle.trim()) return 'Informe o foco do PDI.'; if (!value.actionText.trim()) return 'Descreva a acao planejada.'; if (!value.dueDate) return 'Informe o prazo do PDI.'; if (!value.expectedEvidence.trim()) return 'Informe a evidencia esperada.'; return ''; }
 
   openRecordForm(record: DevelopmentRecord | null = null): void {
     this.editingRecord.set(record);
-    this.recordForm.reset(record ? { personId:record.personId, recordType:record.recordType, title:record.title, providerName:record.providerName, completedAt:this.dateInput(record.completedAt), skillSignal:record.skillSignal, notes:record.notes } : { personId:this.defaultPersonId(), recordType:'Graduacao', title:'', providerName:'', completedAt:'', skillSignal:'', notes:'' });
+    this.recordForm.reset(record ? { personId:record.personId, recordType:record.recordType, title:record.title, providerName:record.providerName, completedAt:this.dateInput(record.completedAt), skillSignal:record.skillSignal, notes:record.notes } : { personId:this.defaultScopedPersonId(), recordType:'Graduacao', title:'', providerName:'', completedAt:'', skillSignal:'', notes:'' });
     this.showRecordForm.set(true);
   }
   closeRecordForm(): void { this.showRecordForm.set(false); this.editingRecord.set(null); }
   openPlanForm(plan: DevelopmentPlan | null = null): void {
     this.editingPlan.set(plan);
-    this.planForm.reset(plan ? { personId:plan.personId, cycleId:plan.cycleId || '', competencyId:plan.competencyId || '', focusTitle:plan.focusTitle, actionText:plan.actionText, dueDate:this.dateInput(plan.dueDate), expectedEvidence:plan.expectedEvidence } : { personId:this.defaultPersonId(), cycleId:'', competencyId:'', focusTitle:'', actionText:'', dueDate:'', expectedEvidence:'' });
+    this.planForm.reset(plan ? { personId:plan.personId, cycleId:plan.cycleId || '', competencyId:plan.competencyId || '', focusTitle:plan.focusTitle, actionText:plan.actionText, dueDate:this.dateInput(plan.dueDate), expectedEvidence:plan.expectedEvidence } : { personId:this.defaultScopedPersonId(), cycleId:'', competencyId:'', focusTitle:'', actionText:'', dueDate:'', expectedEvidence:'' });
     this.showPlanForm.set(true);
   }
   closePlanForm(): void { this.showPlanForm.set(false); this.editingPlan.set(null); }
@@ -245,6 +277,7 @@ export class DevelopmentPageComponent implements OnInit {
     finally { this.saving.set(false); }
   }
   private defaultPersonId(): string { return this.auth.user()?.person?.id || this.peopleOptions()[0]?.id || ''; }
+  private defaultScopedPersonId(): string { return this.scopedPeopleOptions()[0]?.id || this.defaultPersonId(); }
   private dateInput(value: string): string { return value ? String(value).slice(0, 10) : ''; }
   private setError(error: unknown, fallback: string): void { this.errorMessage.set(error instanceof ApiError ? error.message : fallback); }
 }
