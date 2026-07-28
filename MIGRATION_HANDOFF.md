@@ -2,12 +2,12 @@
 
 ## Objetivo
 
-Migrar o frontend de React 18/Vite para Angular 21 por padronizacao corporativa, mantendo o React em producao durante toda a transicao. O novo aplicativo vive em `frontend-angular/` e usa a mesma API do backend existente.
+Migrar o frontend de React 18/Vite para Angular 21 por padronizacao corporativa. A transicao manteve o React em producao ate o corte oficial; desde 2026-07-24 o Angular responde pelo dominio oficial. O aplicativo oficial vive em `frontend-angular/` e usa a mesma API do backend existente.
 
 ## Estrategia Aprovada
 
 - Migracao paralela por telas e modulos; nao incorporar Angular dentro do React.
-- Manter `frontend/` funcional ate o corte final.
+- Manter `frontend/` funcional ate o corte final e preservado apenas como rollback temporario apos o corte.
 - Preservar os contratos existentes de API, token e permissoes.
 - Migrar telas pequenas antes dos modulos de maior risco.
 - Validar cada fase com build, testes focados e paridade funcional antes de avancar.
@@ -16,14 +16,15 @@ Migrar o frontend de React 18/Vite para Angular 21 por padronizacao corporativa,
 
 | Item | Estado |
 | --- | --- |
-| Branch | `codex/angular-pilot` |
+| Branch | `main` |
 | Runtime | Node `22.14.0`, npm `10.9.8` |
-| App Angular | `frontend-angular/`, Angular 21 |
-| App React | `frontend/`, preservado e sem substituicao |
+| App Angular | `frontend-angular/`, Angular 21, frontend oficial |
+| App React | `frontend/`, legado preservado apenas para rollback temporario |
 | API de desenvolvimento | `http://localhost:4000` |
 | Angular de desenvolvimento | `http://localhost:4200` |
 | CORS | Backend aceita `http://localhost:4200` |
-| Build Angular | Concluido localmente no PowerShell |
+| Producao oficial | `https://smart-compliance-frontend.vercel.app` apontando para o projeto Vercel Angular |
+| Build Angular | Concluido localmente e em deploy de producao Vercel |
 
 ## Fase 1: Fundacao Angular
 
@@ -189,19 +190,21 @@ Playwright aprovados. A Fase 7 de Avaliacoes esta concluida.
 7. [x] Validar cada fluxo contra a API e suas permissoes antes de iniciar o proximo.
 8. [x] Criar testes de regressao para publicacao, respostas e acoes irreversiveis.
 
-## Fase 8: Qualidade, Corte e Desativacao do React
+## Fase 8: Qualidade, Corte e Higiene Pos-Migracao
 
 Estimativa: 20-30 creditos.
 
-1. Executar matriz de paridade por rota, papel e fluxo critico.
-2. Consolidar testes unitarios, de integracao e Playwright para os caminhos principais.
-3. Corrigir divergencias visuais, de acessibilidade e de mensagens de erro.
-4. Preparar configuracao de producao do Angular e origem CORS correspondente.
-5. Publicar Angular em ambiente de homologacao com monitoramento de erros.
-6. Fazer aceite corporativo e plano de reversao para o React.
-7. Realizar o corte de roteamento/deploy para Angular.
-8. Manter React disponivel durante a janela de estabilizacao acordada.
-9. Arquivar ou desativar o React somente apos aceite final e janela de reversao encerrada.
+1. [x] Executar matriz de paridade por rota, papel e fluxo critico.
+2. [x] Consolidar testes Playwright para os caminhos principais.
+3. [x] Corrigir divergencias visuais, de acessibilidade e de mensagens de erro bloqueantes.
+4. [x] Preparar configuracao de producao do Angular e origem CORS correspondente.
+5. [x] Publicar Angular em ambiente separado e validar smoke publicado.
+6. [x] Fazer aceite tecnico e manter plano de reversao para o React.
+7. [x] Realizar o corte de roteamento/deploy para Angular.
+8. [x] Preservar React como rollback temporario.
+9. [x] Atualizar README, scripts raiz e handoff para Angular como frontend oficial.
+10. [ ] Desativar auto-deploy/remover alias do projeto React antigo no Vercel.
+11. [ ] Arquivar ou remover `frontend/` somente apos decisao explicita de encerramento do rollback.
 
 ### Fase 8.2 - Corte controlado concluido
 
@@ -247,15 +250,28 @@ Preparacao concluida em 2026-07-21:
 - Rollback React preservado no deployment especifico
   `https://smart-compliance-frontend-eq1qmi9n7-eduardos-projects-e211db16.vercel.app`.
 
-Plano de corte recomendado:
+Plano de corte historico executado:
 
 1. Publicar o Angular em uma URL de homologacao/producao separada, sem substituir o React primeiro.
-2. Manter `https://smart-compliance-frontend.vercel.app/` disponivel como rollback durante a janela
-   de estabilizacao.
+2. Manter o React disponivel em deployment especifico de rollback durante a janela de estabilizacao.
 3. Trocar o apontamento oficial para Angular somente apos aceite.
 
-Status de corte: **concluido e em janela de estabilizacao**. O Angular agora responde pelo dominio
-oficial; o React permanece disponivel apenas como rollback temporario.
+Status de corte: **concluido**. O Angular responde pelo dominio oficial; o React permanece disponivel
+apenas como rollback temporario em deployment especifico, sem ser o frontend padrao do repositorio.
+
+### Higiene pos-migracao executada em 2026-07-28
+
+- `README.md` atualizado para declarar Angular 21 como frontend oficial.
+- Scripts raiz `dev:frontend`, `build:frontend`, `test:e2e`, `test` e `verify` apontam para Angular.
+- Scripts `*:legacy` preservam comandos do React para rollback/comparacao.
+- `frontend-angular/README.md` substituido por guia operacional do produto.
+- Handoff atualizado para refletir `main`, dominio oficial Angular e React legado.
+
+### Acoes manuais pendentes
+
+- No Vercel, congelar ou desativar auto-deploy do projeto React antigo para evitar que ele tente recapturar `smart-compliance-frontend.vercel.app`.
+- Manter o alias `smart-compliance-frontend.vercel.app` apontado para `smart-compliance-angular`.
+- Remover ou arquivar `frontend/` apenas depois de encerrada a janela de rollback.
 
 Comandos manuais recomendados para publicar em Vercel separado:
 
@@ -558,4 +574,6 @@ npm run build
 
 ## Criterio de Conclusao
 
-A migracao termina somente quando todas as rotas Angular cobrirem os fluxos aprovados do React, os testes criticos passarem, o aceite corporativo for dado, o Angular estiver em producao e a janela de reversao do React tiver sido encerrada.
+A migracao funcional termina quando todas as rotas Angular cobrirem os fluxos aprovados do React, os testes criticos passarem, o aceite tecnico for dado e o Angular estiver em producao no dominio oficial.
+
+Status em 2026-07-28: **concluida funcionalmente**. A remocao definitiva do React legado e uma decisao operacional separada, condicionada ao encerramento da janela de rollback.

@@ -1,59 +1,38 @@
-# FrontendAngular
+# SmartCompliance Angular
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.2.19.
+Frontend oficial do SmartCompliance em Angular 21.
 
-## Development server
+## Status
 
-To start a local development server, run:
+- Producao oficial: `https://smart-compliance-frontend.vercel.app`
+- Projeto Vercel: `smart-compliance-angular`
+- Backend de producao: `https://smartcompliance.onrender.com`
+- Frontend React em `../frontend/`: legado, mantido apenas para rollback temporario
 
-```bash
-ng serve
-```
-
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
-
-## Code scaffolding
-
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+## Desenvolvimento
 
 ```bash
-ng generate component component-name
+npm install
+npm run start
 ```
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+O servidor local usa `http://localhost:4200`.
+
+## Validacao
 
 ```bash
-ng generate --help
+npm run build
+npm run parity:strict
+npm run e2e
 ```
 
-## Building
+Use `npm run parity:strict` como gate rapido de paridade migrada. Use `npm run e2e` quando a mudanca tocar fluxos de usuario.
 
-To build the project run:
+## Deploy
 
 ```bash
-ng build
+npx vercel --prod --yes
+npx vercel alias set <deployment-angular>.vercel.app smart-compliance-frontend.vercel.app
 ```
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
-
-## Running unit tests
-
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
-
-```bash
-ng test
-```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+Sempre confirme que o dominio oficial serve Angular verificando `<app-root>` no HTML e ausencia de root React.

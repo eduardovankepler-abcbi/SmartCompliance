@@ -4,15 +4,19 @@
   "version": "0.1.0",
   "workspaces": [
     "backend",
+    "frontend-angular",
     "frontend"
   ],
   "scripts": {
     "dev:backend": "npm --prefix backend run dev",
-    "dev:frontend": "npm --prefix frontend run dev",
+    "dev:frontend": "npm --prefix frontend-angular run start",
+    "dev:frontend:legacy": "npm --prefix frontend run dev",
     "start:backend": "npm --prefix backend run start",
-    "build:frontend": "npm --prefix frontend run build",
-    "test:e2e": "npm --prefix frontend run e2e",
-    "test": "npm --prefix backend run test && npm --prefix frontend run test",
+    "build:frontend": "npm --prefix frontend-angular run build",
+    "build:frontend:legacy": "npm --prefix frontend run build",
+    "test:e2e": "npm --prefix frontend-angular run e2e",
+    "test:e2e:legacy": "npm --prefix frontend run e2e",
+    "test": "npm --prefix backend run test && npm --prefix frontend-angular run parity:strict",
     "verify": "npm run test && npm run build:frontend"
   }
 }

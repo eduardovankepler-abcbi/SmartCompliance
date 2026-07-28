@@ -5,11 +5,12 @@ MVP local para uma plataforma de compliance, feedback, desenvolvimento profissio
 ## Stack
 
 - Backend: Node.js + Express
-- Frontend: React + Vite
+- Frontend oficial: Angular 21
+- Frontend legado: React + Vite em `frontend/`, preservado somente como rollback temporario
 - Banco alvo: MySQL
 - Publicacao recomendada:
   - Backend no Render
-  - Frontend na Vercel
+  - Frontend Angular na Vercel
   - Banco MySQL gerenciado (Aiven ou provedor equivalente)
 
 ## Módulos do MVP
@@ -25,7 +26,8 @@ MVP local para uma plataforma de compliance, feedback, desenvolvimento profissio
 ## Estrutura do projeto
 
 - `backend/`: API REST
-- `frontend/`: aplicação React
+- `frontend-angular/`: aplicacao Angular oficial em producao
+- `frontend/`: aplicacao React legada, mantida apenas para rollback e comparacao historica
 - `docs/`: visão funcional e decisões do MVP
 - `docs/evolucao-recomendada.md`: trilha recomendada para as próximas rodadas
 - `docs/mapa-retomada-operacional.md`: guia rápido para retomar por módulo e tipo de problema
@@ -43,7 +45,7 @@ Requer Node.js 20+ e npm instalados.
 ```bash
 npm install
 npm --prefix backend install
-npm --prefix frontend install
+npm --prefix frontend-angular install
 ```
 
 2. Configure o backend:
@@ -58,6 +60,9 @@ copy backend\\.env.example backend\\.env
 npm run dev:backend
 npm run dev:frontend
 ```
+
+`npm run dev:frontend` inicia o Angular em `http://localhost:4200`.
+Para abrir o React legado, use `npm run dev:frontend:legacy`.
 
 4. Para validar rapidamente o estado atual do projeto:
 
@@ -116,7 +121,8 @@ O projeto já possui validação local por testes, build do frontend e uma suít
 
 ## Publicação
 
-O roteiro recomendado de publicação está em `docs/deploy-publicacao.md`.
+O frontend oficial publicado e o Angular em `https://smart-compliance-frontend.vercel.app`.
+O roteiro historico de publicacao está em `docs/deploy-publicacao.md`; para detalhes do corte React -> Angular, consulte `MIGRATION_HANDOFF.md`.
 
 Resumo operacional atual:
 
