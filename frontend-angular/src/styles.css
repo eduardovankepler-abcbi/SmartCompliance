@@ -355,7 +355,7 @@ body.theme-dark .sidebar__brand-card,
 }
 
 .shell--collapsed .topbar {
-  left: 88px;
+  left: 44px;
 }
 
 .topbar p,
@@ -427,32 +427,53 @@ body.theme-dark .sidebar__brand-card,
 }
 
 .shell--collapsed {
-  grid-template-columns: 88px minmax(0, 1fr);
+  grid-template-columns: 44px minmax(0, 1fr);
 }
 
 .shell--collapsed .sidebar__brand-card,
 .shell--collapsed .sidebar__app-name,
 .shell--collapsed .sidebar__group-label,
 .shell--collapsed .sidebar__link-label,
+.shell--collapsed .sidebar__navigation,
 .shell--collapsed .sidebar__profile,
 .shell--collapsed .sidebar__footer {
   display: none;
 }
 
+.shell--collapsed .sidebar {
+  padding: 0;
+}
+
 .shell--collapsed .sidebar__topbar {
-  justify-content: center;
+  position: relative;
+  min-height: 100vh;
+  justify-content: flex-end;
   padding: 0;
 }
 
 .shell--collapsed .sidebar__toggle {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  width: 22px;
+  height: 22px;
   margin: 0;
+  color: rgb(201 210 227 / 88%);
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  transform: translateY(-50%);
 }
 
-.shell--collapsed .sidebar__link {
-  width: 48px;
-  height: 48px;
-  justify-content: center;
-  padding: 6px;
+.shell--collapsed .sidebar__toggle:hover {
+  color: var(--abc-on-blue);
+  background: rgb(255 255 255 / 6%);
+  transform: translateY(-50%);
+}
+
+.shell--collapsed .sidebar__toggle svg {
+  width: 14px;
+  height: 14px;
 }
 
 :root:not(.theme-dark) {
@@ -579,7 +600,8 @@ body.theme-dark .sidebar__brand-card,
   }
 
   .shell--collapsed .sidebar {
-    transform: translateX(calc(-100% + 64px));
+    width: 44px;
+    transform: translateX(0);
   }
 
   .shell__scrim {
@@ -593,7 +615,7 @@ body.theme-dark .sidebar__brand-card,
 
   .shell__content {
     width: 100%;
-    padding: 80px 16px 24px 80px;
+    padding: 80px 16px 24px 60px;
   }
 
   .shell:not(.shell--collapsed) .shell__content {
@@ -601,7 +623,7 @@ body.theme-dark .sidebar__brand-card,
   }
 
   .topbar {
-    left: 64px;
+    left: 44px;
     align-items: flex-start;
     flex-direction: column;
     min-height: 64px;
@@ -629,12 +651,8 @@ body.theme-dark .sidebar__brand-card,
   .shell--collapsed .sidebar__profile,
   .shell--collapsed .sidebar__footer,
   .shell--collapsed .sidebar__group-label,
+  .shell--collapsed .sidebar__navigation,
   .shell--collapsed .sidebar__link-label {
     display: none;
-  }
-
-  .shell--collapsed .sidebar__link {
-    width: 42px;
-    height: 42px;
   }
 }
