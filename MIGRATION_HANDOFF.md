@@ -203,7 +203,7 @@ Estimativa: 20-30 creditos.
 7. [x] Realizar o corte de roteamento/deploy para Angular.
 8. [x] Preservar React como rollback temporario.
 9. [x] Atualizar README, scripts raiz e handoff para Angular como frontend oficial.
-10. [ ] Desativar auto-deploy/remover alias do projeto React antigo no Vercel.
+10. [x] Desativar auto-deploy do projeto React antigo no Vercel.
 11. [ ] Arquivar ou remover `frontend/` somente apos decisao explicita de encerramento do rollback.
 
 ### Fase 8.2 - Corte controlado concluido
@@ -267,9 +267,16 @@ apenas como rollback temporario em deployment especifico, sem ser o frontend pad
 - `frontend-angular/README.md` substituido por guia operacional do produto.
 - Handoff atualizado para refletir `main`, dominio oficial Angular e React legado.
 
+### Higiene operacional executada em 2026-07-28
+
+- Projeto Vercel React legado `smart-compliance-frontend` desconectado do GitHub com
+  `npx vercel git disconnect`, impedindo novos deployments automaticos a cada push.
+- Alias oficial `smart-compliance-frontend.vercel.app` reapontado para o deployment Angular
+  `smart-compliance-angular-6lxppvy06-eduardos-projects-e211db16.vercel.app`.
+- Validacao HTTP confirmou que o dominio oficial serve HTML Angular com `<app-root>`.
+
 ### Acoes manuais pendentes
 
-- No Vercel, congelar ou desativar auto-deploy do projeto React antigo para evitar que ele tente recapturar `smart-compliance-frontend.vercel.app`.
 - Manter o alias `smart-compliance-frontend.vercel.app` apontado para `smart-compliance-angular`.
 - Remover ou arquivar `frontend/` apenas depois de encerrada a janela de rollback.
 
