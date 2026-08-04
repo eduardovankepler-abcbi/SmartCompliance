@@ -24,6 +24,7 @@ const args = [
   `--host=${env.mysql.host}`,
   `--port=${env.mysql.port}`,
   `--user=${env.mysql.user}`,
+  ...(env.mysql.ssl ? ["--ssl-mode=REQUIRED"] : []),
   env.mysql.database
 ];
 

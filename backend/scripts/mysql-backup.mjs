@@ -23,6 +23,7 @@ async function run() {
     `--host=${env.mysql.host}`,
     `--port=${env.mysql.port}`,
     `--user=${env.mysql.user}`,
+    ...(env.mysql.ssl ? ["--ssl-mode=REQUIRED"] : []),
     "--single-transaction",
     "--routines",
     "--triggers",
