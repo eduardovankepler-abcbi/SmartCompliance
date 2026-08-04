@@ -13,6 +13,8 @@ export function createAuditRouter(store) {
         res.json(
           await store.getAuditTrail(req.auth.user, {
             category: req.query.category || null,
+            entityType: req.query.entityType || null,
+            entityId: req.query.entityId || null,
             limit: Number.isFinite(limit) ? limit : 40
           })
         );

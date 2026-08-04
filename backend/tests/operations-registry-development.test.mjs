@@ -177,6 +177,20 @@ export async function runOperationsRegistryDevelopmentRegression() {
       /tipo de evidencia/i,
       "Evidencia deve bloquear tipos nao permitidos"
     );
+    const caseAudit = await store.getAuditTrail(compliance, {
+      category: "incident",
+      entityType: "incident",
+      entityId: createdIncident.id,
+      limit: 10
+    });
+    assert.ok(
+      caseAudit.some((entry) => entry.action === "evidence_added"),
+      "Trilha filtrada do caso deve incluir evidencia anexada"
+    );
+    assert.ok(
+      caseAudit.every((entry) => entry.entityId === createdIncident.id),
+      "Trilha filtrada do caso deve retornar apenas eventos do incidente solicitado"
+    );
 
     const createdDevelopmentRecord = await store.createDevelopmentRecord(
       {

@@ -4679,11 +4679,14 @@ function filterAuditLogsForUser(auditLogs, actorUser, options = {}) {
     return [];
   }
 
-  const { category = null, limit = 40 } = options;
+  const { category = null, entityType = null, entityId = null, limit = 40 } = options;
   return auditLogs
     .filter(
       (item) =>
-        allowedCategories.includes(item.category) && (!category || item.category === category)
+        allowedCategories.includes(item.category) &&
+        (!category || item.category === category) &&
+        (!entityType || item.entityType === entityType) &&
+        (!entityId || item.entityId === entityId)
     )
     .sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt))
     .slice(0, limit);
@@ -4719,7 +4722,7 @@ async function fetchAuditLogs(pool, actorUser, options = {}) {
     return [];
   }
 
-  const { category = null, limit = 40 } = options;
+  const { category = null, entityType = null, entityId = null, limit = 40 } = options;
   const filters = [];
   const params = [];
 
@@ -4730,6 +4733,16 @@ async function fetchAuditLogs(pool, actorUser, options = {}) {
   if (category) {
     filters.push("category = ?");
     params.push(category);
+  }
+
+  if (entityType) {
+    filters.push("entity_type = ?");
+    params.push(entityType);
+  }
+
+  if (entityId) {
+    filters.push("entity_id = ?");
+    params.push(entityId);
   }
 
   params.push(Number(limit) || 40);
