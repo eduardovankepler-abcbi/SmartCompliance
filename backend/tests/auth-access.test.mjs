@@ -278,8 +278,12 @@ export async function runAuthAccessRegression() {
     const compliancePeopleRegistry = await fetchJson("/api/people", getAuthHeader(compliance.id));
     assert.equal(
       compliancePeopleRegistry.response.status,
-      403,
-      "Compliance nao deve listar cadastro de pessoas fora do modulo de casos"
+      200,
+      "Compliance deve listar diretorio reduzido de pessoas para tratar casos"
+    );
+    assert.ok(
+      compliancePeopleRegistry.payload.every((person) => !("satisfactionScore" in person)),
+      "Diretorio de compliance nao deve expor campos administrativos de pessoas"
     );
 
     const temporaryPasswordLogin = await sendJson("/api/auth/login", {

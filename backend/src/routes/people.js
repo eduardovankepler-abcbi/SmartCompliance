@@ -6,7 +6,7 @@ import { badRequest } from "./helpers.js";
 export function createPeopleRouter(store) {
   const router = Router();
 
-  router.get("/", requireRoles(...PERMISSIONS.peopleRegistry), async (req, res, next) => {
+  router.get("/", requireRoles(...PERMISSIONS.peopleDirectory), async (req, res, next) => {
     try {
       res.json(await store.getPeople(req.auth.user));
     } catch (error) {
