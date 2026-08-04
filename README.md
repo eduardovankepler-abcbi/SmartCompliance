@@ -37,6 +37,7 @@ MVP local para uma plataforma de compliance, feedback, desenvolvimento profissio
 - `docs/checklist-homologacao-aiven.md`: adaptação prática da homologação para Aiven for MySQL
 - `docs/fechamento-onda-2-compliance-incidentes.md`: aceite da Onda 2 de Compliance/Incidentes
 - `docs/plano-onda-3-avaliacoes-pdi.md`: plano de maturidade da Onda 3 de Avaliações/PDI
+- `docs/checklist-homologacao-onda-3-avaliacoes-pdi.md`: checklist executável da Onda 3
 
 ## Como rodar localmente
 
