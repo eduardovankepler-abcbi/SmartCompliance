@@ -1979,6 +1979,32 @@ async function ensureMysqlCycleConfigSupport(pool) {
   );
 }
 
+async function detectMysqlAuthHardeningSupport(pool) {
+  try {
+    const [mustChangeRows] = await pool.query(
+      "SHOW COLUMNS FROM users LIKE 'must_change_password'"
+    );
+    const [changedAtRows] = await pool.query(
+      "SHOW COLUMNS FROM users LIKE 'password_changed_at'"
+    );
+    return hasMysqlColumn(mustChangeRows) && hasMysqlColumn(changedAtRows);
+  } catch (_error) {
+    return false;
+  }
+}
+
+async function ensureMysqlAuthHardeningSupport(pool) {
+  return ensureMysqlColumns(
+    pool,
+    "users",
+    [
+      "ALTER TABLE users ADD COLUMN must_change_password BOOLEAN NOT NULL DEFAULT TRUE",
+      "ALTER TABLE users ADD COLUMN password_changed_at DATETIME NULL"
+    ],
+    detectMysqlAuthHardeningSupport
+  );
+}
+
 async function detectMysqlFeedbackAcknowledgementSupport(pool) {
   try {
     const [statusRows] = await pool.query(
@@ -7361,6 +7387,7 @@ export async function createStore() {
   ] =
     await Promise.all([
       ensureMysqlCycleConfigSupport(pool),
+      ensureMysqlAuthHardeningSupport(pool),
       ensureMysqlFeedbackAcknowledgementSupport(pool),
       ensureMysqlPeopleWorkContextSupport(pool),
       ensureMysqlAssignmentReminderSupport(pool),
