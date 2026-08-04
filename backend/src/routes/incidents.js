@@ -54,7 +54,7 @@ export function createIncidentsRouter(store) {
     "/:incidentId",
     requireRoles(...PERMISSIONS.incidentQueue),
     async (req, res) => {
-      const { classification, status, responsibleArea, assignedPersonId } = req.body;
+      const { classification, status, responsibleArea, assignedPersonId, closureNote } = req.body;
 
       if (!classification || !status || !responsibleArea) {
         return badRequest(res, "classification, status e responsibleArea sao obrigatorios.");
@@ -67,7 +67,8 @@ export function createIncidentsRouter(store) {
             classification,
             status,
             responsibleArea,
-            assignedPersonId: assignedPersonId || null
+            assignedPersonId: assignedPersonId || null,
+            closureNote: closureNote || ""
           },
           req.auth.user
         );

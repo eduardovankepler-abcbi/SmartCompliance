@@ -12,10 +12,11 @@ import { Incident, IncidentStatus, UpdateIncidentPayload } from './incidents.ser
       <label>Status <select [value]="incident().status" #status>@for (item of statuses; track item) { <option [value]="item">{{ item }}</option> }</select></label>
       <label>Area responsavel <select [value]="selectedArea()" #area (change)="changeArea(area.value, assignee)">@for (item of areas(); track item.id) { <option [value]="item.name">{{ item.name }}</option> }</select></label>
       <label>Responsavel designado <select [value]="incident().assignedPersonId || ''" #assignee><option value="">Nao definido</option>@for (person of peopleForArea(); track person.id) { <option [value]="person.id">{{ person.name }}</option> }</select></label>
-      <div class="actions"><button class="secondary" (click)="cancelled.emit()">Cancelar</button><button (click)="save(classification.value, status.value, area.value, assignee.value)">Salvar tratamento</button></div>
+      <label class="wide">Motivo de conclusao <textarea rows="3" [value]="incident().closureNote" #closureNote></textarea></label>
+      <div class="actions"><button class="secondary" (click)="cancelled.emit()">Cancelar</button><button (click)="save(classification.value, status.value, area.value, assignee.value, closureNote.value)">Salvar tratamento</button></div>
     </div>
   `,
-  styles: `.treatment{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px;padding:14px;background:var(--abc-surface-muted);border-radius:var(--abc-radius)}label{display:grid;gap:5px}select{padding:8px}.actions{grid-column:1/-1;display:flex;justify-content:end;gap:8px}button{padding:8px 12px;background:var(--abc-blue);color:var(--abc-on-blue);border:0;border-radius:var(--abc-radius);font-weight:700}.secondary{background:var(--abc-surface);color:var(--abc-text);border:1px solid var(--abc-border)}`,
+  styles: `.treatment{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px;padding:14px;background:var(--abc-surface-muted);border-radius:var(--abc-radius)}label{display:grid;gap:5px}select,textarea{padding:8px}.wide,.actions{grid-column:1/-1}.actions{display:flex;justify-content:end;gap:8px}button{padding:8px 12px;background:var(--abc-blue);color:var(--abc-on-blue);border:0;border-radius:var(--abc-radius);font-weight:700}.secondary{background:var(--abc-surface);color:var(--abc-text);border:1px solid var(--abc-border)}`,
 })
 export class IncidentTreatmentFormComponent {
   readonly incident = input.required<Incident>();
@@ -35,7 +36,7 @@ export class IncidentTreatmentFormComponent {
     const area = this.areas().find((item) => item.name === areaName);
     assignee.value = area?.managerPersonId || '';
   }
-  save(classification: string, status: string, responsibleArea: string, assignedPersonId: string): void {
-    this.saved.emit({ classification, status: status as IncidentStatus, responsibleArea, assignedPersonId: assignedPersonId || null });
+  save(classification: string, status: string, responsibleArea: string, assignedPersonId: string, closureNote: string): void {
+    this.saved.emit({ classification, status: status as IncidentStatus, responsibleArea, assignedPersonId: assignedPersonId || null, closureNote });
   }
 }

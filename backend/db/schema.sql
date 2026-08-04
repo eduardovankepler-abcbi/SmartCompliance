@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE TABLE IF NOT EXISTS incident_reports (
   id VARCHAR(36) PRIMARY KEY,
+  protocol VARCHAR(40) NOT NULL UNIQUE,
   title VARCHAR(160) NOT NULL,
   category VARCHAR(80) NOT NULL,
   classification VARCHAR(80) NOT NULL,
@@ -50,6 +51,9 @@ CREATE TABLE IF NOT EXISTS incident_reports (
   assigned_person_id VARCHAR(36) NULL,
   assigned_to VARCHAR(120) NOT NULL,
   created_at DATETIME NOT NULL,
+  due_at DATETIME NULL,
+  closed_at DATETIME NULL,
+  closure_note TEXT NULL,
   description TEXT NOT NULL,
   FOREIGN KEY (assigned_person_id) REFERENCES people(id)
 );

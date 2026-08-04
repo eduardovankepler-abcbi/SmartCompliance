@@ -93,6 +93,48 @@ export async function runOperationsRegistryDevelopmentRegression() {
       compliance.personId,
       "Caso deve manter o responsavel designado"
     );
+    assert.match(
+      createdIncident.protocol,
+      /^SC-\d{8}-[A-Z0-9]{6}$/,
+      "Caso deve receber protocolo rastreavel"
+    );
+    assert.ok(createdIncident.dueAt, "Caso deve receber prazo inicial de triagem");
+
+    await assert.rejects(
+      () =>
+        store.updateIncident(
+          createdIncident.id,
+          {
+            classification: "Conduta e Relacionamento",
+            status: "Concluido",
+            responsibleArea: "Compliance",
+            assignedPersonId: compliance.personId,
+            closureNote: ""
+          },
+          compliance
+        ),
+      /motivo de conclusao/i,
+      "Conclusao de caso deve exigir motivo"
+    );
+
+    const closedIncident = await store.updateIncident(
+      createdIncident.id,
+      {
+        classification: "Conduta e Relacionamento",
+        status: "Concluido",
+        responsibleArea: "Compliance",
+        assignedPersonId: compliance.personId,
+        closureNote: "Caso analisado e encerrado na regressao."
+      },
+      compliance
+    );
+    assert.equal(closedIncident.status, "Concluido", "Caso deve permitir conclusao com motivo");
+    assert.ok(closedIncident.closedAt, "Caso concluido deve registrar data de fechamento");
+    assert.equal(
+      closedIncident.closureNote,
+      "Caso analisado e encerrado na regressao.",
+      "Caso concluido deve preservar motivo de fechamento"
+    );
 
     const createdDevelopmentRecord = await store.createDevelopmentRecord(
       {

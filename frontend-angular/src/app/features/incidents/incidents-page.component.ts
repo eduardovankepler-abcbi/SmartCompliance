@@ -24,7 +24,8 @@ import { Incident, IncidentAnonymity, IncidentsService, UpdateIncidentPayload } 
       @if (loading()) { <p class="state">Carregando fila...</p> }
       @else if (!incidents().length) { <p class="state">Nenhum incidente no seu escopo.</p> }
       @else { <section class="queue" aria-label="Fila de tratamento"><header><h2>Fila de tratamento</h2><span>Casos visiveis para RH, administracao e compliance</span></header>@for (incident of incidents(); track incident.id) {
-        <article><div class="row"><strong>{{ incident.title }}</strong><span>{{ incident.status }}</span></div><p>{{ incident.category }} · {{ incident.classification }}</p><p>{{ incident.description }}</p><small>Area responsavel: {{ incident.responsibleArea }} · Responsavel: {{ incident.assignedTo }} · Abertura: {{ incident.createdAt | date:'short' }}</small>
+        <article><div class="row"><strong>{{ incident.protocol }} · {{ incident.title }}</strong><span>{{ incident.status }}</span></div><p>{{ incident.category }} · {{ incident.classification }}</p><p>{{ incident.description }}</p><small>Area responsavel: {{ incident.responsibleArea }} · Responsavel: {{ incident.assignedTo }} · Abertura: {{ incident.createdAt | date:'short' }} · Prazo: {{ incident.dueAt | date:'short' }}</small>
+          @if (incident.closedAt) { <small>Conclusao: {{ incident.closedAt | date:'short' }} · {{ incident.closureNote }}</small> }
           @if (canTreat()) { <button class="secondary" (click)="editing.set(incident)">Tratar</button> }
           @if (editing()?.id === incident.id) { <app-incident-treatment-form [incident]="incident" [areas]="areas()" [people]="people()" (saved)="update(incident, $event)" (cancelled)="editing.set(null)" /> }
         </article> }</section> }

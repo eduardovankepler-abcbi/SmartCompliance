@@ -8,6 +8,7 @@ export type IncidentStatus = 'Em triagem' | 'Em apuracao' | 'Aguardando retorno'
 
 export interface Incident {
   id: string;
+  protocol: string;
   title: string;
   category: string;
   classification: string;
@@ -22,6 +23,9 @@ export interface Incident {
   areaManagerName: string;
   description: string;
   createdAt: string;
+  dueAt: string | null;
+  closedAt: string | null;
+  closureNote: string;
 }
 
 export interface CreateIncidentPayload {
@@ -40,6 +44,7 @@ export interface UpdateIncidentPayload {
   status: IncidentStatus;
   responsibleArea: string;
   assignedPersonId: string | null;
+  closureNote: string;
 }
 
 @Injectable({ providedIn: 'root' })

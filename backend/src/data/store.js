@@ -103,6 +103,8 @@ import {
   assertIncidentCreatePayload,
   assertIncidentUpdatePayload,
   buildIncidentAuditDetail,
+  buildIncidentProtocol,
+  calculateIncidentDueAt,
   resolveIncidentAssignment
 } from "./storeIncidentsDomain.js";
 import {
@@ -857,6 +859,10 @@ function enrichIncident(incident, people = [], areas = []) {
 
   return {
     ...incident,
+    protocol: incident.protocol || buildIncidentProtocol(incident),
+    dueAt: incident.dueAt || null,
+    closedAt: incident.closedAt || null,
+    closureNote: incident.closureNote || "",
     responsibleArea: incident.responsibleArea || "",
     assignedPersonId: incident.assignedPersonId || null,
     assignedPersonName: assignedPerson?.name || "",
@@ -2003,6 +2009,53 @@ async function ensureMysqlAuthHardeningSupport(pool) {
     ],
     detectMysqlAuthHardeningSupport
   );
+}
+
+async function detectMysqlIncidentMaturitySupport(pool) {
+  try {
+    const [protocolRows] = await pool.query("SHOW COLUMNS FROM incident_reports LIKE 'protocol'");
+    const [dueRows] = await pool.query("SHOW COLUMNS FROM incident_reports LIKE 'due_at'");
+    const [closedRows] = await pool.query("SHOW COLUMNS FROM incident_reports LIKE 'closed_at'");
+    const [closureRows] = await pool.query("SHOW COLUMNS FROM incident_reports LIKE 'closure_note'");
+    return (
+      hasMysqlColumn(protocolRows) &&
+      hasMysqlColumn(dueRows) &&
+      hasMysqlColumn(closedRows) &&
+      hasMysqlColumn(closureRows)
+    );
+  } catch (_error) {
+    return false;
+  }
+}
+
+async function ensureMysqlIncidentMaturitySupport(pool) {
+  const hasColumns = await ensureMysqlColumns(
+    pool,
+    "incident_reports",
+    [
+      "ALTER TABLE incident_reports ADD COLUMN protocol VARCHAR(40) NULL",
+      "ALTER TABLE incident_reports ADD COLUMN due_at DATETIME NULL",
+      "ALTER TABLE incident_reports ADD COLUMN closed_at DATETIME NULL",
+      "ALTER TABLE incident_reports ADD COLUMN closure_note TEXT NULL"
+    ],
+    detectMysqlIncidentMaturitySupport
+  );
+
+  if (!hasColumns) {
+    return false;
+  }
+
+  await pool.query(
+    `UPDATE incident_reports
+     SET protocol = CONCAT('SC-', DATE_FORMAT(created_at, '%Y%m%d'), '-', UPPER(RIGHT(REPLACE(id, '_', ''), 6)))
+     WHERE protocol IS NULL OR protocol = ''`
+  );
+  await ensureMysqlIndexes(
+    pool,
+    async (mysqlPool) => hasMysqlIndex(mysqlPool, "incident_reports", "unique_incident_protocol"),
+    ["ALTER TABLE incident_reports ADD UNIQUE KEY unique_incident_protocol (protocol)"]
+  );
+  return detectMysqlIncidentMaturitySupport(pool);
 }
 
 async function detectMysqlFeedbackAcknowledgementSupport(pool) {
@@ -5583,6 +5636,10 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         assignedPersonId: incidentRouting.assignedPersonId,
         assignedTo: incidentRouting.assignedTo
       };
+      incident.protocol = buildIncidentProtocol(incident);
+      incident.dueAt = calculateIncidentDueAt(incident.createdAt);
+      incident.closedAt = null;
+      incident.closureNote = "";
       db.incidents.unshift(incident);
       pushAuditLog(db.auditLogs, {
         category: AUDIT_CATEGORIES.incident,
@@ -5595,7 +5652,8 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         detail: buildIncidentAuditDetail({
           classification: incident.classification,
           responsibleArea: incident.responsibleArea,
-          assignedTo: incident.assignedTo
+          assignedTo: incident.assignedTo,
+          protocol: incident.protocol
         })
       });
       return enrichIncident(incident, db.people, db.areas);
@@ -5628,6 +5686,12 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
       incident.responsibleArea = incidentRouting.responsibleArea;
       incident.assignedPersonId = incidentRouting.assignedPersonId;
       incident.assignedTo = incidentRouting.assignedTo;
+      incident.protocol = incident.protocol || buildIncidentProtocol(incident);
+      incident.dueAt = incident.dueAt || calculateIncidentDueAt(incident.createdAt);
+      incident.closureNote =
+        payload.status === "Concluido" ? String(payload.closureNote || "").trim() : "";
+      incident.closedAt =
+        payload.status === "Concluido" ? incident.closedAt || new Date().toISOString() : null;
 
       pushAuditLog(db.auditLogs, {
         category: AUDIT_CATEGORIES.incident,
@@ -5641,7 +5705,9 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
           status: incident.status,
           classification: incident.classification,
           responsibleArea: incident.responsibleArea,
-          assignedTo: incident.assignedTo
+          assignedTo: incident.assignedTo,
+          protocol: incident.protocol,
+          closureNote: incident.closureNote
         })
       });
 
@@ -6077,6 +6143,12 @@ function buildMysqlStore(
         "progress_note",
         "progress_updated_at"
       ]);
+      const missingIncidentColumns = await getMysqlMissingColumns(pool, "incident_reports", [
+        "protocol",
+        "due_at",
+        "closed_at",
+        "closure_note"
+      ]);
       const missingAssignmentQuestionnaireColumns = await getMysqlMissingColumns(
         pool,
         "evaluation_assignments",
@@ -6094,6 +6166,8 @@ function buildMysqlStore(
         developmentPlansTable:
           missingDevelopmentPlanColumns.length === 0 ? "ok" : "incomplete",
         missingDevelopmentPlanColumns,
+        incidentsTable: missingIncidentColumns.length === 0 ? "ok" : "incomplete",
+        missingIncidentColumns,
         individualQuestionnaires:
           supportsIndividualQuestionnaires ? "ok" : "incomplete",
         assignmentsQuestionnaireColumns:
@@ -6482,9 +6556,10 @@ function buildMysqlStore(
 
       const [areas, people] = await Promise.all([fetchAreaRows(pool), fetchPeopleRows(pool)]);
       const [rows] = await pool.query(
-        `SELECT id, title, category, classification, status, anonymity, reporter_label AS reporterLabel,
+        `SELECT id, protocol, title, category, classification, status, anonymity, reporter_label AS reporterLabel,
                 responsible_area AS responsibleArea, assigned_person_id AS assignedPersonId,
-                assigned_to AS assignedTo, created_at AS createdAt, description
+                assigned_to AS assignedTo, created_at AS createdAt, due_at AS dueAt,
+                closed_at AS closedAt, closure_note AS closureNote, description
          FROM incident_reports
          ORDER BY created_at DESC`
       );
@@ -6492,8 +6567,14 @@ function buildMysqlStore(
     },
     async createIncident(payload, actorUser) {
       const [areas, people] = await Promise.all([fetchAreaRows(pool), fetchPeopleRows(pool)]);
-      assertIncidentCreatePayload(payload, areas, people);
-      const incidentRouting = resolveIncidentAssignment(payload, areas, people);
+      assertIncidentCreatePayload({
+        areas,
+        people,
+        payload,
+        assertValidIncidentArea,
+        assertValidIncidentAssignee
+      });
+      const incidentRouting = resolveIncidentAssignment({ areas, people, payload });
 
       const incident = {
         id: createId("incident"),
@@ -6504,13 +6585,18 @@ function buildMysqlStore(
         assignedPersonId: incidentRouting.assignedPersonId,
         assignedTo: incidentRouting.assignedTo
       };
+      incident.protocol = buildIncidentProtocol(incident);
+      incident.dueAt = calculateIncidentDueAt(incident.createdAt);
+      incident.closedAt = null;
+      incident.closureNote = "";
 
       await pool.query(
         `INSERT INTO incident_reports
-         (id, title, category, classification, status, anonymity, reporter_label, responsible_area, assigned_person_id, assigned_to, created_at, description)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (id, protocol, title, category, classification, status, anonymity, reporter_label, responsible_area, assigned_person_id, assigned_to, created_at, due_at, closed_at, closure_note, description)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           incident.id,
+          incident.protocol,
           incident.title,
           incident.category,
           incident.classification,
@@ -6520,7 +6606,10 @@ function buildMysqlStore(
           incident.responsibleArea,
           incident.assignedPersonId,
           incident.assignedTo,
-          incident.createdAt,
+          toMysqlDateTime(incident.createdAt),
+          toMysqlDateTime(incident.dueAt),
+          incident.closedAt,
+          incident.closureNote,
           incident.description
         ]
       );
@@ -6536,7 +6625,8 @@ function buildMysqlStore(
         detail: buildIncidentAuditDetail({
           classification: incident.classification,
           responsibleArea: incident.responsibleArea,
-          assignedTo: incident.assignedTo
+          assignedTo: incident.assignedTo,
+          protocol: incident.protocol
         })
       });
 
@@ -6548,8 +6638,14 @@ function buildMysqlStore(
       }
 
       const [areas, people] = await Promise.all([fetchAreaRows(pool), fetchPeopleRows(pool)]);
-      assertIncidentUpdatePayload(payload, areas, people);
-      const incidentRouting = resolveIncidentAssignment(payload, areas, people);
+      assertIncidentUpdatePayload({
+        areas,
+        people,
+        payload,
+        assertValidIncidentArea,
+        assertValidIncidentAssignee
+      });
+      const incidentRouting = resolveIncidentAssignment({ areas, people, payload });
 
       const [rows] = await pool.query(
         `SELECT id
@@ -6565,7 +6661,8 @@ function buildMysqlStore(
 
       await pool.query(
         `UPDATE incident_reports
-         SET classification = ?, status = ?, responsible_area = ?, assigned_person_id = ?, assigned_to = ?
+         SET classification = ?, status = ?, responsible_area = ?, assigned_person_id = ?, assigned_to = ?,
+             closed_at = ?, closure_note = ?
          WHERE id = ?`,
         [
           payload.classification,
@@ -6573,14 +6670,17 @@ function buildMysqlStore(
           incidentRouting.responsibleArea,
           incidentRouting.assignedPersonId,
           incidentRouting.assignedTo,
+          payload.status === "Concluido" ? toMysqlDateTime(new Date().toISOString()) : null,
+          payload.status === "Concluido" ? String(payload.closureNote || "").trim() : "",
           incidentId
         ]
       );
 
       const [updatedRows] = await pool.query(
-        `SELECT id, title, category, classification, status, anonymity, reporter_label AS reporterLabel,
+        `SELECT id, protocol, title, category, classification, status, anonymity, reporter_label AS reporterLabel,
                 responsible_area AS responsibleArea, assigned_person_id AS assignedPersonId,
-                assigned_to AS assignedTo, created_at AS createdAt, description
+                assigned_to AS assignedTo, created_at AS createdAt, due_at AS dueAt,
+                closed_at AS closedAt, closure_note AS closureNote, description
          FROM incident_reports
          WHERE id = ?
          LIMIT 1`,
@@ -6599,7 +6699,9 @@ function buildMysqlStore(
           status: updatedRows[0].status,
           classification: updatedRows[0].classification,
           responsibleArea: updatedRows[0].responsibleArea,
-          assignedTo: updatedRows[0].assignedTo
+          assignedTo: updatedRows[0].assignedTo,
+          protocol: updatedRows[0].protocol,
+          closureNote: updatedRows[0].closureNote
         })
       });
 
@@ -7377,6 +7479,8 @@ export async function createStore() {
 
   const [
     supportsCycleConfig,
+    _supportsAuthHardening,
+    _supportsIncidentMaturity,
     supportsFeedbackAcknowledgement,
     _supportsPeopleWorkContext,
     supportsAssignmentReminder,
@@ -7388,6 +7492,7 @@ export async function createStore() {
     await Promise.all([
       ensureMysqlCycleConfigSupport(pool),
       ensureMysqlAuthHardeningSupport(pool),
+      ensureMysqlIncidentMaturitySupport(pool),
       ensureMysqlFeedbackAcknowledgementSupport(pool),
       ensureMysqlPeopleWorkContextSupport(pool),
       ensureMysqlAssignmentReminderSupport(pool),
