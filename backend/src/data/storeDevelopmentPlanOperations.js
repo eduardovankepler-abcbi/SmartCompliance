@@ -170,7 +170,8 @@ export function createMysqlDevelopmentPlanStore({
   buildDevelopmentPlanAuditDetail,
   assertValidDevelopmentPlanStatus,
   assertCanReportDevelopmentPlanProgress,
-  normalizeDevelopmentPlanProgressPayload
+  normalizeDevelopmentPlanProgressPayload,
+  toMysqlDateTime
 }) {
   return {
     async getDevelopmentPlans(actorUser) {
@@ -261,7 +262,7 @@ export function createMysqlDevelopmentPlanStore({
           plan.expectedEvidence,
           plan.status,
           plan.createdByUserId,
-          plan.createdAt,
+          toMysqlDateTime(plan.createdAt),
           plan.archivedAt,
           plan.progressStatus,
           plan.progressNote,
@@ -322,7 +323,8 @@ export function createMysqlDevelopmentPlanStore({
         throw new Error("Competencia do PDI nao encontrada.");
       }
 
-      const archivedAt = payload.status === "archived" ? new Date().toISOString() : null;
+      const archivedAt =
+        payload.status === "archived" ? toMysqlDateTime(new Date()) : null;
       await pool.query(
         `UPDATE development_plans
          SET person_id = ?, cycle_id = ?, competency_id = ?, focus_title = ?, action_text = ?,
@@ -407,7 +409,7 @@ export function createMysqlDevelopmentPlanStore({
 
       assertCanReportDevelopmentPlanProgress(actorUser, people, plan);
       const progress = normalizeDevelopmentPlanProgressPayload(payload);
-      const progressUpdatedAt = new Date().toISOString();
+      const progressUpdatedAt = toMysqlDateTime(new Date());
 
       await pool.query(
         `UPDATE development_plans

@@ -38,6 +38,18 @@ npm run homologate:wave3
 
 O script bloqueia `https://smartcompliance.onrender.com` por padrao. Rodadas mutaveis em producao exigem aprovacao explicita e `ALLOW_PRODUCTION_MUTATION=true`.
 
+Evidencia da rodada isolada em MySQL restaurado:
+
+- Data: 04/08/2026
+- Ambiente: API local `http://127.0.0.1:4103` apontada para `smart_compliance_restore_20260804_142534`
+- Resultado: aprovado
+- Cycle ID: `cycle_suaua3u5`
+- Assignment ID: `assignment_hb3tjjls`
+- Submission ID: `submission_6a8ow75w`
+- Development plan ID: `development_plan_jybwv7b9`
+- Development record ID: `development_np84gm5g`
+- Checks automatizados: resposta incompleta `400`, envio duplicado `400`, questionarios por colaborador `403`, PDI com progresso e arquivamento, registro arquivado, terceiro sem visibilidade do PDI, integracoes de aprendizagem por colaborador `403`.
+
 ## 2. Perfis minimos da rodada
 
 - [ ] Admin ou RH para operacao de ciclos/questionarios.

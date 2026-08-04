@@ -117,21 +117,28 @@ async function createRemoteContext(baseUrl) {
       method: "POST",
       body: { email, password: process.env.HOMOLOGATION_PASSWORD || "demo123" }
     });
-    return { Authorization: `Bearer ${response.token}` };
+    return {
+      header: { Authorization: `Bearer ${response.token}` },
+      user: response.user
+    };
   };
+  const admin = await login(process.env.HOMOLOGATION_ADMIN_EMAIL || "admin@demo.local");
+  const manager = await login(process.env.HOMOLOGATION_MANAGER_EMAIL || "gestor@demo.local");
+  const employee = await login(process.env.HOMOLOGATION_EMPLOYEE_EMAIL || "colaborador2@demo.local");
+  const outsider = await login(process.env.HOMOLOGATION_OUTSIDER_EMAIL || "colaborador1@demo.local");
 
   return {
     baseUrl,
     close: async () => {},
     headers: {
-      admin: await login(process.env.HOMOLOGATION_ADMIN_EMAIL || "admin@demo.local"),
-      manager: await login(process.env.HOMOLOGATION_MANAGER_EMAIL || "gestor@demo.local"),
-      employee: await login(process.env.HOMOLOGATION_EMPLOYEE_EMAIL || "colaborador2@demo.local"),
-      outsider: await login(process.env.HOMOLOGATION_OUTSIDER_EMAIL || "colaborador1@demo.local")
+      admin: admin.header,
+      manager: manager.header,
+      employee: employee.header,
+      outsider: outsider.header
     },
     users: {
-      manager: null,
-      employee: null
+      manager: manager.user,
+      employee: employee.user
     }
   };
 }
@@ -149,7 +156,10 @@ async function main() {
     assertOk(health.status === "ok" && health.ready === true, "Healthcheck deve estar ok");
 
     const people = await send(baseUrl, "/api/people", { headers: headers.admin });
-    const employeePersonId = context.users.employee?.personId || people.find((person) => person.name)?.id;
+    const employeePersonId =
+      context.users.employee?.personId ||
+      context.users.employee?.person?.id ||
+      people.find((person) => person.name)?.id;
     assertOk(employeePersonId, "Pessoa do colaborador de homologacao obrigatoria");
 
     const competencies = await send(baseUrl, "/api/competencies", { headers: headers.admin });
@@ -175,10 +185,12 @@ async function main() {
     const assignments = await send(baseUrl, "/api/evaluations/assignments", {
       headers: headers.employee
     });
+    const cycleAssignments = assignments.filter(
+      (item) => item.cycleId === cycle.id && item.status === "pending"
+    );
     const assignment =
-      assignments.find((item) => item.cycleId === cycle.id && item.status === "pending") ||
-      assignments.find((item) => item.status === "pending");
-    assertOk(assignment, "Assignment pendente obrigatorio para homologacao");
+      cycleAssignments.find((item) => item.relationshipType === "self") || cycleAssignments[0];
+    assertOk(assignment, "Assignment pendente do ciclo criado obrigatorio para homologacao");
 
     const detail = await send(baseUrl, `/api/evaluations/assignments/${assignment.id}`, {
       headers: headers.employee
@@ -229,7 +241,7 @@ async function main() {
 
     const plan = await send(baseUrl, "/api/development/plans", {
       method: "POST",
-      headers: headers.manager,
+      headers: headers.admin,
       body: {
         personId: employeePersonId,
         cycleId: cycle.id,
@@ -250,7 +262,7 @@ async function main() {
     });
     const archivedPlan = await send(baseUrl, `/api/development/plans/${plan.id}`, {
       method: "PATCH",
-      headers: headers.manager,
+      headers: headers.admin,
       body: {
         personId: employeePersonId,
         cycleId: cycle.id,

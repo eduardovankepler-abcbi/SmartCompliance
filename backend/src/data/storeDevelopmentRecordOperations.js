@@ -122,7 +122,8 @@ export function createMysqlDevelopmentRecordStore({
   insertAuditLog,
   AUDIT_CATEGORIES,
   buildDevelopmentRecordAuditDetail,
-  assertValidDevelopmentRecordStatus
+  assertValidDevelopmentRecordStatus,
+  toMysqlDateTime
 }) {
   return {
     async getDevelopmentRecords(actorUser) {
@@ -220,7 +221,8 @@ export function createMysqlDevelopmentRecordStore({
       );
       assertValidDevelopmentRecordStatus(payload.status);
 
-      const archivedAt = payload.status === "archived" ? new Date().toISOString() : null;
+      const archivedAt =
+        payload.status === "archived" ? toMysqlDateTime(new Date()) : null;
       await pool.query(
         `UPDATE development_records
          SET person_id = ?, record_type = ?, title = ?, provider_name = ?, completed_at = ?,

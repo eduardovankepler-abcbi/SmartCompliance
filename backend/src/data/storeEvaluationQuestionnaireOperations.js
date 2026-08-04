@@ -301,7 +301,7 @@ export function createMemoryEvaluationQuestionnaireStore({
     async createEvaluationQuestionnaire(payload, actorUser) {
       assertCanManageEvaluationQuestionnaires(actorUser, guards);
       const input = normalizeQuestionnaireInput(payload);
-      const timestamp = toMysqlDateTime(new Date());
+      const timestamp = new Date().toISOString();
       const questionnaire = {
         id: createId("questionnaire"),
         cycleId: input.cycleId,
@@ -760,7 +760,7 @@ export function createMysqlEvaluationQuestionnaireStore({
     async createEvaluationQuestionnaire(payload, actorUser) {
       assertCanManageEvaluationQuestionnaires(actorUser, guards);
       const input = normalizeQuestionnaireInput(payload);
-      const timestamp = new Date().toISOString();
+      const timestamp = toMysqlDateTime(new Date());
       const questionnaireId = createId("questionnaire");
       const policyId = createId("questionnaire_policy");
       const defaultPolicy = buildDefaultQuestionnairePolicy();

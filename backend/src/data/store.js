@@ -7167,7 +7167,7 @@ function buildMysqlStore(
                 record.pairingSource,
                 record.pairingReason,
                 record.seed,
-                record.createdAt,
+                toMysqlDateTime(record.createdAt),
                 record.createdByUserId,
                 record.blockedAt,
                 record.blockedByUserId
@@ -7362,7 +7362,7 @@ function buildMysqlStore(
             exceptionRecord.nextRevieweePersonId,
             exceptionRecord.reason,
             exceptionRecord.actorUserId,
-            exceptionRecord.createdAt
+            toMysqlDateTime(exceptionRecord.createdAt)
           ]
         );
 
@@ -7496,7 +7496,7 @@ function buildMysqlStore(
             newPairing.pairingSource,
             newPairing.pairingReason,
             newPairing.seed,
-            newPairing.createdAt,
+            toMysqlDateTime(newPairing.createdAt),
             newPairing.createdByUserId,
             newPairing.blockedAt,
             newPairing.blockedByUserId
@@ -7516,7 +7516,7 @@ function buildMysqlStore(
             exceptionRecord.nextRevieweePersonId,
             exceptionRecord.reason,
             exceptionRecord.actorUserId,
-            exceptionRecord.createdAt
+            toMysqlDateTime(exceptionRecord.createdAt)
           ]
         );
         await connection.query(
@@ -7641,6 +7641,7 @@ function buildMysqlStore(
       average,
       buildEvaluationAnswerRows,
       fetchMysqlResponses,
+      toMysqlDateTime,
       validateFeedbackAcknowledgementPayload,
       insertAuditLog,
       AUDIT_CATEGORIES,
@@ -7673,7 +7674,8 @@ function buildMysqlStore(
       insertAuditLog,
       AUDIT_CATEGORIES,
       buildDevelopmentRecordAuditDetail,
-      assertValidDevelopmentRecordStatus
+      assertValidDevelopmentRecordStatus,
+      toMysqlDateTime
     }),
     ...createMysqlLearningIntegrationStore({
       pool,
@@ -7705,7 +7707,8 @@ function buildMysqlStore(
       buildDevelopmentPlanAuditDetail,
       assertValidDevelopmentPlanStatus,
       assertCanReportDevelopmentPlanProgress,
-      normalizeDevelopmentPlanProgressPayload
+      normalizeDevelopmentPlanProgressPayload,
+      toMysqlDateTime
     }),
     ...createMysqlDashboardStore({
       pool,

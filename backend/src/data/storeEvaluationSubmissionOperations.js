@@ -164,6 +164,7 @@ export function createMysqlEvaluationSubmissionStore({
   average,
   buildEvaluationAnswerRows,
   fetchMysqlResponses,
+  toMysqlDateTime,
   validateFeedbackAcknowledgementPayload,
   insertAuditLog,
   AUDIT_CATEGORIES,
@@ -266,7 +267,7 @@ export function createMysqlEvaluationSubmissionStore({
             submission.overallScore,
             submission.strengthsNote,
             submission.developmentNote,
-            submission.submittedAt
+            toMysqlDateTime(submission.submittedAt)
           ]
         );
 
@@ -360,7 +361,12 @@ export function createMysqlEvaluationSubmissionStore({
           `UPDATE evaluation_submissions
            SET reviewee_acknowledgement_status = ?, reviewee_acknowledgement_note = ?, reviewee_acknowledged_at = ?
            WHERE id = ?`,
-          [acknowledgement.status, acknowledgement.note, acknowledgedAt, submissionId]
+          [
+            acknowledgement.status,
+            acknowledgement.note,
+            toMysqlDateTime(acknowledgedAt),
+            submissionId
+          ]
         );
 
         await insertAuditLog(connection, {
