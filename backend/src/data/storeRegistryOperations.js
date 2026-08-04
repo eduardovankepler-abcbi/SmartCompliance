@@ -555,7 +555,7 @@ export function createMysqlRegistryStore({
       const person = {
         id: createId("person"),
         ...personPayload,
-        satisfactionScore: null
+        satisfactionScore: 0
       };
 
       try {
@@ -673,7 +673,7 @@ export function createMysqlRegistryStore({
             personPayload.workMode,
             personPayload.managerPersonId,
             personPayload.employmentType,
-            person.satisfactionScore,
+            Number.isFinite(Number(person.satisfactionScore)) ? person.satisfactionScore : 0,
             personId
           ]
         );
@@ -692,7 +692,7 @@ export function createMysqlRegistryStore({
             personPayload.area,
             personPayload.managerPersonId,
             personPayload.employmentType,
-            person.satisfactionScore,
+            Number.isFinite(Number(person.satisfactionScore)) ? person.satisfactionScore : 0,
             personId
           ]
         );
