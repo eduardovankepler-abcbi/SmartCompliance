@@ -18,6 +18,26 @@ IDs/versoes:
 - Frontend deployment: ___________________
 - Backup/snapshot: ___________________
 
+## 1.1. Execucao mutavel segura por API
+
+Para rodar a homologacao mutavel em ambiente isolado local, sem tocar no banco real:
+
+```bash
+cd backend
+npm run homologate:wave3
+```
+
+Para rodar contra uma API remota de staging/homologacao:
+
+```bash
+cd backend
+set HOMOLOGATION_API_BASE_URL=https://sua-api-de-homologacao
+set HOMOLOGATION_ALLOW_MUTATION=true
+npm run homologate:wave3
+```
+
+O script bloqueia `https://smartcompliance.onrender.com` por padrao. Rodadas mutaveis em producao exigem aprovacao explicita e `ALLOW_PRODUCTION_MUTATION=true`.
+
 ## 2. Perfis minimos da rodada
 
 - [ ] Admin ou RH para operacao de ciclos/questionarios.
