@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { requireAuth } from "../auth/middleware.js";
 import { env } from "../config/env.js";
+import { logger } from "../observability/logger.js";
 import { badRequest } from "./helpers.js";
 import { createToken } from "../auth/token.js";
 
@@ -69,6 +70,11 @@ export function createAuthRouter(store) {
           Math.ceil((state.lockedUntil - Date.now()) / 1000)
         );
         res.setHeader("Retry-After", String(retryAfterSeconds));
+        logger.warn("auth.login.rate_limited", {
+          requestId: req.requestId,
+          ip: getClientIp(req),
+          retryAfterSeconds
+        });
         return res.status(429).json({
           error: "Muitas tentativas de login. Tente novamente em alguns minutos."
         });
@@ -79,11 +85,17 @@ export function createAuthRouter(store) {
         state.failedAttempts += 1;
         if (state.failedAttempts >= env.auth.maxFailedLogins) {
           state.lockedUntil = Date.now() + env.auth.loginLockMs;
+          logger.warn("auth.login.locked", {
+            requestId: req.requestId,
+            ip: getClientIp(req),
+            failedAttempts: state.failedAttempts
+          });
         }
         return res.status(401).json({ error: "Credenciais invalidas." });
       }
 
       loginAttempts.delete(clientKey);
+      await store.recordAuthEvent?.("login_success", user, `IP: ${getClientIp(req)}`);
 
       let token;
       try {
@@ -101,11 +113,10 @@ export function createAuthRouter(store) {
         user
       });
     } catch (error) {
-      console.error("Login failed", {
+      logger.error("auth.login.failed", {
+        requestId: req.requestId,
         stage: error.authStage || "unknown",
-        code: error.code,
-        errno: error.errno,
-        message: error.message
+        error
       });
       res.status(500).json({
         error: "Erro interno ao processar login.",
@@ -116,6 +127,23 @@ export function createAuthRouter(store) {
 
   router.get("/me", requireAuth(store), async (req, res) => {
     res.json(req.auth.user);
+  });
+
+  router.post("/change-password", requireAuth(store), async (req, res) => {
+    const { currentPassword, nextPassword } = req.body;
+    if (!currentPassword || !nextPassword) {
+      return badRequest(res, "Senha atual e nova senha sao obrigatorias.");
+    }
+
+    try {
+      const user = await store.changeOwnPassword(req.auth.user.id, {
+        currentPassword,
+        nextPassword
+      });
+      res.json(user);
+    } catch (error) {
+      res.status(400).json({ error: error.message || "Falha ao alterar senha." });
+    }
   });
 
   return router;

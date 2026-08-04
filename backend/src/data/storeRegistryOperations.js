@@ -319,7 +319,10 @@ export function createMemoryRegistryStore({
       assertUserPersonExists(person);
       assertPersonHasNoLinkedUser(db.users.some((item) => item.personId === payload.personId));
 
-      const userData = prepareUserWrite(db.users, payload, { requirePassword: true });
+      const userData = prepareUserWrite(db.users, payload, {
+        requirePassword: true,
+        nodeEnv: process.env.NODE_ENV || "development"
+      });
       assertManagerUserScope(person, userData, actorUser);
 
       const user = {
@@ -328,7 +331,9 @@ export function createMemoryRegistryStore({
         email: userData.email,
         passwordHash: hashPassword(userData.password),
         roleKey: userData.roleKey,
-        status: userData.status
+        status: userData.status,
+        mustChangePassword: true,
+        passwordChangedAt: null
       };
       db.users.unshift(user);
       pushAuditLog(db.auditLogs, {
@@ -354,7 +359,10 @@ export function createMemoryRegistryStore({
         throw new Error("Usuario nao encontrado.");
       }
 
-      const userData = prepareUserWrite(db.users, payload, { userId });
+      const userData = prepareUserWrite(db.users, payload, {
+        userId,
+        nodeEnv: process.env.NODE_ENV || "development"
+      });
       const person = db.people.find((item) => item.id === user.personId);
       assertManagerUserScope(person, userData, actorUser);
 
@@ -363,6 +371,8 @@ export function createMemoryRegistryStore({
       user.status = userData.status;
       if (userData.password) {
         user.passwordHash = hashPassword(userData.password);
+        user.mustChangePassword = true;
+        user.passwordChangedAt = null;
       }
 
       pushAuditLog(db.auditLogs, {
@@ -772,7 +782,10 @@ export function createMysqlRegistryStore({
         throw new Error("Perfil sem permissao para cadastrar usuarios.");
       }
 
-      const userData = prepareUserWrite([], payload, { requirePassword: true });
+      const userData = prepareUserWrite([], payload, {
+        requirePassword: true,
+        nodeEnv: process.env.NODE_ENV || "development"
+      });
 
       const [personRows] = await pool.query(
         `SELECT p.id, p.name, p.area, p.role_title AS roleTitle, p.work_unit AS workUnit,
@@ -817,8 +830,8 @@ export function createMysqlRegistryStore({
 
       await pool.query(
         `INSERT INTO users
-         (id, person_id, email, password_hash, role_key, status)
-         VALUES (?, ?, ?, ?, ?, ?)`,
+         (id, person_id, email, password_hash, role_key, status, must_change_password, password_changed_at)
+         VALUES (?, ?, ?, ?, ?, ?, TRUE, NULL)`,
         [user.id, user.personId, user.email, hashPassword(userData.password), user.roleKey, user.status]
       );
 
@@ -850,7 +863,10 @@ export function createMysqlRegistryStore({
         throw new Error("Perfil sem permissao para atualizar usuarios.");
       }
 
-      const userData = prepareUserWrite([], payload, { userId });
+      const userData = prepareUserWrite([], payload, {
+        userId,
+        nodeEnv: process.env.NODE_ENV || "development"
+      });
 
       const [rows] = await pool.query(
         `SELECT u.id, u.person_id AS personId, p.name AS personName, p.area AS personArea,
@@ -883,7 +899,7 @@ export function createMysqlRegistryStore({
       if (userData.password) {
         await pool.query(
           `UPDATE users
-           SET email = ?, role_key = ?, status = ?, password_hash = ?
+           SET email = ?, role_key = ?, status = ?, password_hash = ?, must_change_password = TRUE, password_changed_at = NULL
            WHERE id = ?`,
           [userData.email, userData.roleKey, userData.status, hashPassword(userData.password), userId]
         );

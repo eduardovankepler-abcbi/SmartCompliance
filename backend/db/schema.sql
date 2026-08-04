@@ -33,6 +33,8 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash VARCHAR(128) NOT NULL,
   role_key VARCHAR(40) NOT NULL,
   status VARCHAR(30) NOT NULL,
+  must_change_password BOOLEAN NOT NULL DEFAULT TRUE,
+  password_changed_at DATETIME NULL,
   FOREIGN KEY (person_id) REFERENCES people(id)
 );
 

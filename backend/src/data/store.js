@@ -3,6 +3,7 @@ import mysql from "mysql2/promise";
 import path from "path";
 import { fileURLToPath } from "url";
 import { env } from "../config/env.js";
+import { logger } from "../observability/logger.js";
 import { normalizeLearningIntegrationPayload } from "../services/learningIntegrations.js";
 import { toMysqlDateTime } from "./mysqlDateTime.js";
 import { evaluationLibrary, questionTemplate, seed } from "./mockData.js";
@@ -132,6 +133,7 @@ import {
 } from "./storeRegistryOperations.js";
 import { createId, hashPassword, verifyPasswordHash } from "./storeSecurity.js";
 import {
+  assertProductionPasswordPolicy,
   assertPersonHasNoLinkedUser,
   assertUserPersonExists,
   buildUserAuditDetail,
@@ -145,6 +147,7 @@ import {
   assertValidDevelopmentRecordStatus,
   assertValidFeedbackRequestStatus,
   normalizeAreaName,
+  normalizeUserPassword,
   normalizeOptionalText,
   normalizeRequiredText,
   normalizeWorkMode,
@@ -206,6 +209,8 @@ function toPublicUser(db, user) {
     email: user.email,
     roleKey: user.roleKey,
     status: user.status,
+    mustChangePassword: Boolean(user.mustChangePassword),
+    passwordChangedAt: user.passwordChangedAt || null,
     person: publicPerson
       ? {
           id: publicPerson.id,
@@ -238,7 +243,9 @@ function toAdminUserRow(db, user) {
     areaManagerName: publicPerson?.areaManagerName || "",
     email: user.email,
     roleKey: user.roleKey,
-    status: user.status
+    status: user.status,
+    mustChangePassword: Boolean(user.mustChangePassword),
+    passwordChangedAt: user.passwordChangedAt || null
   };
 }
 
@@ -1863,7 +1870,14 @@ async function ensureMysqlColumns(pool, tableName, statements, detector) {
       return false;
     }
   } catch (error) {
-    console.warn(`Could not verify ${tableName} table existence`, error);
+    logger.warn("database.table_check_failed", {
+      tableName,
+      error: {
+        message: error.message,
+        code: error.code,
+        errno: error.errno
+      }
+    });
     return false;
   }
 
@@ -1874,7 +1888,14 @@ async function ensureMysqlColumns(pool, tableName, statements, detector) {
       if (error?.code === "ER_DUP_FIELDNAME" || error?.errno === 1060) {
         continue;
       }
-      console.warn("Database auto-migration failed", error);
+      logger.warn("database.auto_migration_failed", {
+        tableName,
+        error: {
+          message: error.message,
+          code: error.code,
+          errno: error.errno
+        }
+      });
       break;
     }
   }
@@ -1898,7 +1919,13 @@ async function ensureMysqlTables(pool, detector, statements) {
     try {
       await pool.query(statement);
     } catch (error) {
-      console.warn("Database auto-migration failed", error);
+      logger.warn("database.auto_migration_failed", {
+        error: {
+          message: error.message,
+          code: error.code,
+          errno: error.errno
+        }
+      });
       break;
     }
   }
@@ -1925,7 +1952,13 @@ async function ensureMysqlIndexes(pool, detector, statements) {
       if (error?.code === "ER_DUP_KEYNAME" || error?.errno === 1061) {
         continue;
       }
-      console.warn("Database auto-migration failed", error);
+      logger.warn("database.auto_migration_failed", {
+        error: {
+          message: error.message,
+          code: error.code,
+          errno: error.errno
+        }
+      });
       break;
     }
   }
@@ -5351,6 +5384,55 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
       }
       return toPublicUser(db, user);
     },
+    async changeOwnPassword(userId, payload) {
+      const user = db.users.find((item) => item.id === userId);
+      if (!user || user.status !== "active") {
+        throw new Error("Usuario nao encontrado.");
+      }
+
+      if (!verifyPasswordHash(user.passwordHash, payload.currentPassword)) {
+        throw new Error("Senha atual invalida.");
+      }
+
+      const nextPassword = normalizeUserPassword(payload.nextPassword, { required: true });
+      assertProductionPasswordPolicy(nextPassword, { nodeEnv: env.nodeEnv });
+      if (verifyPasswordHash(user.passwordHash, nextPassword)) {
+        throw new Error("A nova senha deve ser diferente da senha atual.");
+      }
+
+      user.passwordHash = hashPassword(nextPassword);
+      user.mustChangePassword = false;
+      user.passwordChangedAt = new Date().toISOString();
+
+      pushAuditLog(db.auditLogs, {
+        category: AUDIT_CATEGORIES.user,
+        action: "password_changed",
+        entityType: "user",
+        entityId: user.id,
+        entityLabel: user.email,
+        actorUser: toPublicUser(db, user),
+        summary: "Senha alterada pelo proprio usuario",
+        detail: "Troca de senha autenticada"
+      });
+
+      return toPublicUser(db, user);
+    },
+    async recordAuthEvent(action, user, detail = "") {
+      if (!user) {
+        return;
+      }
+
+      pushAuditLog(db.auditLogs, {
+        category: AUDIT_CATEGORIES.user,
+        action,
+        entityType: "user",
+        entityId: user.id,
+        entityLabel: user.email,
+        actorUser: user,
+        summary: action === "login_success" ? "Login realizado" : "Evento de autenticacao",
+        detail
+      });
+    },
     async getAreas(actorUser) {
       return filterAreasForUser(db.areas, db.people, actorUser);
     },
@@ -5960,7 +6042,9 @@ function buildMysqlStore(
         "email",
         "password_hash",
         "role_key",
-        "status"
+        "status",
+        "must_change_password",
+        "password_changed_at"
       ]);
       const missingDevelopmentPlanColumns = await getMysqlMissingColumns(pool, "development_plans", [
         "progress_status",
@@ -5998,7 +6082,8 @@ function buildMysqlStore(
       try {
         const [rows] = await pool.query(
           `SELECT u.id, u.person_id AS personId, u.email, u.password_hash AS passwordHash,
-                  u.role_key AS roleKey, u.status
+                  u.role_key AS roleKey, u.status, u.must_change_password AS mustChangePassword,
+                  u.password_changed_at AS passwordChangedAt
            FROM users u
            WHERE u.email = ?
            LIMIT 1`,
@@ -6021,7 +6106,8 @@ function buildMysqlStore(
           `SELECT u.id, u.email, u.role_key AS roleKey, u.status,
                   p.id AS personId, p.name, p.role_title AS roleTitle, p.area,
                   p.manager_person_id AS managerPersonId, manager.name AS managerName,
-                  p.employment_type AS employmentType
+                  p.employment_type AS employmentType, u.must_change_password AS mustChangePassword,
+                  u.password_changed_at AS passwordChangedAt
            FROM users u
            JOIN people p ON p.id = u.person_id
            LEFT JOIN people manager ON manager.id = p.manager_person_id
@@ -6055,6 +6141,8 @@ function buildMysqlStore(
         email: rows[0].email,
         roleKey: rows[0].roleKey,
         status: rows[0].status,
+        mustChangePassword: Boolean(rows[0].mustChangePassword),
+        passwordChangedAt: rows[0].passwordChangedAt || null,
         person: {
           id: rows[0].personId,
           name: rows[0].name,
@@ -6093,6 +6181,58 @@ function buildMysqlStore(
         error.authStage = "load_profile";
         throw error;
       }
+    },
+    async changeOwnPassword(userId, payload) {
+      const user = await this.findUserByEmail((await this.getUserById(userId))?.email || "");
+      if (!user || user.status !== "active") {
+        throw new Error("Usuario nao encontrado.");
+      }
+
+      if (!verifyPasswordHash(user.passwordHash, payload.currentPassword)) {
+        throw new Error("Senha atual invalida.");
+      }
+
+      const nextPassword = normalizeUserPassword(payload.nextPassword, { required: true });
+      assertProductionPasswordPolicy(nextPassword, { nodeEnv: env.nodeEnv });
+      if (verifyPasswordHash(user.passwordHash, nextPassword)) {
+        throw new Error("A nova senha deve ser diferente da senha atual.");
+      }
+
+      await pool.query(
+        `UPDATE users
+         SET password_hash = ?, must_change_password = FALSE, password_changed_at = ?
+         WHERE id = ?`,
+        [hashPassword(nextPassword), toMysqlDateTime(new Date().toISOString()), userId]
+      );
+
+      const publicUser = await this.getUserById(userId);
+      await insertAuditLog(pool, {
+        category: AUDIT_CATEGORIES.user,
+        action: "password_changed",
+        entityType: "user",
+        entityId: userId,
+        entityLabel: publicUser.email,
+        actorUser: publicUser,
+        summary: "Senha alterada pelo proprio usuario",
+        detail: "Troca de senha autenticada"
+      });
+      return publicUser;
+    },
+    async recordAuthEvent(action, user, detail = "") {
+      if (!user) {
+        return;
+      }
+
+      await insertAuditLog(pool, {
+        category: AUDIT_CATEGORIES.user,
+        action,
+        entityType: "user",
+        entityId: user.id,
+        entityLabel: user.email,
+        actorUser: user,
+        summary: action === "login_success" ? "Login realizado" : "Evento de autenticacao",
+        detail
+      });
     },
     async getAreas(actorUser) {
       const [areas, people] = await Promise.all([fetchAreaRows(pool), fetchPeopleRows(pool)]);

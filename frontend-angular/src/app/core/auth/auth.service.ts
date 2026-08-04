@@ -35,6 +35,15 @@ export class AuthService {
     return response.user;
   }
 
+  async changePassword(currentPassword: string, nextPassword: string): Promise<AuthUser> {
+    const user = await firstValueFrom(
+      this.api.post<AuthUser>('/api/auth/change-password', { currentPassword, nextPassword }),
+    );
+
+    this.user.set(user);
+    return user;
+  }
+
   logout(): void {
     this.tokenStorage.clearToken();
     this.user.set(null);

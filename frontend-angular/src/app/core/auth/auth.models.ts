@@ -9,6 +9,8 @@ export interface AuthUser {
   email: string;
   roleKey: string;
   status: string;
+  mustChangePassword?: boolean;
+  passwordChangedAt?: string | null;
   person: AuthPerson | null;
 }
 

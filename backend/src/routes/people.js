@@ -1,11 +1,12 @@
 import { Router } from "express";
+import { PERMISSIONS } from "../auth/permissions.js";
 import { requireRoles } from "../auth/middleware.js";
 import { badRequest } from "./helpers.js";
 
 export function createPeopleRouter(store) {
   const router = Router();
 
-  router.get("/", async (req, res, next) => {
+  router.get("/", requireRoles(...PERMISSIONS.peopleRegistry), async (req, res, next) => {
     try {
       res.json(await store.getPeople(req.auth.user));
     } catch (error) {
@@ -13,7 +14,7 @@ export function createPeopleRouter(store) {
     }
   });
 
-  router.post("/", requireRoles("admin", "hr", "manager"), async (req, res) => {
+  router.post("/", requireRoles(...PERMISSIONS.peopleRegistry), async (req, res) => {
     const {
       name,
       roleTitle,
@@ -49,7 +50,7 @@ export function createPeopleRouter(store) {
     }
   });
 
-  router.patch("/:personId", requireRoles("admin", "hr", "manager"), async (req, res) => {
+  router.patch("/:personId", requireRoles(...PERMISSIONS.peopleRegistry), async (req, res) => {
     const {
       name,
       roleTitle,

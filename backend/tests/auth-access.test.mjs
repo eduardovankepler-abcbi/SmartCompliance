@@ -6,6 +6,16 @@ export async function runAuthAccessRegression() {
 
   try {
     const { fetchJson, getAuthHeader, sendJson, store } = context;
+    const health = await fetchJson("/health");
+    assert.equal(health.response.status, 200, "Healthcheck publico deve responder 200");
+    assert.equal(health.payload.status, "ok", "Healthcheck deve indicar status ok");
+    assert.equal(health.payload.ready, true, "Healthcheck deve indicar prontidao operacional");
+    assert.ok(health.payload.checkedAt, "Healthcheck deve informar horario da verificacao");
+    assert.ok(
+      health.response.headers.get("x-request-id"),
+      "Healthcheck deve devolver X-Request-Id para rastreio operacional"
+    );
+
     const admin = await store.findUserByEmail("admin@demo.local");
     const manager = await store.findUserByEmail("gestor@demo.local");
     const hr = await store.findUserByEmail("rh@demo.local");
@@ -258,6 +268,69 @@ export async function runAuthAccessRegression() {
       "Lista de usuarios do gestor deve incluir acesso criado para subordinado"
     );
 
+    const employeePeopleRegistry = await fetchJson("/api/people", getAuthHeader(employee.id));
+    assert.equal(
+      employeePeopleRegistry.response.status,
+      403,
+      "Colaborador nao deve listar cadastro de pessoas"
+    );
+
+    const compliancePeopleRegistry = await fetchJson("/api/people", getAuthHeader(compliance.id));
+    assert.equal(
+      compliancePeopleRegistry.response.status,
+      403,
+      "Compliance nao deve listar cadastro de pessoas fora do modulo de casos"
+    );
+
+    const temporaryPasswordLogin = await sendJson("/api/auth/login", {
+      body: {
+        email: "subordinado.gestor@empresa.local",
+        password: "demo123"
+      }
+    });
+    assert.equal(
+      temporaryPasswordLogin.response.status,
+      200,
+      "Usuario criado com senha provisoria deve conseguir autenticar"
+    );
+    assert.equal(
+      temporaryPasswordLogin.payload.user.mustChangePassword,
+      true,
+      "Usuario criado por gestor deve ser sinalizado para trocar senha"
+    );
+
+    const changedOwnPassword = await sendJson("/api/auth/change-password", {
+      headers: {
+        Authorization: `Bearer ${temporaryPasswordLogin.payload.token}`
+      },
+      body: {
+        currentPassword: "demo123",
+        nextPassword: "novaSenha123"
+      }
+    });
+    assert.equal(
+      changedOwnPassword.response.status,
+      200,
+      "Usuario autenticado deve conseguir trocar a propria senha"
+    );
+    assert.equal(
+      changedOwnPassword.payload.mustChangePassword,
+      false,
+      "Troca de senha propria deve remover obrigatoriedade de troca"
+    );
+
+    const oldTemporaryPasswordLogin = await sendJson("/api/auth/login", {
+      body: {
+        email: "subordinado.gestor@empresa.local",
+        password: "demo123"
+      }
+    });
+    assert.equal(
+      oldTemporaryPasswordLogin.response.status,
+      401,
+      "Senha provisoria antiga nao deve seguir valida apos troca"
+    );
+
     const managerBlockedPerson = await sendJson("/api/people", {
       headers: getAuthHeader(manager.id),
       body: {
@@ -451,6 +524,31 @@ export async function runAuthAccessRegression() {
       complianceApplause.response.status,
       403,
       "Compliance nao deve acessar o workspace de Aplause"
+    );
+
+    const employeeIncidentQueue = await fetchJson("/api/incidents", getAuthHeader(employee.id));
+    assert.equal(
+      employeeIncidentQueue.response.status,
+      403,
+      "Colaborador nao deve listar a fila de tratamento de incidentes"
+    );
+
+    const employeeCreatedIncident = await sendJson("/api/incidents", {
+      headers: getAuthHeader(employee.id),
+      body: {
+        title: "Relato de colaborador",
+        category: "Conduta",
+        classification: "Nao classificado",
+        anonymity: "identified",
+        reporterLabel: "Colaborador identificado",
+        responsibleArea: "Compliance",
+        description: "Relato registrado apenas para validar permissao de criacao."
+      }
+    });
+    assert.equal(
+      employeeCreatedIncident.response.status,
+      201,
+      "Colaborador autenticado deve conseguir registrar relato de compliance"
     );
 
     const employeeAudit = await fetchJson(

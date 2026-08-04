@@ -8,12 +8,19 @@ import { sectionAccessGuard } from './core/navigation/section-access.guard';
 import { areaManagementGuard } from './core/auth/area-management.guard';
 import { peopleAccessGuard } from './core/auth/people-access.guard';
 import { usersAccessGuard } from './core/auth/users-access.guard';
+import { passwordChangeGuard } from './core/auth/password-change.guard';
 
 export const routes: Routes = [
   {
     path: 'login',
     loadComponent: () => import('./features/auth/login-page.component').then((m) => m.LoginPageComponent),
     canActivate: [guestGuard],
+  },
+  {
+    path: 'change-password',
+    loadComponent: () =>
+      import('./features/auth/change-password-page.component').then((m) => m.ChangePasswordPageComponent),
+    canActivate: [passwordChangeGuard],
   },
   {
     path: 'app',

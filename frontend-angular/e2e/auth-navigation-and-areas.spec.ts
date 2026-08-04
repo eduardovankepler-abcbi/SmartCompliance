@@ -35,6 +35,82 @@ test('restaura a sessao apos atualizar a pagina', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
 });
 
+test('exige troca de senha no primeiro acesso antes de abrir o workspace', async ({ page }) => {
+  await page.route('**/api/auth/login', (route) =>
+    route.fulfill({
+      status: 200,
+      json: {
+        token: 'temporary-token',
+        user: {
+          id: 'user_temp',
+          email: 'temporario@empresa.local',
+          roleKey: 'employee',
+          status: 'active',
+          mustChangePassword: true,
+          passwordChangedAt: null,
+          person: {
+            id: 'person_temp',
+            name: 'Usuario Temporario',
+            area: 'Gente',
+          },
+        },
+      },
+    }),
+  );
+  await page.route('**/api/auth/me', (route) =>
+    route.fulfill({
+      status: 200,
+      json: {
+        id: 'user_temp',
+        email: 'temporario@empresa.local',
+        roleKey: 'employee',
+        status: 'active',
+        mustChangePassword: true,
+        passwordChangedAt: null,
+        person: {
+          id: 'person_temp',
+          name: 'Usuario Temporario',
+          area: 'Gente',
+        },
+      },
+    }),
+  );
+  await page.route('**/api/auth/change-password', (route) =>
+    route.fulfill({
+      status: 200,
+      json: {
+        id: 'user_temp',
+        email: 'temporario@empresa.local',
+        roleKey: 'employee',
+        status: 'active',
+        mustChangePassword: false,
+        passwordChangedAt: new Date().toISOString(),
+        person: {
+          id: 'person_temp',
+          name: 'Usuario Temporario',
+          area: 'Gente',
+        },
+      },
+    }),
+  );
+
+  await page.goto('/login');
+  await page.getByLabel('E-mail').fill('temporario@empresa.local');
+  await page.getByLabel('Senha').fill('demo123');
+  await page.getByRole('button', { name: 'Acessar', exact: true }).click();
+
+  await expect(page).toHaveURL(/\/change-password$/);
+  await page.goto('/app/dashboard');
+  await expect(page).toHaveURL(/\/change-password$/);
+
+  await page.getByLabel('Senha atual').fill('demo123');
+  await page.getByLabel('Nova senha', { exact: true }).fill('novaSenha123');
+  await page.getByLabel('Confirmar nova senha').fill('novaSenha123');
+  await page.getByRole('button', { name: 'Atualizar senha' }).click();
+
+  await expect(page).toHaveURL(/\/app\/compliance$/);
+});
+
 test('impede gestor de abrir a gestao de areas', async ({ page }) => {
   await login(page, 'gestor@demo.local');
   await expect(page).toHaveURL(/\/app\/dashboard$/);

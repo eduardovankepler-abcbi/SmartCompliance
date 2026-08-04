@@ -41,6 +41,7 @@ Configurar no servico do Render:
 
 - `NODE_ENV=production`
 - `STORAGE_MODE=mysql`
+- `LOG_FORMAT=json`
 - `AUTH_SECRET=<gerar-um-valor-forte>`
 - `MYSQL_HOST=<host-do-banco>` (ou `DB_HOST`)
 - `MYSQL_PORT=<porta-do-banco>` (ou `DB_PORT`)
@@ -77,6 +78,21 @@ Se voce ja tem um banco existente (tabelas ja criadas) e atualizou o codigo, apl
 
 - `backend/db/migrations/2026-04-01-evaluation-cycle-config.sql` (switches de ciclo + questionarios)
 - `backend/db/migrations/2026-05-05-evaluation-individual-questionnaires.sql` (questionarios individuais + politicas de acesso)
+- `backend/db/migrations/2026-08-04-auth-production-hardening.sql` (troca obrigatoria de senha + data da ultima troca)
+
+Antes de aplicar migrations em banco existente, gere backup:
+
+```bash
+cd backend
+npm run backup:mysql
+```
+
+Para validar recuperacao em homologacao:
+
+```bash
+cd backend
+npm run restore:mysql -- caminho/do/backup.sql
+```
 
 Opcional:
 
@@ -115,7 +131,14 @@ Para homologar especificamente a frente de `questionarios individuais` em MySQL 
 ## Checklist de validacao
 
 - `GET /health` responde `status: ok`
+- `GET /health` responde `ready: true`
+- `GET /health` retorna header `X-Request-Id`
+- logs do backend aparecem em JSON quando `LOG_FORMAT=json`
 - login funciona
+- usuario criado/resetado retorna `mustChangePassword`
+- primeiro acesso redireciona para `/change-password`
+- usuario com senha provisoria nao acessa `/app` antes da troca
+- backup foi gerado e restore foi testado em homologacao
 - leituras do dashboard carregam
 - modulo de avaliacoes responde
 - importacao/exportacao da biblioteca funciona

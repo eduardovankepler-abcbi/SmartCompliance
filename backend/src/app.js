@@ -2,6 +2,7 @@ import cors from "cors";
 import express from "express";
 import { requireAuth } from "./auth/middleware.js";
 import { env } from "./config/env.js";
+import { logger } from "./observability/logger.js";
 import { createAuthRouter } from "./routes/auth.js";
 import { createAuditRouter } from "./routes/audit.js";
 import { createApplauseRouter } from "./routes/applause.js";
@@ -29,6 +30,11 @@ export function createApp(store) {
     })
   );
   app.use((req, res, next) => {
+    const requestId =
+      req.headers["x-request-id"] ||
+      `req_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+    req.requestId = String(requestId);
+    res.setHeader("X-Request-Id", req.requestId);
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("X-Frame-Options", "DENY");
     res.setHeader("Referrer-Policy", "no-referrer");
@@ -39,17 +45,34 @@ export function createApp(store) {
   app.use(express.json({ limit: "50kb" }));
 
   app.get("/health", async (_req, res) => {
+    const checkedAt = new Date().toISOString();
     try {
       const storeHealth = store.checkHealth ? await store.checkHealth() : {};
+      const databaseReady =
+        storeHealth.database === "ok" || storeHealth.database === "memory";
       res.json({
         status: "ok",
+        ready: databaseReady,
+        checkedAt,
+        uptimeSeconds: Math.round(process.uptime()),
+        environment: env.nodeEnv,
+        version: env.appVersion,
         storageMode: env.storageMode,
         ...storeHealth
       });
     } catch (error) {
-      console.error("Health check failed", error);
+      logger.error("healthcheck.failed", {
+        requestId: _req.requestId,
+        storageMode: env.storageMode,
+        error
+      });
       res.status(503).json({
         status: "degraded",
+        ready: false,
+        checkedAt,
+        uptimeSeconds: Math.round(process.uptime()),
+        environment: env.nodeEnv,
+        version: env.appVersion,
         storageMode: env.storageMode,
         database: "unavailable"
       });
@@ -71,8 +94,13 @@ export function createApp(store) {
   app.use("/api/dashboards", createDashboardsRouter(store));
   app.use("/api/analytics", createAnalyticsRouter(store));
 
-  app.use((error, _req, res, _next) => {
-    console.error(error);
+  app.use((error, req, res, _next) => {
+    logger.error("http.unhandled_error", {
+      requestId: req.requestId,
+      method: req.method,
+      path: req.originalUrl,
+      error
+    });
     res.status(500).json({
       error: "Erro interno ao processar a solicitacao."
     });

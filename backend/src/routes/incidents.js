@@ -1,11 +1,12 @@
 import { Router } from "express";
+import { PERMISSIONS } from "../auth/permissions.js";
 import { requireRoles } from "../auth/middleware.js";
 import { badRequest } from "./helpers.js";
 
 export function createIncidentsRouter(store) {
   const router = Router();
 
-  router.get("/", async (req, res, next) => {
+  router.get("/", requireRoles(...PERMISSIONS.incidentQueue), async (req, res, next) => {
     try {
       res.json(await store.getIncidents(req.auth.user));
     } catch (error) {
@@ -13,7 +14,7 @@ export function createIncidentsRouter(store) {
     }
   });
 
-  router.post("/", async (req, res, next) => {
+  router.post("/", requireRoles(...PERMISSIONS.complianceWorkspace), async (req, res, next) => {
     const {
       title,
       category,
@@ -51,7 +52,7 @@ export function createIncidentsRouter(store) {
 
   router.patch(
     "/:incidentId",
-    requireRoles("admin", "hr", "compliance"),
+    requireRoles(...PERMISSIONS.incidentQueue),
     async (req, res) => {
       const { classification, status, responsibleArea, assignedPersonId } = req.body;
 

@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
+    "backup:mysql": "node scripts/mysql-backup.mjs",
+    "restore:mysql": "node scripts/mysql-restore.mjs",
     "test": "node tests/regression.test.mjs"
   },
   "dependencies": {

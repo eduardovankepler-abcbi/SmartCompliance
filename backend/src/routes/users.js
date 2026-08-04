@@ -1,11 +1,12 @@
 import { Router } from "express";
+import { PERMISSIONS } from "../auth/permissions.js";
 import { requireRoles } from "../auth/middleware.js";
 import { badRequest } from "./helpers.js";
 
 export function createUsersRouter(store) {
   const router = Router();
 
-  router.get("/", requireRoles("admin", "hr", "manager"), async (req, res, next) => {
+  router.get("/", requireRoles(...PERMISSIONS.userRegistry), async (req, res, next) => {
     try {
       res.json(await store.getUsers(req.auth.user));
     } catch (error) {
@@ -13,7 +14,7 @@ export function createUsersRouter(store) {
     }
   });
 
-  router.post("/", requireRoles("admin", "hr", "manager"), async (req, res) => {
+  router.post("/", requireRoles(...PERMISSIONS.userRegistry), async (req, res) => {
     const { personId, email, password, roleKey, status } = req.body;
 
     if (!personId || !email || !password || !roleKey || !status) {
@@ -31,7 +32,7 @@ export function createUsersRouter(store) {
     }
   });
 
-  router.patch("/:userId", requireRoles("admin", "hr", "manager"), async (req, res) => {
+  router.patch("/:userId", requireRoles(...PERMISSIONS.userRegistry), async (req, res) => {
     const { email, roleKey, status, password } = req.body;
 
     if (!email || !roleKey || !status) {

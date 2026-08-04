@@ -150,10 +150,12 @@ function buildMysqlSslOption() {
 export const env = {
   nodeEnv: process.env.NODE_ENV || "development",
   port: Number(process.env.PORT || 4000),
+  appVersion: process.env.APP_VERSION || process.env.RENDER_GIT_COMMIT || "local",
   storageMode: resolveStorageMode(),
   dataDir: process.env.DATA_DIR || process.env.SMART_COMPLIANCE_DATA_DIR || "",
   corsOrigin: buildCorsOriginOption(),
   trustProxy: buildTrustProxyOption(),
+  logFormat: process.env.LOG_FORMAT || (process.env.NODE_ENV === "production" ? "json" : "pretty"),
   authSecret: process.env.AUTH_SECRET || "smart-compliance-dev-secret",
   auth: {
     loginWindowMs: parsePositiveInteger(process.env.AUTH_LOGIN_WINDOW_MS, 10 * 60 * 1000),
@@ -167,6 +169,10 @@ export const env = {
     password: process.env.MYSQL_PASSWORD || process.env.DB_PASSWORD || "",
     database: process.env.MYSQL_DATABASE || process.env.DB_NAME || "smart_compliance",
     ssl: buildMysqlSslOption()
+  },
+  backup: {
+    dir: process.env.BACKUP_DIR || process.env.SMART_COMPLIANCE_BACKUP_DIR || "backups",
+    retentionDays: parsePositiveInteger(process.env.BACKUP_RETENTION_DAYS, 7)
   }
 };
 

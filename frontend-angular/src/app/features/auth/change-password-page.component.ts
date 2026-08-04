@@ -6,40 +6,49 @@ import { AuthService } from '../../core/auth/auth.service';
 import { ApiError } from '../../core/http/api-error';
 
 @Component({
-  selector: 'app-login-page',
+  selector: 'app-change-password-page',
   imports: [ReactiveFormsModule],
   template: `
-    <main class="login-page">
-      <form class="login-panel" aria-labelledby="login-title" [formGroup]="form" (ngSubmit)="submit()">
-        <div class="login-panel__brand-card">
+    <main class="password-page">
+      <form class="password-panel" aria-labelledby="password-title" [formGroup]="form" (ngSubmit)="submit()">
+        <div class="password-panel__brand-card">
           <img src="logo_abc_app.png" alt="abc technology group" />
         </div>
-        <p class="login-panel__product">SmartCompliance</p>
-        <h1 id="login-title">Acessar workspace</h1>
-        <p class="login-panel__intro">Use suas credenciais corporativas para continuar.</p>
+        <p class="password-panel__product">SmartCompliance</p>
+        <h1 id="password-title">Atualizar senha</h1>
+        <p class="password-panel__intro">Defina uma senha permanente para continuar.</p>
 
         @if (errorMessage()) {
-          <p class="login-panel__error" role="alert">{{ errorMessage() }}</p>
+          <p class="password-panel__error" role="alert">{{ errorMessage() }}</p>
         }
 
         <label>
-          E-mail
-          <input type="email" autocomplete="email" formControlName="email" />
+          Senha atual
+          <input type="password" autocomplete="current-password" formControlName="currentPassword" />
         </label>
 
         <label>
-          Senha
-          <input type="password" autocomplete="current-password" formControlName="password" />
+          Nova senha
+          <input type="password" autocomplete="new-password" formControlName="nextPassword" />
+        </label>
+
+        <label>
+          Confirmar nova senha
+          <input type="password" autocomplete="new-password" formControlName="confirmPassword" />
         </label>
 
         <button type="submit" [disabled]="isSubmitting()">
-          {{ isSubmitting() ? 'Acessando...' : 'Acessar' }}
+          {{ isSubmitting() ? 'Atualizando...' : 'Atualizar senha' }}
+        </button>
+
+        <button class="password-panel__logout" type="button" (click)="logout()">
+          Sair
         </button>
       </form>
     </main>
   `,
   styles: `
-    .login-page {
+    .password-page {
       display: grid;
       min-height: 100vh;
       padding: 24px;
@@ -47,7 +56,7 @@ import { ApiError } from '../../core/http/api-error';
       place-items: center;
     }
 
-    .login-panel {
+    .password-panel {
       width: min(100%, 424px);
       padding: 32px;
       background: var(--abc-surface);
@@ -56,21 +65,21 @@ import { ApiError } from '../../core/http/api-error';
       box-shadow: 0 16px 40px rgb(15 23 42 / 8%);
     }
 
-    .login-panel__brand-card {
+    .password-panel__brand-card {
       padding: 12px 14px;
       background: var(--abc-surface);
       border: 1px solid var(--abc-border);
       border-radius: var(--abc-radius);
     }
 
-    .login-panel__brand-card img {
+    .password-panel__brand-card img {
       display: block;
       width: 100%;
       height: 52px;
       object-fit: contain;
     }
 
-    .login-panel__product {
+    .password-panel__product {
       margin: 16px 0 4px;
       color: var(--abc-blue-dark);
       font-size: 12px;
@@ -87,13 +96,13 @@ import { ApiError } from '../../core/http/api-error';
       line-height: 1.2;
     }
 
-    .login-panel__intro {
+    .password-panel__intro {
       margin: 8px 0 0;
       color: var(--abc-text-muted);
       line-height: 1.5;
     }
 
-    .login-panel__error {
+    .password-panel__error {
       margin: 18px 0 0;
       padding: 10px 12px;
       color: var(--abc-danger);
@@ -147,9 +156,16 @@ import { ApiError } from '../../core/http/api-error';
       cursor: wait;
       opacity: 0.72;
     }
+
+    .password-panel__logout {
+      margin-top: 10px;
+      color: var(--abc-text);
+      background: var(--abc-surface);
+      border: 1px solid var(--abc-border);
+    }
   `,
 })
-export class LoginPageComponent {
+export class ChangePasswordPageComponent {
   private readonly auth = inject(AuthService);
   private readonly formBuilder = inject(FormBuilder);
   private readonly router = inject(Router);
@@ -157,8 +173,9 @@ export class LoginPageComponent {
   readonly isSubmitting = signal(false);
   readonly errorMessage = signal('');
   readonly form = this.formBuilder.nonNullable.group({
-    email: ['', [Validators.required, Validators.email]],
-    password: ['', [Validators.required]],
+    currentPassword: ['', [Validators.required]],
+    nextPassword: ['', [Validators.required, Validators.minLength(6)]],
+    confirmPassword: ['', [Validators.required]],
   });
 
   async submit(): Promise<void> {
@@ -167,19 +184,29 @@ export class LoginPageComponent {
       return;
     }
 
+    const { currentPassword, nextPassword, confirmPassword } = this.form.getRawValue();
+    if (nextPassword !== confirmPassword) {
+      this.errorMessage.set('A confirmacao deve ser igual a nova senha.');
+      return;
+    }
+
     this.errorMessage.set('');
     this.isSubmitting.set(true);
 
     try {
-      const { email, password } = this.form.getRawValue();
-      const user = await this.auth.login(email, password);
-      await this.router.navigateByUrl(user.mustChangePassword ? '/change-password' : '/app');
+      await this.auth.changePassword(currentPassword, nextPassword);
+      await this.router.navigateByUrl('/app');
     } catch (error) {
       this.errorMessage.set(
-        error instanceof ApiError ? error.message : 'Nao foi possivel iniciar a sessao.',
+        error instanceof ApiError ? error.message : 'Nao foi possivel atualizar a senha.',
       );
     } finally {
       this.isSubmitting.set(false);
     }
+  }
+
+  async logout(): Promise<void> {
+    this.auth.logout();
+    await this.router.navigateByUrl('/login');
   }
 }
