@@ -75,4 +75,8 @@ Preparar o Smart Compliance para acompanhamento interno pos-go-live, dando visib
 
 ## Proxima etapa imediata
 
-Mapear os indicadores e eventos ja disponiveis no backend/frontend para definir a menor implementacao util do dashboard executivo e da auditoria gerencial.
+Implementar a menor evolucao util do dashboard executivo: `riskSummary` e `operationalAlerts` no backend, mantendo contrato retrocompativel e preparando a renderizacao no frontend.
+
+## Andamento
+
+- Etapa 1 concluida em 04/08/2026: indicadores e eventos existentes mapeados em `docs/mapeamento-onda-4-indicadores-auditoria.md`.
