@@ -137,20 +137,21 @@ Configure alerta operacional para `healthcheck.failed`, `server.start_failed`, `
 Antes de aplicar migration em banco existente:
 
 1. Configure `BACKUP_DIR` e `BACKUP_RETENTION_DAYS` no ambiente operacional.
-2. Gere um backup com:
+2. Em Windows ou servidores sem MySQL no `PATH`, configure `MYSQLDUMP_PATH` e `MYSQL_CLIENT_PATH`.
+3. Gere um backup com:
 
 ```bash
 npm run backup:mysql
 ```
 
-3. Guarde o caminho do arquivo gerado no registro da rodada.
-4. Teste restore em banco de homologacao, nunca direto em producao:
+4. Guarde o caminho do arquivo gerado no registro da rodada.
+5. Teste restore em banco de homologacao, nunca direto em producao:
 
 ```bash
 npm run restore:mysql -- caminho/do/backup.sql
 ```
 
-5. Revalide `GET /health` e login apos o restore.
+6. Revalide `GET /health` e login apos o restore.
 
 ## 6. Validacao funcional mínima
 

@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import { env } from "../src/config/env.js";
+import { resolveMysqlClientPath } from "./mysql-client-paths.mjs";
 
 const backupFile = process.argv[2];
 
@@ -27,7 +28,7 @@ const args = [
 ];
 
 const input = fs.openSync(backupFile, "r");
-const child = spawn("mysql", args, {
+const child = spawn(resolveMysqlClientPath(), args, {
   env: {
     ...process.env,
     MYSQL_PWD: env.mysql.password

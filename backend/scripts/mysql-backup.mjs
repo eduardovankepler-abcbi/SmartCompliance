@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { env } from "../src/config/env.js";
+import { resolveMysqlDumpPath } from "./mysql-client-paths.mjs";
 
 function timestampForFile(date = new Date()) {
   return date.toISOString().replace(/[:.]/g, "-");
@@ -29,7 +30,7 @@ async function run() {
   ];
 
   const output = await fs.open(backupFile, "w");
-  const child = spawn("mysqldump", args, {
+  const child = spawn(resolveMysqlDumpPath(), args, {
     env: {
       ...process.env,
       MYSQL_PWD: env.mysql.password

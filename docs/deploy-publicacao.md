@@ -87,6 +87,9 @@ cd backend
 npm run backup:mysql
 ```
 
+Em Windows ou servidores sem MySQL no `PATH`, configure `MYSQLDUMP_PATH` e
+`MYSQL_CLIENT_PATH` apontando para os executaveis do cliente MySQL.
+
 Para validar recuperacao em homologacao:
 
 ```bash
