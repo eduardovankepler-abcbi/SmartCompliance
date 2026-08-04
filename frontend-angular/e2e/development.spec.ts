@@ -85,6 +85,9 @@ test('colaborador nao visualiza a fila de integracoes de aprendizagem', async ({
 
 test('renderiza dados principais antes da fila de aprendizagem', async ({ page }) => {
   await login(page, 'admin@demo.local');
+  await page.route('**/api/people', (route) => route.fulfill({ status: 200, json: [{
+    id:'person-1', name:'Colaborador Demo', roleTitle:'Analista', area:'Produto', workUnit:null, workMode:null, managerPersonId:null, managerName:null, areaManagerPersonId:null, areaManagerName:null, employmentType:'internal',
+  }]}));
   await page.route('**/api/development/records', (route) => route.fulfill({ status: 200, json: [{
     id:'record-fast', personId:'person-1', personName:'Colaborador Demo', recordType:'Curso', title:'Curso carregado primeiro', providerName:'Escola E2E', completedAt:'2026-07-21', skillSignal:'Angular', notes:'', status:'active', archivedAt:null,
   }]}));

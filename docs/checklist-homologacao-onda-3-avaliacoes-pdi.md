@@ -50,6 +50,15 @@ Evidencia da rodada isolada em MySQL restaurado:
 - Development record ID: `development_np84gm5g`
 - Checks automatizados: resposta incompleta `400`, envio duplicado `400`, questionarios por colaborador `403`, PDI com progresso e arquivamento, registro arquivado, terceiro sem visibilidade do PDI, integracoes de aprendizagem por colaborador `403`.
 
+Evidencia da validacao automatizada do frontend:
+
+- Data: 04/08/2026
+- Ambiente: Playwright local com backend `STORAGE_MODE=memory`
+- Escopo: `evaluations-base.spec.ts`, `evaluations-operations.spec.ts`, `development.spec.ts`
+- Resultado: aprovado, 18/18 testes
+- Build Angular: aprovado com `npm run build`
+- Observacao: massa E2E de Desenvolvimento ajustada para refletir o filtro real de escopo por pessoa.
+
 ## 2. Perfis minimos da rodada
 
 - [ ] Admin ou RH para operacao de ciclos/questionarios.
