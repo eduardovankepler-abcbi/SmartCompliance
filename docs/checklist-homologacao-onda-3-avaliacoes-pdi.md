@@ -201,14 +201,14 @@ A rodada so pode ser aprovada se todos os itens abaixo estiverem verdadeiros:
 
 ## 10. Resultado da rodada
 
-Resultado: aprovado / aprovado com ressalvas / bloqueado
+Resultado: aprovado com ressalvas
 
 Ressalvas ou bloqueios:
 
-- ___________________
-- ___________________
-- ___________________
+- Rodada mutavel executada em MySQL restaurado/local, sem mutacao direta em producao.
+- Privacidade sensivel profunda deve receber evidencia manual adicional antes de ciclos reais amplos.
+- Primeiro acesso exige troca obrigatoria de senha para usuarios da base restaurada.
 
 Proxima acao:
 
-- ___________________
+- Iniciar Onda 4 com dashboard executivo, auditoria gerencial e acompanhamento pos-go-live.
