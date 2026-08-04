@@ -35,6 +35,7 @@ MVP local para uma plataforma de compliance, feedback, desenvolvimento profissio
 - `docs/validacao-mysql-questionarios-individuais.md`: checklist de homologação MySQL para avaliações individualizadas
 - `docs/checklist-homologacao-render-mysql.md`: passo a passo operacional para Render + MySQL gerenciado
 - `docs/checklist-homologacao-aiven.md`: adaptação prática da homologação para Aiven for MySQL
+- `docs/fechamento-onda-2-compliance-incidentes.md`: aceite da Onda 2 de Compliance/Incidentes
 
 ## Como rodar localmente
 
