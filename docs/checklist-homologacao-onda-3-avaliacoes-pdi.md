@@ -59,6 +59,16 @@ Evidencia da validacao automatizada do frontend:
 - Build Angular: aprovado com `npm run build`
 - Observacao: massa E2E de Desenvolvimento ajustada para refletir o filtro real de escopo por pessoa.
 
+Evidencia da homologacao funcional assistida no frontend:
+
+- Data: 04/08/2026
+- Ambiente: backend local MySQL em `http://127.0.0.1:4001`, frontend Angular em `http://127.0.0.1:4201`
+- Banco: `smart_compliance_restore_20260804_142534`
+- Resultado: aprovado
+- Admin `admin@demo.local`: acessou Operacao de ciclos, Questionarios, Fila de revisao de aprendizagem e Novo PDI.
+- Colaborador `colaborador2@demo.local`: acessou Minhas avaliacoes e Formacao/PDI, sem visibilidade da Operacao de ciclos nem da Fila de revisao.
+- Observacao operacional: a base restaurada exigiu troca de senha no primeiro acesso; senhas temporarias foram alteradas apenas no banco local isolado.
+
 ## 2. Perfis minimos da rodada
 
 - [ ] Admin ou RH para operacao de ciclos/questionarios.
