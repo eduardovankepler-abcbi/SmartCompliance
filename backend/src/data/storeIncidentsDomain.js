@@ -4,6 +4,41 @@ import {
   normalizeAreaName
 } from "./storeValidation.js";
 
+export const INCIDENT_EVIDENCE_MAX_BYTES = 1024 * 1024 * 2;
+
+const INCIDENT_EVIDENCE_ALLOWED_TYPES = new Set([
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "text/plain"
+]);
+
+export function normalizeIncidentEvidenceFile(file) {
+  if (!file?.buffer?.length) {
+    throw new Error("Arquivo de evidencia obrigatorio.");
+  }
+
+  if (file.size > INCIDENT_EVIDENCE_MAX_BYTES) {
+    throw new Error("Evidencia deve ter no maximo 2 MB.");
+  }
+
+  if (!INCIDENT_EVIDENCE_ALLOWED_TYPES.has(file.mimetype)) {
+    throw new Error("Tipo de evidencia nao permitido.");
+  }
+
+  const fileName = String(file.originalname || "evidencia")
+    .replace(/[\\/:*?"<>|]/g, "-")
+    .trim()
+    .slice(0, 180);
+
+  return {
+    fileName: fileName || "evidencia",
+    mimeType: file.mimetype,
+    sizeBytes: file.size,
+    content: file.buffer
+  };
+}
+
 export function buildIncidentProtocol({ id, createdAt = new Date().toISOString() }) {
   const date = new Date(createdAt);
   const yyyymmdd = Number.isNaN(date.getTime())

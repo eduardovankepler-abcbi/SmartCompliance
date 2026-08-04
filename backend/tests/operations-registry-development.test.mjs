@@ -135,6 +135,48 @@ export async function runOperationsRegistryDevelopmentRegression() {
       "Caso analisado e encerrado na regressao.",
       "Caso concluido deve preservar motivo de fechamento"
     );
+    const evidence = await store.addIncidentEvidence(
+      createdIncident.id,
+      {
+        originalname: "relatorio.txt",
+        mimetype: "text/plain",
+        size: 24,
+        buffer: Buffer.from("Evidencia de regressao.")
+      },
+      compliance
+    );
+    assert.equal(evidence.fileName, "relatorio.txt", "Evidencia deve preservar nome seguro");
+    assert.equal(evidence.mimeType, "text/plain", "Evidencia deve preservar tipo permitido");
+    const evidences = await store.listIncidentEvidences(createdIncident.id, compliance);
+    assert.ok(
+      evidences.some((item) => item.id === evidence.id),
+      "Caso deve listar evidencias anexadas"
+    );
+    const evidenceFile = await store.getIncidentEvidenceFile(
+      createdIncident.id,
+      evidence.id,
+      compliance
+    );
+    assert.equal(
+      evidenceFile.content.toString(),
+      "Evidencia de regressao.",
+      "Download interno deve preservar conteudo da evidencia"
+    );
+    await assert.rejects(
+      () =>
+        store.addIncidentEvidence(
+          createdIncident.id,
+          {
+            originalname: "script.exe",
+            mimetype: "application/x-msdownload",
+            size: 10,
+            buffer: Buffer.from("bloqueado")
+          },
+          compliance
+        ),
+      /tipo de evidencia/i,
+      "Evidencia deve bloquear tipos nao permitidos"
+    );
 
     const createdDevelopmentRecord = await store.createDevelopmentRecord(
       {

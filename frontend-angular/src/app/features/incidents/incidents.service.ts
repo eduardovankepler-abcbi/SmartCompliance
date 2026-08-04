@@ -28,6 +28,17 @@ export interface Incident {
   closureNote: string;
 }
 
+export interface IncidentEvidence {
+  id: string;
+  incidentId: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  uploadedByUserId: string | null;
+  uploadedByName: string;
+  uploadedAt: string;
+}
+
 export interface CreateIncidentPayload {
   title: string;
   category: string;
@@ -53,4 +64,7 @@ export class IncidentsService {
   list(): Observable<Incident[]> { return this.api.get<Incident[]>('/api/incidents'); }
   create(payload: CreateIncidentPayload): Observable<Incident> { return this.api.post<Incident>('/api/incidents', payload); }
   update(id: string, payload: UpdateIncidentPayload): Observable<Incident> { return this.api.patch<Incident>(`/api/incidents/${id}`, payload); }
+  listEvidences(id: string): Observable<IncidentEvidence[]> { return this.api.get<IncidentEvidence[]>(`/api/incidents/${id}/evidences`); }
+  addEvidence(id: string, file: File): Observable<IncidentEvidence> { const form = new FormData(); form.append('file', file); return this.api.postForm<IncidentEvidence>(`/api/incidents/${id}/evidences`, form); }
+  downloadEvidence(id: string, evidenceId: string): Observable<Blob> { return this.api.getBlob(`/api/incidents/${id}/evidences/${evidenceId}`); }
 }

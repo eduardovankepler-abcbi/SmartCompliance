@@ -1,10 +1,18 @@
 import { Router } from "express";
+import multer from "multer";
 import { PERMISSIONS } from "../auth/permissions.js";
 import { requireRoles } from "../auth/middleware.js";
+import { INCIDENT_EVIDENCE_MAX_BYTES } from "../data/storeIncidentsDomain.js";
 import { badRequest } from "./helpers.js";
 
 export function createIncidentsRouter(store) {
   const router = Router();
+  const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: {
+      fileSize: INCIDENT_EVIDENCE_MAX_BYTES
+    }
+  });
 
   router.get("/", requireRoles(...PERMISSIONS.incidentQueue), async (req, res, next) => {
     try {
@@ -77,6 +85,58 @@ export function createIncidentsRouter(store) {
         res
           .status(400)
           .json({ error: error.message || "Falha ao atualizar o caso de compliance." });
+      }
+    }
+  );
+
+  router.get(
+    "/:incidentId/evidences",
+    requireRoles(...PERMISSIONS.incidentQueue),
+    async (req, res, next) => {
+      try {
+        res.json(await store.listIncidentEvidences(req.params.incidentId, req.auth.user));
+      } catch (error) {
+        next(error);
+      }
+    }
+  );
+
+  router.post(
+    "/:incidentId/evidences",
+    requireRoles(...PERMISSIONS.incidentQueue),
+    upload.single("file"),
+    async (req, res) => {
+      try {
+        const evidence = await store.addIncidentEvidence(
+          req.params.incidentId,
+          req.file,
+          req.auth.user
+        );
+        res.status(201).json(evidence);
+      } catch (error) {
+        res.status(400).json({ error: error.message || "Falha ao anexar evidencia." });
+      }
+    }
+  );
+
+  router.get(
+    "/:incidentId/evidences/:evidenceId",
+    requireRoles(...PERMISSIONS.incidentQueue),
+    async (req, res) => {
+      try {
+        const evidence = await store.getIncidentEvidenceFile(
+          req.params.incidentId,
+          req.params.evidenceId,
+          req.auth.user
+        );
+        res.setHeader("Content-Type", evidence.mimeType);
+        res.setHeader(
+          "Content-Disposition",
+          `attachment; filename="${encodeURIComponent(evidence.fileName)}"`
+        );
+        res.send(evidence.content);
+      } catch (error) {
+        res.status(404).json({ error: error.message || "Evidencia nao encontrada." });
       }
     }
   );

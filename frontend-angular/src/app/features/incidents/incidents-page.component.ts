@@ -1,7 +1,7 @@
 import { DatePipe } from '@angular/common';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { firstValueFrom, forkJoin } from 'rxjs';
+import { firstValueFrom, forkJoin, of } from 'rxjs';
 
 import { AuthService } from '../../core/auth/auth.service';
 import { ApiError } from '../../core/http/api-error';
@@ -11,7 +11,7 @@ import { AuditEntry, AuditService } from '../audit/audit.service';
 import { AuditTrailComponent } from '../audit/audit-trail.component';
 import { IncidentCreateFormComponent } from './incident-create-form.component';
 import { IncidentTreatmentFormComponent } from './incident-treatment-form.component';
-import { Incident, IncidentAnonymity, IncidentsService, UpdateIncidentPayload } from './incidents.service';
+import { Incident, IncidentAnonymity, IncidentEvidence, IncidentsService, UpdateIncidentPayload } from './incidents.service';
 
 @Component({
   selector: 'app-incidents-page',
@@ -26,13 +26,14 @@ import { Incident, IncidentAnonymity, IncidentsService, UpdateIncidentPayload } 
       @else { <section class="queue" aria-label="Fila de tratamento"><header><h2>Fila de tratamento</h2><span>Casos visiveis para RH, administracao e compliance</span></header>@for (incident of incidents(); track incident.id) {
         <article><div class="row"><strong>{{ incident.protocol }} · {{ incident.title }}</strong><span>{{ incident.status }}</span></div><p>{{ incident.category }} · {{ incident.classification }}</p><p>{{ incident.description }}</p><small>Area responsavel: {{ incident.responsibleArea }} · Responsavel: {{ incident.assignedTo }} · Abertura: {{ incident.createdAt | date:'short' }} · Prazo: {{ incident.dueAt | date:'short' }}</small>
           @if (incident.closedAt) { <small>Conclusao: {{ incident.closedAt | date:'short' }} · {{ incident.closureNote }}</small> }
+          @if (canTreat()) { <div class="evidences"><div><strong>Evidencias</strong><span>{{ evidencesFor(incident.id).length }} arquivo(s)</span></div><label>Adicionar evidencia<input type="file" accept=".pdf,.png,.jpg,.jpeg,.txt" (change)="uploadEvidence(incident, $any($event.target).files?.[0], $any($event.target))" /></label>@if (uploadingEvidence() === incident.id) { <small>Enviando evidencia...</small> }@for (evidence of evidencesFor(incident.id); track evidence.id) { <button class="link" type="button" (click)="downloadEvidence(incident, evidence)">{{ evidence.fileName }} · {{ evidence.sizeBytes }} bytes · {{ evidence.uploadedAt | date:'short' }}</button> }</div> }
           @if (canTreat()) { <button class="secondary" (click)="editing.set(incident)">Tratar</button> }
           @if (editing()?.id === incident.id) { <app-incident-treatment-form [incident]="incident" [areas]="areas()" [people]="people()" (saved)="update(incident, $event)" (cancelled)="editing.set(null)" /> }
         </article> }</section> }
       <app-audit-trail [entries]="auditEntries()" title="Trilha de Compliance" subtitle="Relatos e tratamentos recentes" emptyMessage="Eventos de incidentes aparecerao aqui." />
     </section>
   `,
-  styles: `.incidents{max-width:1040px}.incidents__header,.row,.error,.queue header{display:flex;align-items:start;justify-content:space-between;gap:16px}.incidents__header p{margin:0;color:var(--abc-blue);font-weight:700;text-transform:uppercase;font-size:13px}h1{margin:4px 0}.incidents__header span,.state,article p,article small,.queue header span{color:var(--abc-text-muted)}button{padding:9px 12px;background:var(--abc-blue);color:var(--abc-on-blue);border:0;border-radius:var(--abc-radius);font-weight:700}.secondary{background:var(--abc-surface);color:var(--abc-text);border:1px solid var(--abc-border)}.error{margin-top:20px;padding:12px;color:var(--abc-danger);background:color-mix(in srgb, var(--abc-danger) 8%, var(--abc-surface));border:1px solid color-mix(in srgb, var(--abc-danger) 24%, var(--abc-border));border-radius:8px}.queue{display:grid;gap:14px;margin-top:16px;padding:16px;background:var(--abc-surface);border:1px solid var(--abc-border);border-radius:8px}.queue h2{margin:0;color:var(--abc-text);font-size:18px}.queue article{padding:14px;background:var(--abc-surface);border:1px solid var(--abc-border);border-radius:8px;color:var(--abc-text);box-shadow:0 8px 24px color-mix(in srgb, var(--abc-navy) 6%, transparent)}.queue article p{margin:10px 0;color:var(--abc-text)}.queue article small{display:block;color:var(--abc-text-muted)}.queue article .row span{padding:5px 10px;color:color-mix(in srgb, var(--abc-danger) 28%, var(--abc-surface));background:color-mix(in srgb, var(--abc-danger) 55%, var(--abc-navy));border-radius:999px;font-size:12px}.queue article>.secondary{margin-top:12px;background:var(--abc-surface);color:var(--abc-text);border-color:var(--abc-border)}.state{margin-top:24px}@media(max-width:720px){.incidents__header,.row,.error,.queue header{display:grid}}`,
+  styles: `.incidents{max-width:1040px}.incidents__header,.row,.error,.queue header,.evidences>div{display:flex;align-items:start;justify-content:space-between;gap:16px}.incidents__header p{margin:0;color:var(--abc-blue);font-weight:700;text-transform:uppercase;font-size:13px}h1{margin:4px 0}.incidents__header span,.state,article p,article small,.queue header span,.evidences span{color:var(--abc-text-muted)}button{padding:9px 12px;background:var(--abc-blue);color:var(--abc-on-blue);border:0;border-radius:var(--abc-radius);font-weight:700}.secondary{background:var(--abc-surface);color:var(--abc-text);border:1px solid var(--abc-border)}.error{margin-top:20px;padding:12px;color:var(--abc-danger);background:color-mix(in srgb, var(--abc-danger) 8%, var(--abc-surface));border:1px solid color-mix(in srgb, var(--abc-danger) 24%, var(--abc-border));border-radius:8px}.queue{display:grid;gap:14px;margin-top:16px;padding:16px;background:var(--abc-surface);border:1px solid var(--abc-border);border-radius:8px}.queue h2{margin:0;color:var(--abc-text);font-size:18px}.queue article{padding:14px;background:var(--abc-surface);border:1px solid var(--abc-border);border-radius:8px;color:var(--abc-text);box-shadow:0 8px 24px color-mix(in srgb, var(--abc-navy) 6%, transparent)}.queue article p{margin:10px 0;color:var(--abc-text)}.queue article small{display:block;color:var(--abc-text-muted)}.queue article .row span{padding:5px 10px;color:color-mix(in srgb, var(--abc-danger) 28%, var(--abc-surface));background:color-mix(in srgb, var(--abc-danger) 55%, var(--abc-navy));border-radius:999px;font-size:12px}.queue article>.secondary{margin-top:12px;background:var(--abc-surface);color:var(--abc-text);border-color:var(--abc-border)}.evidences{display:grid;gap:8px;margin-top:12px;padding:12px;border:1px solid var(--abc-border);border-radius:8px;background:var(--abc-surface-muted)}.evidences label{display:grid;gap:5px}.evidences input{max-width:100%}.link{width:max-content;max-width:100%;padding:0;background:transparent;color:var(--abc-blue);text-align:left;overflow-wrap:anywhere}.state{margin-top:24px}@media(max-width:720px){.incidents__header,.row,.error,.queue header,.evidences>div{display:grid}.link{width:100%}}`,
 })
 export class IncidentsPageComponent implements OnInit {
   private readonly api = inject(IncidentsService);
@@ -46,8 +47,10 @@ export class IncidentsPageComponent implements OnInit {
   readonly areas = signal<Area[]>([]);
   readonly people = signal<Person[]>([]);
   readonly auditEntries = signal<AuditEntry[]>([]);
+  readonly evidences = signal<Record<string, IncidentEvidence[]>>({});
   readonly loading = signal(true);
   readonly saving = signal(false);
+  readonly uploadingEvidence = signal('');
   readonly creating = signal(false);
   readonly editing = signal<Incident | null>(null);
   readonly errorMessage = signal('');
@@ -81,9 +84,35 @@ export class IncidentsPageComponent implements OnInit {
     try { await firstValueFrom(this.api.update(incident.id, payload)); this.editing.set(null); await this.load(); }
     catch (error) { this.errorMessage.set(error instanceof ApiError ? error.message : 'Falha ao atualizar incidente.'); }
   }
+  evidencesFor(incidentId: string): IncidentEvidence[] { return this.evidences()[incidentId] || []; }
+  async uploadEvidence(incident: Incident, file: File | undefined, input: HTMLInputElement): Promise<void> {
+    if (!file) return;
+    this.uploadingEvidence.set(incident.id); this.errorMessage.set('');
+    try { await firstValueFrom(this.api.addEvidence(incident.id, file)); input.value = ''; await this.loadEvidences(this.incidents()); await this.loadAuditTrail(); }
+    catch (error) { this.errorMessage.set(error instanceof ApiError ? error.message : 'Falha ao anexar evidencia.'); }
+    finally { this.uploadingEvidence.set(''); }
+  }
+  async downloadEvidence(incident: Incident, evidence: IncidentEvidence): Promise<void> {
+    this.errorMessage.set('');
+    try {
+      const blob = await firstValueFrom(this.api.downloadEvidence(incident.id, evidence.id));
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url; link.download = evidence.fileName; link.click();
+      URL.revokeObjectURL(url);
+    } catch (error) { this.errorMessage.set(error instanceof ApiError ? error.message : 'Falha ao baixar evidencia.'); }
+  }
+  private async loadEvidences(incidents: Incident[]): Promise<void> {
+    if (!this.canTreat() || !incidents.length) { this.evidences.set({}); return; }
+    const entries = await Promise.all(incidents.map(async (incident) => [incident.id, await firstValueFrom(this.api.listEvidences(incident.id))] as const));
+    this.evidences.set(Object.fromEntries(entries));
+  }
+  private async loadAuditTrail(): Promise<void> {
+    this.auditEntries.set(await firstValueFrom(this.auditApi.list('incident')));
+  }
   async load(): Promise<void> {
     this.loading.set(true); this.errorMessage.set('');
-    try { const data = await firstValueFrom(forkJoin({ incidents:this.api.list(), areas:this.areasApi.list(), people:this.peopleApi.list(), audit:this.auditApi.list('incident') })); this.incidents.set(data.incidents); this.areas.set(data.areas); this.people.set(data.people); this.auditEntries.set(data.audit); }
+    try { const data = await firstValueFrom(forkJoin({ incidents:this.api.list(), areas:this.areasApi.list(), people:this.canTreat() ? this.peopleApi.list() : of([]), audit:this.auditApi.list('incident') })); this.incidents.set(data.incidents); this.areas.set(data.areas); this.people.set(data.people); this.auditEntries.set(data.audit); await this.loadEvidences(data.incidents); }
     catch (error) { this.errorMessage.set(error instanceof ApiError ? error.message : 'Falha ao carregar incidentes.'); }
     finally { this.loading.set(false); }
   }

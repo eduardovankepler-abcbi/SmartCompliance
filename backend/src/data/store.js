@@ -105,6 +105,7 @@ import {
   buildIncidentAuditDetail,
   buildIncidentProtocol,
   calculateIncidentDueAt,
+  normalizeIncidentEvidenceFile,
   resolveIncidentAssignment
 } from "./storeIncidentsDomain.js";
 import {
@@ -873,6 +874,19 @@ function enrichIncident(incident, people = [], areas = []) {
       responsibleArea?.managerName ||
       incident.assignedTo ||
       "Nao definido"
+  };
+}
+
+function presentIncidentEvidence(evidence) {
+  return {
+    id: evidence.id,
+    incidentId: evidence.incidentId,
+    fileName: evidence.fileName,
+    mimeType: evidence.mimeType,
+    sizeBytes: Number(evidence.sizeBytes || 0),
+    uploadedByUserId: evidence.uploadedByUserId || null,
+    uploadedByName: evidence.uploadedByName || "Sistema",
+    uploadedAt: evidence.uploadedAt
   };
 }
 
@@ -2056,6 +2070,69 @@ async function ensureMysqlIncidentMaturitySupport(pool) {
     ["ALTER TABLE incident_reports ADD UNIQUE KEY unique_incident_protocol (protocol)"]
   );
   return detectMysqlIncidentMaturitySupport(pool);
+}
+
+async function detectMysqlIncidentEvidenceSupport(pool) {
+  try {
+    if (!(await hasMysqlTable(pool, "incident_evidences"))) {
+      return false;
+    }
+    const missingColumns = await getMysqlMissingColumns(pool, "incident_evidences", [
+      "id",
+      "incident_id",
+      "file_name",
+      "mime_type",
+      "size_bytes",
+      "content_blob",
+      "uploaded_by_user_id",
+      "uploaded_at"
+    ]);
+    return missingColumns.length === 0;
+  } catch (_error) {
+    return false;
+  }
+}
+
+async function ensureMysqlIncidentEvidenceSupport(pool) {
+  if (await detectMysqlIncidentEvidenceSupport(pool)) {
+    return true;
+  }
+
+  const autoMigrateRaw = String(process.env.AUTO_MIGRATE_DB || "").trim().toLowerCase();
+  const autoMigrateDisabled = ["0", "false", "no", "off"].includes(autoMigrateRaw);
+  if (autoMigrateDisabled) {
+    return false;
+  }
+
+  try {
+    await pool.query(
+      `CREATE TABLE IF NOT EXISTS incident_evidences (
+        id VARCHAR(36) PRIMARY KEY,
+        incident_id VARCHAR(36) NOT NULL,
+        file_name VARCHAR(180) NOT NULL,
+        mime_type VARCHAR(120) NOT NULL,
+        size_bytes INT NOT NULL,
+        content_blob LONGBLOB NOT NULL,
+        uploaded_by_user_id VARCHAR(36) NULL,
+        uploaded_at DATETIME NOT NULL,
+        KEY idx_incident_evidences_incident (incident_id),
+        FOREIGN KEY (incident_id) REFERENCES incident_reports(id),
+        FOREIGN KEY (uploaded_by_user_id) REFERENCES users(id)
+      )`
+    );
+  } catch (error) {
+    logger.warn("database.auto_migration_failed", {
+      tableName: "incident_evidences",
+      error: {
+        message: error.message,
+        code: error.code,
+        errno: error.errno
+      }
+    });
+    return false;
+  }
+
+  return detectMysqlIncidentEvidenceSupport(pool);
 }
 
 async function detectMysqlFeedbackAcknowledgementSupport(pool) {
@@ -5713,6 +5790,72 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
 
       return enrichIncident(incident, db.people, db.areas);
     },
+    async listIncidentEvidences(incidentId, actorUser) {
+      if (!canManageIncidentQueue(actorUser)) {
+        throw new Error("Perfil sem permissao para acessar evidencias do caso.");
+      }
+
+      const incident = db.incidents.find((item) => item.id === incidentId);
+      if (!incident) {
+        throw new Error("Caso de compliance nao encontrado.");
+      }
+
+      db.incidentEvidences ||= [];
+      return db.incidentEvidences
+        .filter((evidence) => evidence.incidentId === incidentId)
+        .sort((a, b) => String(b.uploadedAt).localeCompare(String(a.uploadedAt)))
+        .map(presentIncidentEvidence);
+    },
+    async addIncidentEvidence(incidentId, file, actorUser) {
+      if (!canManageIncidentQueue(actorUser)) {
+        throw new Error("Perfil sem permissao para anexar evidencia ao caso.");
+      }
+
+      const incident = db.incidents.find((item) => item.id === incidentId);
+      if (!incident) {
+        throw new Error("Caso de compliance nao encontrado.");
+      }
+
+      const fileData = normalizeIncidentEvidenceFile(file);
+      const evidence = {
+        id: createId("evidence"),
+        incidentId,
+        ...fileData,
+        uploadedByUserId: actorUser?.id || null,
+        uploadedByName: actorUser?.person?.name || actorUser?.email || "Sistema",
+        uploadedAt: new Date().toISOString()
+      };
+      db.incidentEvidences ||= [];
+      db.incidentEvidences.unshift(evidence);
+
+      pushAuditLog(db.auditLogs, {
+        category: AUDIT_CATEGORIES.incident,
+        action: "evidence_added",
+        entityType: "incident",
+        entityId: incident.id,
+        entityLabel: incident.title,
+        actorUser,
+        summary: `Evidencia anexada ao caso: ${incident.title}`,
+        detail: `${incident.protocol || buildIncidentProtocol(incident)} · ${evidence.fileName} · ${evidence.mimeType} · ${evidence.sizeBytes} bytes`
+      });
+
+      return presentIncidentEvidence(evidence);
+    },
+    async getIncidentEvidenceFile(incidentId, evidenceId, actorUser) {
+      if (!canManageIncidentQueue(actorUser)) {
+        throw new Error("Perfil sem permissao para baixar evidencia do caso.");
+      }
+
+      db.incidentEvidences ||= [];
+      const evidence = db.incidentEvidences.find(
+        (item) => item.id === evidenceId && item.incidentId === incidentId
+      );
+      if (!evidence) {
+        throw new Error("Evidencia nao encontrada.");
+      }
+
+      return evidence;
+    },
     ...createMemoryEvaluationReadStore({
       db,
       createId,
@@ -6149,6 +6292,20 @@ function buildMysqlStore(
         "closed_at",
         "closure_note"
       ]);
+      const missingIncidentEvidenceColumns = await getMysqlMissingColumns(
+        pool,
+        "incident_evidences",
+        [
+          "id",
+          "incident_id",
+          "file_name",
+          "mime_type",
+          "size_bytes",
+          "content_blob",
+          "uploaded_by_user_id",
+          "uploaded_at"
+        ]
+      );
       const missingAssignmentQuestionnaireColumns = await getMysqlMissingColumns(
         pool,
         "evaluation_assignments",
@@ -6168,6 +6325,9 @@ function buildMysqlStore(
         missingDevelopmentPlanColumns,
         incidentsTable: missingIncidentColumns.length === 0 ? "ok" : "incomplete",
         missingIncidentColumns,
+        incidentEvidencesTable:
+          missingIncidentEvidenceColumns.length === 0 ? "ok" : "incomplete",
+        missingIncidentEvidenceColumns,
         individualQuestionnaires:
           supportsIndividualQuestionnaires ? "ok" : "incomplete",
         assignmentsQuestionnaireColumns:
@@ -6706,6 +6866,115 @@ function buildMysqlStore(
       });
 
       return enrichIncident(updatedRows[0], people, areas);
+    },
+    async listIncidentEvidences(incidentId, actorUser) {
+      if (!canManageIncidentQueue(actorUser)) {
+        throw new Error("Perfil sem permissao para acessar evidencias do caso.");
+      }
+
+      const [incidentRows] = await pool.query(
+        `SELECT id
+         FROM incident_reports
+         WHERE id = ?
+         LIMIT 1`,
+        [incidentId]
+      );
+      if (!incidentRows[0]) {
+        throw new Error("Caso de compliance nao encontrado.");
+      }
+
+      const [rows] = await pool.query(
+        `SELECT e.id, e.incident_id AS incidentId, e.file_name AS fileName,
+                e.mime_type AS mimeType, e.size_bytes AS sizeBytes,
+                e.uploaded_by_user_id AS uploadedByUserId,
+                COALESCE(p.name, u.email, 'Sistema') AS uploadedByName,
+                e.uploaded_at AS uploadedAt
+         FROM incident_evidences e
+         LEFT JOIN users u ON u.id = e.uploaded_by_user_id
+         LEFT JOIN people p ON p.id = u.person_id
+         WHERE e.incident_id = ?
+         ORDER BY e.uploaded_at DESC`,
+        [incidentId]
+      );
+      return rows.map(presentIncidentEvidence);
+    },
+    async addIncidentEvidence(incidentId, file, actorUser) {
+      if (!canManageIncidentQueue(actorUser)) {
+        throw new Error("Perfil sem permissao para anexar evidencia ao caso.");
+      }
+
+      const [incidentRows] = await pool.query(
+        `SELECT id, protocol, title
+         FROM incident_reports
+         WHERE id = ?
+         LIMIT 1`,
+        [incidentId]
+      );
+      const incident = incidentRows[0];
+      if (!incident) {
+        throw new Error("Caso de compliance nao encontrado.");
+      }
+
+      const fileData = normalizeIncidentEvidenceFile(file);
+      const uploadedAt = new Date().toISOString();
+      const evidence = {
+        id: createId("evidence"),
+        incidentId,
+        ...fileData,
+        uploadedByUserId: actorUser?.id || null,
+        uploadedByName: actorUser?.person?.name || actorUser?.email || "Sistema",
+        uploadedAt
+      };
+
+      await pool.query(
+        `INSERT INTO incident_evidences
+         (id, incident_id, file_name, mime_type, size_bytes, content_blob, uploaded_by_user_id, uploaded_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          evidence.id,
+          evidence.incidentId,
+          evidence.fileName,
+          evidence.mimeType,
+          evidence.sizeBytes,
+          evidence.content,
+          evidence.uploadedByUserId,
+          toMysqlDateTime(evidence.uploadedAt)
+        ]
+      );
+
+      await insertAuditLog(pool, {
+        category: AUDIT_CATEGORIES.incident,
+        action: "evidence_added",
+        entityType: "incident",
+        entityId: incident.id,
+        entityLabel: incident.title,
+        actorUser,
+        summary: `Evidencia anexada ao caso: ${incident.title}`,
+        detail: `${incident.protocol} · ${evidence.fileName} · ${evidence.mimeType} · ${evidence.sizeBytes} bytes`
+      });
+
+      return presentIncidentEvidence(evidence);
+    },
+    async getIncidentEvidenceFile(incidentId, evidenceId, actorUser) {
+      if (!canManageIncidentQueue(actorUser)) {
+        throw new Error("Perfil sem permissao para baixar evidencia do caso.");
+      }
+
+      const [rows] = await pool.query(
+        `SELECT id, incident_id AS incidentId, file_name AS fileName,
+                mime_type AS mimeType, size_bytes AS sizeBytes,
+                content_blob AS content, uploaded_by_user_id AS uploadedByUserId,
+                uploaded_at AS uploadedAt
+         FROM incident_evidences
+         WHERE id = ? AND incident_id = ?
+         LIMIT 1`,
+        [evidenceId, incidentId]
+      );
+      if (!rows[0]) {
+        throw new Error("Evidencia nao encontrada.");
+      }
+
+      return rows[0];
     },
     ...createMysqlEvaluationReadStore({
       pool,
@@ -7481,6 +7750,7 @@ export async function createStore() {
     supportsCycleConfig,
     _supportsAuthHardening,
     _supportsIncidentMaturity,
+    _supportsIncidentEvidence,
     supportsFeedbackAcknowledgement,
     _supportsPeopleWorkContext,
     supportsAssignmentReminder,
@@ -7493,6 +7763,7 @@ export async function createStore() {
       ensureMysqlCycleConfigSupport(pool),
       ensureMysqlAuthHardeningSupport(pool),
       ensureMysqlIncidentMaturitySupport(pool),
+      ensureMysqlIncidentEvidenceSupport(pool),
       ensureMysqlFeedbackAcknowledgementSupport(pool),
       ensureMysqlPeopleWorkContextSupport(pool),
       ensureMysqlAssignmentReminderSupport(pool),
