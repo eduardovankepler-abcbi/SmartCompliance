@@ -88,10 +88,11 @@ Condicoes herdadas:
 
 ## Proxima Etapa Imediata
 
-Providenciar usuario de homologacao publicado sem troca obrigatoria de senha, ou aprovar explicitamente a troca de senha de uma conta demo, e repetir a validacao visual publicada com `npm run e2e:published`.
+Providenciar usuario colaborador de homologacao publicado sem troca obrigatoria de senha, ou aprovar explicitamente a troca de senha de uma segunda conta demo, e repetir a validacao visual de bloqueio do colaborador.
 
 ## Andamento
 
 - Onda 5 iniciada em 05/08/2026 com foco em experiencia operacional e estabilizacao do piloto interno controlado.
 - Etapa 1 iniciada em 05/08/2026: validacao visual publicada autorizada e executada, mas bloqueada porque o bundle publicado esta desatualizado e ainda nao contem `Auditoria` nem `Riscos operacionais`. Evidencia registrada em `docs/homologacao-onda-5-validacao-visual-publicada.md`.
 - Etapa 1 atualizada em 05/08/2026: frontend Angular publicado em producao no projeto `smart-compliance-angular`; bundle publicado ja contem `Auditoria` e `Riscos operacionais`, mas E2E visual ainda bloqueia porque a credencial demo redireciona para troca obrigatoria de senha.
+- Etapa 1 parcialmente aprovada em 05/08/2026: senha do `admin@demo.local` alterada com autorizacao explicita e validacao visual de dashboard/auditoria publicada passou. Pendente validar bloqueio visual de colaborador com conta apta.

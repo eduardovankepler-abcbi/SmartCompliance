@@ -8,9 +8,9 @@ Validar login, dashboard, auditoria e bloqueios por perfil no frontend publicado
 
 ## Resultado
 
-Status: `Bloqueado por credencial demo com troca obrigatoria de senha`
+Status: `Parcialmente aprovado`
 
-O teste publicado foi autorizado e executado antes e depois da publicacao do frontend atualizado. A segunda rodada confirmou que o deploy atual esta no ar, mas falhou antes de validar dashboard/auditoria porque a credencial demo usada foi redirecionada para troca de senha.
+O teste publicado foi autorizado e executado antes e depois da publicacao do frontend atualizado. A segunda rodada confirmou que o deploy atual esta no ar, mas falhou antes de validar dashboard/auditoria porque a credencial demo usada foi redirecionada para troca de senha. Depois disso, houve autorizacao explicita para trocar a senha de uma conta demo; a senha do `admin@demo.local` foi atualizada de forma controlada e a validacao visual de admin passou.
 
 ## Comando Executado
 
@@ -30,6 +30,15 @@ Resultado apos deploy atualizado:
 - `2 failed`
 - `valida dashboard e auditoria publicados sem mutacao funcional`: apos login com admin, foi redirecionado para `/change-password`.
 - `bloqueia colaborador no dashboard publicado`: ao acessar dashboard/auditoria como colaborador, retornou para `/login`.
+
+Resultado apos troca controlada da senha do admin demo:
+
+- comando executado: `npx playwright test --config=playwright.published.config.ts -g "valida dashboard e auditoria publicados sem mutacao funcional"`
+- `1 passed`
+- dashboard publicado validado com admin;
+- bloco `Riscos operacionais` validado;
+- pagina `Auditoria` publicada validada;
+- filtros e lista de eventos de auditoria visiveis.
 
 ## Deploy Executado
 
@@ -71,22 +80,23 @@ Resultado:
 - bundle contem `Riscos operacionais`;
 - bundle contem `Alertas para acompanhamento`.
 
-Conclusao atual: o frontend atualizado esta publicado, mas a validacao visual ainda precisa de uma credencial de homologacao que nao exija troca de senha ou de uma decisao explicita para executar o fluxo de troca em ambiente publicado.
+Conclusao atual: o frontend atualizado esta publicado e a jornada visual de admin foi aprovada. A validacao visual de colaborador ainda precisa de uma credencial de homologacao que nao exija troca de senha ou de uma autorizacao explicita para trocar uma segunda conta demo.
 
 ## Impacto
 
 - A API publicada continua validada pela homologacao nao destrutiva da Onda 4.
-- A validacao visual publicada da Onda 5 ainda nao pode ser considerada concluida.
-- O piloto interno deve continuar como `Amarelo controlado` ate existir credencial apta para a rodada visual ou ate a troca de senha ser executada com aprovacao explicita.
+- A validacao visual publicada de admin esta aprovada.
+- A validacao visual publicada de colaborador ainda esta pendente.
+- O piloto interno pode seguir como `Amarelo controlado` ate a cobertura visual de colaborador ser concluida.
 
 ## Proxima Acao
 
-1. Providenciar usuario de homologacao publicado que nao exija troca de senha, ou aprovar explicitamente a troca de senha de uma conta demo.
-2. Reexecutar:
+1. Providenciar usuario colaborador de homologacao publicado que nao exija troca de senha, ou aprovar explicitamente a troca de senha de uma segunda conta demo.
+2. Reexecutar o teste de bloqueio do colaborador:
 
 ```bash
 cd frontend-angular
-npm run e2e:published
+npm run e2e:published -- -g "bloqueia colaborador no dashboard publicado"
 ```
 
 3. Registrar nova evidencia no status report.
