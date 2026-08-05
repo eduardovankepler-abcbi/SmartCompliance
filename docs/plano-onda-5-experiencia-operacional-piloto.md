@@ -88,8 +88,9 @@ Condicoes herdadas:
 
 ## Proxima Etapa Imediata
 
-Executar a validacao visual publicada com credenciais, mediante aprovacao explicita para envio das credenciais demo ao frontend publicado, ou registrar roteiro manual equivalente.
+Publicar o frontend Angular atualizado e repetir a validacao visual publicada com `npm run e2e:published`.
 
 ## Andamento
 
 - Onda 5 iniciada em 05/08/2026 com foco em experiencia operacional e estabilizacao do piloto interno controlado.
+- Etapa 1 iniciada em 05/08/2026: validacao visual publicada autorizada e executada, mas bloqueada porque o bundle publicado esta desatualizado e ainda nao contem `Auditoria` nem `Riscos operacionais`. Evidencia registrada em `docs/homologacao-onda-5-validacao-visual-publicada.md`.
