@@ -8,9 +8,9 @@ Validar login, dashboard, auditoria e bloqueios por perfil no frontend publicado
 
 ## Resultado
 
-Status: `Parcialmente aprovado`
+Status: `Aprovado`
 
-O teste publicado foi autorizado e executado antes e depois da publicacao do frontend atualizado. A segunda rodada confirmou que o deploy atual esta no ar, mas falhou antes de validar dashboard/auditoria porque a credencial demo usada foi redirecionada para troca de senha. Depois disso, houve autorizacao explicita para trocar a senha de uma conta demo; a senha do `admin@demo.local` foi atualizada de forma controlada e a validacao visual de admin passou.
+O teste publicado foi autorizado e executado antes e depois da publicacao do frontend atualizado. A segunda rodada confirmou que o deploy atual esta no ar, mas falhou antes de validar dashboard/auditoria porque a credencial demo usada foi redirecionada para troca de senha. Depois disso, houve autorizacao explicita para trocar senhas de contas demo; as contas `admin@demo.local` e `colaborador2@demo.local` foram preparadas de forma controlada e a validacao visual publicada passou para admin e colaborador.
 
 ## Comando Executado
 
@@ -39,6 +39,15 @@ Resultado apos troca controlada da senha do admin demo:
 - bloco `Riscos operacionais` validado;
 - pagina `Auditoria` publicada validada;
 - filtros e lista de eventos de auditoria visiveis.
+
+Resultado apos preparacao controlada do colaborador demo:
+
+- conta usada: `colaborador2@demo.local`;
+- validacao executada programaticamente com Playwright, sem imprimir senha ou token;
+- apos login: `/app/compliance`;
+- tentativa de abrir `/app/dashboard`: redirecionada para `/app/compliance`;
+- tentativa de abrir `/app/audit`: redirecionada para `/app/compliance`;
+- resultado: `passed`.
 
 ## Deploy Executado
 
@@ -80,23 +89,17 @@ Resultado:
 - bundle contem `Riscos operacionais`;
 - bundle contem `Alertas para acompanhamento`.
 
-Conclusao atual: o frontend atualizado esta publicado e a jornada visual de admin foi aprovada. A validacao visual de colaborador ainda precisa de uma credencial de homologacao que nao exija troca de senha ou de uma autorizacao explicita para trocar uma segunda conta demo.
+Conclusao atual: o frontend atualizado esta publicado e as jornadas visuais de admin e colaborador foram aprovadas.
 
 ## Impacto
 
 - A API publicada continua validada pela homologacao nao destrutiva da Onda 4.
 - A validacao visual publicada de admin esta aprovada.
-- A validacao visual publicada de colaborador ainda esta pendente.
-- O piloto interno pode seguir como `Amarelo controlado` ate a cobertura visual de colaborador ser concluida.
+- A validacao visual publicada de colaborador esta aprovada.
+- O piloto interno pode seguir para o primeiro status report real.
 
 ## Proxima Acao
 
-1. Providenciar usuario colaborador de homologacao publicado que nao exija troca de senha, ou aprovar explicitamente a troca de senha de uma segunda conta demo.
-2. Reexecutar o teste de bloqueio do colaborador:
-
-```bash
-cd frontend-angular
-npm run e2e:published -- -g "bloqueia colaborador no dashboard publicado"
-```
-
-3. Registrar nova evidencia no status report.
+1. Preencher o primeiro status report real do piloto.
+2. Registrar responsavel operacional dos primeiros 30 dias.
+3. Registrar backup mais recente e validacao operacional.
