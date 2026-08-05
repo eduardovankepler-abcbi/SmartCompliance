@@ -9,6 +9,7 @@
     "build:budget": "ng build --stats-json && npm run bundle:budget",
     "bundle:budget": "node scripts/bundle-budget.mjs",
     "e2e": "playwright test",
+    "e2e:published": "playwright test --config=playwright.published.config.ts",
     "visual:parity": "playwright test --config=playwright.visual.config.ts",
     "visual:report": "node scripts/visual-report.mjs",
     "visual:parity:report": "npm run visual:parity && npm run visual:report",

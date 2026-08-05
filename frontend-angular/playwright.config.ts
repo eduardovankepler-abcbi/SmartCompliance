@@ -5,7 +5,7 @@ const FRONTEND_PORT = 4201;
 
 export default defineConfig({
   testDir: './e2e',
-  testIgnore: ['visual-parity.spec.ts'],
+  testIgnore: ['visual-parity.spec.ts', 'published-readonly.spec.ts'],
   fullyParallel: false,
   workers: 1,
   timeout: 120000,

@@ -9,6 +9,7 @@
     "backup:mysql": "node scripts/mysql-backup.mjs",
     "restore:mysql": "node scripts/mysql-restore.mjs",
     "homologate:wave3": "node scripts/homologate-wave3-api.mjs",
+    "homologate:wave4:readonly": "node scripts/homologate-wave4-readonly.mjs",
     "test": "node tests/regression.test.mjs"
   },
   "dependencies": {

@@ -75,7 +75,7 @@ Preparar o Smart Compliance para acompanhamento interno pos-go-live, dando visib
 
 ## Proxima etapa imediata
 
-Homologar leitura em frontend contra MySQL isolado e ambiente publicado, com validacao nao destrutiva de healthcheck, navegacao principal e dados reais.
+Fechar decisao de piloto interno, registrando riscos residuais e a pendencia controlada da validacao visual publicada com credenciais.
 
 ## Andamento
 
@@ -84,3 +84,4 @@ Homologar leitura em frontend contra MySQL isolado e ambiente publicado, com val
 - Etapa 3 concluida em 05/08/2026: frontend do dashboard passou a renderizar riscos e alertas operacionais, com teste E2E do overview atualizado.
 - Etapa 4 concluida em 05/08/2026: auditoria gerencial ganhou filtros por periodo, ator e acao, alem de pagina central restrita por perfil.
 - Etapa 5 concluida em 05/08/2026: checklist semanal e modelo de status report pos-go-live criados em `docs/checklist-pos-go-live-onda-4.md`.
+- Etapa 6 concluida em 05/08/2026: homologacao de leitura nao destrutiva registrada em `docs/homologacao-onda-4-leitura.md`; API publicada e MySQL local passaram, com validacao visual publicada pendente de aprovacao explicita para uso de credenciais.
