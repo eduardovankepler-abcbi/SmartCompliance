@@ -6,6 +6,7 @@ import { dashboardAccessGuard } from './core/auth/dashboard-access.guard';
 import { guestGuard } from './core/auth/guest.guard';
 import { sectionAccessGuard } from './core/navigation/section-access.guard';
 import { areaManagementGuard } from './core/auth/area-management.guard';
+import { auditAccessGuard } from './core/auth/audit-access.guard';
 import { peopleAccessGuard } from './core/auth/people-access.guard';
 import { usersAccessGuard } from './core/auth/users-access.guard';
 import { passwordChangeGuard } from './core/auth/password-change.guard';
@@ -55,6 +56,11 @@ export const routes: Routes = [
       {
         path: 'applause',
         loadComponent: () => import('./features/applause/applause-page.component').then((m) => m.ApplausePageComponent),
+      },
+      {
+        path: 'audit',
+        loadComponent: () => import('./features/audit/audit-page.component').then((m) => m.AuditPageComponent),
+        canActivate: [auditAccessGuard],
       },
       {
         path: 'evaluations',

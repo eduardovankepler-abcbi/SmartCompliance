@@ -361,3 +361,18 @@ test('limita gestor ao escopo de equipe sem filtro de area', async ({ page }) =>
   await expect(page.locator('.dashboard__filters select')).toHaveCount(1);
   await expect(page.locator('.dashboard__scope')).toContainText('Equipe direta');
 });
+
+test('permite administrador consultar auditoria gerencial', async ({ page }) => {
+  await login(page, 'admin@demo.local');
+
+  const auditResponse = page.waitForResponse(
+    (response) =>
+      response.request().method() === 'GET' && response.url().includes('/api/audit-trail'),
+  );
+  await page.goto('/app/audit');
+  await auditResponse;
+
+  await expect(page.getByRole('heading', { name: 'Auditoria' })).toBeVisible();
+  await expect(page.getByLabel('Filtros de auditoria')).toBeVisible();
+  await expect(page.getByLabel('Eventos de auditoria')).toBeVisible();
+});

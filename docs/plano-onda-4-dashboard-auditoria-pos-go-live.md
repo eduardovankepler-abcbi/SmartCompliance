@@ -75,10 +75,11 @@ Preparar o Smart Compliance para acompanhamento interno pos-go-live, dando visib
 
 ## Proxima etapa imediata
 
-Homologar a leitura do dashboard executivo no frontend e seguir para auditoria gerencial com foco em filtros, eventos sensiveis e restricao por perfil.
+Criar checklist semanal e status report pos-go-live com criterios objetivos de alerta, triagem e escalonamento.
 
 ## Andamento
 
 - Etapa 1 concluida em 04/08/2026: indicadores e eventos existentes mapeados em `docs/mapeamento-onda-4-indicadores-auditoria.md`.
 - Etapa 2 concluida em 05/08/2026: backend do dashboard expandido com `riskSummary` e `operationalAlerts`, validado em memoria e MySQL isolado.
 - Etapa 3 concluida em 05/08/2026: frontend do dashboard passou a renderizar riscos e alertas operacionais, com teste E2E do overview atualizado.
+- Etapa 4 concluida em 05/08/2026: auditoria gerencial ganhou filtros por periodo, ator e acao, alem de pagina central restrita por perfil.

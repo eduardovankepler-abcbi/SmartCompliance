@@ -105,6 +105,9 @@ const THEME_STORAGE_KEY = 'smartCompliance.theme';
                         @case ('applause') {
                           <svg lucideSparkles aria-hidden="true" />
                         }
+                        @case ('audit') {
+                          <svg lucideClipboardCheck aria-hidden="true" />
+                        }
                         @case ('people') {
                           <svg lucideUsers aria-hidden="true" />
                         }

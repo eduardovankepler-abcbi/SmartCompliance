@@ -15,6 +15,10 @@ export function createAuditRouter(store) {
             category: req.query.category || null,
             entityType: req.query.entityType || null,
             entityId: req.query.entityId || null,
+            action: req.query.action || null,
+            actorUserId: req.query.actorUserId || null,
+            from: req.query.from || null,
+            to: req.query.to || null,
             limit: Number.isFinite(limit) ? limit : 40
           })
         );

@@ -4800,15 +4800,32 @@ function filterAuditLogsForUser(auditLogs, actorUser, options = {}) {
     return [];
   }
 
-  const { category = null, entityType = null, entityId = null, limit = 40 } = options;
+  const {
+    category = null,
+    entityType = null,
+    entityId = null,
+    action = null,
+    actorUserId = null,
+    from = null,
+    to = null,
+    limit = 40
+  } = options;
+  const fromDate = from ? new Date(from) : null;
+  const toDate = to ? new Date(to) : null;
   return auditLogs
-    .filter(
-      (item) =>
+    .filter((item) => {
+      const createdAt = new Date(item.createdAt);
+      return (
         allowedCategories.includes(item.category) &&
         (!category || item.category === category) &&
         (!entityType || item.entityType === entityType) &&
-        (!entityId || item.entityId === entityId)
-    )
+        (!entityId || item.entityId === entityId) &&
+        (!action || item.action === action) &&
+        (!actorUserId || item.actorUserId === actorUserId) &&
+        (!fromDate || Number.isNaN(fromDate.getTime()) || createdAt >= fromDate) &&
+        (!toDate || Number.isNaN(toDate.getTime()) || createdAt <= toDate)
+      );
+    })
     .sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt))
     .slice(0, limit);
 }
@@ -4843,7 +4860,16 @@ async function fetchAuditLogs(pool, actorUser, options = {}) {
     return [];
   }
 
-  const { category = null, entityType = null, entityId = null, limit = 40 } = options;
+  const {
+    category = null,
+    entityType = null,
+    entityId = null,
+    action = null,
+    actorUserId = null,
+    from = null,
+    to = null,
+    limit = 40
+  } = options;
   const filters = [];
   const params = [];
 
@@ -4864,6 +4890,26 @@ async function fetchAuditLogs(pool, actorUser, options = {}) {
   if (entityId) {
     filters.push("entity_id = ?");
     params.push(entityId);
+  }
+
+  if (action) {
+    filters.push("action_key = ?");
+    params.push(action);
+  }
+
+  if (actorUserId) {
+    filters.push("actor_user_id = ?");
+    params.push(actorUserId);
+  }
+
+  if (from) {
+    filters.push("created_at >= ?");
+    params.push(toMysqlDateTime(from));
+  }
+
+  if (to) {
+    filters.push("created_at <= ?");
+    params.push(toMysqlDateTime(to));
   }
 
   params.push(Number(limit) || 40);

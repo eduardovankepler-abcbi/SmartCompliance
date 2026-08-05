@@ -4,6 +4,7 @@ export type AppSectionKey =
   | 'evaluations'
   | 'development'
   | 'applause'
+  | 'audit'
   | 'people'
   | 'users';
 
@@ -67,6 +68,15 @@ export const navigationSections: readonly NavigationSection[] = [
     groupLabel: 'Workspace',
     description: 'Reconhecimento entre pares e cultura positiva.',
     roles: ['admin', 'hr', 'manager', 'employee'],
+  },
+  {
+    key: 'audit',
+    label: 'Auditoria',
+    shortLabel: 'AU',
+    group: 'workspace',
+    groupLabel: 'Workspace',
+    description: 'Eventos criticos, filtros e trilha operacional.',
+    roles: ['admin', 'hr', 'compliance', 'manager'],
   },
   {
     key: 'people',

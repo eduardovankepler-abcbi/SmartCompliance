@@ -554,6 +554,7 @@ export async function runAuthAccessRegression() {
       "Colaborador nao deve listar a fila de tratamento de incidentes"
     );
 
+    const auditFrom = new Date(Date.now() - 60_000).toISOString();
     const employeeCreatedIncident = await sendJson("/api/incidents", {
       headers: getAuthHeader(employee.id),
       body: {
@@ -590,6 +591,22 @@ export async function runAuthAccessRegression() {
     assert.ok(
       complianceAudit.payload.every((entry) => entry.category === "incident"),
       "Compliance deve visualizar apenas auditoria de incidentes"
+    );
+
+    const filteredIncidentAudit = await fetchJson(
+      `/api/audit-trail?category=incident&action=created&actorUserId=${employee.id}&from=${encodeURIComponent(
+        auditFrom
+      )}&to=${encodeURIComponent(new Date(Date.now() + 60_000).toISOString())}`,
+      getAuthHeader(compliance.id)
+    );
+    assert.equal(
+      filteredIncidentAudit.response.status,
+      200,
+      "Compliance deve filtrar auditoria por acao, ator e periodo"
+    );
+    assert.ok(
+      filteredIncidentAudit.payload.some((entry) => entry.actorUserId === employee.id && entry.action === "created"),
+      "Auditoria filtrada deve retornar o incidente criado pelo colaborador"
     );
 
     const adminAudit = await fetchJson(
