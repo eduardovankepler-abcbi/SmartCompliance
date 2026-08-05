@@ -88,7 +88,7 @@ Condicoes herdadas:
 
 ## Proxima Etapa Imediata
 
-Preencher o primeiro status report real do piloto, registrando responsavel operacional, backup mais recente e validacao operacional.
+Definir responsavel operacional nominal dos primeiros 30 dias e implementar quick actions reais no dashboard com links internos seguros por perfil.
 
 ## Andamento
 
@@ -97,3 +97,4 @@ Preencher o primeiro status report real do piloto, registrando responsavel opera
 - Etapa 1 atualizada em 05/08/2026: frontend Angular publicado em producao no projeto `smart-compliance-angular`; bundle publicado ja contem `Auditoria` e `Riscos operacionais`, mas E2E visual ainda bloqueia porque a credencial demo redireciona para troca obrigatoria de senha.
 - Etapa 1 parcialmente aprovada em 05/08/2026: senha do `admin@demo.local` alterada com autorizacao explicita e validacao visual de dashboard/auditoria publicada passou. Pendente validar bloqueio visual de colaborador com conta apta.
 - Etapa 1 concluida em 05/08/2026: conta demo `colaborador2@demo.local` preparada com autorizacao explicita e validacao visual publicada confirmou bloqueio de dashboard/auditoria para colaborador.
+- Etapa 2 concluida em 05/08/2026: primeiro status report do piloto criado em `docs/status-report-piloto-onda-5-semana-1.md`, com status `Amarelo controlado`, backup operacional registrado e pendencia de responsavel nominal.
