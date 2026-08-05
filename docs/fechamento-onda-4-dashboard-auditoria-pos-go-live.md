@@ -71,6 +71,8 @@ Iniciar piloto interno controlado com poucos usuarios, preferencialmente RH, Com
 
 Onda 5: experiencia operacional e estabilizacao do piloto.
 
+Plano iniciado em `docs/plano-onda-5-experiencia-operacional-piloto.md`.
+
 Prioridades sugeridas:
 
 - Executar validacao visual publicada com credenciais.
