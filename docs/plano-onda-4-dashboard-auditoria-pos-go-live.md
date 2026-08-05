@@ -80,3 +80,4 @@ Implementar a menor evolucao util do dashboard executivo: `riskSummary` e `opera
 ## Andamento
 
 - Etapa 1 concluida em 04/08/2026: indicadores e eventos existentes mapeados em `docs/mapeamento-onda-4-indicadores-auditoria.md`.
+- Etapa 2 concluida em 05/08/2026: backend do dashboard expandido com `riskSummary` e `operationalAlerts`, validado em memoria e MySQL isolado.

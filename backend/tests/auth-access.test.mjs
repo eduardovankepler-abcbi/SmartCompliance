@@ -195,6 +195,11 @@ export async function runAuthAccessRegression() {
       200,
       "Gestor deve acessar o dashboard gerencial"
     );
+    assert.equal(
+      managerDashboardBaseline.payload.riskSummary.openIncidents,
+      0,
+      "Dashboard gerencial nao deve expor incidentes corporativos"
+    );
 
     await store.forceCrossFunctionalPairing(
       "c1",
@@ -406,6 +411,18 @@ export async function runAuthAccessRegression() {
     assert.ok(
       Array.isArray(adminDashboard.payload.satisfactionQuestionAnalytics),
       "Dashboard deve retornar leitura de satisfacao por pergunta"
+    );
+    assert.ok(
+      adminDashboard.payload.riskSummary.openIncidents >= 0,
+      "Dashboard executivo deve retornar resumo de risco"
+    );
+    assert.ok(
+      Array.isArray(adminDashboard.payload.operationalAlerts),
+      "Dashboard executivo deve retornar alertas operacionais"
+    );
+    assert.ok(
+      adminDashboard.payload.cards.some((card) => card.label === "Incidentes abertos"),
+      "Dashboard executivo deve destacar incidentes abertos"
     );
     const anonymousDashboardSummaries = adminDashboard.payload.evaluationResultsSummary.filter(
       (item) =>

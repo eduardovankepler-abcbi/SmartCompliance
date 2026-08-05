@@ -48,6 +48,11 @@ export function createMemoryDashboardStore({
           assignments: scopedAssignments,
           applauseEntries: scopedApplause,
           developmentRecords: scopedDevelopment,
+          developmentPlans: (db.developmentPlans || []).filter((item) =>
+            scopedPersonIds.has(item.personId)
+          ),
+          incidents: db.incidents || [],
+          learningEvents: db.learningIntegrationEvents || [],
           responses: scopedResponses,
           availableAreas,
           selectedArea: options.area,
@@ -89,6 +94,11 @@ export function createMemoryDashboardStore({
           assignments: teamAssignments,
           applauseEntries: teamApplause,
           developmentRecords: teamDevelopment,
+          developmentPlans: (db.developmentPlans || []).filter((item) =>
+            visiblePersonIds.has(item.personId)
+          ),
+          incidents: [],
+          learningEvents: [],
           responses: teamResponses,
           timeGrouping,
           performanceActorUser: actorUser,
@@ -122,6 +132,11 @@ export function createMemoryDashboardStore({
         assignments: myAssignments,
         applauseEntries: personalApplause,
         developmentRecords: myDevelopmentRecords,
+        developmentPlans: (db.developmentPlans || []).filter(
+          (item) => item.personId === actorUser.person.id
+        ),
+        incidents: [],
+        learningEvents: [],
         responses: personalResponses,
         timeGrouping,
         performanceActorUser: null,
@@ -141,6 +156,7 @@ export function createMysqlDashboardStore({
   anonymousResponseState,
   supportsFeedbackAcknowledgement,
   supportsIndividualQuestionnaires,
+  supportsLearningIntegrations,
   fetchPeopleRows,
   fetchMysqlResponses,
   isFullAccessUser,
@@ -151,7 +167,17 @@ export function createMysqlDashboardStore({
   return {
     async getDashboardOverview(actorUser, options = {}) {
       const timeGrouping = options.timeGrouping || "semester";
-      const [people, cycles, responses, assignmentRows, applauseRows, developmentRows] =
+      const [
+        people,
+        cycles,
+        responses,
+        assignmentRows,
+        applauseRows,
+        developmentRows,
+        developmentPlanRows,
+        incidentRows,
+        learningRows
+      ] =
         await Promise.all([
           fetchPeopleRows(pool),
           pool
@@ -183,7 +209,28 @@ export function createMysqlDashboardStore({
               `SELECT d.person_id AS personId, d.record_type AS recordType
                FROM development_records d`
             )
-            .then(([rows]) => rows)
+            .then(([rows]) => rows),
+          pool
+            .query(
+              `SELECT person_id AS personId, due_date AS dueDate, status, progress_status AS progressStatus
+               FROM development_plans`
+            )
+            .then(([rows]) => rows),
+          pool
+            .query(
+              `SELECT status, assigned_person_id AS assignedPersonId, assigned_to AS assignedTo,
+                      due_at AS dueAt
+               FROM incident_reports`
+            )
+            .then(([rows]) => rows),
+          supportsLearningIntegrations
+            ? pool
+                .query(
+                  `SELECT processing_status AS processingStatus
+                   FROM learning_integration_events`
+                )
+                .then(([rows]) => rows)
+            : Promise.resolve([])
         ]);
 
       const availableAreas = [...new Set(people.map((person) => person.area))].sort();
@@ -213,6 +260,11 @@ export function createMysqlDashboardStore({
           developmentRecords: developmentRows.filter((item) =>
             scopedPersonIds.has(item.personId)
           ),
+          developmentPlans: developmentPlanRows.filter((item) =>
+            scopedPersonIds.has(item.personId)
+          ),
+          incidents: incidentRows,
+          learningEvents: learningRows,
           responses: responses.filter((item) => scopedPersonIds.has(item.revieweePersonId)),
           availableAreas,
           selectedArea: options.area,
@@ -250,6 +302,11 @@ export function createMysqlDashboardStore({
           developmentRecords: developmentRows.filter((item) =>
             visiblePersonIds.has(item.personId)
           ),
+          developmentPlans: developmentPlanRows.filter((item) =>
+            visiblePersonIds.has(item.personId)
+          ),
+          incidents: [],
+          learningEvents: [],
           responses: responses.filter((item) => visiblePersonIds.has(item.revieweePersonId)),
           timeGrouping,
           performanceActorUser: actorUser,
@@ -273,6 +330,9 @@ export function createMysqlDashboardStore({
         assignments: myAssignments,
         applauseEntries: applauseRows.filter((item) => item.receiverPersonId === actorUser.person.id),
         developmentRecords: developmentRows.filter((item) => item.personId === actorUser.person.id),
+        developmentPlans: developmentPlanRows.filter((item) => item.personId === actorUser.person.id),
+        incidents: [],
+        learningEvents: [],
         responses: responses.filter((item) => item.reviewerUserId === actorUser.id),
         timeGrouping,
         performanceActorUser: null,

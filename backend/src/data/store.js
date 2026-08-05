@@ -3899,6 +3899,88 @@ function calculatePercentage(value, total) {
   return Math.round((Number(value) / Number(total)) * 100);
 }
 
+function isPastDate(value, now = new Date()) {
+  if (!value) {
+    return false;
+  }
+
+  const date = new Date(value);
+  return !Number.isNaN(date.getTime()) && date.getTime() < now.getTime();
+}
+
+function buildOperationalAlerts({
+  pendingAssignments,
+  overdueIncidents,
+  unassignedIncidents,
+  blockedDevelopmentPlans,
+  notStartedDevelopmentPlans,
+  pendingLearningEvents
+}) {
+  const alerts = [];
+
+  if (overdueIncidents.length) {
+    alerts.push({
+      key: "overdue_incidents",
+      label: "Incidentes fora do prazo",
+      value: overdueIncidents.length,
+      tone: "critical",
+      detail: "Priorizar triagem e fechamento dos casos vencidos."
+    });
+  }
+
+  if (unassignedIncidents.length) {
+    alerts.push({
+      key: "unassigned_incidents",
+      label: "Incidentes sem responsavel",
+      value: unassignedIncidents.length,
+      tone: "warning",
+      detail: "Atribuir responsavel antes da proxima reuniao operacional."
+    });
+  }
+
+  if (pendingAssignments > 0) {
+    alerts.push({
+      key: "pending_assignments",
+      label: "Avaliacoes pendentes",
+      value: pendingAssignments,
+      tone: "warning",
+      detail: "Acionar responsaveis para concluir respostas abertas."
+    });
+  }
+
+  if (blockedDevelopmentPlans.length) {
+    alerts.push({
+      key: "blocked_development_plans",
+      label: "PDIs bloqueados",
+      value: blockedDevelopmentPlans.length,
+      tone: "critical",
+      detail: "Revisar impedimentos com gestor ou RH."
+    });
+  }
+
+  if (notStartedDevelopmentPlans.length) {
+    alerts.push({
+      key: "not_started_development_plans",
+      label: "PDIs nao iniciados",
+      value: notStartedDevelopmentPlans.length,
+      tone: "support",
+      detail: "Programar primeiro checkpoint de desenvolvimento."
+    });
+  }
+
+  if (pendingLearningEvents.length) {
+    alerts.push({
+      key: "pending_learning_events",
+      label: "Aprendizagem aguardando revisao",
+      value: pendingLearningEvents.length,
+      tone: "support",
+      detail: "Revisar eventos para transformar em PDI ou registro."
+    });
+  }
+
+  return alerts;
+}
+
 function buildSatisfactionByAreaSeries(people) {
   return Object.values(
     getPeopleWithSatisfactionScores(people).reduce((acc, person) => {
@@ -4326,6 +4408,9 @@ function buildDashboardPayload({
   assignments,
   applauseEntries,
   developmentRecords,
+  developmentPlans = [],
+  incidents = [],
+  learningEvents = [],
   responses,
   evaluationHighlights,
   availableAreas = [],
@@ -4343,6 +4428,20 @@ function buildDashboardPayload({
   const avgSatisfaction = averageSatisfactionScore(people);
   const peopleWithDevelopment = new Set(developmentRecords.map((item) => item.personId)).size;
   const peopleWithApplause = new Set(applauseEntries.map((item) => item.receiverPersonId)).size;
+  const openIncidents = incidents.filter((item) => item.status !== "Concluido");
+  const overdueIncidents = openIncidents.filter((item) => isPastDate(item.dueAt));
+  const unassignedIncidents = openIncidents.filter(
+    (item) => !item.assignedPersonId && !item.assignedTo
+  );
+  const blockedDevelopmentPlans = developmentPlans.filter(
+    (item) => item.status === "active" && item.progressStatus === "blocked"
+  );
+  const notStartedDevelopmentPlans = developmentPlans.filter(
+    (item) => item.status === "active" && item.progressStatus === "not_started"
+  );
+  const pendingLearningEvents = learningEvents.filter(
+    (item) => item.processingStatus !== "applied"
+  );
   const performanceReviews = performanceActorUser
     ? buildPerformance360Reviews({
         people,
@@ -4389,6 +4488,11 @@ function buildDashboardPayload({
         trend: "Reconhecimentos considerados no recorte"
       },
       {
+        label: "Incidentes abertos",
+        value: String(openIncidents.length),
+        trend: `${overdueIncidents.length} fora do prazo`
+      },
+      {
         label: "Registros de desenvolvimento",
         value: String(developmentRecords.length),
         trend: "Historico profissional considerado"
@@ -4431,6 +4535,23 @@ function buildDashboardPayload({
     evaluationMix: buildEvaluationMixSeries(assignments),
     evaluationResultsSummary: buildEvaluationResultsSummarySeries(assignments, scopedResponses),
     performanceHealth,
+    riskSummary: {
+      openIncidents: openIncidents.length,
+      overdueIncidents: overdueIncidents.length,
+      unassignedIncidents: unassignedIncidents.length,
+      pendingAssignments,
+      blockedDevelopmentPlans: blockedDevelopmentPlans.length,
+      notStartedDevelopmentPlans: notStartedDevelopmentPlans.length,
+      pendingLearningEvents: pendingLearningEvents.length
+    },
+    operationalAlerts: buildOperationalAlerts({
+      pendingAssignments,
+      overdueIncidents,
+      unassignedIncidents,
+      blockedDevelopmentPlans,
+      notStartedDevelopmentPlans,
+      pendingLearningEvents
+    }),
     assignmentStatus: buildAssignmentStatusSeries(assignments),
     developmentByType: buildDevelopmentByTypeSeries(developmentRecords),
     cycleTimeline: buildCycleTimelineSeries({
@@ -7716,6 +7837,7 @@ function buildMysqlStore(
       anonymousResponseState,
       supportsFeedbackAcknowledgement,
       supportsIndividualQuestionnaires,
+      supportsLearningIntegrations,
       fetchPeopleRows,
       fetchMysqlResponses,
       isFullAccessUser,
