@@ -75,7 +75,7 @@ Preparar o Smart Compliance para acompanhamento interno pos-go-live, dando visib
 
 ## Proxima etapa imediata
 
-Criar checklist semanal e status report pos-go-live com criterios objetivos de alerta, triagem e escalonamento.
+Homologar leitura em frontend contra MySQL isolado e ambiente publicado, com validacao nao destrutiva de healthcheck, navegacao principal e dados reais.
 
 ## Andamento
 
@@ -83,3 +83,4 @@ Criar checklist semanal e status report pos-go-live com criterios objetivos de a
 - Etapa 2 concluida em 05/08/2026: backend do dashboard expandido com `riskSummary` e `operationalAlerts`, validado em memoria e MySQL isolado.
 - Etapa 3 concluida em 05/08/2026: frontend do dashboard passou a renderizar riscos e alertas operacionais, com teste E2E do overview atualizado.
 - Etapa 4 concluida em 05/08/2026: auditoria gerencial ganhou filtros por periodo, ator e acao, alem de pagina central restrita por perfil.
+- Etapa 5 concluida em 05/08/2026: checklist semanal e modelo de status report pos-go-live criados em `docs/checklist-pos-go-live-onda-4.md`.
