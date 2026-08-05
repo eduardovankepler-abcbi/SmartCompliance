@@ -75,7 +75,7 @@ Preparar o Smart Compliance para acompanhamento interno pos-go-live, dando visib
 
 ## Proxima etapa imediata
 
-Fechar decisao de piloto interno, registrando riscos residuais e a pendencia controlada da validacao visual publicada com credenciais.
+Iniciar Onda 5 com foco em experiencia operacional e estabilizacao do piloto interno controlado.
 
 ## Andamento
 
@@ -85,3 +85,4 @@ Fechar decisao de piloto interno, registrando riscos residuais e a pendencia con
 - Etapa 4 concluida em 05/08/2026: auditoria gerencial ganhou filtros por periodo, ator e acao, alem de pagina central restrita por perfil.
 - Etapa 5 concluida em 05/08/2026: checklist semanal e modelo de status report pos-go-live criados em `docs/checklist-pos-go-live-onda-4.md`.
 - Etapa 6 concluida em 05/08/2026: homologacao de leitura nao destrutiva registrada em `docs/homologacao-onda-4-leitura.md`; API publicada e MySQL local passaram, com validacao visual publicada pendente de aprovacao explicita para uso de credenciais.
+- Fechamento concluido em 05/08/2026: decisao registrada em `docs/fechamento-onda-4-dashboard-auditoria-pos-go-live.md`, com aprovacao para piloto interno controlado e riscos residuais documentados.
