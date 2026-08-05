@@ -4,7 +4,9 @@ import { firstValueFrom } from 'rxjs';
 import { AuthService } from '../../core/auth/auth.service';
 import { ApiError } from '../../core/http/api-error';
 import {
+  DashboardOperationalAlert,
   DashboardOverview,
+  DashboardRiskSummary,
   DashboardService,
   DashboardTimeGrouping,
 } from './dashboard.service';
@@ -125,7 +127,7 @@ interface TimeGroupingOption {
             </article>
             <article>
               <span>Incidentes abertos</span>
-              <strong>{{ openIncidentsLabel(currentOverview) }}</strong>
+              <strong>{{ riskSummary(currentOverview).openIncidents }}</strong>
               <small>Casos em acompanhamento</small>
             </article>
             <article>
@@ -143,6 +145,34 @@ interface TimeGroupingOption {
               <strong>{{ secondaryPriorityTitle(currentOverview) }}</strong>
               <p>{{ secondaryPriorityDetail(currentOverview) }}</p>
             </article>
+          </div>
+          <div class="dashboard__alerts" aria-label="Alertas operacionais">
+            <header>
+              <div>
+                <span>Riscos operacionais</span>
+                <h2>Alertas para acompanhamento</h2>
+              </div>
+              <small>{{ operationalAlerts(currentOverview).length }} ativos</small>
+            </header>
+            @if (operationalAlerts(currentOverview).length) {
+              <div class="dashboard__priorities">
+                @for (alert of operationalAlerts(currentOverview); track alert.key) {
+                  <article
+                    class="dashboard__alert"
+                    [class.dashboard__alert--critical]="alert.tone === 'critical'"
+                    [class.dashboard__alert--warning]="alert.tone === 'warning'"
+                    [class.dashboard__alert--positive]="alert.tone === 'positive'"
+                    [class.dashboard__alert--support]="alert.tone === 'support'"
+                  >
+                    <span>{{ alert.label }}</span>
+                    <strong>{{ alert.value }}</strong>
+                    <small>{{ alert.detail }}</small>
+                  </article>
+                }
+              </div>
+            } @else {
+              <p class="dashboard__no-alerts">Sem alertas operacionais criticos no recorte atual.</p>
+            }
           </div>
         </section>
 
@@ -270,6 +300,13 @@ interface TimeGroupingOption {
     .dashboard__executive-grid article, .dashboard__priorities article { padding: 14px; background: var(--abc-surface-muted); border: 1px solid var(--abc-border); border-radius: 8px; }
     .dashboard__executive-grid strong { display: block; color: var(--abc-text); font-size: 24px; }
     .dashboard__priorities { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
+    .dashboard__alerts { margin-top: 12px; padding-top: 14px; border-top: 1px solid var(--abc-border); }
+    .dashboard__alert { border-left: 4px solid var(--abc-blue); }
+    .dashboard__alert--critical { border-left-color: var(--abc-danger); }
+    .dashboard__alert--warning { border-left-color: color-mix(in srgb, var(--abc-danger) 60%, #f5b84b); }
+    .dashboard__alert span, .dashboard__alert small { display: block; color: var(--abc-text-muted); }
+    .dashboard__alert strong { display: block; margin: 6px 0; font-size: 22px; }
+    .dashboard__no-alerts { color: var(--abc-text-muted); }
     .dashboard__cards { grid-template-columns: repeat(5, minmax(0, 1fr)); }
     .dashboard__card strong { display: block; margin: 10px 0 6px; color: var(--abc-text); font-size: 26px; }
     .dashboard__card small { color: var(--abc-text-muted); line-height: 1.4; }
@@ -290,7 +327,7 @@ interface TimeGroupingOption {
     .dashboard__comparison-grid strong { display: block; margin: 6px 0; color: var(--abc-text); }
     .dashboard__updating { margin: 12px 0 0; color: var(--abc-text-muted); font-size: 14px; }
     @media (max-width: 960px) { .dashboard__cards { grid-template-columns: repeat(3, minmax(0, 1fr)); } .dashboard__summary, .dashboard__charts, .dashboard__executive-grid, .dashboard__priorities, .dashboard__quick-actions, .dashboard__comparison-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-    @media (max-width: 640px) { .dashboard__header, .dashboard__error, .dashboard__executive header, .dashboard__command-heading { align-items: stretch; flex-direction: column; } .dashboard__scope, .dashboard__cards, .dashboard__summary, .dashboard__charts, .dashboard__donuts, .dashboard__executive-grid, .dashboard__priorities, .dashboard__read-switch, .dashboard__quick-actions, .dashboard__tabs, .dashboard__comparison-grid { grid-template-columns: 1fr; } .dashboard__chart-card--wide { grid-column: auto; } label { width: 100%; } }
+    @media (max-width: 640px) { .dashboard__header, .dashboard__error, .dashboard__executive header, .dashboard__alerts header, .dashboard__command-heading { align-items: stretch; flex-direction: column; } .dashboard__scope, .dashboard__cards, .dashboard__summary, .dashboard__charts, .dashboard__donuts, .dashboard__executive-grid, .dashboard__priorities, .dashboard__read-switch, .dashboard__quick-actions, .dashboard__tabs, .dashboard__comparison-grid { grid-template-columns: 1fr; } .dashboard__chart-card--wide { grid-column: auto; } label { width: 100%; } }
   `,
 })
 export class DashboardPageComponent implements OnInit {
@@ -352,8 +389,20 @@ export class DashboardPageComponent implements OnInit {
     return `${Math.round((overview.scopeSummary.pendingAssignments / total) * 100)}% do total`;
   }
 
-  openIncidentsLabel(overview: DashboardOverview): string {
-    return String(overview.cards.find((card) => card.label.toLocaleLowerCase().includes('incidente'))?.value || '0');
+  riskSummary(overview: DashboardOverview): DashboardRiskSummary {
+    return overview.riskSummary ?? {
+      openIncidents: Number(overview.cards.find((card) => card.label.toLocaleLowerCase().includes('incidente'))?.value || 0),
+      overdueIncidents: 0,
+      unassignedIncidents: 0,
+      pendingAssignments: overview.scopeSummary.pendingAssignments,
+      blockedDevelopmentPlans: 0,
+      notStartedDevelopmentPlans: 0,
+      pendingLearningEvents: 0,
+    };
+  }
+
+  operationalAlerts(overview: DashboardOverview): DashboardOperationalAlert[] {
+    return overview.operationalAlerts ?? [];
   }
 
   primaryPriorityTitle(overview: DashboardOverview): string {

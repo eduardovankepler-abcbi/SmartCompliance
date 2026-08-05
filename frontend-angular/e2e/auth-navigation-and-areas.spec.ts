@@ -2,6 +2,8 @@ import { expect, Page, test } from '@playwright/test';
 
 interface DashboardOverviewResponse {
   cards: Array<{ label: string; value: string }>;
+  riskSummary?: { openIncidents: number };
+  operationalAlerts?: Array<{ key: string; label: string; value: number; detail: string }>;
   selectedArea: string | null;
   timeGrouping: string;
 }
@@ -311,6 +313,15 @@ test('exibe os indicadores do overview retornado pela API', async ({ page }) => 
   for (const card of overview.cards) {
     const cardElement = page.locator('.dashboard__card').filter({ hasText: card.label });
     await expect(cardElement).toContainText(card.value);
+  }
+  await expect(page.getByText('Riscos operacionais')).toBeVisible();
+  if (overview.riskSummary) {
+    await expect(page.locator('.dashboard__executive-grid')).toContainText(String(overview.riskSummary.openIncidents));
+  }
+  for (const alert of overview.operationalAlerts ?? []) {
+    const alertElement = page.locator('.dashboard__alert').filter({ hasText: alert.label });
+    await expect(alertElement).toContainText(String(alert.value));
+    await expect(alertElement).toContainText(alert.detail);
   }
 });
 

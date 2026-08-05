@@ -138,6 +138,24 @@ export interface DashboardPerformanceHealth {
   guidance: string;
 }
 
+export interface DashboardRiskSummary {
+  openIncidents: number;
+  overdueIncidents: number;
+  unassignedIncidents: number;
+  pendingAssignments: number;
+  blockedDevelopmentPlans: number;
+  notStartedDevelopmentPlans: number;
+  pendingLearningEvents: number;
+}
+
+export interface DashboardOperationalAlert {
+  key: string;
+  label: string;
+  value: number;
+  tone: DashboardTone;
+  detail: string;
+}
+
 export interface DashboardSatisfactionQuestionAnalytics {
   periodKey: string;
   periodLabel: string;
@@ -161,6 +179,8 @@ export interface DashboardOverview {
   satisfactionByArea: DashboardSatisfactionByArea[];
   satisfactionQuestionAnalytics: DashboardSatisfactionQuestionAnalytics[];
   evaluationHighlights: string[];
+  riskSummary: DashboardRiskSummary;
+  operationalAlerts: DashboardOperationalAlert[];
   responseDistributions: DashboardResponseDistribution[];
   evaluationMix: DashboardEvaluationMix[];
   evaluationResultsSummary: DashboardEvaluationResult[];
