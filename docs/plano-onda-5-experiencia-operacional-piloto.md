@@ -99,3 +99,4 @@ Definir responsavel operacional nominal dos primeiros 30 dias e corrigir atritos
 - Etapa 1 concluida em 05/08/2026: conta demo `colaborador2@demo.local` preparada com autorizacao explicita e validacao visual publicada confirmou bloqueio de dashboard/auditoria para colaborador.
 - Etapa 2 concluida em 05/08/2026: primeiro status report do piloto criado em `docs/status-report-piloto-onda-5-semana-1.md`, com status `Amarelo controlado`, backup operacional registrado e pendencia de responsavel nominal.
 - Etapa 3 implementada em 06/08/2026: dashboard passou a exibir quick actions reais para avaliacoes, incidentes, auditoria, usuarios e pessoas, filtradas pela matriz central de permissao de navegacao.
+- Etapa 3 publicada em producao em 06/08/2026: deploy Vercel concluido e alias `https://smart-compliance-angular.vercel.app` respondeu `200 OK`.
