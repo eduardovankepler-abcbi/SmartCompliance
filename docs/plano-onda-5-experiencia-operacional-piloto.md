@@ -88,7 +88,7 @@ Condicoes herdadas:
 
 ## Proxima Etapa Imediata
 
-Definir responsavel operacional nominal dos primeiros 30 dias e corrigir atritos pequenos identificados no piloto.
+Definir responsavel operacional nominal dos primeiros 30 dias e desenhar notificacoes internas de pendencias criticas.
 
 ## Andamento
 
@@ -100,3 +100,4 @@ Definir responsavel operacional nominal dos primeiros 30 dias e corrigir atritos
 - Etapa 2 concluida em 05/08/2026: primeiro status report do piloto criado em `docs/status-report-piloto-onda-5-semana-1.md`, com status `Amarelo controlado`, backup operacional registrado e pendencia de responsavel nominal.
 - Etapa 3 implementada em 06/08/2026: dashboard passou a exibir quick actions reais para avaliacoes, incidentes, auditoria, usuarios e pessoas, filtradas pela matriz central de permissao de navegacao.
 - Etapa 3 publicada em producao em 06/08/2026: deploy Vercel concluido e alias `https://smart-compliance-angular.vercel.app` respondeu `200 OK`.
+- Etapa 4 iniciada em 06/08/2026: fluxo de Usuarios recebeu estado vazio operacional para orientar cadastro de Pessoas antes do provisionamento e bloquear criacao de acesso sem pessoa elegivel.

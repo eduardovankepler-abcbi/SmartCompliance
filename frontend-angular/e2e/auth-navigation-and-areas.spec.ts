@@ -228,6 +228,21 @@ test('permite administrador provisionar usuario para pessoa sem acesso', async (
   await expect(page.getByText(email, { exact: true })).toBeVisible();
 });
 
+test('orienta administrador quando nao ha pessoa disponivel para novo usuario', async ({ page }) => {
+  await login(page, 'admin@demo.local');
+  await page.route('**/api/users', (route) => route.fulfill({ status: 200, json: [] }));
+  await page.route('**/api/people', (route) => route.fulfill({ status: 200, json: [] }));
+  await page.route('**/api/audit-trail?*', (route) => route.fulfill({ status: 200, json: [] }));
+
+  await page.goto('/app/users');
+
+  const emptyState = page.getByRole('status').filter({ hasText: 'Nenhuma pessoa disponivel para novo acesso.' });
+  await expect(page.getByRole('button', { name: 'Novo usuario' })).toBeDisabled();
+  await expect(emptyState).toBeVisible();
+  await expect(emptyState).toContainText('Cadastre uma pessoa antes de provisionar acesso.');
+  await expect(emptyState.getByRole('link', { name: 'Abrir Pessoas' })).toBeVisible();
+});
+
 test('permite administrador editar usuario inline', async ({ page }) => {
   await login(page, 'admin@demo.local');
   await page.goto('/app/users');
