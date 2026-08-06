@@ -1,8 +1,10 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 
 import { AuthService } from '../../core/auth/auth.service';
 import { ApiError } from '../../core/http/api-error';
+import { AppSectionKey, getNavigationSection } from '../../core/navigation/navigation.config';
 import {
   DashboardOperationalAlert,
   DashboardOverview,
@@ -19,9 +21,49 @@ interface TimeGroupingOption {
   label: string;
 }
 
+interface DashboardQuickAction {
+  sectionKey: AppSectionKey;
+  label: string;
+  detail: string;
+  path: string[];
+}
+
+const dashboardQuickActions: readonly DashboardQuickAction[] = [
+  {
+    sectionKey: 'evaluations',
+    label: 'Avaliacoes',
+    detail: 'Abrir operacao de avaliacoes',
+    path: ['/app', 'evaluations'],
+  },
+  {
+    sectionKey: 'compliance',
+    label: 'Incidentes',
+    detail: 'Acompanhar fila ativa',
+    path: ['/app', 'compliance'],
+  },
+  {
+    sectionKey: 'audit',
+    label: 'Auditoria',
+    detail: 'Consultar trilha operacional',
+    path: ['/app', 'audit'],
+  },
+  {
+    sectionKey: 'users',
+    label: 'Usuarios',
+    detail: 'Provisionar acesso',
+    path: ['/app', 'users'],
+  },
+  {
+    sectionKey: 'people',
+    label: 'Pessoas',
+    detail: 'Atualizar estrutura',
+    path: ['/app', 'people'],
+  },
+];
+
 @Component({
   selector: 'app-dashboard-page',
-  imports: [DashboardBarChartComponent, DashboardDonutMetricComponent, DashboardLineChartComponent],
+  imports: [RouterLink, DashboardBarChartComponent, DashboardDonutMetricComponent, DashboardLineChartComponent],
   template: `
     <section class="dashboard" aria-labelledby="dashboard-title">
       <header class="dashboard__header">
@@ -81,10 +123,15 @@ interface TimeGroupingOption {
             <button type="button" class="dashboard__ghost">Leitura analitica</button>
           </div>
           <div class="dashboard__quick-actions" aria-label="Acoes rapidas do dashboard">
-            <article><span>Novo ciclo</span><strong>Abrir operacao de avaliacoes</strong></article>
-            <article><span>Ver incidentes</span><strong>Acompanhar fila ativa</strong></article>
-            <article><span>Novo usuario</span><strong>Provisionar acesso</strong></article>
-            <article><span>Nova pessoa</span><strong>Atualizar estrutura</strong></article>
+            @for (action of quickActions(); track action.label) {
+              <a
+                [routerLink]="action.path"
+                [attr.aria-label]="'Abrir ' + action.label"
+              >
+                <span>{{ action.label }}</span>
+                <strong>{{ action.detail }}</strong>
+              </a>
+            }
           </div>
           <div class="dashboard__tabs" aria-label="Abas de leitura">
             <span>Visao Executiva</span>
@@ -283,7 +330,7 @@ interface TimeGroupingOption {
     .dashboard__read-switch button { background: var(--abc-blue-dark); }
     .dashboard__read-switch .dashboard__ghost { color: var(--abc-text); background: var(--abc-surface-muted); border: 1px solid var(--abc-border); }
     .dashboard__quick-actions { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
-    .dashboard__quick-actions article { padding: 12px; background: var(--abc-surface-muted); border: 1px solid var(--abc-border); border-radius: 8px; }
+    .dashboard__quick-actions a { padding: 12px; color: inherit; text-decoration: none; background: var(--abc-surface-muted); border: 1px solid var(--abc-border); border-radius: 8px; }
     .dashboard__quick-actions strong { display: block; margin-top: 5px; color: var(--abc-text); font-size: 13px; }
     .dashboard__tabs { grid-template-columns: repeat(5, minmax(0, 1fr)); }
     .dashboard__tabs span { min-height: 28px; padding: 6px 10px; color: var(--abc-text-muted); text-align: center; background: var(--abc-surface-muted); border-radius: 6px; font-size: 12px; font-weight: 700; }
@@ -343,6 +390,10 @@ export class DashboardPageComponent implements OnInit {
   readonly canFilterByArea = computed(() => {
     const roleKey = this.auth.user()?.roleKey;
     return roleKey === 'admin' || roleKey === 'hr';
+  });
+  readonly quickActions = computed(() => {
+    const roleKey = this.auth.user()?.roleKey ?? '';
+    return dashboardQuickActions.filter((action) => getNavigationSection(action.sectionKey)?.roles.includes(roleKey));
   });
   readonly timeGroupingOptions: readonly TimeGroupingOption[] = [
     { value: 'cycle', label: 'Ciclo' },

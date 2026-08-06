@@ -364,14 +364,16 @@ test('limita gestor ao escopo de equipe sem filtro de area', async ({ page }) =>
 
 test('permite administrador consultar auditoria gerencial', async ({ page }) => {
   await login(page, 'admin@demo.local');
+  await expect(page.getByRole('link', { name: 'Abrir Auditoria' })).toBeVisible();
 
   const auditResponse = page.waitForResponse(
     (response) =>
       response.request().method() === 'GET' && response.url().includes('/api/audit-trail'),
   );
-  await page.goto('/app/audit');
+  await page.getByRole('link', { name: 'Abrir Auditoria' }).click();
   await auditResponse;
 
+  await expect(page).toHaveURL(/\/app\/audit$/);
   await expect(page.getByRole('heading', { name: 'Auditoria' })).toBeVisible();
   await expect(page.getByLabel('Filtros de auditoria')).toBeVisible();
   await expect(page.getByLabel('Eventos de auditoria')).toBeVisible();
