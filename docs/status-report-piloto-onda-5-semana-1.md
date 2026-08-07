@@ -86,12 +86,14 @@ Status: `Amarelo`
 | Operacao | Responsavel nominal dos primeiros 30 dias ainda nao registrado. | Pode atrasar triagem semanal e decisoes de piloto. | Usuario / Operacao | Antes da proxima rodada | Aberto |
 | Backup | Backup foi criado e validado estruturalmente, mas restore nao foi executado em ambiente seguro nesta rodada. | Risco de falsa seguranca se restore nao for testado. | TI | Proxima semana | Aberto |
 | Produto | Revisao assistida dos modulos alem de dashboard/auditoria ainda nao registrada com usuarios reais. | Pode esconder atritos de uso no piloto. | Produto / RH | Durante Semana 1 | Aberto |
+| Operacao | Matriz de notificacoes internas criada, mas canal oficial e responsavel nominal ainda nao definidos. | Alertas podem depender de acompanhamento manual sem dono formal. | Usuario / Operacao | Antes da proxima rodada | Aberto |
 
 ## Evidencias
 
 - Dashboard/auditoria publicados: `docs/homologacao-onda-5-validacao-visual-publicada.md`
 - Homologacao API/MySQL: `docs/homologacao-onda-4-leitura.md`
 - Checklist base: `docs/checklist-pos-go-live-onda-4.md`
+- Notificacoes operacionais: `docs/notificacoes-operacionais-onda-5.md`
 - Backup: `backend/backups/smart-compliance-defaultdb-2026-08-05T17-46-24-253Z.sql`
 - Healthcheck: `https://smartcompliance.onrender.com/health`
 
@@ -109,4 +111,4 @@ Restricoes:
 
 ## Proxima Acao
 
-Definir responsavel operacional nominal dos primeiros 30 dias e, em seguida, implementar quick actions reais no dashboard com links internos seguros por perfil.
+Definir responsavel operacional nominal dos primeiros 30 dias e revisar governanca de retencao de auditoria/evidencias.
