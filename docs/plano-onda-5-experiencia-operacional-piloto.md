@@ -88,7 +88,7 @@ Condicoes herdadas:
 
 ## Proxima Etapa Imediata
 
-Definir responsavel operacional nominal dos primeiros 30 dias e revisar governanca de retencao de auditoria/evidencias.
+Definir responsavel operacional nominal dos primeiros 30 dias e fechar decisao de expansao do piloto.
 
 ## Andamento
 
@@ -103,3 +103,4 @@ Definir responsavel operacional nominal dos primeiros 30 dias e revisar governan
 - Etapa 4 iniciada em 06/08/2026: fluxo de Usuarios recebeu estado vazio operacional para orientar cadastro de Pessoas antes do provisionamento e bloquear criacao de acesso sem pessoa elegivel.
 - Etapa 4 publicada em producao em 06/08/2026: deploy Vercel concluido e alias `https://smart-compliance-angular.vercel.app` respondeu `200 OK`.
 - Etapa 5 concluida em 07/08/2026: matriz inicial de notificacoes operacionais criada em `docs/notificacoes-operacionais-onda-5.md`, mantendo automacao bloqueada ate definicao de responsavel, canal e criterios.
+- Etapa 6 concluida em 07/08/2026: politica minima de retencao para auditoria, evidencias e backups criada em `docs/governanca-retencao-auditoria-evidencias-onda-5.md`, sem expurgo automatico nesta onda.

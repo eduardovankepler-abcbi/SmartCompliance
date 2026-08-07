@@ -87,6 +87,7 @@ Status: `Amarelo`
 | Backup | Backup foi criado e validado estruturalmente, mas restore nao foi executado em ambiente seguro nesta rodada. | Risco de falsa seguranca se restore nao for testado. | TI | Proxima semana | Aberto |
 | Produto | Revisao assistida dos modulos alem de dashboard/auditoria ainda nao registrada com usuarios reais. | Pode esconder atritos de uso no piloto. | Produto / RH | Durante Semana 1 | Aberto |
 | Operacao | Matriz de notificacoes internas criada, mas canal oficial e responsavel nominal ainda nao definidos. | Alertas podem depender de acompanhamento manual sem dono formal. | Usuario / Operacao | Antes da proxima rodada | Aberto |
+| Governanca | Politica minima de retencao criada, mas expurgo automatico e prazo formal ainda dependem de aprovacao interna. | Dados sensiveis permanecem conservados sem rotina automatica de ciclo de vida. | Operacao / TI / Compliance | Antes de expandir piloto | Aberto |
 
 ## Evidencias
 
@@ -94,6 +95,7 @@ Status: `Amarelo`
 - Homologacao API/MySQL: `docs/homologacao-onda-4-leitura.md`
 - Checklist base: `docs/checklist-pos-go-live-onda-4.md`
 - Notificacoes operacionais: `docs/notificacoes-operacionais-onda-5.md`
+- Governanca de retencao: `docs/governanca-retencao-auditoria-evidencias-onda-5.md`
 - Backup: `backend/backups/smart-compliance-defaultdb-2026-08-05T17-46-24-253Z.sql`
 - Healthcheck: `https://smartcompliance.onrender.com/health`
 
@@ -107,8 +109,9 @@ Restricoes:
 
 - Nao expandir para toda a empresa antes de definir responsavel operacional nominal.
 - Nao considerar backup plenamente verde ate executar restore em ambiente seguro.
+- Nao implementar expurgo automatico antes de aprovar prazo formal de retencao e trilha de auditoria do expurgo.
 - Registrar qualquer ajuste em usuarios demo no historico da homologacao.
 
 ## Proxima Acao
 
-Definir responsavel operacional nominal dos primeiros 30 dias e revisar governanca de retencao de auditoria/evidencias.
+Definir responsavel operacional nominal dos primeiros 30 dias e fechar decisao de expansao do piloto.
