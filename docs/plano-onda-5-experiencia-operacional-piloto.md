@@ -88,7 +88,7 @@ Condicoes herdadas:
 
 ## Proxima Etapa Imediata
 
-Definir responsavel operacional nominal dos primeiros 30 dias e fechar decisao de expansao do piloto.
+Iniciar Onda 6 com expansao controlada, restore seguro e revisao assistida dos modulos com usuarios reais.
 
 ## Andamento
 
@@ -104,3 +104,4 @@ Definir responsavel operacional nominal dos primeiros 30 dias e fechar decisao d
 - Etapa 4 publicada em producao em 06/08/2026: deploy Vercel concluido e alias `https://smart-compliance-angular.vercel.app` respondeu `200 OK`.
 - Etapa 5 concluida em 07/08/2026: matriz inicial de notificacoes operacionais criada em `docs/notificacoes-operacionais-onda-5.md`, mantendo automacao bloqueada ate definicao de responsavel, canal e criterios.
 - Etapa 6 concluida em 07/08/2026: politica minima de retencao para auditoria, evidencias e backups criada em `docs/governanca-retencao-auditoria-evidencias-onda-5.md`, sem expurgo automatico nesta onda.
+- Etapa 7 concluida em 07/08/2026: decisao de expansao registrada em `docs/fechamento-onda-5-experiencia-operacional-piloto.md`, aprovando manutencao do piloto restrito e bloqueando expansao ampla ate resolver pendencias operacionais.

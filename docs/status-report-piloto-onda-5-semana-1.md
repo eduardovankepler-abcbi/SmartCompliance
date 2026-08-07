@@ -11,11 +11,13 @@ Ambiente avaliado: Producao publicada + MySQL publicado
 - Status geral: `Amarelo controlado`
 - Principal risco da semana: responsavel operacional nominal dos primeiros 30 dias ainda nao definido no projeto.
 - Principal acao concluida: validacao visual publicada de admin e colaborador foi aprovada.
-- Decisao recomendada: `manter piloto interno controlado`
+- Decisao recomendada: `manter piloto interno controlado; expansao ampla bloqueada`
 
 Justificativa:
 
 O ambiente publicado esta funcional para o escopo validado. Backend, MySQL, dashboard, auditoria e bloqueio visual de colaborador passaram nas evidencias disponiveis. O status permanece amarelo porque a operacao ainda precisa registrar um responsavel nominal e manter a rotina semanal de backup/status report.
+
+A decisao de fechamento da Onda 5 aprova a continuidade do piloto restrito, mas bloqueia expansao ampla ate existir responsavel nominal, restore seguro e revisao assistida dos modulos com usuarios reais.
 
 ## Indicadores Revisados
 
@@ -96,6 +98,7 @@ Status: `Amarelo`
 - Checklist base: `docs/checklist-pos-go-live-onda-4.md`
 - Notificacoes operacionais: `docs/notificacoes-operacionais-onda-5.md`
 - Governanca de retencao: `docs/governanca-retencao-auditoria-evidencias-onda-5.md`
+- Fechamento da Onda 5: `docs/fechamento-onda-5-experiencia-operacional-piloto.md`
 - Backup: `backend/backups/smart-compliance-defaultdb-2026-08-05T17-46-24-253Z.sql`
 - Healthcheck: `https://smartcompliance.onrender.com/health`
 
@@ -103,7 +106,7 @@ Status: `Amarelo`
 
 - [x] Continuar piloto interno.
 - [x] Continuar com restricoes.
-- [ ] Pausar expansao ate resolver itens vermelhos.
+- [x] Bloquear expansao ampla ate resolver pendencias operacionais.
 
 Restricoes:
 
@@ -114,4 +117,4 @@ Restricoes:
 
 ## Proxima Acao
 
-Definir responsavel operacional nominal dos primeiros 30 dias e fechar decisao de expansao do piloto.
+Iniciar Onda 6 com expansao controlada, restore seguro e revisao assistida dos modulos com usuarios reais.
