@@ -93,7 +93,7 @@ Condicoes herdadas:
 
 ## Proxima Etapa Imediata
 
-Criar roteiro de revisao assistida por modulo com usuarios reais.
+Executar revisao assistida com usuarios reais usando `docs/roteiro-revisao-assistida-modulos-onda-6.md`.
 
 ## Andamento
 
@@ -102,3 +102,4 @@ Criar roteiro de revisao assistida por modulo com usuarios reais.
 - Etapa 2 preparada em 10/08/2026: roteiro de restore seguro criado em `docs/roteiro-restore-seguro-onda-6.md`, mantendo execucao bloqueada ate confirmacao de banco isolado e autorizacao explicita.
 - Etapa 3 tentada em 10/08/2026 com autorizacao, mas bloqueada por seguranca antes da execucao porque o `.env` atual aponta para o banco publicado `defaultdb`. Evidencia registrada em `docs/restore-seguro-onda-6-tentativa-2026-08-10.md`.
 - Etapa 3 concluida em 10/08/2026: restore executado com sucesso em MySQL isolado no Docker, com 29 tabelas restauradas e producao confirmada saudavel apos a validacao. Evidencia registrada em `docs/restore-seguro-onda-6-sucesso-2026-08-10.md`.
+- Etapa 4 concluida em 10/08/2026: roteiro de revisao assistida por modulo criado em `docs/roteiro-revisao-assistida-modulos-onda-6.md`, cobrindo perfis, tarefas, evidencias e classificacao de achados.
