@@ -93,7 +93,7 @@ Condicoes herdadas:
 
 ## Proxima Etapa Imediata
 
-Preencher responsavel operacional, canal oficial e usuarios reais autorizados para executar a revisao assistida.
+Iniciar Onda 7 com Alfa controlada, usuarios reais autorizados e decisao de expansao baseada na revisao assistida.
 
 ## Andamento
 
@@ -104,3 +104,6 @@ Preencher responsavel operacional, canal oficial e usuarios reais autorizados pa
 - Etapa 3 concluida em 10/08/2026: restore executado com sucesso em MySQL isolado no Docker, com 29 tabelas restauradas e producao confirmada saudavel apos a validacao. Evidencia registrada em `docs/restore-seguro-onda-6-sucesso-2026-08-10.md`.
 - Etapa 4 concluida em 10/08/2026: roteiro de revisao assistida por modulo criado em `docs/roteiro-revisao-assistida-modulos-onda-6.md`, cobrindo perfis, tarefas, evidencias e classificacao de achados.
 - Etapa 5 tentada em 10/08/2026, mas bloqueada por dependencia operacional: ainda faltam responsavel nominal, canal oficial e usuarios reais autorizados. Registro criado em `docs/execucao-revisao-assistida-onda-6-2026-08-10.md`.
+- Etapa 6 concluida em 10/08/2026: status report da Semana 2 criado em `docs/status-report-piloto-onda-6-semana-2.md`, classificando a operacao como `Amarelo controlado` e pronta para preparar Alfa.
+- Etapa 7 concluida em 10/08/2026: decisao de expansao condicionada registrada em `docs/fechamento-onda-6-expansao-controlada.md`, aprovando preparacao da Alfa controlada e mantendo expansao ampla bloqueada.
+- Backlog pos-piloto criado em 10/08/2026 em `docs/backlog-pos-piloto-onda-6.md`.
