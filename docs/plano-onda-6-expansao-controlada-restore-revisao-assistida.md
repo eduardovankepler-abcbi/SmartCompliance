@@ -107,3 +107,4 @@ Iniciar Onda 7 com Alfa controlada, usuarios reais autorizados e decisao de expa
 - Etapa 6 concluida em 10/08/2026: status report da Semana 2 criado em `docs/status-report-piloto-onda-6-semana-2.md`, classificando a operacao como `Amarelo controlado` e pronta para preparar Alfa.
 - Etapa 7 concluida em 10/08/2026: decisao de expansao condicionada registrada em `docs/fechamento-onda-6-expansao-controlada.md`, aprovando preparacao da Alfa controlada e mantendo expansao ampla bloqueada.
 - Backlog pos-piloto criado em 10/08/2026 em `docs/backlog-pos-piloto-onda-6.md`.
+- Operacao pos-fechamento em 10/08/2026: contas demo `@demo.local` restauradas com autorizacao explicita e validadas na API publicada. Evidencia registrada em `docs/reset-contas-demo-2026-08-10.md`.
