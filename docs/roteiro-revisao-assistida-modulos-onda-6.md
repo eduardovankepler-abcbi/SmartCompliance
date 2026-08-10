@@ -8,7 +8,7 @@ Guiar sessoes curtas de revisao assistida do Smart Compliance com usuarios reais
 
 ## Status
 
-Status atual: `Preparado, nao executado`
+Status atual: `Preparado, execucao bloqueada`
 
 A execucao depende de usuarios reais indicados por RH/Operacao e do responsavel operacional nominal da Onda 6.
 
@@ -180,3 +180,7 @@ Evidencia minima:
 ## Proxima Acao
 
 Agendar a revisao assistida com RH/Admin, Compliance, Gestor, Colaborador e TI/Operacao, usando este roteiro como guia.
+
+## Historico
+
+- 10/08/2026: execucao tentada, mas bloqueada por ausencia de responsavel operacional nominal, canal oficial e usuarios reais autorizados. Registro em `docs/execucao-revisao-assistida-onda-6-2026-08-10.md`.
