@@ -4,7 +4,7 @@
 
 Executar a Etapa 3 da Onda 6 somente se o ambiente de destino estivesse isolado e nao produtivo.
 
-## Resultado
+## Resultado Inicial
 
 Status: `Bloqueado por seguranca`
 
@@ -38,3 +38,7 @@ Manter o restore bloqueado ate haver banco de destino isolado confirmado por TI/
 ## Proxima Acao
 
 Provisionar ou informar um banco MySQL isolado para restore, com host/database distintos de producao, e atualizar temporariamente as variaveis locais antes de executar `npm run restore:mysql`.
+
+## Atualizacao
+
+Ainda em 10/08/2026, foi criado um banco MySQL isolado em Docker e o restore foi executado com sucesso sem tocar producao. Evidencia registrada em `docs/restore-seguro-onda-6-sucesso-2026-08-10.md`.

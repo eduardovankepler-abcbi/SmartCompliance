@@ -8,7 +8,7 @@ Preparar a validacao de restore MySQL sem risco para o ambiente publicado do Sma
 
 ## Status
 
-Status atual: `Bloqueado ate banco isolado`
+Status atual: `Executado em Docker isolado`
 
 O restore ainda nao deve ser executado enquanto nao houver confirmacao explicita de ambiente isolado e banco de destino nao produtivo.
 
@@ -81,3 +81,4 @@ O roteiro esta pronto para a Etapa 3. A execucao continua bloqueada ate o ambien
 ## Historico
 
 - 10/08/2026: tentativa autorizada foi bloqueada antes da execucao porque o `.env` atual apontava para o banco publicado `defaultdb` no host Aiven. Evidencia registrada em `docs/restore-seguro-onda-6-tentativa-2026-08-10.md`.
+- 10/08/2026: restore executado com sucesso em container Docker local `smart-compliance-restore-onda6`, banco `smart_compliance_restore`. Evidencia registrada em `docs/restore-seguro-onda-6-sucesso-2026-08-10.md`.

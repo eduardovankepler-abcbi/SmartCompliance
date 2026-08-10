@@ -93,7 +93,7 @@ Condicoes herdadas:
 
 ## Proxima Etapa Imediata
 
-Provisionar ou informar banco MySQL isolado para executar restore seguro sem tocar o banco publicado.
+Criar roteiro de revisao assistida por modulo com usuarios reais.
 
 ## Andamento
 
@@ -101,3 +101,4 @@ Provisionar ou informar banco MySQL isolado para executar restore seguro sem toc
 - Etapa 1 preparada em 10/08/2026: registro operacional criado em `docs/responsavel-operacional-onda-6.md`, mantendo expansao bloqueada ate preenchimento de responsavel nominal e canal oficial.
 - Etapa 2 preparada em 10/08/2026: roteiro de restore seguro criado em `docs/roteiro-restore-seguro-onda-6.md`, mantendo execucao bloqueada ate confirmacao de banco isolado e autorizacao explicita.
 - Etapa 3 tentada em 10/08/2026 com autorizacao, mas bloqueada por seguranca antes da execucao porque o `.env` atual aponta para o banco publicado `defaultdb`. Evidencia registrada em `docs/restore-seguro-onda-6-tentativa-2026-08-10.md`.
+- Etapa 3 concluida em 10/08/2026: restore executado com sucesso em MySQL isolado no Docker, com 29 tabelas restauradas e producao confirmada saudavel apos a validacao. Evidencia registrada em `docs/restore-seguro-onda-6-sucesso-2026-08-10.md`.
