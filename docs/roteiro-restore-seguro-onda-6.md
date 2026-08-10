@@ -8,7 +8,7 @@ Preparar a validacao de restore MySQL sem risco para o ambiente publicado do Sma
 
 ## Status
 
-Status atual: `Preparado, nao executado`
+Status atual: `Bloqueado ate banco isolado`
 
 O restore ainda nao deve ser executado enquanto nao houver confirmacao explicita de ambiente isolado e banco de destino nao produtivo.
 
@@ -77,3 +77,7 @@ Nao executar restore se:
 ## Decisao da Etapa 2
 
 O roteiro esta pronto para a Etapa 3. A execucao continua bloqueada ate o ambiente isolado ser confirmado e autorizado.
+
+## Historico
+
+- 10/08/2026: tentativa autorizada foi bloqueada antes da execucao porque o `.env` atual apontava para o banco publicado `defaultdb` no host Aiven. Evidencia registrada em `docs/restore-seguro-onda-6-tentativa-2026-08-10.md`.

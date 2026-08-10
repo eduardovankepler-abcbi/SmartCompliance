@@ -93,10 +93,11 @@ Condicoes herdadas:
 
 ## Proxima Etapa Imediata
 
-Confirmar ambiente isolado e autorizacao explicita para executar restore seguro conforme `docs/roteiro-restore-seguro-onda-6.md`.
+Provisionar ou informar banco MySQL isolado para executar restore seguro sem tocar o banco publicado.
 
 ## Andamento
 
 - Onda 6 iniciada em 10/08/2026 com foco em expansao controlada, restore seguro e revisao assistida dos modulos com usuarios reais.
 - Etapa 1 preparada em 10/08/2026: registro operacional criado em `docs/responsavel-operacional-onda-6.md`, mantendo expansao bloqueada ate preenchimento de responsavel nominal e canal oficial.
 - Etapa 2 preparada em 10/08/2026: roteiro de restore seguro criado em `docs/roteiro-restore-seguro-onda-6.md`, mantendo execucao bloqueada ate confirmacao de banco isolado e autorizacao explicita.
+- Etapa 3 tentada em 10/08/2026 com autorizacao, mas bloqueada por seguranca antes da execucao porque o `.env` atual aponta para o banco publicado `defaultdb`. Evidencia registrada em `docs/restore-seguro-onda-6-tentativa-2026-08-10.md`.
