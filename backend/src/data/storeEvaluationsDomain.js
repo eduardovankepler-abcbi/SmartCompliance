@@ -329,6 +329,19 @@ export function calculateEvaluationOverallScore({
     return calculateConceptScore(answers, templateDefinition, PEER_SAME_AREA_OPTION_POINTS);
   }
 
+  if (
+    relationshipType === "leader-self" ||
+    templateDefinition?.key === "leader-self" ||
+    (relationshipType === "self" && scoringContext === "leader-self")
+  ) {
+    return calculateProportionalConceptScore({
+      answers,
+      templateDefinition,
+      conceptFactors: LEADER_SELF_EVALUATION_CONCEPT_FACTORS,
+      maxScore: LEADER_SELF_EVALUATION_MAX_SCORE
+    });
+  }
+
   if (relationshipType === "self" || templateDefinition?.key === "self") {
     if (scoringContext === "leader-self") {
       return calculateProportionalConceptScore({
@@ -420,7 +433,7 @@ export function buildEvaluationAnswerRows({
       questionnaireQuestionId: question?.questionnaireQuestionId || null,
       score: Number.isFinite(Number(answer.score)) ? Number(answer.score) : null,
       evidenceNote: answer.evidenceNote || "",
-      textValue: answer.textValue || "",
+      textValue: String(answer.textValue || "").slice(0, 200),
       selectedOptions: Array.isArray(answer.selectedOptions) ? answer.selectedOptions : [],
       answerType: question?.inputType || "scale"
     };

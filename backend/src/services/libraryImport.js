@@ -15,6 +15,7 @@ const VALID_RELATIONSHIPS = [
   "client-internal",
   "client-external",
   "self",
+  "leader-self",
   "leader",
   "company"
 ];
@@ -27,6 +28,7 @@ const DEFAULT_CONFIDENTIALITY = {
   "client-internal": "anonymous-aggregate",
   "client-external": "anonymous-aggregate",
   self: "private-to-employee-and-manager",
+  "leader-self": "private-to-leader-and-hr",
   leader: "anonymous-aggregate",
   company: "manager-confidential"
 };
@@ -74,7 +76,7 @@ function normalizeVisibility(value, relationshipType) {
   if (value) {
     return String(value).trim().toLowerCase();
   }
-  if (relationshipType === "self") {
+  if (relationshipType === "self" || relationshipType === "leader-self") {
     return "private";
   }
   if (relationshipType === "leader") {
@@ -88,7 +90,7 @@ function normalizeScaleProfile(value, relationshipType) {
   if (VALID_SCALE_PROFILES.includes(normalized)) {
     return normalized;
   }
-  if (relationshipType === "manager") {
+  if (relationshipType === "manager" || relationshipType === "self" || relationshipType === "leader-self" || relationshipType === "leader") {
     return "performance";
   }
   return relationshipType === "peer" ||

@@ -29,6 +29,7 @@ export const CYCLE_STATUS = {
 
 export const DEFAULT_CYCLE_MODULE_AVAILABILITY = Object.freeze({
   self: true,
+  "leader-self": true,
   company: true,
   leader: true,
   manager: true,

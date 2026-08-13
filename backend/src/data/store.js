@@ -168,6 +168,15 @@ const MANUAL_EVALUATION_LIBRARY_ID = "manual_evaluation_question_bank";
 const MANUAL_EVALUATION_LIBRARY_NAME = "Perguntas manuais de avaliacao";
 const MANUAL_EVALUATION_LIBRARY_DESCRIPTION =
   "Banco ativo de perguntas editavel pelo RH, criado a partir das perguntas padrao.";
+const MANUAL_EVALUATION_LIBRARY_DOC_SYNC_VERSION = "2026-08-12-evaluation-docs-v1";
+const DOCUMENTED_EVALUATION_TEMPLATE_KEYS = new Set([
+  "self",
+  "leader-self",
+  "manager",
+  "leader",
+  "cross-functional",
+  "peer-same-area"
+]);
 
 const cloneSeed = () => JSON.parse(JSON.stringify(seed));
 
@@ -1322,10 +1331,16 @@ function cloneTemplateForManualLibrary(template) {
 
 function syncManualEvaluationLibraryTemplates(manualLibrary) {
   manualLibrary.templates = Array.isArray(manualLibrary.templates) ? manualLibrary.templates : [];
+  const shouldApplyDocumentedSync =
+    manualLibrary.documentationSyncVersion !== MANUAL_EVALUATION_LIBRARY_DOC_SYNC_VERSION;
 
   for (const baseTemplate of Object.values(evaluationLibrary.templates)) {
     const existingTemplate = findTemplateInPublishedLibrary(manualLibrary, baseTemplate.key);
     if (existingTemplate) {
+      if (shouldApplyDocumentedSync && DOCUMENTED_EVALUATION_TEMPLATE_KEYS.has(baseTemplate.key)) {
+        Object.assign(existingTemplate, cloneTemplateForManualLibrary(baseTemplate));
+        continue;
+      }
       existingTemplate.key = existingTemplate.key || baseTemplate.key;
       existingTemplate.relationshipType = existingTemplate.relationshipType || baseTemplate.key;
       existingTemplate.questions = Array.isArray(existingTemplate.questions)
@@ -1335,6 +1350,10 @@ function syncManualEvaluationLibraryTemplates(manualLibrary) {
     }
 
     manualLibrary.templates.push(cloneTemplateForManualLibrary(baseTemplate));
+  }
+
+  if (shouldApplyDocumentedSync) {
+    manualLibrary.documentationSyncVersion = MANUAL_EVALUATION_LIBRARY_DOC_SYNC_VERSION;
   }
 
   return manualLibrary;
@@ -1717,6 +1736,9 @@ function getTemplateDefinitionForCycle({
 function resolveTemplateKey(relationshipType) {
   if (relationshipType === "self") {
     return "self";
+  }
+  if (relationshipType === "leader-self") {
+    return "leader-self";
   }
   if (relationshipType === "manager") {
     return "manager";
@@ -2851,6 +2873,13 @@ function validateEvaluationAnswers(answers, templateDefinition) {
     templateDefinition?.key === "peer-same-area" ||
     templateDefinition?.relationshipType === "peer-same-area";
 
+  for (const answer of answers) {
+    const question = templateDefinition.questions.find((item) => item.id === answer.questionId);
+    if (question?.inputType === "text" && String(answer.textValue || "").length > 200) {
+      throw new Error("Perguntas abertas aceitam no maximo 200 caracteres.");
+    }
+  }
+
   for (const question of templateDefinition.questions.filter((item) => item.isRequired)) {
     const answer = answers.find((item) => item.questionId === question.id);
     if (!answer) {
@@ -2929,6 +2958,9 @@ function isLeaderPerson({ people = [], users = [], areas = [] } = {}, personId) 
 }
 
 function resolveAssignmentScoringContextFromData({ people = [], users = [], areas = [] } = {}, assignment) {
+  if (assignment?.relationshipType === "leader-self") {
+    return "leader-self";
+  }
   if (assignment?.relationshipType !== "self") {
     return "";
   }
@@ -2992,7 +3024,7 @@ function upsertCrossFunctionalAssignment(assignments, {
   });
 }
 
-function generateAssignments({ users, people, cycleId, dueDate, crossFunctionalPlan = null }) {
+function generateAssignments({ users, people, areas = [], cycleId, dueDate, crossFunctionalPlan = null }) {
   const eligibleActors = getEligibleEvaluationActors(users, people);
   const resolvedCrossFunctionalPlan =
     crossFunctionalPlan ||
@@ -3047,14 +3079,21 @@ function generateAssignments({ users, people, cycleId, dueDate, crossFunctionalP
         ? internalCandidates[0] || null
         : consultantCandidates[0] || null;
 
+    const selfRelationshipType = isLeaderPerson({ people, users, areas }, actor.person.id)
+      ? "leader-self"
+      : "self";
+
     pushAssignment(assignments, {
       id: createId("assignment"),
       cycleId,
       reviewerUserId: actor.id,
       revieweePersonId: actor.person.id,
-      relationshipType: "self",
+      relationshipType: selfRelationshipType,
       projectContext: "Reflexao individual",
-      collaborationContext: "Autoavaliacao semestral do colaborador.",
+      collaborationContext:
+        selfRelationshipType === "leader-self"
+          ? "Autoavaliacao semestral da lideranca."
+          : "Autoavaliacao semestral do colaborador.",
       status: "pending",
       dueDate
     });
@@ -3530,6 +3569,7 @@ const PERFORMANCE_360_WEIGHTS = {
   manager: 0.4,
   peer: 0.25,
   self: 0.2,
+  "leader-self": 0.2,
   "cross-functional": 0.15
 };
 
@@ -3537,6 +3577,7 @@ const PERFORMANCE_360_LABELS = {
   manager: "Feedback do lider",
   peer: "Feedback direto",
   self: "Autoavaliacao",
+  "leader-self": "Autoavaliacao do lider",
   "cross-functional": "Feedback transversal"
 };
 
@@ -4567,9 +4608,9 @@ function buildDashboardPayload({
 function filterIndividualResponses(responses, actorUser) {
   const actorPersonId = actorUser?.person?.id || actorUser?.personId || null;
   const visibleTypes = isOrgWideUser(actorUser)
-    ? ["peer", "peer-same-area", "manager", "cross-functional", "self"]
+    ? ["peer", "peer-same-area", "manager", "cross-functional", "self", "leader-self"]
     : isManagerUser(actorUser)
-      ? ["peer", "peer-same-area", "manager", "cross-functional", "self"]
+      ? ["peer", "peer-same-area", "manager", "cross-functional", "self", "leader-self"]
       : ["peer", "peer-same-area", "manager", "cross-functional"];
 
   return responses.filter((response) => {
@@ -4720,7 +4761,7 @@ function createAnonymousSubmissionPayload(assignment, payload, templateDefinitio
         questionId: answer.questionId,
         score: Number.isFinite(Number(answer.score)) ? Number(answer.score) : null,
         evidenceNote: answer.evidenceNote || "",
-        textValue: answer.textValue || "",
+        textValue: String(answer.textValue || "").slice(0, 200),
         selectedOptions: Array.isArray(answer.selectedOptions) ? answer.selectedOptions : [],
         answerType: question?.inputType || "scale",
         questionPrompt: question?.prompt || "",
@@ -6115,6 +6156,7 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
       const generatedAssignments = generateAssignments({
         users: db.users,
         people: db.people,
+        areas: db.areas,
         cycleId: cycle.id,
         dueDate: cycle.dueDate,
         crossFunctionalPlan
@@ -7215,6 +7257,7 @@ function buildMysqlStore(
       });
       const users = await fetchUserRows(pool);
       const people = await fetchPeopleRows(pool);
+      const areas = await fetchAreaRows(pool);
       const existingPairings = supportsPairings
         ? await pool
             .query(
@@ -7234,6 +7277,7 @@ function buildMysqlStore(
       const generatedAssignments = generateAssignments({
         users,
         people,
+        areas,
         cycleId: cycle.id,
         dueDate: cycle.dueDate,
         crossFunctionalPlan

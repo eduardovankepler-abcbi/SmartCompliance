@@ -619,23 +619,23 @@ export async function runEvaluationsRegression() {
       "Avaliacao por colaborador do mesmo setor deve ter exatamente 7 perguntas"
     );
     assert.deepEqual(
-      sameAreaPeerTemplateFallback.questions[0].options.map((option) => option.value),
-      ["A", "B", "C", "D", "E"],
-      "Avaliacao por colaborador do mesmo setor deve usar alternativas A-E"
+      sameAreaPeerTemplateFallback.questions.map((question) => question.inputType),
+      Array(7).fill("scale"),
+      "Avaliacao por colaborador do mesmo setor deve usar escala conforme documentacao"
     );
 
     const managedQuestionnaire = await store.createEvaluationQuestionnaire(
       {
         cycleId: createdCycle.id,
         revieweePersonId: managerRevieweeEmployee.personId,
-        relationshipType: "self",
-        title: "Autoavaliacao individual do colaborador 2",
-        description: "Questionario individual com conteudo sensivel para subordinado direto."
+        relationshipType: "leader-self",
+        title: "Autoavaliacao do lider tecnico",
+        description: "Questionario individual de lideranca com conteudo sensivel para subordinado direto."
       },
       hr
     );
 
-    await buildQuestionnaireQuestions(managedQuestionnaire.id, 20, hr);
+    await buildQuestionnaireQuestions(managedQuestionnaire.id, 16, hr);
     await store.updateEvaluationQuestionnaire(
       managedQuestionnaire.id,
       {
@@ -657,16 +657,16 @@ export async function runEvaluationsRegression() {
     const managedAssignments = await store.getEvaluationAssignmentsForUser(managerRevieweeEmployee.id);
     const managedSelfAssignment = managedAssignments.find(
       (assignment) =>
-        assignment.relationshipType === "self" && assignment.cycleId === createdCycle.id
+        assignment.relationshipType === "leader-self" && assignment.cycleId === createdCycle.id
     );
     assert.ok(
       managedSelfAssignment,
-      "Subordinado do gestor precisa receber assignment self no ciclo criado"
+      "Subordinado lider precisa receber assignment leader-self no ciclo criado"
     );
     assert.equal(
       managedSelfAssignment.questionnaireId,
       managedQuestionnaire.id,
-      "Questionario publicado deve vincular o assignment self do subordinado"
+      "Questionario publicado deve vincular o assignment leader-self do subordinado"
     );
 
     const managedTemplate = await store.getEvaluationTemplateForAssignment(
@@ -735,10 +735,10 @@ export async function runEvaluationsRegression() {
       reviewerUserId: manager.id,
       answers: sameAreaPeerAssignmentTemplate.questions.map((question) => ({
         questionId: question.id,
-        score: null,
+        score: 5,
         evidenceNote: "",
         textValue: "",
-        selectedOptions: ["E"]
+        selectedOptions: []
       })),
       strengthsNote: "Muito acima do esperado no mesmo setor.",
       developmentNote: ""
@@ -758,38 +758,32 @@ export async function runEvaluationsRegression() {
       1.5,
       "Pontuacao exibida nao deve multiplicar novamente o teto de 1,5"
     );
-    const sameAreaPeerShuffledScore = prepareEvaluationSubmission({
+    const sameAreaPeerMinimumScore = prepareEvaluationSubmission({
       assignment: {
-        id: "assignment_shuffled_same_area",
+        id: "assignment_minimum_same_area",
         cycleId: createdCycle.id,
         relationshipType: "peer-same-area",
         revieweePersonId: managerRevieweeEmployee.personId
       },
       templateDefinition: {
         key: "peer-same-area",
-        questions: sameAreaPeerAssignmentTemplate.questions.map((question) => ({
-          ...question,
-          options: [
-            { value: "A", label: "Muito acima do esperado" },
-            { value: "B", label: "Muito abaixo do esperado" }
-          ]
-        }))
+        questions: sameAreaPeerAssignmentTemplate.questions
       },
       payload: {
         reviewerUserId: manager.id,
         answers: sameAreaPeerAssignmentTemplate.questions.map((question) => ({
           questionId: question.id,
-          selectedOptions: ["A"]
+          score: 1
         }))
       },
-      createId: (prefix) => `${prefix}_shuffled`,
+      createId: (prefix) => `${prefix}_minimum`,
       getAnsweredScaleScores: () => [],
       average: () => 0
     });
     assert.equal(
-      sameAreaPeerShuffledScore.overallScore,
-      1.5001,
-      "Pontuacao do mesmo setor deve seguir o conceito da resposta, nao a letra da alternativa"
+      sameAreaPeerMinimumScore.overallScore,
+      0,
+      "Sete respostas muito abaixo do esperado devem somar zero no mesmo setor"
     );
 
     const individualizedSubmission = await store.submitEvaluationAssignment({

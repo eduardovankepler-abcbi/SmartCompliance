@@ -28,7 +28,7 @@ interface AnswerDraft {
 
 type EvaluationTab = 'assignments' | 'cycles' | 'feedback' | 'operations' | 'questionnaires' | 'library';
 
-const evaluationModules = ['company', 'leader', 'manager', 'peer', 'peer-same-area', 'cross-functional', 'client-internal', 'client-external', 'self'] as const;
+const evaluationModules = ['company', 'leader', 'manager', 'peer', 'peer-same-area', 'cross-functional', 'client-internal', 'client-external', 'self', 'leader-self'] as const;
 type EvaluationModule = (typeof evaluationModules)[number];
 const moduleAliases: Record<string, EvaluationModule> = {
   empresa: 'company',
@@ -40,6 +40,7 @@ const moduleAliases: Record<string, EvaluationModule> = {
   'cliente-interno': 'client-internal',
   'cliente-externo': 'client-external',
   autoavaliacao: 'self',
+  'autoavaliacao-lider': 'leader-self',
 };
 const workspaceToTab: Record<string, EvaluationTab> = {
   respond: 'assignments',
@@ -102,7 +103,7 @@ const tabToWorkspace: Record<EvaluationTab, string> = {
           <section class="response" aria-labelledby="response-title"><div class="response__heading"><div><p>{{ relationshipLabel(selectedDetail()!.assignment.relationshipType) }}</p><h2 id="response-title">{{ selectedDetail()!.template.title }}</h2><span>{{ selectedDetail()!.assignment.revieweeName }} · {{ selectedDetail()!.assignment.cycleTitle }}</span></div><button class="secondary" type="button" (click)="closeAssignment()">Voltar</button></div><p class="description">{{ selectedDetail()!.template.description }}</p>
             @for (question of selectedDetail()!.template.questions; track question.id) {
               <article class="question"><div class="question__heading"><div><small>{{ question.sectionTitle || question.dimensionTitle }}</small><h3>{{ question.dimensionTitle }}</h3></div>@if (question.isRequired) { <span class="required">Obrigatoria</span> }</div><p>{{ question.prompt }}</p>@if (question.helperText) { <small>{{ question.helperText }}</small> }
-                @if (question.inputType === 'text') { <label>Resposta<textarea rows="4" [ngModel]="answer(question.id).textValue" (ngModelChange)="setText(question.id, $event)" [ngModelOptions]="{standalone:true}"></textarea></label> }
+                @if (question.inputType === 'text') { <label>Resposta<textarea rows="4" maxlength="200" [ngModel]="answer(question.id).textValue" (ngModelChange)="setText(question.id, $event)" [ngModelOptions]="{standalone:true}"></textarea><small>{{ answer(question.id).textValue.length }}/200 caracteres</small></label> }
                 @else if (question.inputType === 'multi-select') { <fieldset><legend>{{ selectedDetail()!.template.key === 'peer-same-area' ? 'Selecione uma opcao' : 'Selecione uma ou mais opcoes' }}</legend>@for (option of question.options || []; track option.value) { <label class="check"><input type="checkbox" [checked]="answer(question.id).selectedOptions.includes(option.value)" (change)="toggleOption(question, option.value)" /> <span>{{ option.label }}</span></label> }</fieldset> }
                 @else { <label>Resposta<select [ngModel]="answer(question.id).score" (ngModelChange)="setScore(question.id, $event)" [ngModelOptions]="{standalone:true}">@for (option of scaleOptions(); track option.value) { <option [ngValue]="option.value">{{ option.label }}</option> }</select></label>@if (question.collectEvidenceOnExtreme) { <label>Evidencia para nota extrema<textarea rows="3" [ngModel]="answer(question.id).evidenceNote" (ngModelChange)="setEvidence(question.id, $event)" [ngModelOptions]="{standalone:true}"></textarea></label> } }
               </article>
@@ -157,7 +158,7 @@ export class EvaluationsPageComponent implements OnInit {
   }
   scaleOptions() { return this.selectedDetail()?.template.scale?.length ? this.selectedDetail()!.template.scale! : [1,2,3,4,5].map((value) => ({ value, label:String(value) })); }
   answer(questionId: string): AnswerDraft { return this.answers()[questionId] || { score:3, evidenceNote:'', textValue:'', selectedOptions:[] }; }
-  relationshipLabel(value: string): string { return ({ self:'Autoavaliacao', manager:'Gestor', peer:'Par', 'peer-same-area':'Colega da mesma area', leader:'Lideranca', company:'Empresa', 'cross-functional':'Transversal', 'client-internal':'Cliente interno', 'client-external':'Cliente externo' } as Record<string,string>)[value] || value; }
+  relationshipLabel(value: string): string { return ({ self:'Autoavaliacao', 'leader-self':'Autoavaliacao do lider', manager:'Gestor', peer:'Par', 'peer-same-area':'Colega da mesma area', leader:'Lideranca', company:'Empresa', 'cross-functional':'Transversal', 'client-internal':'Cliente interno', 'client-external':'Cliente externo' } as Record<string,string>)[value] || value; }
   goToTab(tab: EvaluationTab): Promise<boolean> { return this.router.navigate(['/app/evaluations', this.activeModule(), tabToWorkspace[tab]]); }
   goToModule(module: EvaluationModule): Promise<boolean> { return this.router.navigate(['/app/evaluations', module, tabToWorkspace[this.activeTab()]]); }
   assignmentCountByModule(module: EvaluationModule): number { return this.assignments().filter((item) => item.relationshipType === module).length; }
@@ -172,7 +173,7 @@ export class EvaluationsPageComponent implements OnInit {
     catch (error) { this.setError(error, 'Falha ao abrir a avaliacao.'); }
   }
   closeAssignment(): void { this.selectedDetail.set(null); this.answers.set({}); if (this.activeTab() === 'assignments' && this.route.snapshot.paramMap.get('detail')) void this.router.navigate(['/app/evaluations', this.activeModule(), 'respond']); }
-  setText(id:string, value:string):void { this.patchAnswer(id,{textValue:value}); }
+  setText(id:string, value:string):void { this.patchAnswer(id,{textValue:String(value || '').slice(0, 200)}); }
   setScore(id:string, value:number):void { this.patchAnswer(id,{score:Number(value)}); }
   setEvidence(id:string, value:string):void { this.patchAnswer(id,{evidenceNote:value}); }
   toggleOption(question: EvaluationQuestion, value: string): void { const current = new Set(this.answer(question.id).selectedOptions); if (this.selectedDetail()?.template.key === 'peer-same-area') current.clear(); else if (current.has(value)) { current.delete(value); this.patchAnswer(question.id,{selectedOptions:[...current]}); return; } current.add(value); this.patchAnswer(question.id,{selectedOptions:[...current]}); }
@@ -239,6 +240,6 @@ export class EvaluationsPageComponent implements OnInit {
     await this.openAssignment(assignment);
   }
   private patchAnswer(id:string, patch:Partial<AnswerDraft>):void { this.answers.update((current)=>({...current,[id]:{...this.answer(id),...patch}})); }
-  private validate(detail:EvaluationAssignmentDetail):string { for(const question of detail.template.questions){if(!question.isRequired)continue;const value=this.answer(question.id);if(question.inputType==='text'&&!value.textValue.trim())return `Responda a pergunta obrigatoria: ${question.dimensionTitle || question.prompt}.`;if(question.inputType==='multi-select'&&!value.selectedOptions.length)return `Selecione pelo menos uma opcao em: ${question.dimensionTitle || question.prompt}.`;if(question.inputType==='multi-select'&&detail.template.key==='peer-same-area'&&value.selectedOptions.length!==1)return `Selecione apenas uma opcao em: ${question.dimensionTitle || question.prompt}.`;if(question.inputType==='scale'&&(!Number.isInteger(value.score)||Number(value.score)<1||Number(value.score)>5))return `Escolha uma nota valida em: ${question.dimensionTitle || question.prompt}.`;if(question.inputType==='scale'&&question.collectEvidenceOnExtreme&&(value.score===1||value.score===5)&&!value.evidenceNote.trim())return `Notas extremas exigem evidencia em: ${question.dimensionTitle || question.prompt}.`;}return ''; }
+  private validate(detail:EvaluationAssignmentDetail):string { for(const question of detail.template.questions){const value=this.answer(question.id);if(question.inputType==='text'&&value.textValue.length>200)return `A resposta aberta deve ter no maximo 200 caracteres: ${question.dimensionTitle || question.prompt}.`;if(!question.isRequired)continue;if(question.inputType==='text'&&!value.textValue.trim())return `Responda a pergunta obrigatoria: ${question.dimensionTitle || question.prompt}.`;if(question.inputType==='multi-select'&&!value.selectedOptions.length)return `Selecione pelo menos uma opcao em: ${question.dimensionTitle || question.prompt}.`;if(question.inputType==='multi-select'&&detail.template.key==='peer-same-area'&&value.selectedOptions.length!==1)return `Selecione apenas uma opcao em: ${question.dimensionTitle || question.prompt}.`;if(question.inputType==='scale'&&(!Number.isInteger(value.score)||Number(value.score)<1||Number(value.score)>5))return `Escolha uma nota valida em: ${question.dimensionTitle || question.prompt}.`;if(question.inputType==='scale'&&question.collectEvidenceOnExtreme&&(value.score===1||value.score===5)&&!value.evidenceNote.trim())return `Notas extremas exigem evidencia em: ${question.dimensionTitle || question.prompt}.`;}return ''; }
   private setError(error:unknown,fallback:string):void { this.errorMessage.set(error instanceof ApiError?error.message:fallback); }
 }

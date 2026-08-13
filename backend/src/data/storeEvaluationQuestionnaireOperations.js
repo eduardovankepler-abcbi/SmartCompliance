@@ -8,6 +8,7 @@ const QUESTIONNAIRE_STATUS = Object.freeze({
 
 const SUPPORTED_QUESTIONNAIRE_TYPES = new Set([
   "self",
+  "leader-self",
   "manager",
   "leader",
   "peer-same-area",

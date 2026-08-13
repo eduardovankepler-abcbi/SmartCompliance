@@ -138,6 +138,11 @@ export interface EvaluationTemplate {
   policy?: {
     showStrengthsNote?: boolean;
     showDevelopmentNote?: boolean;
+    questionRule?: {
+      minQuestionCount?: number;
+      recommendedQuestionCount?: number;
+      strictQuestionCount?: boolean;
+    };
   };
 }
 
@@ -196,7 +201,7 @@ export interface EvaluationQuestionnaire {
   id: string;
   cycleId: string;
   revieweePersonId: string;
-  relationshipType: 'manager' | 'self' | 'leader' | 'peer-same-area' | 'cross-functional';
+  relationshipType: 'manager' | 'self' | 'leader-self' | 'leader' | 'peer-same-area' | 'cross-functional';
   sourceLibraryId: string | null;
   title: string;
   description: string;

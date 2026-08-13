@@ -140,10 +140,89 @@ function createMultiSelectQuestion({
   };
 }
 
+const leaderSelfScaleQuestions = [
+  {
+    dimensionKey: "support",
+    dimensionTitle: "Disponibilidade para apoio",
+    prompt: "Estou disponivel para orientar e apoiar minha equipe quando necessario."
+  },
+  {
+    dimensionKey: "communication",
+    dimensionTitle: "Clareza de alinhamentos",
+    prompt: "Transmito informacoes, prioridades e alinhamentos de forma clara para a equipe."
+  },
+  {
+    dimensionKey: "listening",
+    dimensionTitle: "Abertura para ouvir",
+    prompt: "Demonstro abertura para ouvir duvidas, opinioes e sugestoes dos colaboradores."
+  },
+  {
+    dimensionKey: "communication",
+    dimensionTitle: "Comunicacao respeitosa",
+    prompt: "Mantenho uma comunicacao respeitosa e profissional no dia a dia."
+  },
+  {
+    dimensionKey: "recognition",
+    dimensionTitle: "Reconhecimento da equipe",
+    prompt: "Reconheco as entregas, os esforcos e as contribuicoes dos colaboradores da minha equipe."
+  },
+  {
+    dimensionKey: "direction",
+    dimensionTitle: "Direcionamento na execucao",
+    prompt: "Quando necessario, forneco direcionamento para apoiar a execucao das atividades da equipe."
+  },
+  {
+    dimensionKey: "follow-up",
+    dimensionTitle: "Acompanhamento da equipe",
+    prompt: "Acompanho as atividades da equipe e considero as contribuicoes individuais dos colaboradores."
+  },
+  {
+    dimensionKey: "feedback",
+    dimensionTitle: "Feedback em tempo habil",
+    prompt: "Forneco orientacoes, correcoes e feedbacks em tempo habil para apoiar o desenvolvimento da equipe."
+  },
+  {
+    dimensionKey: "organization",
+    dimensionTitle: "Organizacao e alinhamento",
+    prompt: "Contribuo para que a equipe trabalhe de forma organizada e alinhada."
+  },
+  {
+    dimensionKey: "environment",
+    dimensionTitle: "Convivencia e colaboracao",
+    prompt: "Promovo interacoes profissionais pautadas no respeito, na colaboracao e na boa convivencia entre a equipe."
+  },
+  {
+    dimensionKey: "decision",
+    dimensionTitle: "Decisoes coerentes",
+    prompt: "Tomo decisoes de forma coerente e alinhada as necessidades da equipe e da empresa."
+  },
+  {
+    dimensionKey: "balance",
+    dimensionTitle: "Equilibrio em desafios",
+    prompt: "Mantenho equilibrio ao lidar com desafios, mudancas e situacoes inesperadas."
+  },
+  {
+    dimensionKey: "accessibility",
+    dimensionTitle: "Acessibilidade presencial/remota",
+    prompt: "Estou acessivel para apoiar a equipe, tanto presencialmente quanto em home office, quando aplicavel."
+  },
+  {
+    dimensionKey: "development",
+    dimensionTitle: "Desenvolvimento da equipe",
+    prompt: "Crio oportunidades para que os colaboradores desenvolvam novos conhecimentos e habilidades profissionais."
+  },
+  {
+    dimensionKey: "trust",
+    dimensionTitle: "Confianca da equipe",
+    prompt: "De forma geral, acredito que minha equipe pode contar comigo quando necessario."
+  }
+];
+
 export const evaluationLibrary = {
   scale: satisfactionScale,
   weights: {
     self: 1,
+    "leader-self": 1,
     peer: 0.15,
     "peer-same-area": 1,
     manager: 1,
@@ -256,110 +335,110 @@ export const evaluationLibrary = {
       policy: {
         strategy: "standard-library",
         managerCustomQuestionsLimit: 0,
-        scale: sameAreaPeerOptions,
+        scale: performanceScale,
         confidentiality: "mixed",
         showStrengthsNote: true,
         showDevelopmentNote: true,
         maxScore: 1.5
       },
       questions: [
-        createMultiSelectQuestion({
+        createScaleQuestion({
           id: "q_peer_same_area_01",
           sectionKey: "same_area_peer",
           sectionTitle: "Avaliacao do mesmo setor",
           sectionDescription:
             "Avalie a contribuicao observada no dia a dia por alguem do mesmo setor.",
-          dimensionKey: "role_clarity",
-          dimensionTitle: "Conhecimento da funcao",
+          dimensionKey: "professional_relationship",
+          dimensionTitle: "Relacionamento profissional",
           prompt:
-            "Voce sabe quais sao as principais atividades e responsabilidades do colaborador avaliado?",
+            "Como voce avalia o relacionamento profissional do colaborador com os demais membros da equipe?",
           sortOrder: 1,
           visibility: "shared",
-          options: sameAreaPeerOptions
+          scaleProfile: "performance"
         }),
-        createMultiSelectQuestion({
+        createScaleQuestion({
           id: "q_peer_same_area_02",
           sectionKey: "same_area_peer",
           sectionTitle: "Avaliacao do mesmo setor",
           sectionDescription:
             "Avalie a contribuicao observada no dia a dia por alguem do mesmo setor.",
-          dimensionKey: "delivery",
-          dimensionTitle: "Entrega",
+          dimensionKey: "remote_availability",
+          dimensionTitle: "Disponibilidade em home office",
           prompt:
-            "O colaborador avaliado entrega suas atividades com qualidade e dentro do esperado para a funcao?",
+            "Como voce avalia a disponibilidade do colaborador para interagir, responder demandas e prestar suporte a equipe quando em home office?",
           sortOrder: 2,
           visibility: "shared",
-          options: sameAreaPeerOptions
+          scaleProfile: "performance"
         }),
-        createMultiSelectQuestion({
+        createScaleQuestion({
           id: "q_peer_same_area_03",
           sectionKey: "same_area_peer",
           sectionTitle: "Avaliacao do mesmo setor",
           sectionDescription:
             "Avalie a contribuicao observada no dia a dia por alguem do mesmo setor.",
-          dimensionKey: "collaboration",
-          dimensionTitle: "Colaboracao",
+          dimensionKey: "support_and_knowledge",
+          dimensionTitle: "Ajuda e compartilhamento",
           prompt:
-            "O colaborador avaliado colabora com colegas do setor de forma produtiva e respeitosa?",
+            "Como voce avalia a disponibilidade do colaborador para ajudar colegas e compartilhar conhecimento?",
           sortOrder: 3,
           visibility: "shared",
-          options: sameAreaPeerOptions
+          scaleProfile: "performance"
         }),
-        createMultiSelectQuestion({
+        createScaleQuestion({
           id: "q_peer_same_area_04",
           sectionKey: "same_area_peer",
           sectionTitle: "Avaliacao do mesmo setor",
           sectionDescription:
             "Avalie a contribuicao observada no dia a dia por alguem do mesmo setor.",
-          dimensionKey: "communication",
-          dimensionTitle: "Comunicacao",
+          dimensionKey: "delivery_quality",
+          dimensionTitle: "Qualidade das entregas",
           prompt:
-            "O colaborador avaliado comunica prioridades, pendencias e riscos com clareza para o setor?",
+            "Como voce avalia a qualidade geral das entregas do colaborador com base no que voce acompanha?",
           sortOrder: 4,
           visibility: "shared",
-          options: sameAreaPeerOptions
+          scaleProfile: "performance"
         }),
-        createMultiSelectQuestion({
+        createScaleQuestion({
           id: "q_peer_same_area_05",
           sectionKey: "same_area_peer",
           sectionTitle: "Avaliacao do mesmo setor",
           sectionDescription:
             "Avalie a contribuicao observada no dia a dia por alguem do mesmo setor.",
-          dimensionKey: "accountability",
+          dimensionKey: "responsibility",
           dimensionTitle: "Responsabilidade",
           prompt:
-            "O colaborador avaliado assume combinados, acompanha demandas e responde por suas entregas?",
+            "Como voce avalia a responsabilidade do colaborador no cumprimento de suas atividades e compromissos profissionais?",
           sortOrder: 5,
           visibility: "shared",
-          options: sameAreaPeerOptions
+          scaleProfile: "performance"
         }),
-        createMultiSelectQuestion({
+        createScaleQuestion({
           id: "q_peer_same_area_06",
           sectionKey: "same_area_peer",
           sectionTitle: "Avaliacao do mesmo setor",
           sectionDescription:
             "Avalie a contribuicao observada no dia a dia por alguem do mesmo setor.",
-          dimensionKey: "technical_domain",
-          dimensionTitle: "Dominio tecnico",
+          dimensionKey: "feedback_application",
+          dimensionTitle: "Aplicacao de feedbacks",
           prompt:
-            "O colaborador avaliado demonstra dominio tecnico adequado para apoiar as rotinas do setor?",
+            "Como voce avalia a capacidade do colaborador de considerar feedbacks e aplica-los em suas atividades quando necessario?",
           sortOrder: 6,
           visibility: "shared",
-          options: sameAreaPeerOptions
+          scaleProfile: "performance"
         }),
-        createMultiSelectQuestion({
+        createScaleQuestion({
           id: "q_peer_same_area_07",
           sectionKey: "same_area_peer",
           sectionTitle: "Avaliacao do mesmo setor",
           sectionDescription:
             "Avalie a contribuicao observada no dia a dia por alguem do mesmo setor.",
-          dimensionKey: "team_impact",
-          dimensionTitle: "Impacto no setor",
+          dimensionKey: "team_contribution",
+          dimensionTitle: "Participacao na equipe",
           prompt:
-            "O colaborador avaliado contribui positivamente para o desempenho e o clima do setor?",
+            "Como voce avalia a participacao e contribuicao do colaborador nos alinhamentos e discussoes da equipe?",
           sortOrder: 7,
           visibility: "shared",
-          options: sameAreaPeerOptions
+          scaleProfile: "performance"
         })
       ]
     },
@@ -444,7 +523,7 @@ export const evaluationLibrary = {
           dimensionKey: "knowledge",
           dimensionTitle: "Dominio tecnico",
           prompt:
-            "5) Tenho dominio adequado dos conhecimentos tecnicos necessarios para meu trabalho.",
+            "5) Possuo os conhecimentos necessarios para desempenhar minhas atividades com seguranca e qualidade.",
           helperText:
             "Reflita sobre seu nivel de conhecimento tecnico para desempenhar suas funcoes com eficiencia.",
           sortOrder: 5,
@@ -473,7 +552,7 @@ export const evaluationLibrary = {
           dimensionKey: "development",
           dimensionTitle: "Aplicacao pratica",
           prompt:
-            "7) Consigo aplicar de forma pratica o que aprendi em treinamentos, cursos ou experiencias anteriores.",
+            "7) Consigo aplicar novos conhecimentos e aprendizados para melhorar meu desempenho profissional.",
           helperText:
             "Avalie se consegue utilizar os aprendizados adquiridos no dia a dia.",
           sortOrder: 7,
@@ -502,7 +581,8 @@ export const evaluationLibrary = {
             "Reflita sobre sua contribuicao a equipe, compartilhamento de conhecimentos, comunicacao e resolucao de conflitos.",
           dimensionKey: "collaboration",
           dimensionTitle: "Colaboracao com a equipe",
-          prompt: "9) Colaboro de forma produtiva com meus colegas de equipe.",
+          prompt:
+            "9) Colaboro de forma produtiva com meus colegas de equipe. Considere se voce contribui positivamente para o trabalho coletivo.",
           helperText:
             "Considere se voce contribui positivamente para o trabalho coletivo.",
           sortOrder: 9,
@@ -600,9 +680,9 @@ export const evaluationLibrary = {
           sectionDescription:
             "Considere sua iniciativa, interesse em assumir novas responsabilidades, oportunidades de desenvolvimento e autonomia no trabalho.",
           dimensionKey: "growth",
-          dimensionTitle: "Perseveranca diante de desafios",
+          dimensionTitle: "Postura diante de mudancas",
           prompt:
-            "16) Me esforco para superar desafios e atingir metas mesmo diante de dificuldades.",
+            "16) Mantenho uma postura positiva e produtiva diante de mudancas, desafios e situacoes inesperadas.",
           helperText:
             "Avalie se voce persevera para alcancar resultados, mesmo com obstaculos.",
           sortOrder: 16,
@@ -615,9 +695,9 @@ export const evaluationLibrary = {
           sectionDescription:
             "Considere sua iniciativa, interesse em assumir novas responsabilidades, oportunidades de desenvolvimento e autonomia no trabalho.",
           dimensionKey: "growth",
-          dimensionTitle: "Novos desafios",
+          dimensionTitle: "Disposicao para aprender",
           prompt:
-            "17) Tenho interesse em assumir novas responsabilidades e desafios profissionais.",
+            "17) Demonstro disposicao para aprender novas atividades e ampliar minha contribuicao para a equipe.",
           helperText:
             "Reflita sobre sua disposicao para assumir tarefas maiores ou mais complexas.",
           sortOrder: 17,
@@ -631,7 +711,7 @@ export const evaluationLibrary = {
             "Considere sua iniciativa, interesse em assumir novas responsabilidades, oportunidades de desenvolvimento e autonomia no trabalho.",
           dimensionKey: "growth",
           dimensionTitle: "Busca de crescimento",
-          prompt: "18) Busco oportunidades de crescimento e desenvolvimento dentro da empresa.",
+          prompt: "18) Procuro identificar oportunidades para aprimorar meu desempenho e evolucao profissional.",
           helperText: "Considere se voce procura se desenvolver e evoluir na carreira.",
           sortOrder: 18,
           visibility: "private"
@@ -677,6 +757,60 @@ export const evaluationLibrary = {
           prompt:
             "Escreva aqui suas sugestoes, ideias de melhoria, observacoes sobre processos, comunicacao, recursos, desenvolvimento da equipe, lideranca ou qualquer outro ponto relevante para aprimorar seu trabalho, sua equipe ou a empresa.",
           sortOrder: 21,
+          visibility: "private"
+        })
+      ]
+    },
+    "leader-self": {
+      id: "t_leader_self",
+      key: "leader-self",
+      modelName: "Autoavaliacao do lider",
+      description:
+        "Questionario padrao para autoavaliacao de lideranca, separado da autoavaliacao profissional comum.",
+      policy: {
+        strategy: "standard-library",
+        managerCustomQuestionsLimit: 0,
+        scale: performanceScale,
+        confidentiality: "private-to-leader-and-hr",
+        showStrengthsNote: false,
+        showDevelopmentNote: false,
+        maxScore: 1.5,
+        questionRule: {
+          minQuestionCount: 1,
+          recommendedQuestionCount: 16,
+          strictQuestionCount: false
+        }
+      },
+      questions: [
+        ...leaderSelfScaleQuestions.map((question, index) =>
+          createScaleQuestion({
+            id: `q_leader_self_${String(index + 1).padStart(2, "0")}`,
+            sectionKey: index < 8 ? "leadership_support" : "leadership_environment",
+            sectionTitle:
+              index < 8 ? "Apoio, Comunicacao e Feedback" : "Ambiente, Decisao e Desenvolvimento",
+            sectionDescription:
+              index < 8
+                ? "Reflita sobre sua disponibilidade, comunicacao, escuta, reconhecimento e feedbacks."
+                : "Reflita sobre organizacao, convivencia, tomada de decisao, acessibilidade e desenvolvimento da equipe.",
+            dimensionKey: question.dimensionKey,
+            dimensionTitle: question.dimensionTitle,
+            prompt: `${index + 1}) ${question.prompt}`,
+            sortOrder: index + 1,
+            visibility: "private",
+            scaleProfile: "performance"
+          })
+        ),
+        createTextQuestion({
+          id: "q_leader_self_16",
+          sectionKey: "final",
+          sectionTitle: "Consideracoes Finais",
+          sectionDescription:
+            "Espaco para registrar percepcoes, pontos fortes, oportunidades de melhoria e acoes de desenvolvimento.",
+          dimensionKey: "final-comments",
+          dimensionTitle: "Plano de melhoria da lideranca",
+          prompt:
+            "Registre aqui suas percepcoes, pontos fortes, oportunidades de melhoria e acoes que pretende desenvolver para aprimorar sua atuacao como lider e o desempenho da equipe.",
+          sortOrder: 16,
           visibility: "private"
         })
       ]
