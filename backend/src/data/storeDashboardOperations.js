@@ -70,6 +70,9 @@ export function createMemoryDashboardStore({
         const teamPeople = getTeamPeople(db.people, actorUser.person.id);
         const scopedPeople = [actorUser.person, ...teamPeople];
         const visiblePersonIds = new Set(scopedPeople.map((item) => item.id));
+        const teamIncidents = (db.incidents || []).filter((item) =>
+          visiblePersonIds.has(item.assignedPersonId)
+        );
         const teamAssignments = db.assignments.filter((item) =>
           visiblePersonIds.has(item.revieweePersonId)
         );
@@ -97,7 +100,7 @@ export function createMemoryDashboardStore({
           developmentPlans: (db.developmentPlans || []).filter((item) =>
             visiblePersonIds.has(item.personId)
           ),
-          incidents: [],
+          incidents: teamIncidents,
           learningEvents: [],
           responses: teamResponses,
           timeGrouping,
@@ -284,6 +287,9 @@ export function createMysqlDashboardStore({
             person.id === actorUser.person.id || person.managerPersonId === actorUser.person.id
         );
         const visiblePersonIds = new Set(scopedPeople.map((item) => item.id));
+        const scopedIncidents = incidentRows.filter((item) =>
+          visiblePersonIds.has(item.assignedPersonId)
+        );
         const scopedAssignments = assignmentRows.filter((item) =>
           visiblePersonIds.has(item.revieweePersonId)
         );
@@ -305,7 +311,7 @@ export function createMysqlDashboardStore({
           developmentPlans: developmentPlanRows.filter((item) =>
             visiblePersonIds.has(item.personId)
           ),
-          incidents: [],
+          incidents: scopedIncidents,
           learningEvents: [],
           responses: responses.filter((item) => visiblePersonIds.has(item.revieweePersonId)),
           timeGrouping,

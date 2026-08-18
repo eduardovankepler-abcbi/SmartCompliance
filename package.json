@@ -12,6 +12,7 @@
     "dev:frontend": "npm --prefix frontend-angular run start",
     "dev:frontend:legacy": "npm --prefix frontend run dev",
     "start:backend": "npm --prefix backend run start",
+    "build": "npm --prefix frontend-angular run build",
     "build:frontend": "npm --prefix frontend-angular run build",
     "build:frontend:legacy": "npm --prefix frontend run build",
     "test:e2e": "npm --prefix frontend-angular run e2e",

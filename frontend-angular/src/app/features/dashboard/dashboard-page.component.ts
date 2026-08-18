@@ -32,31 +32,31 @@ const dashboardQuickActions: readonly DashboardQuickAction[] = [
   {
     sectionKey: 'evaluations',
     label: 'Avaliacoes',
-    detail: 'Abrir operacao de avaliacoes',
+    detail: 'Respostas e ciclos',
     path: ['/app', 'evaluations'],
   },
   {
+    sectionKey: 'development',
+    label: 'PDI',
+    detail: 'Planos e trilhas',
+    path: ['/app', 'development'],
+  },
+  {
     sectionKey: 'compliance',
-    label: 'Incidentes',
-    detail: 'Acompanhar fila ativa',
+    label: 'Compliance',
+    detail: 'Issues e inconformidades',
     path: ['/app', 'compliance'],
   },
   {
-    sectionKey: 'audit',
-    label: 'Auditoria',
-    detail: 'Consultar trilha operacional',
-    path: ['/app', 'audit'],
-  },
-  {
-    sectionKey: 'users',
-    label: 'Usuarios',
-    detail: 'Provisionar acesso',
-    path: ['/app', 'users'],
+    sectionKey: 'applause',
+    label: 'Aplause',
+    detail: 'Reconhecimentos recebidos',
+    path: ['/app', 'applause'],
   },
   {
     sectionKey: 'people',
     label: 'Pessoas',
-    detail: 'Atualizar estrutura',
+    detail: 'Estrutura de equipes',
     path: ['/app', 'people'],
   },
 ];
@@ -66,150 +66,150 @@ const dashboardQuickActions: readonly DashboardQuickAction[] = [
   imports: [RouterLink, DashboardBarChartComponent, DashboardDonutMetricComponent, DashboardLineChartComponent],
   template: `
     <section class="dashboard" aria-labelledby="dashboard-title">
-      <header class="dashboard__header">
-        <div>
-          <p class="dashboard__eyebrow">Workspace</p>
-          <h1 id="dashboard-title">Dashboard</h1>
-          <p>{{ overview()?.notice || 'Acompanhe os principais indicadores do seu escopo.' }}</p>
+      <header class="dashboard__hero">
+        <div class="dashboard__brand">
+          <span class="dashboard__brand-mark">SC</span>
+          <div>
+            <p>Smart Compliance</p>
+            <h1 id="dashboard-title">Gestao Executiva</h1>
+            <span>{{ overview()?.notice || 'Visao consolidada de pessoas, avaliacao, desenvolvimento e riscos.' }}</span>
+          </div>
         </div>
-        <button type="button" class="dashboard__refresh" (click)="loadOverview()" [disabled]="isLoading()">
-          {{ isLoading() ? 'Atualizando...' : 'Atualizar dados' }}
-        </button>
+        <div class="dashboard__hero-actions">
+          <div class="dashboard__stamp">
+            <span>Escopo</span>
+            <strong>{{ overview()?.scopeLabel || 'Carregando' }}</strong>
+          </div>
+          <button type="button" class="dashboard__refresh" (click)="loadOverview()" [disabled]="isLoading()">
+            {{ isLoading() ? 'Atualizando...' : 'Atualizar' }}
+          </button>
+        </div>
       </header>
 
-      <section class="dashboard__filters" aria-label="Filtros do dashboard">
-        @if (canFilterByArea()) {
+      @if (overview(); as currentOverview) {
+        <nav class="dashboard__nav" aria-label="Navegacao do dashboard">
+          <strong>Navegacao</strong>
+          <a href="#avaliacoes">Avaliacoes</a>
+          <a href="#pdi">PDI</a>
+          <a href="#compliance">Compliance</a>
+          <a href="#applause">Aplause</a>
+          <a href="#governanca">Governanca</a>
+        </nav>
+
+        <section class="dashboard__filters" aria-label="Filtros do dashboard">
+          @if (canFilterByArea()) {
+            <label>
+              Area
+              <select [value]="areaFilter()" (change)="changeArea($any($event.target).value)">
+                <option value="all">Todas as areas</option>
+                @for (area of currentOverview.areaOptions; track area) {
+                  <option [value]="area">{{ area }}</option>
+                }
+              </select>
+            </label>
+          }
           <label>
-            Area
-            <select [value]="areaFilter()" (change)="changeArea($any($event.target).value)">
-              <option value="all">Todas as areas</option>
-              @for (area of overview()?.areaOptions ?? []; track area) {
-                <option [value]="area">{{ area }}</option>
+            Consolidar por
+            <select [value]="timeGrouping()" (change)="changeTimeGrouping($any($event.target).value)">
+              @for (option of timeGroupingOptions; track option.value) {
+                <option [value]="option.value">{{ option.label }}</option>
               }
             </select>
           </label>
+          <div class="dashboard__filter-note">
+            <span>Modelo de governanca</span>
+            <strong>{{ governanceLabel(currentOverview) }}</strong>
+          </div>
+        </section>
+
+        @if (errorMessage()) {
+          <div class="dashboard__error" role="alert">
+            <p>{{ errorMessage() }}</p>
+            <button type="button" class="dashboard__secondary" (click)="loadOverview()">Tentar novamente</button>
+          </div>
         }
-        <label>
-          Consolidar por
-          <select [value]="timeGrouping()" (change)="changeTimeGrouping($any($event.target).value)">
-            @for (option of timeGroupingOptions; track option.value) {
-              <option [value]="option.value">{{ option.label }}</option>
-            }
-          </select>
-        </label>
-      </section>
 
-      @if (errorMessage()) {
-        <div class="dashboard__error" role="alert">
-          <p>{{ errorMessage() }}</p>
-          <button type="button" class="dashboard__secondary" (click)="loadOverview()">Tentar novamente</button>
-        </div>
-      }
-
-      @if (isLoading() && !overview()) {
-        <p class="dashboard__state">Carregando indicadores...</p>
-      } @else if (overview(); as currentOverview) {
-        <section class="dashboard__command" aria-label="Resumo estrategico do dashboard">
-          <div class="dashboard__command-heading">
-            <div>
-              <span>Painel do administrador</span>
-              <h2>Resumo estrategico da operacao</h2>
-              <p>Leitura consolidada para RH, compliance e lideranca.</p>
-            </div>
-            <small>{{ currentOverview.scopeLabel }}</small>
-          </div>
-          <div class="dashboard__read-switch" aria-label="Modos de leitura">
-            <button type="button">Leitura executiva</button>
-            <button type="button" class="dashboard__ghost">Leitura analitica</button>
-          </div>
-          <div class="dashboard__quick-actions" aria-label="Acoes rapidas do dashboard">
-            @for (action of quickActions(); track action.label) {
-              <a
-                [routerLink]="action.path"
-                [attr.aria-label]="'Abrir ' + action.label"
-              >
-                <span>{{ action.label }}</span>
-                <strong>{{ action.detail }}</strong>
-              </a>
-            }
-          </div>
-          <div class="dashboard__tabs" aria-label="Abas de leitura">
-            <span>Visao Executiva</span>
-            <span>Resultados</span>
-            <span>Desempenho 360</span>
-            <span>Pessoas e Areas</span>
-            <span>Compliance e Riscos</span>
-          </div>
+        <section class="dashboard__kpis" aria-label="Indicadores principais">
+          @for (card of currentOverview.cards; track card.label) {
+            <article>
+              <span>{{ card.label }}</span>
+              <strong>{{ card.value }}</strong>
+              <small>{{ card.trend }}</small>
+            </article>
+          }
         </section>
 
-        <section class="dashboard__scope" aria-label="Escopo atual">
-          <div>
-            <span>Escopo atual</span>
-            <strong>{{ currentOverview.scopeLabel }}</strong>
-          </div>
-          <div>
-            <span>Modo de leitura</span>
-            <strong>{{ currentOverview.mode === 'team' ? 'Equipe direta' : 'Consolidado organizacional' }}</strong>
-          </div>
-        </section>
-
-        <section class="dashboard__executive" aria-label="Leitura executiva">
-          <header>
-            <div>
-              <span>Painel executivo</span>
-              <h2>Central de prioridades</h2>
-            </div>
-            <small>O que merece atencao agora</small>
-          </header>
-          <div class="dashboard__executive-grid">
-            <article class="dashboard__decision">
-              <span>Saude 360</span>
-              <strong>{{ healthScoreLabel(currentOverview) }}</strong>
-              <small>{{ currentOverview.performanceHealth?.confidenceLabel || 'Leitura consolidada' }}</small>
-            </article>
-            <article>
-              <span>Assignments pendentes</span>
-              <strong>{{ currentOverview.scopeSummary.pendingAssignments }}</strong>
-              <small>{{ pendingAssignmentsLabel(currentOverview) }}</small>
-            </article>
-            <article>
-              <span>Incidentes abertos</span>
-              <strong>{{ riskSummary(currentOverview).openIncidents }}</strong>
-              <small>Casos em acompanhamento</small>
-            </article>
-            <article>
-              <span>Desenvolvimento</span>
-              <strong>{{ currentOverview.scopeSummary.developmentRecords }}</strong>
-              <small>Registros considerados no recorte</small>
-            </article>
-          </div>
-          <div class="dashboard__priorities">
-            <article>
-              <strong>{{ primaryPriorityTitle(currentOverview) }}</strong>
-              <p>{{ primaryPriorityDetail(currentOverview) }}</p>
-            </article>
-            <article>
-              <strong>{{ secondaryPriorityTitle(currentOverview) }}</strong>
-              <p>{{ secondaryPriorityDetail(currentOverview) }}</p>
-            </article>
-          </div>
-          <div class="dashboard__alerts" aria-label="Alertas operacionais">
+        <section class="dashboard__board" aria-label="Painel executivo">
+          <article class="dashboard__panel dashboard__panel--wide" id="avaliacoes">
             <header>
               <div>
-                <span>Riscos operacionais</span>
-                <h2>Alertas para acompanhamento</h2>
+                <span>Avaliacoes</span>
+                <h2>Respostas de avaliacao</h2>
               </div>
-              <small>{{ operationalAlerts(currentOverview).length }} ativos</small>
+              <small>{{ currentOverview.scopeSummary.submittedAssignments }}/{{ currentOverview.scopeSummary.totalAssignments }} concluidas</small>
             </header>
+            <div class="dashboard__split">
+              <app-dashboard-line-chart [items]="timelineItems()" ariaLabel="Adesao ao ciclo por periodo" [valueMax]="100" />
+              <div class="dashboard__stack">
+                <app-dashboard-bar-chart [items]="evaluationResultItems()" ariaLabel="Resultado por relacionamento" [valueMax]="100" />
+                <div class="dashboard__mini-list">
+                  @for (highlight of currentOverview.evaluationHighlights; track highlight) {
+                    <p>{{ highlight }}</p>
+                  }
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article class="dashboard__panel">
+            <header>
+              <div>
+                <span>Cobertura</span>
+                <h2>Indicadores do recorte</h2>
+              </div>
+            </header>
+            <div class="dashboard__donuts">
+              @for (metric of currentOverview.donutMetrics; track metric.key) {
+                <app-dashboard-donut-metric [metric]="metric" />
+              }
+            </div>
+          </article>
+
+          <article class="dashboard__panel" id="pdi">
+            <header>
+              <div>
+                <span>Desenvolvimento</span>
+                <h2>Evolucao mediante PDI</h2>
+              </div>
+              <small>{{ currentOverview.scopeSummary.developmentRecords }} registros</small>
+            </header>
+            <app-dashboard-bar-chart [items]="developmentItems()" ariaLabel="Registros de desenvolvimento por tipo" />
+            <div class="dashboard__risk-strip">
+              @for (item of pdiRiskItems(currentOverview); track item.label) {
+                <div>
+                  <span>{{ item.label }}</span>
+                  <strong>{{ item.value }}</strong>
+                </div>
+              }
+            </div>
+          </article>
+
+          <article class="dashboard__panel" id="compliance">
+            <header>
+              <div>
+                <span>Compliance</span>
+                <h2>Issues e inconformidades</h2>
+              </div>
+              <small>{{ riskSummary(currentOverview).openIncidents }} abertos</small>
+            </header>
+            <app-dashboard-bar-chart [items]="complianceItems(currentOverview)" ariaLabel="Indicadores de compliance" />
             @if (operationalAlerts(currentOverview).length) {
-              <div class="dashboard__priorities">
+              <div class="dashboard__alerts">
                 @for (alert of operationalAlerts(currentOverview); track alert.key) {
                   <article
-                    class="dashboard__alert"
                     [class.dashboard__alert--critical]="alert.tone === 'critical'"
                     [class.dashboard__alert--warning]="alert.tone === 'warning'"
                     [class.dashboard__alert--positive]="alert.tone === 'positive'"
-                    [class.dashboard__alert--support]="alert.tone === 'support'"
                   >
                     <span>{{ alert.label }}</span>
                     <strong>{{ alert.value }}</strong>
@@ -218,81 +218,51 @@ const dashboardQuickActions: readonly DashboardQuickAction[] = [
                 }
               </div>
             } @else {
-              <p class="dashboard__no-alerts">Sem alertas operacionais criticos no recorte atual.</p>
+              <p class="dashboard__empty">Sem alertas criticos no recorte atual.</p>
             }
-          </div>
-        </section>
+          </article>
 
-        <section class="dashboard__cards" aria-label="Indicadores principais">
-          @for (card of currentOverview.cards; track card.label) {
-            <article class="dashboard__card">
-              <span>{{ card.label }}</span>
-              <strong>{{ card.value }}</strong>
-              <small>{{ card.trend }}</small>
-            </article>
-          }
-        </section>
-
-        <section class="dashboard__summary" aria-label="Resumo operacional">
-          <article>
-            <span>Pessoas no recorte</span>
-            <strong>{{ currentOverview.scopeSummary.peopleCount }}</strong>
-          </article>
-          <article>
-            <span>Assignments pendentes</span>
-            <strong>{{ currentOverview.scopeSummary.pendingAssignments }}</strong>
-          </article>
-          <article>
-            <span>Assignments concluidos</span>
-            <strong>{{ currentOverview.scopeSummary.submittedAssignments }}</strong>
-          </article>
-          <article>
-            <span>Registros de desenvolvimento</span>
-            <strong>{{ currentOverview.scopeSummary.developmentRecords }}</strong>
-          </article>
-        </section>
-
-        <section class="dashboard__charts" aria-label="Indicadores analiticos">
-          <article class="dashboard__chart-card dashboard__chart-card--line">
-            <header><span>Pulso do ciclo</span><h2>Adesao por periodo</h2></header>
-            <app-dashboard-line-chart [items]="timelineItems()" ariaLabel="Adesao ao ciclo por periodo" [valueMax]="100" />
-          </article>
-          <article class="dashboard__chart-card">
-            <header><span>Cobertura</span><h2>Indicadores de cobertura</h2></header>
-            <div class="dashboard__donuts">
-              @for (metric of currentOverview.donutMetrics; track metric.key) {
-                <app-dashboard-donut-metric [metric]="metric" />
-              }
+          <article class="dashboard__panel" id="applause">
+            <header>
+              <div>
+                <span>Aplause</span>
+                <h2>Reconhecimentos recebidos</h2>
+              </div>
+              <small>{{ currentOverview.scopeSummary.applauseEntries }} registros</small>
+            </header>
+            <div class="dashboard__applause">
+              <strong>{{ currentOverview.scopeSummary.applauseEntries }}</strong>
+              <span>Aplouses recebidos no escopo</span>
+              <p>{{ applauseCoverageLabel(currentOverview) }}</p>
             </div>
           </article>
-          <article class="dashboard__chart-card">
-            <header><span>Avaliacoes</span><h2>Status dos assignments</h2></header>
-            <app-dashboard-bar-chart [items]="assignmentStatusItems()" ariaLabel="Status dos assignments" />
-          </article>
-          <article class="dashboard__chart-card">
-            <header><span>Desenvolvimento</span><h2>Registros por tipo</h2></header>
-            <app-dashboard-bar-chart [items]="developmentItems()" ariaLabel="Registros de desenvolvimento por tipo" />
-          </article>
-          <article class="dashboard__chart-card dashboard__chart-card--wide">
-            <header><span>Satisfacao</span><h2>Media por area</h2></header>
+
+          <article class="dashboard__panel dashboard__panel--wide">
+            <header>
+              <div>
+                <span>Pessoas e areas</span>
+                <h2>Media de satisfacao</h2>
+              </div>
+              <small>{{ bestSatisfactionScore() }}</small>
+            </header>
             <app-dashboard-bar-chart [items]="satisfactionItems()" ariaLabel="Satisfacao media por area" [valueMax]="5" />
           </article>
-        </section>
 
-        <section class="dashboard__recommendations" aria-label="Comparativos e acoes recomendadas">
-          <article>
-            <header><span>Comparativo</span><h2>Comparativos do periodo</h2></header>
-            <div class="dashboard__comparison-grid">
-              <div><span>Area critica</span><strong>{{ currentOverview.performanceHealth?.lowestArea?.area || 'Sem area critica' }}</strong><small>{{ currentOverview.performanceHealth?.lowestArea?.scoreLabel || 'Sem leitura suficiente' }}</small></div>
-              <div><span>Melhor leitura do recorte</span><strong>{{ bestSatisfactionArea() }}</strong><small>{{ bestSatisfactionScore() }}</small></div>
-              <div><span>Ritmo operacional</span><strong>{{ currentOverview.scopeSummary.submittedAssignments }}/{{ currentOverview.scopeSummary.totalAssignments }}</strong><small>{{ currentOverview.scopeSummary.pendingAssignments }} pendentes ainda exigem acompanhamento</small></div>
-            </div>
-          </article>
-          <article>
-            <header><span>Profilaxia</span><h2>Acoes recomendadas</h2></header>
-            <div class="dashboard__comparison-grid">
-              <div><span>Apoiar tecnologia</span><strong>{{ healthScoreLabel(currentOverview) }} em leituras agregadas</strong><small>Abrir escuta breve com lideranca da area.</small></div>
-              <div><span>Direcionamento sem alarme</span><strong>{{ currentOverview.scopeSummary.pendingAssignments }} leituras pedem acompanhamento</strong><small>Priorizar planos curtos e evidencias simples.</small></div>
+          <article class="dashboard__panel dashboard__panel--wide" id="governanca">
+            <header>
+              <div>
+                <span>Governanca</span>
+                <h2>{{ modeLabel(currentOverview) }}</h2>
+              </div>
+              <small>{{ currentOverview.scopeLabel }}</small>
+            </header>
+            <div class="dashboard__governance-grid">
+              @for (action of quickActions(); track action.label) {
+                <a [routerLink]="action.path" [attr.aria-label]="'Abrir ' + action.label">
+                  <span>{{ action.label }}</span>
+                  <strong>{{ action.detail }}</strong>
+                </a>
+              }
             </div>
           </article>
         </section>
@@ -300,81 +270,209 @@ const dashboardQuickActions: readonly DashboardQuickAction[] = [
         @if (isLoading()) {
           <p class="dashboard__updating" aria-live="polite">Atualizando indicadores...</p>
         }
-      } @else if (!errorMessage()) {
-        <p class="dashboard__state">Nenhum dado de dashboard disponivel para o escopo atual.</p>
+      } @else {
+        @if (errorMessage()) {
+          <div class="dashboard__error" role="alert">
+            <p>{{ errorMessage() }}</p>
+            <button type="button" class="dashboard__secondary" (click)="loadOverview()">Tentar novamente</button>
+          </div>
+        } @else {
+          <p class="dashboard__state">Carregando indicadores...</p>
+        }
       }
     </section>
   `,
   styles: `
-    .dashboard { max-width: 1120px; }
-    .dashboard__header { display: flex; align-items: start; justify-content: space-between; gap: 24px; }
-    .dashboard__eyebrow { margin: 0 0 8px; color: var(--abc-blue); font-size: 13px; font-weight: 700; text-transform: uppercase; }
-    h1 { margin: 0; font-size: 24px; }
-    .dashboard__header p:not(.dashboard__eyebrow), .dashboard__state { color: var(--abc-text-muted); }
-    button { min-height: 36px; padding: 0 12px; color: var(--abc-on-blue); font-weight: 600; cursor: pointer; background: var(--abc-blue); border: 0; border-radius: 6px; }
-    button:disabled { cursor: wait; background: color-mix(in srgb, var(--abc-blue) 45%, var(--abc-surface)); }
-    .dashboard__filters { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 24px; padding: 16px; background: var(--abc-surface); border: 1px solid var(--abc-border); border-radius: 8px; box-shadow: 0 10px 30px color-mix(in srgb, var(--abc-navy) 8%, transparent); }
-    label { display: grid; gap: 6px; min-width: 210px; color: var(--abc-text); font-size: 14px; font-weight: 600; }
-    select { min-height: 40px; padding: 8px 10px; color: var(--abc-text); font: inherit; background: var(--abc-surface); border: 1px solid var(--abc-border); border-radius: 6px; }
-    .dashboard__error { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 24px; padding: 12px 16px; color: var(--abc-danger); background: color-mix(in srgb, var(--abc-danger) 8%, var(--abc-surface)); border: 1px solid color-mix(in srgb, var(--abc-danger) 24%, var(--abc-border)); border-radius: 8px; }
-    .dashboard__error p { margin: 0; }
-    .dashboard__secondary { color: var(--abc-text); background: var(--abc-surface); border: 1px solid var(--abc-text-muted); }
-    .dashboard__state { margin: 32px 0; }
-    .dashboard__command { display: grid; gap: 14px; margin-top: 24px; padding: 18px; color: var(--abc-text); background: var(--abc-surface); border: 1px solid var(--abc-border); border-radius: 8px; box-shadow: 0 10px 30px color-mix(in srgb, var(--abc-navy) 8%, transparent); }
-    .dashboard__command-heading { display: flex; justify-content: space-between; gap: 16px; }
-    .dashboard__command-heading span, .dashboard__quick-actions span, .dashboard__recommendations header span { color: var(--abc-danger); font-size: 12px; font-weight: 700; text-transform: uppercase; }
-    .dashboard__command-heading h2 { margin: 4px 0; color: var(--abc-text); font-size: 20px; }
-    .dashboard__command-heading p, .dashboard__command-heading small { color: var(--abc-text-muted); }
-    .dashboard__read-switch, .dashboard__tabs { display: grid; gap: 8px; }
-    .dashboard__read-switch { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .dashboard__read-switch button { background: var(--abc-blue-dark); }
-    .dashboard__read-switch .dashboard__ghost { color: var(--abc-text); background: var(--abc-surface-muted); border: 1px solid var(--abc-border); }
-    .dashboard__quick-actions { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
-    .dashboard__quick-actions a { padding: 12px; color: inherit; text-decoration: none; background: var(--abc-surface-muted); border: 1px solid var(--abc-border); border-radius: 8px; }
-    .dashboard__quick-actions strong { display: block; margin-top: 5px; color: var(--abc-text); font-size: 13px; }
-    .dashboard__tabs { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-    .dashboard__tabs span { min-height: 28px; padding: 6px 10px; color: var(--abc-text-muted); text-align: center; background: var(--abc-surface-muted); border-radius: 6px; font-size: 12px; font-weight: 700; }
-    .dashboard__tabs span:first-child { color: var(--abc-on-blue); background: var(--abc-blue); }
-    .dashboard__scope, .dashboard__cards, .dashboard__summary { display: grid; gap: 16px; margin-top: 24px; }
-    .dashboard__scope { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .dashboard__scope div, .dashboard__card, .dashboard__summary article { padding: 16px; background: var(--abc-surface); border: 1px solid var(--abc-border); border-radius: 8px; box-shadow: 0 8px 24px color-mix(in srgb, var(--abc-navy) 6%, transparent); }
-    .dashboard__scope span, .dashboard__card span, .dashboard__summary span { display: block; color: var(--abc-text-muted); font-size: 12px; }
-    .dashboard__scope strong { display: block; margin-top: 6px; color: var(--abc-text); }
-    .dashboard__executive { margin-top: 24px; padding: 18px; color: var(--abc-text); background: var(--abc-surface); border: 1px solid var(--abc-border); border-radius: 8px; box-shadow: 0 10px 30px color-mix(in srgb, var(--abc-navy) 8%, transparent); }
-    .dashboard__executive header { display: flex; justify-content: space-between; margin-bottom: 16px; }
-    .dashboard__executive header span, .dashboard__executive-grid span { display: block; color: var(--abc-blue-dark); font-size: 12px; font-weight: 700; }
-    .dashboard__executive-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
-    .dashboard__executive-grid article, .dashboard__priorities article { padding: 14px; background: var(--abc-surface-muted); border: 1px solid var(--abc-border); border-radius: 8px; }
-    .dashboard__executive-grid strong { display: block; color: var(--abc-text); font-size: 24px; }
-    .dashboard__priorities { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
-    .dashboard__alerts { margin-top: 12px; padding-top: 14px; border-top: 1px solid var(--abc-border); }
-    .dashboard__alert { border-left: 4px solid var(--abc-blue); }
-    .dashboard__alert--critical { border-left-color: var(--abc-danger); }
-    .dashboard__alert--warning { border-left-color: color-mix(in srgb, var(--abc-danger) 60%, #f5b84b); }
-    .dashboard__alert span, .dashboard__alert small { display: block; color: var(--abc-text-muted); }
-    .dashboard__alert strong { display: block; margin: 6px 0; font-size: 22px; }
-    .dashboard__no-alerts { color: var(--abc-text-muted); }
-    .dashboard__cards { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-    .dashboard__card strong { display: block; margin: 10px 0 6px; color: var(--abc-text); font-size: 26px; }
-    .dashboard__card small { color: var(--abc-text-muted); line-height: 1.4; }
-    .dashboard__summary { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-    .dashboard__summary strong { display: block; margin-top: 8px; color: var(--abc-text); font-size: 22px; }
-    .dashboard__charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 24px; }
-    .dashboard__chart-card { min-height: 230px; padding: 18px; color: var(--abc-text); background: var(--abc-surface); border: 1px solid var(--abc-border); border-radius: 8px; box-shadow: 0 8px 24px color-mix(in srgb, var(--abc-navy) 6%, transparent); }
-    .dashboard__chart-card--wide { grid-column: 1 / -1; }
-    .dashboard__chart-card header { margin-bottom: 20px; }
-    .dashboard__chart-card header span { color: var(--abc-blue-dark); font-size: 12px; font-weight: 700; text-transform: uppercase; }
-    h2 { margin: 4px 0 0; color: var(--abc-text); font-size: 17px; }
-    .dashboard__donuts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-    .dashboard__recommendations { display: grid; gap: 16px; margin-top: 24px; }
-    .dashboard__recommendations article { padding: 18px; color: var(--abc-text); background: var(--abc-surface); border: 1px solid var(--abc-border); border-radius: 8px; box-shadow: 0 8px 24px color-mix(in srgb, var(--abc-navy) 6%, transparent); }
-    .dashboard__comparison-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 14px; }
-    .dashboard__comparison-grid div { padding: 14px; background: var(--abc-surface-muted); border: 1px solid var(--abc-border); border-radius: 8px; }
-    .dashboard__comparison-grid span, .dashboard__comparison-grid small { display: block; color: var(--abc-text-muted); }
-    .dashboard__comparison-grid strong { display: block; margin: 6px 0; color: var(--abc-text); }
-    .dashboard__updating { margin: 12px 0 0; color: var(--abc-text-muted); font-size: 14px; }
-    @media (max-width: 960px) { .dashboard__cards { grid-template-columns: repeat(3, minmax(0, 1fr)); } .dashboard__summary, .dashboard__charts, .dashboard__executive-grid, .dashboard__priorities, .dashboard__quick-actions, .dashboard__comparison-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-    @media (max-width: 640px) { .dashboard__header, .dashboard__error, .dashboard__executive header, .dashboard__alerts header, .dashboard__command-heading { align-items: stretch; flex-direction: column; } .dashboard__scope, .dashboard__cards, .dashboard__summary, .dashboard__charts, .dashboard__donuts, .dashboard__executive-grid, .dashboard__priorities, .dashboard__read-switch, .dashboard__quick-actions, .dashboard__tabs, .dashboard__comparison-grid { grid-template-columns: 1fr; } .dashboard__chart-card--wide { grid-column: auto; } label { width: 100%; } }
+    .dashboard { display: grid; gap: 14px; max-width: 1280px; }
+    .dashboard__hero, .dashboard__nav, .dashboard__filters, .dashboard__panel, .dashboard__kpis article {
+      color: var(--abc-text);
+      background: var(--abc-surface);
+      border: 1px solid var(--abc-border);
+      border-radius: 8px;
+      box-shadow: 0 10px 28px color-mix(in srgb, var(--abc-navy) 7%, transparent);
+    }
+    .dashboard__hero {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 18px;
+      background: linear-gradient(135deg, var(--abc-navy), color-mix(in srgb, var(--abc-blue-dark) 42%, var(--abc-navy)));
+      color: var(--abc-on-blue);
+    }
+    .dashboard__brand { display: flex; align-items: center; gap: 16px; min-width: 0; }
+    .dashboard__brand-mark {
+      display: grid;
+      width: 58px;
+      height: 58px;
+      flex: 0 0 auto;
+      place-items: center;
+      color: #ff7a00;
+      font-size: 24px;
+      font-weight: 900;
+      border-right: 1px solid rgb(255 255 255 / 22%);
+    }
+    .dashboard__brand p, .dashboard__brand span, .dashboard__stamp span, .dashboard__hero small {
+      margin: 0;
+      color: rgb(248 250 252 / 72%);
+    }
+    h1 { margin: 0; font-size: 30px; line-height: 1.1; }
+    h2 { margin: 3px 0 0; font-size: 17px; line-height: 1.2; }
+    .dashboard__hero-actions { display: flex; align-items: center; gap: 12px; }
+    .dashboard__stamp {
+      min-width: 170px;
+      padding: 10px 12px;
+      background: rgb(255 255 255 / 10%);
+      border: 1px solid rgb(255 255 255 / 12%);
+      border-radius: 8px;
+    }
+    .dashboard__stamp span, .dashboard__stamp strong { display: block; }
+    .dashboard__stamp strong { margin-top: 2px; font-size: 14px; }
+    button {
+      min-height: 38px;
+      padding: 0 14px;
+      color: var(--abc-on-blue);
+      font-weight: 800;
+      background: #ff7a00;
+      border: 0;
+      border-radius: 6px;
+    }
+    button:disabled { cursor: wait; opacity: 0.65; }
+    .dashboard__secondary { color: var(--abc-text); background: var(--abc-surface); border: 1px solid var(--abc-border); }
+    .dashboard__nav {
+      display: grid;
+      grid-template-columns: auto repeat(5, minmax(0, 1fr));
+      gap: 8px;
+      align-items: center;
+      padding: 10px 12px;
+    }
+    .dashboard__nav strong {
+      color: var(--abc-text);
+      font-size: 13px;
+      text-transform: uppercase;
+    }
+    .dashboard__nav a, .dashboard__governance-grid a {
+      min-height: 36px;
+      padding: 9px 12px;
+      color: inherit;
+      text-align: center;
+      text-decoration: none;
+      background: var(--abc-surface-muted);
+      border: 1px solid var(--abc-border);
+      border-radius: 6px;
+      font-weight: 800;
+    }
+    .dashboard__nav a:first-of-type { color: var(--abc-on-blue); background: #ff7a00; border-color: #ff7a00; }
+    .dashboard__filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: end;
+      padding: 14px;
+    }
+    label { display: grid; gap: 6px; min-width: 210px; color: var(--abc-text-muted); font-size: 12px; font-weight: 800; text-transform: uppercase; }
+    select {
+      min-height: 40px;
+      padding: 8px 10px;
+      color: var(--abc-text);
+      background: var(--abc-surface);
+      border: 1px solid var(--abc-border);
+      border-radius: 6px;
+    }
+    .dashboard__filter-note { display: grid; gap: 4px; min-width: 220px; padding: 8px 10px; background: var(--abc-surface-muted); border: 1px solid var(--abc-border); border-radius: 6px; }
+    .dashboard__filter-note span, .dashboard__panel header span, .dashboard__kpis span {
+      color: var(--abc-text-muted);
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+    .dashboard__filter-note strong { font-size: 14px; }
+    .dashboard__error {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      color: var(--abc-danger);
+      background: color-mix(in srgb, var(--abc-danger) 8%, var(--abc-surface));
+      border: 1px solid color-mix(in srgb, var(--abc-danger) 24%, var(--abc-border));
+      border-radius: 8px;
+    }
+    .dashboard__error p, .dashboard__state, .dashboard__updating { margin: 0; color: var(--abc-text-muted); }
+    .dashboard__kpis { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
+    .dashboard__kpis article { min-height: 118px; padding: 14px; border-left: 3px solid #ff7a00; }
+    .dashboard__kpis strong { display: block; margin: 8px 0 4px; font-size: 24px; line-height: 1.1; }
+    .dashboard__kpis small, .dashboard__panel small, .dashboard__empty, .dashboard__mini-list p, .dashboard__applause p {
+      color: var(--abc-text-muted);
+      line-height: 1.45;
+    }
+    .dashboard__board { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+    .dashboard__panel { display: grid; gap: 16px; min-height: 250px; padding: 16px; }
+    .dashboard__panel--wide { grid-column: span 2; }
+    .dashboard__panel header {
+      display: flex;
+      align-items: start;
+      justify-content: space-between;
+      gap: 12px;
+      min-width: 0;
+    }
+    .dashboard__split { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr); gap: 18px; align-items: start; }
+    .dashboard__stack { display: grid; gap: 14px; }
+    .dashboard__mini-list { display: grid; gap: 8px; }
+    .dashboard__mini-list p { margin: 0; padding: 10px 12px; background: var(--abc-surface-muted); border: 1px solid var(--abc-border); border-radius: 6px; }
+    .dashboard__donuts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; align-items: start; }
+    .dashboard__risk-strip, .dashboard__alerts {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .dashboard__risk-strip div, .dashboard__alerts article {
+      padding: 12px;
+      background: var(--abc-surface-muted);
+      border: 1px solid var(--abc-border);
+      border-left: 3px solid var(--abc-blue);
+      border-radius: 6px;
+    }
+    .dashboard__alert--critical { border-left-color: var(--abc-danger) !important; }
+    .dashboard__alert--warning { border-left-color: var(--abc-warning) !important; }
+    .dashboard__alert--positive { border-left-color: var(--abc-success) !important; }
+    .dashboard__risk-strip span, .dashboard__alerts span, .dashboard__alerts small, .dashboard__applause span {
+      display: block;
+      color: var(--abc-text-muted);
+      font-size: 12px;
+    }
+    .dashboard__risk-strip strong, .dashboard__alerts strong { display: block; margin-top: 6px; font-size: 22px; }
+    .dashboard__applause {
+      display: grid;
+      align-content: center;
+      min-height: 168px;
+      padding: 18px;
+      background: color-mix(in srgb, var(--abc-success) 10%, var(--abc-surface-muted));
+      border: 1px solid color-mix(in srgb, var(--abc-success) 28%, var(--abc-border));
+      border-radius: 8px;
+    }
+    .dashboard__applause strong { font-size: 54px; line-height: 1; color: var(--abc-success); }
+    .dashboard__applause span { margin-top: 8px; font-weight: 800; text-transform: uppercase; }
+    .dashboard__governance-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+    .dashboard__governance-grid a { display: grid; gap: 4px; text-align: left; }
+    .dashboard__governance-grid span { color: var(--abc-blue-dark); font-size: 12px; font-weight: 800; text-transform: uppercase; }
+    .dashboard__governance-grid strong { font-size: 13px; }
+    @media (max-width: 1120px) {
+      .dashboard__kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .dashboard__board { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .dashboard__panel--wide { grid-column: 1 / -1; }
+      .dashboard__governance-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+    @media (max-width: 760px) {
+      .dashboard__hero, .dashboard__panel header, .dashboard__error { align-items: stretch; flex-direction: column; }
+      .dashboard__hero-actions, .dashboard__brand { align-items: stretch; flex-direction: column; }
+      .dashboard__brand-mark { width: 100%; height: 44px; border-right: 0; border-bottom: 1px solid rgb(255 255 255 / 22%); }
+      .dashboard__nav, .dashboard__kpis, .dashboard__board, .dashboard__split, .dashboard__donuts, .dashboard__risk-strip, .dashboard__alerts, .dashboard__governance-grid {
+        grid-template-columns: 1fr;
+      }
+      label, .dashboard__filter-note { width: 100%; }
+      h1 { font-size: 24px; }
+    }
   `,
 })
 export class DashboardPageComponent implements OnInit {
@@ -429,6 +527,13 @@ export class DashboardPageComponent implements OnInit {
       valueLabel: item.score,
     })),
   );
+  readonly evaluationResultItems = computed<DashboardChartDatum[]>(() =>
+    (this.overview()?.evaluationResultsSummary ?? []).map((item) => ({
+      label: item.relationshipType,
+      value: item.adherencePercentage,
+      valueLabel: `${item.adherencePercentage}%`,
+    })),
+  );
 
   healthScoreLabel(overview: DashboardOverview): string {
     return overview.performanceHealth?.averageScoreLabel || overview.cards[0]?.value || '-';
@@ -456,34 +561,46 @@ export class DashboardPageComponent implements OnInit {
     return overview.operationalAlerts ?? [];
   }
 
-  primaryPriorityTitle(overview: DashboardOverview): string {
-    return overview.scopeSummary.pendingAssignments > 0 ? 'Reduzir pendencias de avaliacao' : 'Manter ritmo de acompanhamento';
+  pdiRiskItems(overview: DashboardOverview): DashboardChartDatum[] {
+    const risk = this.riskSummary(overview);
+    return [
+      { label: 'Nao iniciados', value: risk.notStartedDevelopmentPlans, valueLabel: String(risk.notStartedDevelopmentPlans) },
+      { label: 'Bloqueados', value: risk.blockedDevelopmentPlans, valueLabel: String(risk.blockedDevelopmentPlans) },
+      { label: 'Eventos pendentes', value: risk.pendingLearningEvents, valueLabel: String(risk.pendingLearningEvents) },
+    ];
   }
 
-  primaryPriorityDetail(overview: DashboardOverview): string {
-    return overview.scopeSummary.pendingAssignments > 0
-      ? `${overview.scopeSummary.pendingAssignments} assignments ainda exigem acompanhamento no recorte atual.`
-      : 'Nao ha pendencias de avaliacao no recorte atual.';
+  complianceItems(overview: DashboardOverview): DashboardChartDatum[] {
+    const risk = this.riskSummary(overview);
+    return [
+      { label: 'Abertos', value: risk.openIncidents, valueLabel: String(risk.openIncidents) },
+      { label: 'Fora do prazo', value: risk.overdueIncidents, valueLabel: String(risk.overdueIncidents) },
+      { label: 'Sem responsavel', value: risk.unassignedIncidents, valueLabel: String(risk.unassignedIncidents) },
+    ];
   }
 
-  secondaryPriorityTitle(overview: DashboardOverview): string {
-    return overview.performanceHealth?.lowestArea ? 'Area critica de desempenho' : 'Desenvolvimento e reconhecimento';
+  applauseCoverageLabel(overview: DashboardOverview): string {
+    const peopleCount = overview.scopeSummary.peopleCount;
+    if (!peopleCount) return 'Sem pessoas no recorte atual.';
+    const applauseMetric = overview.donutMetrics.find((metric) => metric.key === 'applause');
+    return `${applauseMetric?.percentage ?? 0}% das pessoas tiveram reconhecimento recebido no recorte.`;
   }
 
-  secondaryPriorityDetail(overview: DashboardOverview): string {
-    const lowestArea = overview.performanceHealth?.lowestArea;
-    if (lowestArea) return `${lowestArea.area}: ${lowestArea.scoreLabel} na leitura 360.`;
-    return `${overview.scopeSummary.developmentRecords} registros de desenvolvimento e ${overview.scopeSummary.applauseEntries} reconhecimentos no recorte.`;
+  governanceLabel(overview: DashboardOverview): string {
+    if (overview.mode === 'team') return 'Gestor visualiza somente a propria equipe';
+    if (overview.mode === 'personal') return 'Usuario visualiza somente o proprio recorte';
+    return 'Admin e RH visualizam consolidado autorizado';
   }
 
-  bestSatisfactionArea(): string {
-    const best = [...(this.overview()?.satisfactionByArea ?? [])].sort((left, right) => right.scoreValue - left.scoreValue)[0];
-    return best?.area || 'Sem dados';
+  modeLabel(overview: DashboardOverview): string {
+    if (overview.mode === 'team') return 'Visao gerencial por equipe direta';
+    if (overview.mode === 'personal') return 'Visao individual';
+    return 'Visao administrativa consolidada';
   }
 
   bestSatisfactionScore(): string {
     const best = [...(this.overview()?.satisfactionByArea ?? [])].sort((left, right) => right.scoreValue - left.scoreValue)[0];
-    return best ? `${best.score} de media no recorte` : 'Sem leitura suficiente';
+    return best ? `${best.score} de media em ${best.area}` : 'Sem leitura suficiente';
   }
 
   ngOnInit(): void {
