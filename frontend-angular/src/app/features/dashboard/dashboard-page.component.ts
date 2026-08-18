@@ -297,7 +297,7 @@ const dashboardQuickActions: readonly DashboardQuickAction[] = [
       justify-content: space-between;
       gap: 18px;
       padding: 18px;
-      background: linear-gradient(135deg, var(--abc-navy), color-mix(in srgb, var(--abc-blue-dark) 42%, var(--abc-navy)));
+      background: var(--abc-navy);
       color: var(--abc-on-blue);
     }
     .dashboard__brand { display: flex; align-items: center; gap: 16px; min-width: 0; }
@@ -307,7 +307,7 @@ const dashboardQuickActions: readonly DashboardQuickAction[] = [
       height: 58px;
       flex: 0 0 auto;
       place-items: center;
-      color: #ff7a00;
+      color: var(--abc-blue);
       font-size: 24px;
       font-weight: 900;
       border-right: 1px solid rgb(255 255 255 / 22%);
@@ -333,7 +333,7 @@ const dashboardQuickActions: readonly DashboardQuickAction[] = [
       padding: 0 14px;
       color: var(--abc-on-blue);
       font-weight: 800;
-      background: #ff7a00;
+      background: var(--abc-blue);
       border: 0;
       border-radius: 6px;
     }
@@ -362,7 +362,7 @@ const dashboardQuickActions: readonly DashboardQuickAction[] = [
       border-radius: 6px;
       font-weight: 800;
     }
-    .dashboard__nav a:first-of-type { color: var(--abc-on-blue); background: #ff7a00; border-color: #ff7a00; }
+    .dashboard__nav a:first-of-type { color: var(--abc-on-blue); background: var(--abc-blue); border-color: var(--abc-blue); box-shadow: 0 8px 18px color-mix(in srgb, var(--abc-blue) 22%, transparent); }
     .dashboard__filters {
       display: flex;
       flex-wrap: wrap;
@@ -400,7 +400,7 @@ const dashboardQuickActions: readonly DashboardQuickAction[] = [
     }
     .dashboard__error p, .dashboard__state, .dashboard__updating { margin: 0; color: var(--abc-text-muted); }
     .dashboard__kpis { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
-    .dashboard__kpis article { min-height: 118px; padding: 14px; border-left: 3px solid #ff7a00; }
+    .dashboard__kpis article { min-height: 118px; padding: 14px; border-left: 3px solid var(--abc-blue); }
     .dashboard__kpis strong { display: block; margin: 8px 0 4px; font-size: 24px; line-height: 1.1; }
     .dashboard__kpis small, .dashboard__panel small, .dashboard__empty, .dashboard__mini-list p, .dashboard__applause p {
       color: var(--abc-text-muted);
