@@ -52,17 +52,6 @@ const routedRelationshipKeys = new Set([
       @if (loading()) {
         <p class="state">Carregando biblioteca...</p>
       } @else {
-        <section class="chooser" aria-labelledby="relationship-title">
-          <strong id="relationship-title">Modalidade</strong>
-          <div class="button-row">
-            @for (group of groups(); track group.key) {
-              <button type="button" class="secondary" [class.active]="relationshipType() === group.key" (click)="selectRelationship(group.key)">
-                {{ relationshipLabel(group.key) }} <span>{{ group.questions.length }}</span>
-              </button>
-            }
-          </div>
-        </section>
-
         <section class="chooser" aria-labelledby="category-title">
           <strong id="category-title">Categorias</strong>
           <div class="button-row">
@@ -252,30 +241,6 @@ export class EvaluationLibraryPanelComponent implements OnInit {
   ngOnInit(): void {
     this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.applyRouteRelationship());
     void this.load();
-  }
-
-  relationshipLabel(v: string): string {
-    return (
-      {
-        manager: 'Lider sobre colaborador',
-        self: 'Autoavaliacao profissional',
-        'leader-self': 'Autoavaliacao do lider',
-        'peer-same-area': 'Colega da mesma area',
-        peer: 'Par',
-        leader: 'Colaborador sobre lider',
-        company: 'Empresa',
-        'cross-functional': 'Colega de outro setor',
-        'client-internal': 'Cliente interno',
-        'client-external': 'Cliente externo',
-      } as Record<string, string>
-    )[v] || v;
-  }
-
-  selectRelationship(v: string): void {
-    this.relationshipType.set(v);
-    this.activeCategory.set('all');
-    this.closeForm();
-    void this.navigateToRelationship(v);
   }
 
   selectCategory(categoryKey: string): void {
