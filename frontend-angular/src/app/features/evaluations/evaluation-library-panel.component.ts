@@ -21,6 +21,19 @@ interface QuestionCategory {
   count: number;
 }
 
+const routedRelationshipKeys = new Set([
+  'company',
+  'leader',
+  'manager',
+  'peer',
+  'peer-same-area',
+  'cross-functional',
+  'client-internal',
+  'client-external',
+  'self',
+  'leader-self',
+]);
+
 @Component({
   selector: 'app-evaluation-library-panel',
   imports: [ReactiveFormsModule],
@@ -252,6 +265,8 @@ export class EvaluationLibraryPanelComponent implements OnInit {
         leader: 'Colaborador sobre lider',
         company: 'Empresa',
         'cross-functional': 'Colega de outro setor',
+        'client-internal': 'Cliente interno',
+        'client-external': 'Cliente externo',
       } as Record<string, string>
     )[v] || v;
   }
@@ -425,11 +440,13 @@ export class EvaluationLibraryPanelComponent implements OnInit {
     try {
       const data = await firstValueFrom(this.api.getLibrary());
       this.library.set(data);
-      const routeKey = this.route.snapshot.paramMap.get('detail') || '';
-      if (data.questionGroups.some((g) => g.key === routeKey)) this.relationshipType.set(routeKey);
+      const routeKey = this.routeRelationshipKey();
+      if (routeKey) this.relationshipType.set(routeKey);
       else if (!data.questionGroups.some((g) => g.key === this.relationshipType())) this.relationshipType.set(data.questionGroups[0]?.key || 'manager');
       this.ensureActiveCategoryExists();
-      if (!routeKey && this.relationshipType()) await this.navigateToRelationship(this.relationshipType(), true);
+      if (this.relationshipType() && this.route.snapshot.paramMap.get('detail') !== this.relationshipType()) {
+        await this.navigateToRelationship(this.relationshipType(), true);
+      }
     } catch (e) {
       this.setError(e);
     } finally {
@@ -438,15 +455,27 @@ export class EvaluationLibraryPanelComponent implements OnInit {
   }
 
   private applyRouteRelationship(): void {
-    const key = this.route.snapshot.paramMap.get('detail') || '';
-    if (!key || !this.groups().some((g) => g.key === key)) return;
+    const key = this.routeRelationshipKey();
+    if (!key) return;
+    const previous = this.relationshipType();
     this.relationshipType.set(key);
-    this.activeCategory.set('all');
+    if (previous !== key) this.activeCategory.set('all');
     this.closeForm();
   }
 
   private navigateToRelationship(key: string, replaceUrl = false): Promise<boolean> {
-    return this.router.navigate(['/app/evaluations', this.route.snapshot.paramMap.get('module') || 'company', 'library', key], { replaceUrl });
+    const currentModule = this.route.snapshot.paramMap.get('module') || '';
+    const module = routedRelationshipKeys.has(key) ? key : routedRelationshipKeys.has(currentModule) ? currentModule : 'company';
+    return this.router.navigate(['/app/evaluations', module, 'library', key], { replaceUrl });
+  }
+
+  private routeRelationshipKey(): string {
+    const groups = new Set(this.groups().map((group) => group.key));
+    const detailKey = this.route.snapshot.paramMap.get('detail') || '';
+    const moduleKey = this.route.snapshot.paramMap.get('module') || '';
+    if (detailKey && groups.has(detailKey)) return detailKey;
+    if (moduleKey && groups.has(moduleKey)) return moduleKey;
+    return '';
   }
 
   private async mutate(call: () => ReturnType<EvaluationsService['getLibrary']>): Promise<void> {
