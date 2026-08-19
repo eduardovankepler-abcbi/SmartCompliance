@@ -467,10 +467,12 @@ test('aplica filtros de area e periodo para administrador', async ({ page }) => 
 
 test('limita gestor ao escopo de equipe sem filtro de area', async ({ page }) => {
   await login(page, 'gestor@demo.local');
-  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Gestao Executiva' })).toBeVisible();
 
-  await expect(page.locator('.dashboard__filters select')).toHaveCount(1);
-  await expect(page.locator('.dashboard__scope')).toContainText('Equipe direta');
+  const filters = page.getByLabel('Filtros do dashboard');
+  await expect(filters.getByLabel('Consolidar por')).toBeVisible();
+  await expect(filters.getByLabel('Area')).toHaveCount(0);
+  await expect(page.getByText('Equipe direta', { exact: true }).first()).toBeVisible();
 });
 
 test('permite administrador consultar auditoria gerencial', async ({ page }) => {
