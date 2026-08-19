@@ -114,7 +114,7 @@ const emptyAnalytics: DashboardPdiAnalytics = {
 
           <article class="pdi-dashboard__panel pdi-dashboard__panel--wide">
             <header><div><span>Concentração de execução</span><h2>Ações por responsável</h2></div><small>riscos e carga no recorte autorizado</small></header>
-            @if (analytics().responsibleActionSummary.length) { <div class="pdi-dashboard__action-coverage">@for (owner of analytics().responsibleActionSummary; track owner.personId) { <article><strong>{{ owner.personName }}</strong><span>{{ owner.total }} ação(ões) vinculada(s)</span><p>{{ owner.overdue }} vencida(s) · {{ owner.dueSoon }} próxima(s) do prazo</p><small>{{ owner.blocked }} bloqueada(s) · {{ owner.inProgress }} em andamento</small></article> }</div> } @else { <p class="pdi-dashboard__empty">Nenhum responsável possui ações vinculadas às prioridades neste recorte.</p> }
+            @if (analytics().responsibleActionSummary.length) { <div class="pdi-dashboard__action-coverage">@for (owner of analytics().responsibleActionSummary; track owner.personId) { <button class="secondary" type="button" [style.border-color]="responsibleFilter() === owner.personId ? 'var(--abc-primary)' : null" [attr.aria-pressed]="responsibleFilter() === owner.personId" (click)="toggleResponsibleFilter(owner.personId)"><strong>{{ owner.personName }}</strong><span>{{ owner.total }} ação(ões) vinculada(s)</span><p>{{ owner.overdue }} vencida(s) · {{ owner.dueSoon }} próxima(s) do prazo</p><small>{{ owner.blocked }} bloqueada(s) · {{ owner.inProgress }} em andamento</small></button> }</div> } @else { <p class="pdi-dashboard__empty">Nenhum responsável possui ações vinculadas às prioridades neste recorte.</p> }
           </article>
 
           <article class="pdi-dashboard__panel pdi-dashboard__panel--wide">
@@ -198,6 +198,7 @@ export class DashboardPdiPageComponent implements OnInit {
   readonly actionProgressError = signal('');
   readonly actionStatusFilter = signal<'all' | 'not_started' | 'in_progress' | 'blocked' | 'done'>('all');
   readonly actionDeadlineFilter = signal<'all' | 'overdue' | 'due_soon' | 'on_track'>('all');
+  readonly responsibleFilter = signal<string | null>(null);
   readonly areaFilter = signal('all');
   readonly teamFilter = signal('all');
   readonly timeGrouping = signal<DashboardTimeGrouping>('semester');
@@ -214,12 +215,12 @@ export class DashboardPdiPageComponent implements OnInit {
   readonly developmentItems = computed<DashboardChartDatum[]>(() => (this.overview()?.developmentByType ?? []).map((item) => ({ label: item.type, value: item.total, valueLabel: String(item.total) })));
   readonly coverageMetric = computed(() => ({ key: 'pdi-coverage', label: 'Cobertura de PDI', percentage: this.analytics().summary.coveragePercentage, value: this.analytics().summary.peopleWithPdi, total: this.analytics().summary.peopleCount, detail: `${this.analytics().summary.peopleWithPdi} pessoas com plano ativo` }));
   readonly pendingLearningEvents = computed(() => this.analytics().competencyActionCoverage.reduce((total, item) => total + item.pendingLearningEventCount, 0));
-  readonly filteredPriorityActions = computed(() => this.analytics().priorityActions.filter((action) => (this.actionStatusFilter() === 'all' || action.progressStatus === this.actionStatusFilter()) && (this.actionDeadlineFilter() === 'all' || action.deadlineStatus === this.actionDeadlineFilter())));
+  readonly filteredPriorityActions = computed(() => this.analytics().priorityActions.filter((action) => (!this.responsibleFilter() || action.personId === this.responsibleFilter()) && (this.actionStatusFilter() === 'all' || action.progressStatus === this.actionStatusFilter()) && (this.actionDeadlineFilter() === 'all' || action.deadlineStatus === this.actionDeadlineFilter())));
 
   ngOnInit(): void { void this.loadOverview(); }
-  changeArea(area: string): void { if (this.canFilterByArea()) { this.areaFilter.set(area); this.teamFilter.set('all'); void this.loadOverview(); } }
-  changeTeam(teamManagerId: string): void { if (this.canFilterByArea()) { this.teamFilter.set(teamManagerId); void this.loadOverview(); } }
-  changeTimeGrouping(value: DashboardTimeGrouping): void { this.timeGrouping.set(value); void this.loadOverview(); }
+  changeArea(area: string): void { if (this.canFilterByArea()) { this.responsibleFilter.set(null); this.areaFilter.set(area); this.teamFilter.set('all'); void this.loadOverview(); } }
+  changeTeam(teamManagerId: string): void { if (this.canFilterByArea()) { this.responsibleFilter.set(null); this.teamFilter.set(teamManagerId); void this.loadOverview(); } }
+  changeTimeGrouping(value: DashboardTimeGrouping): void { this.responsibleFilter.set(null); this.timeGrouping.set(value); void this.loadOverview(); }
   comparisonLabel(): string { const delta = this.analytics().summary.comparisonDelta; return delta ? `${delta > 0 ? '+' : ''}${delta} p.p. ante o período anterior` : 'Sem variação comparável'; }
   percentageComparisonLabel(delta: number): string { return delta ? `${delta > 0 ? '+' : ''}${delta} p.p. ante o período anterior` : 'Sem variação comparável'; }
   deltaLabel(delta: number): string { return `${delta > 0 ? '+' : ''}${delta} p.p.`; }
@@ -235,6 +236,7 @@ export class DashboardPdiPageComponent implements OnInit {
   closeActionProgress(): void { this.actionProgressError.set(''); this.editingActionId.set(null); }
   changeActionStatusFilter(value: string): void { if (['all', 'not_started', 'in_progress', 'blocked', 'done'].includes(value)) { this.actionStatusFilter.set(value as 'all' | 'not_started' | 'in_progress' | 'blocked' | 'done'); this.closeActionProgress(); } }
   changeActionDeadlineFilter(value: string): void { if (['all', 'overdue', 'due_soon', 'on_track'].includes(value)) { this.actionDeadlineFilter.set(value as 'all' | 'overdue' | 'due_soon' | 'on_track'); this.closeActionProgress(); } }
+  toggleResponsibleFilter(personId: string): void { this.responsibleFilter.update((current) => current === personId ? null : personId); this.closeActionProgress(); }
   async saveActionProgress(planId: string, status: string, note: string): Promise<void> {
     if (!['not_started', 'in_progress', 'blocked', 'done'].includes(status)) return;
     const progressNote = note.trim();

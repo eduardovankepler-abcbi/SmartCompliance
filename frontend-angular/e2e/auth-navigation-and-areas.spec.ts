@@ -91,6 +91,7 @@ test('atualiza o andamento de uma acao priorizada no dashboard', async ({ page }
     overview.pdiAnalytics.competencyPriorities = [{ competencyId:'cmp_communication', competencyName:'Comunicacao', latestScore:2.5, gap:2.5, priorityScore:50, riskLevel:'medium', recommendation:'Acompanhar evolucao.' }];
     overview.pdiAnalytics.priorityActions = [{ planId:'plan_priority_1', personId:'p1', personName:'Colaborador Demo 01', competencyId:'cmp_communication', competencyName:'Comunicacao', focusTitle:'Desenvolver Comunicacao', actionText:'Acompanhar evolucao.', dueDate:'2026-12-20', progressStatus:updated ? 'in_progress' : 'not_started', overdue:false, deadlineStatus:'on_track' }, { planId:'plan_priority_2', personId:'p2', personName:'Colaborador Demo 02', competencyId:'cmp_communication', competencyName:'Comunicacao', focusTitle:'Remover bloqueio de Comunicacao', actionText:'Tratar impedimento.', dueDate:'2026-01-20', progressStatus:'blocked', overdue:true, deadlineStatus:'overdue' }];
     overview.pdiAnalytics.priorityActionSummary = { notStarted:updated ? 0 : 1, inProgress:updated ? 1 : 0, blocked:1, done:0, overdue:1, dueSoon:0, onTrack:1 };
+    overview.pdiAnalytics.responsibleActionSummary = [{ personId:'p2', personName:'Colaborador Demo 02', total:1, overdue:1, dueSoon:0, blocked:1, inProgress:0, attentionScore:5 }, { personId:'p1', personName:'Colaborador Demo 01', total:1, overdue:0, dueSoon:0, blocked:0, inProgress:updated ? 1 : 0, attentionScore:0 }];
     await route.fulfill({ response, json:overview });
   });
   await page.route('**/api/development/plans/plan_priority_1/progress', async (route) => {
@@ -100,6 +101,11 @@ test('atualiza o andamento de uma acao priorizada no dashboard', async ({ page }
   });
 
   await page.goto('/app/dashboard/pdi');
+  await page.getByRole('button', { name:/Colaborador Demo 02/ }).click();
+  await expect(page.getByText('Remover bloqueio de Comunicacao')).toBeVisible();
+  await expect(page.getByText('Desenvolver Comunicacao')).toHaveCount(0);
+  await page.getByRole('button', { name:/Colaborador Demo 02/ }).click();
+  await expect(page.getByText('2 ação(ões) encontrada(s)')).toBeVisible();
   await page.getByLabel('Filtrar ações por status').selectOption('blocked');
   await expect(page.getByText('Remover bloqueio de Comunicacao')).toBeVisible();
   await expect(page.getByText('Desenvolver Comunicacao')).toHaveCount(0);
