@@ -67,6 +67,18 @@ test('permite ao administrador aplicar um filtro governado de equipe no PDI', as
   await expect(page.getByText(/Histórico exato a partir de 19\/08\/2026/)).toBeVisible();
 });
 
+test('transforma prioridade do PDI em rascunho de acao atribuivel', async ({ page }) => {
+  await login(page, 'admin@demo.local');
+  await page.goto('/app/development?source=pdi-priority&competencyId=cmp_communication&focusTitle=Desenvolver%20Comunicacao&actionText=Criar%20plano%20de%20acao&expectedEvidence=Evidencia%20de%20evolucao');
+
+  await expect(page.getByRole('heading', { name: 'Novo PDI' })).toBeVisible();
+  await expect(page.locator('select[formcontrolname="competencyId"]')).toHaveValue('cmp_communication');
+  await expect(page.getByLabel('Foco do PDI')).toHaveValue('Desenvolver Comunicacao');
+  await expect(page.getByLabel('Acao planejada')).toHaveValue('Criar plano de acao');
+  await expect(page.getByLabel('Evidencia esperada')).toHaveValue('Evidencia de evolucao');
+  await expect(page.getByLabel('Prazo')).not.toHaveValue('');
+});
+
 test('exige troca de senha no primeiro acesso antes de abrir o workspace', async ({ page }) => {
   await page.route('**/api/auth/login', (route) =>
     route.fulfill({

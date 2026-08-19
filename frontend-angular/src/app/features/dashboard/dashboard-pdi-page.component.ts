@@ -140,7 +140,7 @@ const emptyAnalytics: DashboardPdiAnalytics = {
             <header><div><span>Priorização gerencial</span><h2>Gaps e risco de desenvolvimento</h2></div><small>nota · ausência de ação · aprendizagem pendente</small></header>
             @if (analytics().competencyPriorities.length) {
               <div class="pdi-dashboard__action-coverage">@for (risk of analytics().developmentRiskMatrix; track risk.level) { <article [class]="'risk-' + risk.level"><span>{{ riskLabel(risk.level) }}</span><strong>{{ risk.total }}</strong><small>{{ risk.competencies.join(', ') || 'Nenhuma competência' }}</small></article> }</div>
-              <div class="pdi-dashboard__action-coverage">@for (item of analytics().competencyPriorities; track item.competencyId; let position = $index) { <article><strong>{{ position + 1 }}. {{ item.competencyName }}</strong><span>Prioridade {{ item.priorityScore }}/100 · nota {{ item.latestScore }} · gap {{ item.gap }}</span><p>{{ item.recommendation }}</p></article> }</div>
+              <div class="pdi-dashboard__action-coverage">@for (item of analytics().competencyPriorities; track item.competencyId; let position = $index) { <article><strong>{{ position + 1 }}. {{ item.competencyName }}</strong><span>Prioridade {{ item.priorityScore }}/100 · nota {{ item.latestScore }} · gap {{ item.gap }}</span><p>{{ item.recommendation }}</p><a [routerLink]="['/app/development']" [queryParams]="priorityActionParams(item)">Criar ação no PDI</a></article> }</div>
               <div class="pdi-dashboard__methodology"><strong>Critério de prioridade</strong><span>Gap até a nota 5, ausência de ação estruturada e aprendizagem pendente. Apenas competências com amostra mínima de {{ analytics().minimumAggregateSize }} pessoas são consideradas.</span></div>
             } @else { <p class="pdi-dashboard__empty">Sem amostra agregada suficiente para priorizar competências neste recorte.</p> }
           </article>
@@ -204,6 +204,7 @@ export class DashboardPdiPageComponent implements OnInit {
   deltaLabel(delta: number): string { return `${delta > 0 ? '+' : ''}${delta} p.p.`; }
   scoreDeltaLabel(delta: number): string { return `${delta > 0 ? '+' : ''}${delta.toFixed(1)} ponto${Math.abs(delta) === 1 ? '' : 's'}`; }
   riskLabel(level: 'high' | 'medium' | 'low'): string { return ({ high: 'Risco alto', medium: 'Risco moderado', low: 'Risco controlado' })[level]; }
+  priorityActionParams(item: DashboardPdiAnalytics['competencyPriorities'][number]): Record<string, string> { return { source: 'pdi-priority', competencyId: item.competencyId, focusTitle: `Desenvolver ${item.competencyName}`, actionText: item.recommendation, expectedEvidence: `Evidência de evolução em ${item.competencyName}` }; }
   timeGroupingLabel(): string { return this.timeGroupingOptions.find((option) => option.value === this.timeGrouping())?.label || 'Período'; }
   governanceLabel(overview: DashboardOverview): string { if (overview.mode === 'team') return 'Somente equipe direta'; if (overview.mode === 'personal') return 'Somente visão individual'; return 'Consolidado autorizado para RH e administração'; }
 

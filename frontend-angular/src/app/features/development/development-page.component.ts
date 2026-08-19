@@ -1,6 +1,7 @@
 import { DatePipe } from '@angular/common';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import { catchError, firstValueFrom, forkJoin, of } from 'rxjs';
 
 import { AuthService } from '../../core/auth/auth.service';
@@ -140,6 +141,7 @@ const progressLabels: Record<string, string> = {
   `,
 })
 export class DevelopmentPageComponent implements OnInit {
+  private readonly route = inject(ActivatedRoute);
   private readonly api = inject(DevelopmentService);
   private readonly peopleApi = inject(PeopleService);
   private readonly competenciesApi = inject(CompetenciesService);
@@ -232,6 +234,7 @@ export class DevelopmentPageComponent implements OnInit {
     }
     this.openRecordForm();
     this.openPlanForm();
+    this.applyPriorityDraft();
   }
   progressLabel(status: string): string { return progressLabels[status] ?? status; }
   developmentViewDescription(): string { return this.developmentViews().find((view) => view.key === this.activeDevelopmentView())?.description || 'Sua trilha individual de formacao, certificacoes e marcos recentes'; }
@@ -270,6 +273,19 @@ export class DevelopmentPageComponent implements OnInit {
     this.showPlanForm.set(true);
   }
   closePlanForm(): void { this.showPlanForm.set(false); this.editingPlan.set(null); }
+  applyPriorityDraft(): void {
+    const params = this.route.snapshot.queryParamMap;
+    if (params.get('source') !== 'pdi-priority') return;
+    const dueDate = new Date();
+    dueDate.setDate(dueDate.getDate() + 90);
+    this.planForm.patchValue({
+      competencyId: params.get('competencyId') || '',
+      focusTitle: params.get('focusTitle') || '',
+      actionText: params.get('actionText') || '',
+      dueDate: dueDate.toISOString().slice(0, 10),
+      expectedEvidence: params.get('expectedEvidence') || ''
+    });
+  }
   openProgressForm(plan: DevelopmentPlan): void { this.progressPlan.set(plan); this.progressForm.reset({ progressStatus:plan.progressStatus || 'not_started', progressNote:plan.progressNote || '' }); }
   openLearningReview(event: LearningIntegrationEvent): void {
     const competencyId = this.competencies().find((item) => item.key.toLowerCase() === (event.competencyKey || '').toLowerCase())?.id || '';
