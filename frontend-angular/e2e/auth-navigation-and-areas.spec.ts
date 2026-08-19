@@ -100,12 +100,21 @@ test('atualiza o andamento de uma acao priorizada no dashboard', async ({ page }
 
   await page.goto('/app/dashboard/pdi');
   await page.getByRole('button', { name:'Atualizar andamento' }).click();
-  await page.getByLabel('Status da ação').selectOption('in_progress');
-  await page.getByLabel('Nota gerencial').fill('Acompanhamento iniciado com o responsável.');
+  await page.getByLabel('Status da ação').selectOption('blocked');
+  await page.getByRole('button', { name:'Salvar andamento' }).click();
+  await expect(page.getByRole('alert')).toHaveText('Informe a justificativa do bloqueio.');
+  expect(progressPayload).toEqual({});
+
+  await page.getByLabel('Status da ação').selectOption('done');
+  await page.getByLabel('Nota gerencial').fill('Evidência de conclusão validada.');
+  page.once('dialog', (dialog) => dialog.dismiss());
+  await page.getByRole('button', { name:'Salvar andamento' }).click();
+  expect(progressPayload).toEqual({});
+  page.once('dialog', (dialog) => dialog.accept());
   await page.getByRole('button', { name:'Salvar andamento' }).click();
 
   await expect(page.getByText(/Em andamento · prazo/)).toBeVisible();
-  expect(progressPayload).toEqual({ progressStatus:'in_progress', progressNote:'Acompanhamento iniciado com o responsável.' });
+  expect(progressPayload).toEqual({ progressStatus:'done', progressNote:'Evidência de conclusão validada.' });
 });
 
 test('exige troca de senha no primeiro acesso antes de abrir o workspace', async ({ page }) => {

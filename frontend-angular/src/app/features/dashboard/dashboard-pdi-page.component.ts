@@ -114,7 +114,7 @@ const emptyAnalytics: DashboardPdiAnalytics = {
           <article class="pdi-dashboard__panel pdi-dashboard__panel--wide">
             <header><div><span>Execução das prioridades</span><h2>Ações vinculadas às prioridades</h2></div><small>responsável · prazo · andamento</small></header>
             <div class="pdi-dashboard__attention"><div><span>Não iniciadas</span><strong>{{ analytics().priorityActionSummary.notStarted }}</strong></div><div><span>Em andamento</span><strong>{{ analytics().priorityActionSummary.inProgress }}</strong></div><div><span>Bloqueadas</span><strong>{{ analytics().priorityActionSummary.blocked }}</strong></div><div><span>Concluídas</span><strong>{{ analytics().priorityActionSummary.done }}</strong></div><div><span>Vencidas</span><strong>{{ analytics().priorityActionSummary.overdue }}</strong></div></div>
-            @if (analytics().priorityActions.length) { <div class="pdi-dashboard__action-coverage">@for (action of analytics().priorityActions; track action.planId) { <article><strong>{{ action.focusTitle }}</strong><span>{{ action.personName }} · {{ action.competencyName }}</span><p>{{ action.actionText }}</p><small>{{ progressLabel(action.progressStatus) }} · prazo {{ dueDateLabel(action.dueDate) }}{{ action.overdue ? ' · vencida' : '' }}</small>@if (editingActionId() === action.planId) { <div class="pdi-dashboard__progress-editor"><select #progressStatus [value]="action.progressStatus" aria-label="Status da ação"><option value="not_started">Não iniciada</option><option value="in_progress">Em andamento</option><option value="blocked">Bloqueada</option><option value="done">Concluída</option></select><input #progressNote aria-label="Nota gerencial" placeholder="Nota gerencial" /><button type="button" (click)="saveActionProgress(action.planId, progressStatus.value, progressNote.value)" [disabled]="savingAction()">{{ savingAction() ? 'Salvando...' : 'Salvar andamento' }}</button><button class="secondary" type="button" (click)="editingActionId.set(null)" [disabled]="savingAction()">Cancelar</button></div> } @else { <button type="button" (click)="editingActionId.set(action.planId)">Atualizar andamento</button> }</article> }</div> } @else { <p class="pdi-dashboard__empty">Nenhum PDI ativo está vinculado às competências priorizadas neste recorte.</p> }
+            @if (analytics().priorityActions.length) { <div class="pdi-dashboard__action-coverage">@for (action of analytics().priorityActions; track action.planId) { <article><strong>{{ action.focusTitle }}</strong><span>{{ action.personName }} · {{ action.competencyName }}</span><p>{{ action.actionText }}</p><small>{{ progressLabel(action.progressStatus) }} · prazo {{ dueDateLabel(action.dueDate) }}{{ action.overdue ? ' · vencida' : '' }}</small>@if (editingActionId() === action.planId) { <div class="pdi-dashboard__progress-editor"><select #progressStatus [value]="action.progressStatus" aria-label="Status da ação"><option value="not_started">Não iniciada</option><option value="in_progress">Em andamento</option><option value="blocked">Bloqueada</option><option value="done">Concluída</option></select><input #progressNote aria-label="Nota gerencial" placeholder="Nota gerencial" />@if (actionProgressError()) { <small role="alert">{{ actionProgressError() }}</small> }<button type="button" (click)="saveActionProgress(action.planId, progressStatus.value, progressNote.value)" [disabled]="savingAction()">{{ savingAction() ? 'Salvando...' : 'Salvar andamento' }}</button><button class="secondary" type="button" (click)="closeActionProgress()" [disabled]="savingAction()">Cancelar</button></div> } @else { <button type="button" (click)="openActionProgress(action.planId)">Atualizar andamento</button> }</article> }</div> } @else { <p class="pdi-dashboard__empty">Nenhum PDI ativo está vinculado às competências priorizadas neste recorte.</p> }
           </article>
 
           <article class="pdi-dashboard__panel">
@@ -188,6 +188,7 @@ export class DashboardPdiPageComponent implements OnInit {
   readonly isLoading = signal(true);
   readonly editingActionId = signal<string | null>(null);
   readonly savingAction = signal(false);
+  readonly actionProgressError = signal('');
   readonly areaFilter = signal('all');
   readonly teamFilter = signal('all');
   readonly timeGrouping = signal<DashboardTimeGrouping>('semester');
@@ -219,12 +220,21 @@ export class DashboardPdiPageComponent implements OnInit {
   priorityActionParams(item: DashboardPdiAnalytics['competencyPriorities'][number]): Record<string, string> { return { source: 'pdi-priority', competencyId: item.competencyId, focusTitle: `Desenvolver ${item.competencyName}`, actionText: item.recommendation, expectedEvidence: `Evidência de evolução em ${item.competencyName}` }; }
   timeGroupingLabel(): string { return this.timeGroupingOptions.find((option) => option.value === this.timeGrouping())?.label || 'Período'; }
   governanceLabel(overview: DashboardOverview): string { if (overview.mode === 'team') return 'Somente equipe direta'; if (overview.mode === 'personal') return 'Somente visão individual'; return 'Consolidado autorizado para RH e administração'; }
+  openActionProgress(planId: string): void { this.actionProgressError.set(''); this.editingActionId.set(planId); }
+  closeActionProgress(): void { this.actionProgressError.set(''); this.editingActionId.set(null); }
   async saveActionProgress(planId: string, status: string, note: string): Promise<void> {
     if (!['not_started', 'in_progress', 'blocked', 'done'].includes(status)) return;
+    const progressNote = note.trim();
+    if (['blocked', 'done'].includes(status) && !progressNote) {
+      this.actionProgressError.set(status === 'blocked' ? 'Informe a justificativa do bloqueio.' : 'Informe a evidência ou nota de conclusão.');
+      return;
+    }
+    if (status === 'done' && !window.confirm('Confirmar a conclusão desta ação de desenvolvimento?')) return;
+    this.actionProgressError.set('');
     this.savingAction.set(true);
     this.errorMessage.set('');
     try {
-      await firstValueFrom(this.dashboardService.updatePriorityActionProgress(planId, { progressStatus: status as 'not_started' | 'in_progress' | 'blocked' | 'done', progressNote: note.trim() }));
+      await firstValueFrom(this.dashboardService.updatePriorityActionProgress(planId, { progressStatus: status as 'not_started' | 'in_progress' | 'blocked' | 'done', progressNote }));
       this.editingActionId.set(null);
       await this.loadOverview();
     } catch (error) {
