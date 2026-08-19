@@ -102,9 +102,11 @@ test('atualiza o andamento de uma acao priorizada no dashboard', async ({ page }
 
   await page.goto('/app/dashboard/pdi');
   await page.getByRole('button', { name:/Colaborador Demo 02/ }).click();
+  await expect(page.getByText('Responsável: Colaborador Demo 02')).toBeVisible();
   await expect(page.getByText('Remover bloqueio de Comunicacao')).toBeVisible();
   await expect(page.getByText('Desenvolver Comunicacao')).toHaveCount(0);
-  await page.getByRole('button', { name:/Colaborador Demo 02/ }).click();
+  await page.getByRole('button', { name:'Limpar responsável' }).click();
+  await expect(page.getByText('Responsável: Colaborador Demo 02')).toHaveCount(0);
   await expect(page.getByText('2 ação(ões) encontrada(s)')).toBeVisible();
   await page.getByLabel('Filtrar ações por status').selectOption('blocked');
   await expect(page.getByText('Remover bloqueio de Comunicacao')).toBeVisible();
