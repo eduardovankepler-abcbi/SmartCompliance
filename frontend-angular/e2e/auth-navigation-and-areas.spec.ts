@@ -80,6 +80,34 @@ test('transforma prioridade do PDI em rascunho de acao atribuivel', async ({ pag
   await expect(page.getByLabel('Prazo')).not.toHaveValue('');
 });
 
+test('atualiza o andamento de uma acao priorizada no dashboard', async ({ page }) => {
+  await login(page, 'admin@demo.local');
+  let updated = false;
+  let progressPayload: { progressStatus?: string; progressNote?: string } = {};
+  await page.route('**/api/dashboards/overview**', async (route) => {
+    const response = await route.fetch();
+    const overview = await response.json();
+    overview.pdiAnalytics.competencyPriorities = [{ competencyId:'cmp_communication', competencyName:'Comunicacao', latestScore:2.5, gap:2.5, priorityScore:50, riskLevel:'medium', recommendation:'Acompanhar evolucao.' }];
+    overview.pdiAnalytics.priorityActions = [{ planId:'plan_priority_1', personId:'p1', personName:'Colaborador Demo 01', competencyId:'cmp_communication', competencyName:'Comunicacao', focusTitle:'Desenvolver Comunicacao', actionText:'Acompanhar evolucao.', dueDate:'2026-12-20', progressStatus:updated ? 'in_progress' : 'not_started', overdue:false }];
+    overview.pdiAnalytics.priorityActionSummary = { notStarted:updated ? 0 : 1, inProgress:updated ? 1 : 0, blocked:0, done:0, overdue:0 };
+    await route.fulfill({ response, json:overview });
+  });
+  await page.route('**/api/development/plans/plan_priority_1/progress', async (route) => {
+    progressPayload = route.request().postDataJSON();
+    updated = true;
+    await route.fulfill({ status:200, json:{ id:'plan_priority_1', progressStatus:'in_progress' } });
+  });
+
+  await page.goto('/app/dashboard/pdi');
+  await page.getByRole('button', { name:'Atualizar andamento' }).click();
+  await page.getByLabel('Status da ação').selectOption('in_progress');
+  await page.getByLabel('Nota gerencial').fill('Acompanhamento iniciado com o responsável.');
+  await page.getByRole('button', { name:'Salvar andamento' }).click();
+
+  await expect(page.getByText(/Em andamento · prazo/)).toBeVisible();
+  expect(progressPayload).toEqual({ progressStatus:'in_progress', progressNote:'Acompanhamento iniciado com o responsável.' });
+});
+
 test('exige troca de senha no primeiro acesso antes de abrir o workspace', async ({ page }) => {
   await page.route('**/api/auth/login', (route) =>
     route.fulfill({

@@ -336,4 +336,11 @@ export class DashboardService {
     const suffix = params.size ? `?${params.toString()}` : '';
     return this.api.get<DashboardOverview>(`/api/dashboards/overview${suffix}`);
   }
+
+  updatePriorityActionProgress(
+    planId: string,
+    payload: { progressStatus: 'not_started' | 'in_progress' | 'blocked' | 'done'; progressNote: string },
+  ): Observable<unknown> {
+    return this.api.patch(`/api/development/plans/${planId}/progress`, payload);
+  }
 }
