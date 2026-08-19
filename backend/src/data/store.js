@@ -4302,6 +4302,8 @@ function buildPdiAnalytics({
   cycles,
   developmentPlans = [],
   developmentProgressEvents = [],
+  responses = [],
+  competencies = [],
   timeGrouping = "semester"
 }) {
   const now = new Date();
@@ -4416,54 +4418,94 @@ function buildPdiAnalytics({
   const currentPeriod = evolution.at(-1) || null;
   const previousPeriod = evolution.at(-2) || null;
   const sampleSufficient = people.length >= 3;
-  const competencyGroups = Object.values(
-    developmentPlans.reduce((acc, plan) => {
-      if (!plan.competencyId) return acc;
-      const entry = acc[plan.competencyId] || {
-        competencyId: plan.competencyId,
-        competencyName: plan.competencyName || "Competencia sem nome",
-        plans: [],
-        personIds: new Set()
-      };
-      entry.plans.push(plan);
-      entry.personIds.add(plan.personId);
-      acc[plan.competencyId] = entry;
-      return acc;
-    }, {})
+  const normalizedCompetencies = competencies
+    .filter((competency) => competency.status !== "inactive")
+    .map((competency) => ({
+      ...competency,
+      aliases: [competency.name, competency.key]
+        .map((value) => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim())
+        .filter(Boolean)
+    }));
+  const eligibleCycleIds = new Set(
+    cycles
+      .filter((cycle) => [CYCLE_STATUS.closed, CYCLE_STATUS.processed].includes(cycle.status))
+      .map((cycle) => cycle.id)
   );
-  const competencyEvolution = sampleSufficient
-    ? competencyGroups
-        .filter((entry) => entry.personIds.size >= 3)
-        .map((entry) => {
-          const percentageAt = (period) => {
-            if (!period) return 0;
-            const periodMeta = uniquePeriods.find((item) => item.key === period.periodKey);
-            const eligible = entry.plans.filter(
-              (plan) => new Date(plan.createdAt || 0).getTime() <= periodMeta.endAt
-            );
-            const completed = eligible.filter(
-              (plan) => pdiStatusAt(plan, eventsByPlan, periodMeta.endAt) === "done"
-            ).length;
-            return calculatePercentage(completed, eligible.length);
-          };
-          const currentPercentage = percentageAt(currentPeriod);
-          const previousPercentage = percentageAt(previousPeriod);
-          return {
-            competencyId: entry.competencyId,
-            competencyName: entry.competencyName,
-            peopleCount: entry.personIds.size,
-            planCount: entry.plans.length,
-            previousPercentage,
-            currentPercentage,
-            delta: currentPercentage - previousPercentage
-          };
-        })
-        .sort((left, right) => right.delta - left.delta || right.planCount - left.planCount)
-    : [];
+  const competencyPeriodGroups = {};
+
+  for (const response of responses) {
+    if (
+      !eligibleCycleIds.has(response.cycleId) ||
+      !PERFORMANCE_360_WEIGHTS[response.relationshipType] ||
+      !response.revieweePersonId
+    ) continue;
+    const cycle = cyclesById.get(response.cycleId);
+    if (!cycle) continue;
+    const period = getCyclePeriodMeta(cycle, timeGrouping);
+
+    for (const answer of response.answers || []) {
+      const score = Number(answer.score);
+      if (!Number.isFinite(score) || !answer.dimensionTitle) continue;
+      const dimensionKey = String(answer.dimensionTitle)
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, " ")
+        .trim();
+      const competency = normalizedCompetencies.find((item) => item.aliases.includes(dimensionKey));
+      if (!competency) continue;
+      const key = `${competency.id}:${period.key}`;
+      const entry = competencyPeriodGroups[key] || {
+        competencyId: competency.id,
+        competencyName: competency.name,
+        periodKey: period.key,
+        periodLabel: period.label,
+        sortValue: period.sortValue,
+        scores: [],
+        personIds: new Set(),
+        responseIds: new Set()
+      };
+      entry.scores.push(score);
+      entry.personIds.add(response.revieweePersonId);
+      entry.responseIds.add(response.id || response.submissionId || `${response.cycleId}:${response.revieweePersonId}`);
+      competencyPeriodGroups[key] = entry;
+    }
+  }
+
+  const competencyEvolution = normalizedCompetencies
+    .map((competency) => {
+      const periods = Object.values(competencyPeriodGroups)
+        .filter((entry) => entry.competencyId === competency.id && entry.personIds.size >= 3)
+        .sort((left, right) => left.sortValue - right.sortValue);
+      const current = periods.at(-1);
+      const previous = periods.at(-2);
+      if (!current || !previous) return null;
+      const currentScore = Number(average(current.scores).toFixed(1));
+      const previousScore = Number(average(previous.scores).toFixed(1));
+      return {
+        competencyId: competency.id,
+        competencyName: competency.name,
+        peopleCount: current.personIds.size,
+        responseCount: current.responseIds.size,
+        previousPeriodLabel: previous.periodLabel,
+        currentPeriodLabel: current.periodLabel,
+        previousScore,
+        currentScore,
+        delta: Number((currentScore - previousScore).toFixed(1))
+      };
+    })
+    .filter(Boolean)
+    .sort((left, right) => right.delta - left.delta || right.peopleCount - left.peopleCount);
 
   return {
     sampleSufficient,
     minimumAggregateSize: 3,
+    methodology: {
+      competencySource: "Avaliacoes 360 de ciclos Encerrados ou Processados",
+      competencyScale: "Media de 1 a 5",
+      comparisonRule: "Dois ultimos periodos com ao menos 3 pessoas por competencia",
+      dimensionMapping: "Correspondencia entre dimensao da pergunta e nome ou chave da competencia"
+    },
     summary: {
       peopleCount: people.length,
       peopleWithPdi,
@@ -4736,12 +4778,15 @@ function buildDashboardPayload({
   developmentRecords,
   developmentPlans = [],
   developmentProgressEvents = [],
+  competencies = [],
   incidents = [],
   learningEvents = [],
   responses,
   evaluationHighlights,
   availableAreas = [],
   selectedArea = null,
+  teamOptions = [],
+  selectedTeamManagerId = null,
   timeGrouping = "semester",
   performanceActorUser = null
 }) {
@@ -4784,7 +4829,9 @@ function buildDashboardPayload({
     notice,
     scopeLabel,
     selectedArea,
+    selectedTeamManagerId,
     areaOptions: availableAreas,
+    teamOptions,
     scopeSummary: {
       peopleCount,
       pendingAssignments,
@@ -4886,6 +4933,8 @@ function buildDashboardPayload({
       cycles,
       developmentPlans,
       developmentProgressEvents,
+      responses: scopedResponses,
+      competencies,
       timeGrouping
     }),
     cycleTimeline: buildCycleTimelineSeries({
@@ -8225,6 +8274,7 @@ function buildMysqlStore(
       supportsLearningIntegrations,
       supportsProgressHistory,
       fetchPeopleRows,
+      fetchCompetencyRows,
       fetchMysqlResponses,
       isFullAccessUser,
       isManagerUser,

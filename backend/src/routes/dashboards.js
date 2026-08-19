@@ -9,6 +9,7 @@ export function createDashboardsRouter(store) {
       res.json(
         await store.getDashboardOverview(req.auth.user, {
           area: req.query.area || null,
+          teamManagerId: req.query.teamManagerId || null,
           timeGrouping: req.query.timeGrouping || "semester"
         })
       );

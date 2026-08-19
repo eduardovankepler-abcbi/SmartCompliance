@@ -9,6 +9,7 @@ export type DashboardTone = 'positive' | 'warning' | 'critical' | 'neutral' | 's
 
 export interface DashboardOverviewQuery {
   area?: string | null;
+  teamManagerId?: string | null;
   timeGrouping?: DashboardTimeGrouping;
 }
 
@@ -190,15 +191,23 @@ export interface DashboardPdiCompetencyItem {
   competencyId: string;
   competencyName: string;
   peopleCount: number;
-  planCount: number;
-  previousPercentage: number;
-  currentPercentage: number;
+  responseCount: number;
+  previousPeriodLabel: string;
+  currentPeriodLabel: string;
+  previousScore: number;
+  currentScore: number;
   delta: number;
 }
 
 export interface DashboardPdiAnalytics {
   sampleSufficient: boolean;
   minimumAggregateSize: number;
+  methodology: {
+    competencySource: string;
+    competencyScale: string;
+    comparisonRule: string;
+    dimensionMapping: string;
+  };
   summary: {
     peopleCount: number;
     peopleWithPdi: number;
@@ -223,7 +232,9 @@ export interface DashboardOverview {
   notice: string;
   scopeLabel: string;
   selectedArea: string | null;
+  selectedTeamManagerId: string | null;
   areaOptions: string[];
+  teamOptions: Array<{ managerPersonId: string; label: string; area: string; peopleCount: number }>;
   scopeSummary: DashboardScopeSummary;
   cards: DashboardCard[];
   donutMetrics: DashboardDonutMetric[];
@@ -251,6 +262,9 @@ export class DashboardService {
     const params = new URLSearchParams();
     if (query.area) {
       params.set('area', query.area);
+    }
+    if (query.teamManagerId) {
+      params.set('teamManagerId', query.teamManagerId);
     }
     if (query.timeGrouping) {
       params.set('timeGrouping', query.timeGrouping);

@@ -46,6 +46,22 @@ test('abre o dashboard de PDI pela navegacao executiva', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Evolução da equipe' })).toBeVisible();
   await expect(page.getByText('Governança aplicada')).toBeVisible();
   await expect(page.getByRole('link', { name: 'PDI', exact: true })).toHaveAttribute('aria-current', 'page');
+  await expect(page.locator('.pdi-dashboard__filters label').filter({ hasText: /^Equipe/ }).locator('select')).toHaveCount(0);
+});
+
+test('permite ao administrador aplicar um filtro governado de equipe no PDI', async ({ page }) => {
+  await login(page, 'admin@demo.local');
+  await page.goto('/app/dashboard/pdi');
+  await expect(page.getByRole('heading', { name: 'Evolução da equipe' })).toBeVisible();
+
+  const teamFilter = page.locator('.pdi-dashboard__filters label').filter({ hasText: /^Equipe/ }).locator('select');
+  await expect(teamFilter).toBeVisible();
+  const options = await teamFilter.locator('option').count();
+  expect(options).toBeGreaterThan(1);
+  await teamFilter.selectOption({ index: 1 });
+
+  await expect(page.locator('.pdi-dashboard__stamp strong')).toContainText('Equipe de');
+  await expect(page.getByText('Como calculamos')).toBeVisible();
 });
 
 test('exige troca de senha no primeiro acesso antes de abrir o workspace', async ({ page }) => {

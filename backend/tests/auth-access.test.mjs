@@ -428,6 +428,20 @@ export async function runAuthAccessRegression() {
       Array.isArray(adminDashboard.payload.pdiAnalytics.evolution),
       "Dashboard deve retornar evolucao historica de PDI"
     );
+    assert.equal(
+      adminDashboard.payload.pdiAnalytics.methodology.competencyScale,
+      "Media de 1 a 5",
+      "Dashboard deve explicar a escala da evolucao por competencia"
+    );
+    assert.ok(
+      adminDashboard.payload.pdiAnalytics.competencyEvolution.every(
+        (item) =>
+          item.peopleCount >= adminDashboard.payload.pdiAnalytics.minimumAggregateSize &&
+          item.currentScore >= 1 &&
+          item.currentScore <= 5
+      ),
+      "Competencias devem usar notas homologadas e respeitar a amostra minima"
+    );
     assert.ok(
       Array.isArray(adminDashboard.payload.pdiAnalytics.statusDistribution) &&
         adminDashboard.payload.pdiAnalytics.statusDistribution.reduce(
@@ -439,6 +453,42 @@ export async function runAuthAccessRegression() {
     assert.ok(
       adminDashboard.payload.cards.some((card) => card.label === "Incidentes abertos"),
       "Dashboard executivo deve destacar incidentes abertos"
+    );
+    assert.ok(
+      Array.isArray(adminDashboard.payload.teamOptions),
+      "Dashboard executivo deve retornar somente equipes disponiveis para filtro"
+    );
+    const firstDashboardTeam = adminDashboard.payload.teamOptions[0];
+    if (firstDashboardTeam) {
+      const teamDashboard = await fetchJson(
+        `/api/dashboards/overview?teamManagerId=${encodeURIComponent(firstDashboardTeam.managerPersonId)}`,
+        getAuthHeader(admin.id)
+      );
+      assert.equal(teamDashboard.response.status, 200, "Admin deve filtrar uma equipe autorizada");
+      assert.equal(
+        teamDashboard.payload.selectedTeamManagerId,
+        firstDashboardTeam.managerPersonId,
+        "Dashboard deve confirmar o filtro de equipe aplicado"
+      );
+      assert.ok(
+        teamDashboard.payload.scopeSummary.peopleCount <= adminDashboard.payload.scopeSummary.peopleCount,
+        "Filtro de equipe nao deve ampliar a populacao autorizada"
+      );
+    }
+
+    const managerDashboardCurrentScope = await fetchJson(
+      "/api/dashboards/overview",
+      getAuthHeader(manager.id)
+    );
+    const managerDashboardWithInjectedTeam = await fetchJson(
+      `/api/dashboards/overview?teamManagerId=${encodeURIComponent(admin.personId)}`,
+      getAuthHeader(manager.id)
+    );
+    assert.equal(managerDashboardWithInjectedTeam.response.status, 200);
+    assert.equal(
+      managerDashboardWithInjectedTeam.payload.scopeSummary.peopleCount,
+      managerDashboardCurrentScope.payload.scopeSummary.peopleCount,
+      "Gestor deve permanecer restrito a equipe direta ao manipular o filtro"
     );
     const anonymousDashboardSummaries = adminDashboard.payload.evaluationResultsSummary.filter(
       (item) =>

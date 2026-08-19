@@ -1,3 +1,27 @@
+function buildDashboardTeamOptions(people, selectedArea = null) {
+  const areaPeople = selectedArea
+    ? people.filter((person) => person.area === selectedArea)
+    : people;
+  const managersById = new Map(people.map((person) => [person.id, person]));
+  const teams = new Map();
+
+  for (const person of areaPeople) {
+    if (!person.managerPersonId) continue;
+    const manager = managersById.get(person.managerPersonId);
+    if (!manager) continue;
+    const entry = teams.get(manager.id) || {
+      managerPersonId: manager.id,
+      label: `Equipe de ${manager.name}`,
+      area: manager.area || person.area || "Sem area",
+      peopleCount: 1
+    };
+    entry.peopleCount += 1;
+    teams.set(manager.id, entry);
+  }
+
+  return [...teams.values()].sort((left, right) => left.label.localeCompare(right.label, "pt-BR"));
+}
+
 export function createMemoryDashboardStore({
   db,
   anonymousResponseState,
@@ -18,14 +42,23 @@ export function createMemoryDashboardStore({
       const timeGrouping = options.timeGrouping || "semester";
 
       if (isOrgWideUser(actorUser)) {
-        const scopedPeople = options.area
+        const areaScopedPeople = options.area
           ? db.people.filter((person) => person.area === options.area)
           : db.people;
+        const scopedPeople = options.teamManagerId
+          ? areaScopedPeople.filter(
+              (person) =>
+                person.id === options.teamManagerId || person.managerPersonId === options.teamManagerId
+            )
+          : areaScopedPeople;
         const scopedPersonIds = new Set(scopedPeople.map((person) => person.id));
         const scopedAssignments = db.assignments.filter((item) =>
           scopedPersonIds.has(item.revieweePersonId)
         );
         const scopedCycleIds = new Set(scopedAssignments.map((item) => item.cycleId));
+        const selectedTeam = buildDashboardTeamOptions(db.people, options.area).find(
+          (team) => team.managerPersonId === options.teamManagerId
+        );
         const scopedApplause = db.applauseEntries.filter((item) =>
           scopedPersonIds.has(item.receiverPersonId)
         );
@@ -39,10 +72,16 @@ export function createMemoryDashboardStore({
 
         return buildDashboardPayload({
           mode: "executive",
-          notice: options.area
+          notice: selectedTeam
+            ? `Leitura consolidada filtrada para ${selectedTeam.label}.`
+            : options.area
             ? `Leitura consolidada filtrada para a area ${options.area}.`
             : "Leitura consolidada para RH, compliance e lideranca.",
-          scopeLabel: options.area ? `Area: ${options.area}` : "Consolidado organizacional",
+          scopeLabel: selectedTeam
+            ? selectedTeam.label
+            : options.area
+              ? `Area: ${options.area}`
+              : "Consolidado organizacional",
           cycles: scopedCycles,
           people: scopedPeople,
           assignments: scopedAssignments,
@@ -54,11 +93,14 @@ export function createMemoryDashboardStore({
           developmentProgressEvents: (db.developmentPlanProgressEvents || []).filter((item) =>
             scopedPersonIds.has(item.personId)
           ),
+          competencies: db.competencies || [],
           incidents: db.incidents || [],
           learningEvents: db.learningIntegrationEvents || [],
           responses: scopedResponses,
           availableAreas,
           selectedArea: options.area,
+          teamOptions: buildDashboardTeamOptions(db.people, options.area),
+          selectedTeamManagerId: options.teamManagerId,
           timeGrouping,
           performanceActorUser: isAdminUser(actorUser) ? actorUser : null,
           evaluationHighlights: [
@@ -106,6 +148,7 @@ export function createMemoryDashboardStore({
           developmentProgressEvents: (db.developmentPlanProgressEvents || []).filter((item) =>
             visiblePersonIds.has(item.personId)
           ),
+          competencies: db.competencies || [],
           incidents: teamIncidents,
           learningEvents: [],
           responses: teamResponses,
@@ -147,6 +190,7 @@ export function createMemoryDashboardStore({
         developmentProgressEvents: (db.developmentPlanProgressEvents || []).filter(
           (item) => item.personId === actorUser.person.id
         ),
+        competencies: db.competencies || [],
         incidents: [],
         learningEvents: [],
         responses: personalResponses,
@@ -171,6 +215,7 @@ export function createMysqlDashboardStore({
   supportsLearningIntegrations,
   supportsProgressHistory,
   fetchPeopleRows,
+  fetchCompetencyRows,
   fetchMysqlResponses,
   isFullAccessUser,
   isManagerUser,
@@ -190,13 +235,14 @@ export function createMysqlDashboardStore({
         developmentPlanRows,
         incidentRows,
         learningRows,
-        developmentProgressRows
+        developmentProgressRows,
+        competencies
       ] =
         await Promise.all([
           fetchPeopleRows(pool),
           pool
             .query(
-              `SELECT id, title, semester_label AS semesterLabel, due_date AS dueDate
+              `SELECT id, title, semester_label AS semesterLabel, status, due_date AS dueDate
                FROM evaluation_cycles`
             )
             .then(([rows]) => rows),
@@ -261,27 +307,43 @@ export function createMysqlDashboardStore({
                    ORDER BY occurred_at ASC`
                 )
                 .then(([rows]) => rows)
-            : Promise.resolve([])
+            : Promise.resolve([]),
+          fetchCompetencyRows(pool)
         ]);
 
       const availableAreas = [...new Set(people.map((person) => person.area))].sort();
 
       if (isFullAccessUser(actorUser)) {
-        const scopedPeople = options.area
+        const areaScopedPeople = options.area
           ? people.filter((person) => person.area === options.area)
           : people;
+        const scopedPeople = options.teamManagerId
+          ? areaScopedPeople.filter(
+              (person) =>
+                person.id === options.teamManagerId || person.managerPersonId === options.teamManagerId
+            )
+          : areaScopedPeople;
         const scopedPersonIds = new Set(scopedPeople.map((person) => person.id));
         const scopedAssignments = assignmentRows.filter((item) =>
           scopedPersonIds.has(item.revieweePersonId)
         );
         const scopedCycleIds = new Set(scopedAssignments.map((item) => item.cycleId));
+        const selectedTeam = buildDashboardTeamOptions(people, options.area).find(
+          (team) => team.managerPersonId === options.teamManagerId
+        );
 
         return buildDashboardPayload({
           mode: "executive",
-          notice: options.area
+          notice: selectedTeam
+            ? `Leitura consolidada filtrada para ${selectedTeam.label}.`
+            : options.area
             ? `Leitura consolidada filtrada para a area ${options.area}.`
             : "Leitura consolidada para RH, compliance e lideranca.",
-          scopeLabel: options.area ? `Area: ${options.area}` : "Consolidado organizacional",
+          scopeLabel: selectedTeam
+            ? selectedTeam.label
+            : options.area
+              ? `Area: ${options.area}`
+              : "Consolidado organizacional",
           cycles: cycles.filter((cycle) => scopedCycleIds.has(cycle.id)),
           people: scopedPeople,
           assignments: scopedAssignments,
@@ -297,11 +359,14 @@ export function createMysqlDashboardStore({
           developmentProgressEvents: developmentProgressRows.filter((item) =>
             scopedPersonIds.has(item.personId)
           ),
+          competencies,
           incidents: incidentRows,
           learningEvents: learningRows,
           responses: responses.filter((item) => scopedPersonIds.has(item.revieweePersonId)),
           availableAreas,
           selectedArea: options.area,
+          teamOptions: buildDashboardTeamOptions(people, options.area),
+          selectedTeamManagerId: options.teamManagerId,
           timeGrouping,
           performanceActorUser: isAdminUser(actorUser) ? actorUser : null,
           evaluationHighlights: [
@@ -345,6 +410,7 @@ export function createMysqlDashboardStore({
           developmentProgressEvents: developmentProgressRows.filter((item) =>
             visiblePersonIds.has(item.personId)
           ),
+          competencies,
           incidents: scopedIncidents,
           learningEvents: [],
           responses: responses.filter((item) => visiblePersonIds.has(item.revieweePersonId)),
@@ -374,6 +440,7 @@ export function createMysqlDashboardStore({
         developmentProgressEvents: developmentProgressRows.filter(
           (item) => item.personId === actorUser.person.id
         ),
+        competencies,
         incidents: [],
         learningEvents: [],
         responses: responses.filter((item) => item.reviewerUserId === actorUser.id),
