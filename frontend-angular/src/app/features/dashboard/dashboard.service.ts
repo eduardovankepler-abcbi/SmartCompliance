@@ -291,6 +291,16 @@ export interface DashboardPdiAnalytics {
     dueSoon: number;
     onTrack: number;
   };
+  responsibleActionSummary: Array<{
+    personId: string;
+    personName: string;
+    total: number;
+    overdue: number;
+    dueSoon: number;
+    blocked: number;
+    inProgress: number;
+    attentionScore: number;
+  }>;
 }
 
 export interface DashboardOverview {

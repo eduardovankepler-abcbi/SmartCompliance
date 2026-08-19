@@ -476,6 +476,13 @@ export async function runAuthAccessRegression() {
         ),
       "Dashboard deve retornar as acoes vinculadas as prioridades por andamento"
     );
+    assert.ok(
+      Array.isArray(adminDashboard.payload.pdiAnalytics.responsibleActionSummary) &&
+        adminDashboard.payload.pdiAnalytics.responsibleActionSummary.every(
+          (item) => item.personId && item.personName && Number.isFinite(item.attentionScore)
+        ),
+      "Dashboard deve consolidar riscos e carga por responsavel visivel"
+    );
     assert.equal(
       adminDashboard.payload.pdiAnalytics.methodology.competencyScale,
       "Media de 1 a 5",

@@ -48,6 +48,7 @@ const emptyAnalytics: DashboardPdiAnalytics = {
   developmentRiskMatrix: [],
   priorityActions: [],
   priorityActionSummary: { notStarted: 0, inProgress: 0, blocked: 0, done: 0, overdue: 0, dueSoon: 0, onTrack: 0 },
+  responsibleActionSummary: [],
 };
 
 @Component({
@@ -109,6 +110,11 @@ const emptyAnalytics: DashboardPdiAnalytics = {
             <div class="pdi-dashboard__timeline-legend"><span><i class="done"></i>Concluídos</span><span><i class="progress"></i>Em andamento</span><span><i class="blocked"></i>Bloqueados</span><span><i class="overdue"></i>Vencidos</span></div>
             <div class="pdi-dashboard__history-table">@for (period of analytics().evolution; track period.periodKey) { <article><strong>{{ period.label }}</strong><span>Cobertura {{ period.coveragePercentage }}%</span><span>Execução {{ period.executionPercentage }}%</span><span>Conclusão {{ period.completionPercentage }}%</span><span>No prazo {{ period.onTimePercentage }}%</span><small>{{ period.blocked }} bloqueados · {{ period.overdue }} vencidos · {{ period.stale }} sem atualização</small></article> }</div>
             <p class="pdi-dashboard__history-note">{{ analytics().methodology.historyAccuracy }}</p>
+          </article>
+
+          <article class="pdi-dashboard__panel pdi-dashboard__panel--wide">
+            <header><div><span>Concentração de execução</span><h2>Ações por responsável</h2></div><small>riscos e carga no recorte autorizado</small></header>
+            @if (analytics().responsibleActionSummary.length) { <div class="pdi-dashboard__action-coverage">@for (owner of analytics().responsibleActionSummary; track owner.personId) { <article><strong>{{ owner.personName }}</strong><span>{{ owner.total }} ação(ões) vinculada(s)</span><p>{{ owner.overdue }} vencida(s) · {{ owner.dueSoon }} próxima(s) do prazo</p><small>{{ owner.blocked }} bloqueada(s) · {{ owner.inProgress }} em andamento</small></article> }</div> } @else { <p class="pdi-dashboard__empty">Nenhum responsável possui ações vinculadas às prioridades neste recorte.</p> }
           </article>
 
           <article class="pdi-dashboard__panel pdi-dashboard__panel--wide">

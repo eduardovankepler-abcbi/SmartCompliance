@@ -4678,6 +4678,26 @@ function buildPdiAnalytics({
     dueSoon: priorityActions.filter((item) => item.deadlineStatus === "due_soon").length,
     onTrack: priorityActions.filter((item) => item.deadlineStatus === "on_track").length
   };
+  const responsibleActionSummary = [...priorityActions.reduce((groups, action) => {
+    const current = groups.get(action.personId) || {
+      personId: action.personId,
+      personName: action.personName,
+      total: 0,
+      overdue: 0,
+      dueSoon: 0,
+      blocked: 0,
+      inProgress: 0
+    };
+    current.total += 1;
+    current.overdue += Number(action.deadlineStatus === "overdue");
+    current.dueSoon += Number(action.deadlineStatus === "due_soon");
+    current.blocked += Number(action.progressStatus === "blocked");
+    current.inProgress += Number(action.progressStatus === "in_progress");
+    groups.set(action.personId, current);
+    return groups;
+  }, new Map()).values()]
+    .map((item) => ({ ...item, attentionScore: item.overdue * 3 + item.blocked * 2 + item.dueSoon }))
+    .sort((left, right) => right.attentionScore - left.attentionScore || right.total - left.total || left.personName.localeCompare(right.personName));
   const comparison = {
     coverageDelta: currentPeriod && previousPeriod
       ? currentPeriod.coveragePercentage - previousPeriod.coveragePercentage
@@ -4738,7 +4758,8 @@ function buildPdiAnalytics({
     competencyPriorities,
     developmentRiskMatrix,
     priorityActions,
-    priorityActionSummary
+    priorityActionSummary,
+    responsibleActionSummary
   };
 }
 
