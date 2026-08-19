@@ -2278,6 +2278,40 @@ async function ensureMysqlDevelopmentPlanProgressSupport(pool) {
   );
 }
 
+async function detectMysqlDevelopmentPlanProgressHistorySupport(pool) {
+  return hasMysqlTable(pool, "development_plan_progress_events");
+}
+
+async function ensureMysqlDevelopmentPlanProgressHistorySupport(pool) {
+  return ensureMysqlTables(pool, detectMysqlDevelopmentPlanProgressHistorySupport, [
+    `CREATE TABLE IF NOT EXISTS development_plan_progress_events (
+      id VARCHAR(36) PRIMARY KEY,
+      plan_id VARCHAR(36) NOT NULL,
+      person_id VARCHAR(36) NOT NULL,
+      previous_status VARCHAR(32) NULL,
+      progress_status VARCHAR(32) NOT NULL,
+      progress_note TEXT NULL,
+      occurred_at DATETIME NOT NULL,
+      changed_by_user_id VARCHAR(36) NULL,
+      INDEX idx_development_progress_plan_date (plan_id, occurred_at),
+      INDEX idx_development_progress_person_date (person_id, occurred_at),
+      FOREIGN KEY (plan_id) REFERENCES development_plans(id),
+      FOREIGN KEY (person_id) REFERENCES people(id),
+      FOREIGN KEY (changed_by_user_id) REFERENCES users(id)
+    )`,
+    `INSERT INTO development_plan_progress_events
+      (id, plan_id, person_id, previous_status, progress_status, progress_note,
+       occurred_at, changed_by_user_id)
+     SELECT CONCAT('dph_', REPLACE(UUID(), '-', '')), plan.id, plan.person_id, NULL,
+            COALESCE(plan.progress_status, 'not_started'), plan.progress_note,
+            COALESCE(plan.progress_updated_at, plan.created_at), plan.created_by_user_id
+     FROM development_plans plan
+     WHERE NOT EXISTS (
+       SELECT 1 FROM development_plan_progress_events event WHERE event.plan_id = plan.id
+     )`
+  ]);
+}
+
 async function detectMysqlPairingSupport(pool) {
   return (
     (await hasMysqlTable(pool, "evaluation_pairings")) &&
@@ -4204,6 +4238,257 @@ function getCyclePeriodMeta(cycle, timeGrouping = "semester") {
   };
 }
 
+function getDatePeriodMeta(value, timeGrouping = "semester") {
+  const date = value ? new Date(value) : new Date();
+  const safeDate = Number.isNaN(date.getTime()) ? new Date() : date;
+  const year = safeDate.getUTCFullYear();
+  const month = safeDate.getUTCMonth();
+  const quarter = Math.floor(month / 3) + 1;
+  const semester = month < 6 ? 1 : 2;
+
+  if (timeGrouping === "year") {
+    return {
+      key: String(year),
+      label: String(year),
+      sortValue: year,
+      endAt: Date.UTC(year, 11, 31, 23, 59, 59, 999)
+    };
+  }
+
+  if (timeGrouping === "quarter") {
+    return {
+      key: `${year}-T${quarter}`,
+      label: `${year} T${quarter}`,
+      sortValue: year * 10 + quarter,
+      endAt: Date.UTC(year, quarter * 3, 0, 23, 59, 59, 999)
+    };
+  }
+
+  return {
+    key: `${year}.${semester}`,
+    label: `${year}.${semester}`,
+    sortValue: year * 10 + semester,
+    endAt: Date.UTC(year, semester * 6, 0, 23, 59, 59, 999)
+  };
+}
+
+function pdiStatusAt(plan, eventsByPlan, endAt) {
+  const events = (eventsByPlan.get(plan.id) || [])
+    .filter((event) => new Date(event.occurredAt).getTime() <= endAt)
+    .sort((left, right) => new Date(left.occurredAt) - new Date(right.occurredAt));
+  return events.at(-1)?.progressStatus || "not_started";
+}
+
+function isDevelopmentPlanOverdue(dueDate, referenceDate = new Date()) {
+  if (!dueDate) return false;
+  const due = new Date(dueDate);
+  if (Number.isNaN(due.getTime())) return false;
+  due.setUTCHours(23, 59, 59, 999);
+  return referenceDate.getTime() > due.getTime();
+}
+
+function pdiDisplayStatus(plan, progressStatus, referenceDate = new Date()) {
+  if (progressStatus === "done" || progressStatus === "blocked") {
+    return progressStatus;
+  }
+  if (isDevelopmentPlanOverdue(plan.dueDate, referenceDate)) {
+    return "overdue";
+  }
+  return progressStatus === "in_progress" ? "in_progress" : "not_started";
+}
+
+function buildPdiAnalytics({
+  people,
+  cycles,
+  developmentPlans = [],
+  developmentProgressEvents = [],
+  timeGrouping = "semester"
+}) {
+  const now = new Date();
+  const cyclesById = new Map((cycles || []).map((cycle) => [cycle.id, cycle]));
+  const eventsByPlan = new Map();
+
+  for (const event of developmentProgressEvents || []) {
+    const events = eventsByPlan.get(event.planId) || [];
+    events.push(event);
+    eventsByPlan.set(event.planId, events);
+  }
+
+  for (const plan of developmentPlans) {
+    if (!eventsByPlan.has(plan.id)) {
+      eventsByPlan.set(plan.id, [
+        {
+          planId: plan.id,
+          personId: plan.personId,
+          progressStatus: plan.progressStatus || "not_started",
+          occurredAt: plan.progressUpdatedAt || plan.createdAt || now.toISOString()
+        }
+      ]);
+    }
+  }
+
+  const activePlans = developmentPlans.filter((plan) => plan.status !== "archived");
+  const currentStatuses = activePlans.map((plan) => ({
+    plan,
+    status: pdiDisplayStatus(plan, plan.progressStatus || "not_started", now)
+  }));
+  const statusOrder = ["not_started", "in_progress", "blocked", "done", "overdue"];
+  const statusLabels = {
+    not_started: "Nao iniciados",
+    in_progress: "Em andamento",
+    blocked: "Bloqueados",
+    done: "Concluidos",
+    overdue: "Vencidos"
+  };
+  const statusDistribution = statusOrder.map((status) => {
+    const total = currentStatuses.filter((item) => item.status === status).length;
+    return {
+      status,
+      label: statusLabels[status],
+      total,
+      percentage: calculatePercentage(total, activePlans.length)
+    };
+  });
+  const peopleWithPdi = new Set(activePlans.map((plan) => plan.personId)).size;
+  const completedPlans = currentStatuses.filter((item) => item.status === "done");
+  const completedOnTime = completedPlans.filter(({ plan }) => {
+    const firstDone = (eventsByPlan.get(plan.id) || [])
+      .filter((event) => event.progressStatus === "done")
+      .sort((left, right) => new Date(left.occurredAt) - new Date(right.occurredAt))[0];
+    return firstDone && !isDevelopmentPlanOverdue(plan.dueDate, new Date(firstDone.occurredAt));
+  }).length;
+  const staleBefore = now.getTime() - 60 * 24 * 60 * 60 * 1000;
+  const stalePlans = activePlans.filter((plan) => {
+    if (plan.progressStatus === "done") return false;
+    const lastUpdate = new Date(plan.progressUpdatedAt || plan.createdAt || 0).getTime();
+    return Number.isFinite(lastUpdate) && lastUpdate < staleBefore;
+  }).length;
+
+  let periods;
+  if (timeGrouping === "cycle") {
+    periods = developmentPlans.map((plan) => {
+      const cycle = cyclesById.get(plan.cycleId) || {
+        id: plan.cycleId || `plan-${plan.id}`,
+        title: plan.cycleId ? "Ciclo sem titulo" : "Sem ciclo",
+        dueDate: plan.dueDate
+      };
+      const meta = getCyclePeriodMeta(cycle, "cycle");
+      const endDate = new Date(cycle.dueDate || plan.dueDate || now);
+      return { ...meta, endAt: Number.isNaN(endDate.getTime()) ? now.getTime() : endDate.getTime() };
+    });
+  } else {
+    const dates = [
+      now,
+      ...developmentPlans.map((plan) => plan.createdAt || plan.dueDate),
+      ...developmentProgressEvents.map((event) => event.occurredAt)
+    ];
+    periods = dates.filter(Boolean).map((date) => getDatePeriodMeta(date, timeGrouping));
+  }
+
+  const uniquePeriods = [...new Map(periods.map((period) => [period.key, period])).values()]
+    .sort((left, right) => left.sortValue - right.sortValue)
+    .slice(-8);
+  const evolution = uniquePeriods.map((period) => {
+    const referenceDate = new Date(period.endAt);
+    const eligiblePlans = developmentPlans.filter((plan) => {
+      const createdAt = new Date(plan.createdAt || 0).getTime();
+      const archivedAt = plan.archivedAt ? new Date(plan.archivedAt).getTime() : null;
+      return createdAt <= period.endAt && (!archivedAt || archivedAt > period.endAt);
+    });
+    const statuses = eligiblePlans.map((plan) =>
+      pdiDisplayStatus(plan, pdiStatusAt(plan, eventsByPlan, period.endAt), referenceDate)
+    );
+    const count = (status) => statuses.filter((item) => item === status).length;
+    const done = count("done");
+    return {
+      periodKey: period.key,
+      label: period.label,
+      totalPlans: eligiblePlans.length,
+      notStarted: count("not_started"),
+      inProgress: count("in_progress"),
+      blocked: count("blocked"),
+      completed: done,
+      overdue: count("overdue"),
+      completionPercentage: calculatePercentage(done, eligiblePlans.length)
+    };
+  });
+
+  const currentPeriod = evolution.at(-1) || null;
+  const previousPeriod = evolution.at(-2) || null;
+  const sampleSufficient = people.length >= 3;
+  const competencyGroups = Object.values(
+    developmentPlans.reduce((acc, plan) => {
+      if (!plan.competencyId) return acc;
+      const entry = acc[plan.competencyId] || {
+        competencyId: plan.competencyId,
+        competencyName: plan.competencyName || "Competencia sem nome",
+        plans: [],
+        personIds: new Set()
+      };
+      entry.plans.push(plan);
+      entry.personIds.add(plan.personId);
+      acc[plan.competencyId] = entry;
+      return acc;
+    }, {})
+  );
+  const competencyEvolution = sampleSufficient
+    ? competencyGroups
+        .filter((entry) => entry.personIds.size >= 3)
+        .map((entry) => {
+          const percentageAt = (period) => {
+            if (!period) return 0;
+            const periodMeta = uniquePeriods.find((item) => item.key === period.periodKey);
+            const eligible = entry.plans.filter(
+              (plan) => new Date(plan.createdAt || 0).getTime() <= periodMeta.endAt
+            );
+            const completed = eligible.filter(
+              (plan) => pdiStatusAt(plan, eventsByPlan, periodMeta.endAt) === "done"
+            ).length;
+            return calculatePercentage(completed, eligible.length);
+          };
+          const currentPercentage = percentageAt(currentPeriod);
+          const previousPercentage = percentageAt(previousPeriod);
+          return {
+            competencyId: entry.competencyId,
+            competencyName: entry.competencyName,
+            peopleCount: entry.personIds.size,
+            planCount: entry.plans.length,
+            previousPercentage,
+            currentPercentage,
+            delta: currentPercentage - previousPercentage
+          };
+        })
+        .sort((left, right) => right.delta - left.delta || right.planCount - left.planCount)
+    : [];
+
+  return {
+    sampleSufficient,
+    minimumAggregateSize: 3,
+    summary: {
+      peopleCount: people.length,
+      peopleWithPdi,
+      peopleWithoutPdi: Math.max(people.length - peopleWithPdi, 0),
+      coveragePercentage: calculatePercentage(peopleWithPdi, people.length),
+      activePlans: activePlans.length,
+      executionPercentage: calculatePercentage(
+        currentStatuses.filter((item) => ["in_progress", "done"].includes(item.status)).length,
+        activePlans.length
+      ),
+      completionPercentage: calculatePercentage(completedPlans.length, activePlans.length),
+      onTimePercentage: calculatePercentage(completedOnTime, completedPlans.length),
+      blockedPlans: currentStatuses.filter((item) => item.status === "blocked").length,
+      overduePlans: currentStatuses.filter((item) => item.status === "overdue").length,
+      stalePlans,
+      comparisonDelta: currentPeriod && previousPeriod
+        ? currentPeriod.completionPercentage - previousPeriod.completionPercentage
+        : 0
+    },
+    statusDistribution,
+    evolution,
+    competencyEvolution
+  };
+}
+
 function buildSatisfactionQuestionAnalytics({ cycles, responses, timeGrouping = "semester" }) {
   const cyclesById = new Map(cycles.map((cycle) => [cycle.id, cycle]));
   const companyResponses = responses.filter((response) => response.relationshipType === "company");
@@ -4450,6 +4735,7 @@ function buildDashboardPayload({
   applauseEntries,
   developmentRecords,
   developmentPlans = [],
+  developmentProgressEvents = [],
   incidents = [],
   learningEvents = [],
   responses,
@@ -4595,6 +4881,13 @@ function buildDashboardPayload({
     }),
     assignmentStatus: buildAssignmentStatusSeries(assignments),
     developmentByType: buildDevelopmentByTypeSeries(developmentRecords),
+    pdiAnalytics: buildPdiAnalytics({
+      people,
+      cycles,
+      developmentPlans,
+      developmentProgressEvents,
+      timeGrouping
+    }),
     cycleTimeline: buildCycleTimelineSeries({
       cycles,
       assignments,
@@ -6487,7 +6780,8 @@ function buildMysqlStore(
     supportsAssignmentReminder,
     supportsPairings,
     supportsLearningIntegrations,
-    supportsIndividualQuestionnaires
+    supportsIndividualQuestionnaires,
+    supportsProgressHistory
   } = {}
 ) {
   return {
@@ -7919,7 +8213,8 @@ function buildMysqlStore(
       assertValidDevelopmentPlanStatus,
       assertCanReportDevelopmentPlanProgress,
       normalizeDevelopmentPlanProgressPayload,
-      toMysqlDateTime
+      toMysqlDateTime,
+      supportsProgressHistory
     }),
     ...createMysqlDashboardStore({
       pool,
@@ -7928,6 +8223,7 @@ function buildMysqlStore(
       supportsFeedbackAcknowledgement,
       supportsIndividualQuestionnaires,
       supportsLearningIntegrations,
+      supportsProgressHistory,
       fetchPeopleRows,
       fetchMysqlResponses,
       isFullAccessUser,
@@ -7983,6 +8279,7 @@ export async function createStore() {
     _supportsPeopleWorkContext,
     supportsAssignmentReminder,
     _supportsDevelopmentPlanProgress,
+    supportsProgressHistory,
     supportsPairings,
     supportsLearningIntegrations,
     supportsIndividualQuestionnaires
@@ -7996,6 +8293,7 @@ export async function createStore() {
       ensureMysqlPeopleWorkContextSupport(pool),
       ensureMysqlAssignmentReminderSupport(pool),
       ensureMysqlDevelopmentPlanProgressSupport(pool),
+      ensureMysqlDevelopmentPlanProgressHistorySupport(pool),
       ensureMysqlPairingSupport(pool),
       ensureMysqlLearningIntegrationSupport(pool),
       ensureMysqlIndividualQuestionnaireSupport(pool)
@@ -8006,6 +8304,7 @@ export async function createStore() {
     supportsAssignmentReminder,
     supportsPairings,
     supportsLearningIntegrations,
-    supportsIndividualQuestionnaires
+    supportsIndividualQuestionnaires,
+    supportsProgressHistory
   });
 }

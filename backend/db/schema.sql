@@ -395,6 +395,22 @@ CREATE TABLE IF NOT EXISTS development_plans (
   FOREIGN KEY (created_by_user_id) REFERENCES users(id)
 );
 
+CREATE TABLE IF NOT EXISTS development_plan_progress_events (
+  id VARCHAR(36) PRIMARY KEY,
+  plan_id VARCHAR(36) NOT NULL,
+  person_id VARCHAR(36) NOT NULL,
+  previous_status VARCHAR(32) NULL,
+  progress_status VARCHAR(32) NOT NULL,
+  progress_note TEXT NULL,
+  occurred_at DATETIME NOT NULL,
+  changed_by_user_id VARCHAR(36) NULL,
+  INDEX idx_development_progress_plan_date (plan_id, occurred_at),
+  INDEX idx_development_progress_person_date (person_id, occurred_at),
+  FOREIGN KEY (plan_id) REFERENCES development_plans(id),
+  FOREIGN KEY (person_id) REFERENCES people(id),
+  FOREIGN KEY (changed_by_user_id) REFERENCES users(id)
+);
+
 CREATE TABLE IF NOT EXISTS learning_integration_events (
   id VARCHAR(36) PRIMARY KEY,
   source_system VARCHAR(120) NOT NULL,

@@ -421,6 +421,22 @@ export async function runAuthAccessRegression() {
       "Dashboard executivo deve retornar alertas operacionais"
     );
     assert.ok(
+      adminDashboard.payload.pdiAnalytics?.summary,
+      "Dashboard deve retornar resumo analitico de PDI"
+    );
+    assert.ok(
+      Array.isArray(adminDashboard.payload.pdiAnalytics.evolution),
+      "Dashboard deve retornar evolucao historica de PDI"
+    );
+    assert.ok(
+      Array.isArray(adminDashboard.payload.pdiAnalytics.statusDistribution) &&
+        adminDashboard.payload.pdiAnalytics.statusDistribution.reduce(
+          (total, item) => total + item.total,
+          0
+        ) === adminDashboard.payload.pdiAnalytics.summary.activePlans,
+      "Distribuicao de PDI deve fechar com o total de planos ativos"
+    );
+    assert.ok(
       adminDashboard.payload.cards.some((card) => card.label === "Incidentes abertos"),
       "Dashboard executivo deve destacar incidentes abertos"
     );

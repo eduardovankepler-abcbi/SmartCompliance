@@ -64,6 +64,17 @@ export function createMemoryDevelopmentPlanStore({
         progressUpdatedAt: null
       };
       db.developmentPlans.unshift(plan);
+      db.developmentPlanProgressEvents = db.developmentPlanProgressEvents || [];
+      db.developmentPlanProgressEvents.push({
+        id: createId("development_plan_progress"),
+        planId: plan.id,
+        personId: plan.personId,
+        previousStatus: null,
+        progressStatus: plan.progressStatus,
+        progressNote: plan.progressNote,
+        occurredAt: plan.createdAt,
+        changedByUserId: actorUser.id
+      });
       const person = db.people.find((item) => item.id === plan.personId);
       pushAuditLog(db.auditLogs, {
         category: AUDIT_CATEGORIES.development,
@@ -133,9 +144,22 @@ export function createMemoryDevelopmentPlanStore({
 
       assertCanReportDevelopmentPlanProgress(actorUser, db.people, plan);
       const progress = normalizeDevelopmentPlanProgressPayload(payload);
+      const previousStatus = plan.progressStatus || "not_started";
+      const occurredAt = new Date().toISOString();
       plan.progressStatus = progress.progressStatus;
       plan.progressNote = progress.progressNote;
-      plan.progressUpdatedAt = new Date().toISOString();
+      plan.progressUpdatedAt = occurredAt;
+      db.developmentPlanProgressEvents = db.developmentPlanProgressEvents || [];
+      db.developmentPlanProgressEvents.push({
+        id: createId("development_plan_progress"),
+        planId: plan.id,
+        personId: plan.personId,
+        previousStatus,
+        progressStatus: progress.progressStatus,
+        progressNote: progress.progressNote,
+        occurredAt,
+        changedByUserId: actorUser.id
+      });
 
       const person = db.people.find((item) => item.id === plan.personId);
       pushAuditLog(db.auditLogs, {
@@ -171,7 +195,8 @@ export function createMysqlDevelopmentPlanStore({
   assertValidDevelopmentPlanStatus,
   assertCanReportDevelopmentPlanProgress,
   normalizeDevelopmentPlanProgressPayload,
-  toMysqlDateTime
+  toMysqlDateTime,
+  supportsProgressHistory
 }) {
   return {
     async getDevelopmentPlans(actorUser) {
@@ -269,6 +294,25 @@ export function createMysqlDevelopmentPlanStore({
           plan.progressUpdatedAt
         ]
       );
+
+      if (supportsProgressHistory) {
+        await pool.query(
+          `INSERT INTO development_plan_progress_events
+           (id, plan_id, person_id, previous_status, progress_status, progress_note,
+            occurred_at, changed_by_user_id)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            createId("development_plan_progress"),
+            plan.id,
+            plan.personId,
+            null,
+            plan.progressStatus,
+            plan.progressNote,
+            toMysqlDateTime(plan.createdAt),
+            actorUser.id
+          ]
+        );
+      }
 
       const person = people.find((item) => item.id === plan.personId);
       await insertAuditLog(pool, {
@@ -397,7 +441,7 @@ export function createMysqlDevelopmentPlanStore({
                 focus_title AS focusTitle, action_text AS actionText, due_date AS dueDate,
                 expected_evidence AS expectedEvidence, status,
                 created_by_user_id AS createdByUserId, created_at AS createdAt,
-                archived_at AS archivedAt
+                archived_at AS archivedAt, progress_status AS progressStatus
          FROM development_plans
          WHERE id = ?`,
         [planId]
@@ -417,6 +461,25 @@ export function createMysqlDevelopmentPlanStore({
          WHERE id = ?`,
         [progress.progressStatus, progress.progressNote, progressUpdatedAt, planId]
       );
+
+      if (supportsProgressHistory) {
+        await pool.query(
+          `INSERT INTO development_plan_progress_events
+           (id, plan_id, person_id, previous_status, progress_status, progress_note,
+            occurred_at, changed_by_user_id)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            createId("development_plan_progress"),
+            plan.id,
+            plan.personId,
+            plan.progressStatus || "not_started",
+            progress.progressStatus,
+            progress.progressNote,
+            progressUpdatedAt,
+            actorUser.id
+          ]
+        );
+      }
 
       const person = people.find((item) => item.id === plan.personId);
       await insertAuditLog(pool, {

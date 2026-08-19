@@ -51,6 +51,9 @@ export function createMemoryDashboardStore({
           developmentPlans: (db.developmentPlans || []).filter((item) =>
             scopedPersonIds.has(item.personId)
           ),
+          developmentProgressEvents: (db.developmentPlanProgressEvents || []).filter((item) =>
+            scopedPersonIds.has(item.personId)
+          ),
           incidents: db.incidents || [],
           learningEvents: db.learningIntegrationEvents || [],
           responses: scopedResponses,
@@ -100,6 +103,9 @@ export function createMemoryDashboardStore({
           developmentPlans: (db.developmentPlans || []).filter((item) =>
             visiblePersonIds.has(item.personId)
           ),
+          developmentProgressEvents: (db.developmentPlanProgressEvents || []).filter((item) =>
+            visiblePersonIds.has(item.personId)
+          ),
           incidents: teamIncidents,
           learningEvents: [],
           responses: teamResponses,
@@ -138,6 +144,9 @@ export function createMemoryDashboardStore({
         developmentPlans: (db.developmentPlans || []).filter(
           (item) => item.personId === actorUser.person.id
         ),
+        developmentProgressEvents: (db.developmentPlanProgressEvents || []).filter(
+          (item) => item.personId === actorUser.person.id
+        ),
         incidents: [],
         learningEvents: [],
         responses: personalResponses,
@@ -160,6 +169,7 @@ export function createMysqlDashboardStore({
   supportsFeedbackAcknowledgement,
   supportsIndividualQuestionnaires,
   supportsLearningIntegrations,
+  supportsProgressHistory,
   fetchPeopleRows,
   fetchMysqlResponses,
   isFullAccessUser,
@@ -179,7 +189,8 @@ export function createMysqlDashboardStore({
         developmentRows,
         developmentPlanRows,
         incidentRows,
-        learningRows
+        learningRows,
+        developmentProgressRows
       ] =
         await Promise.all([
           fetchPeopleRows(pool),
@@ -215,8 +226,14 @@ export function createMysqlDashboardStore({
             .then(([rows]) => rows),
           pool
             .query(
-              `SELECT person_id AS personId, due_date AS dueDate, status, progress_status AS progressStatus
-               FROM development_plans`
+              `SELECT plan.id, plan.person_id AS personId, plan.cycle_id AS cycleId,
+                      plan.competency_id AS competencyId, competency.name AS competencyName,
+                      plan.due_date AS dueDate, plan.status,
+                      plan.progress_status AS progressStatus,
+                      plan.created_at AS createdAt, plan.archived_at AS archivedAt,
+                      plan.progress_updated_at AS progressUpdatedAt
+               FROM development_plans plan
+               LEFT JOIN competencies competency ON competency.id = plan.competency_id`
             )
             .then(([rows]) => rows),
           pool
@@ -231,6 +248,17 @@ export function createMysqlDashboardStore({
                 .query(
                   `SELECT processing_status AS processingStatus
                    FROM learning_integration_events`
+                )
+                .then(([rows]) => rows)
+            : Promise.resolve([]),
+          supportsProgressHistory
+            ? pool
+                .query(
+                  `SELECT plan_id AS planId, person_id AS personId,
+                          previous_status AS previousStatus, progress_status AS progressStatus,
+                          occurred_at AS occurredAt
+                   FROM development_plan_progress_events
+                   ORDER BY occurred_at ASC`
                 )
                 .then(([rows]) => rows)
             : Promise.resolve([])
@@ -264,6 +292,9 @@ export function createMysqlDashboardStore({
             scopedPersonIds.has(item.personId)
           ),
           developmentPlans: developmentPlanRows.filter((item) =>
+            scopedPersonIds.has(item.personId)
+          ),
+          developmentProgressEvents: developmentProgressRows.filter((item) =>
             scopedPersonIds.has(item.personId)
           ),
           incidents: incidentRows,
@@ -311,6 +342,9 @@ export function createMysqlDashboardStore({
           developmentPlans: developmentPlanRows.filter((item) =>
             visiblePersonIds.has(item.personId)
           ),
+          developmentProgressEvents: developmentProgressRows.filter((item) =>
+            visiblePersonIds.has(item.personId)
+          ),
           incidents: scopedIncidents,
           learningEvents: [],
           responses: responses.filter((item) => visiblePersonIds.has(item.revieweePersonId)),
@@ -337,6 +371,9 @@ export function createMysqlDashboardStore({
         applauseEntries: applauseRows.filter((item) => item.receiverPersonId === actorUser.person.id),
         developmentRecords: developmentRows.filter((item) => item.personId === actorUser.person.id),
         developmentPlans: developmentPlanRows.filter((item) => item.personId === actorUser.person.id),
+        developmentProgressEvents: developmentProgressRows.filter(
+          (item) => item.personId === actorUser.person.id
+        ),
         incidents: [],
         learningEvents: [],
         responses: responses.filter((item) => item.reviewerUserId === actorUser.id),

@@ -90,7 +90,7 @@ const dashboardQuickActions: readonly DashboardQuickAction[] = [
         <nav class="dashboard__nav" aria-label="Navegacao do dashboard">
           <strong>Navegacao</strong>
           <a href="#avaliacoes">Avaliacoes</a>
-          <a href="#pdi">PDI</a>
+          <a [routerLink]="['/app/dashboard/pdi']">PDI</a>
           <a href="#compliance">Compliance</a>
           <a href="#applause">Aplause</a>
           <a href="#governanca">Governanca</a>

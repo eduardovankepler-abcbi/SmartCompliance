@@ -40,6 +40,12 @@ export const routes: Routes = [
         canActivate: [competenciesAccessGuard],
       },
       {
+        path: 'dashboard/pdi',
+        loadComponent: () =>
+          import('./features/dashboard/dashboard-pdi-page.component').then((m) => m.DashboardPdiPageComponent),
+        canActivate: [dashboardAccessGuard],
+      },
+      {
         path: 'dashboard',
         loadComponent: () => import('./features/dashboard/dashboard-page.component').then((m) => m.DashboardPageComponent),
         canActivate: [dashboardAccessGuard],

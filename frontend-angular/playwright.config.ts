@@ -30,7 +30,7 @@ export default defineConfig({
       },
     },
     {
-      command: `npx ng serve --configuration=e2e --host 127.0.0.1 --port ${FRONTEND_PORT}`,
+      command: `npm run start -- --configuration=e2e --host 127.0.0.1 --port ${FRONTEND_PORT}`,
       cwd: '.',
       url: `http://127.0.0.1:${FRONTEND_PORT}`,
       reuseExistingServer: false,

@@ -37,6 +37,17 @@ test('restaura a sessao apos atualizar a pagina', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
 });
 
+test('abre o dashboard de PDI pela navegacao executiva', async ({ page }) => {
+  await login(page, 'gestor@demo.local');
+
+  await page.getByRole('navigation', { name: 'Navegacao do dashboard' }).getByRole('link', { name: 'PDI', exact: true }).click();
+
+  await expect(page).toHaveURL(/\/app\/dashboard\/pdi$/);
+  await expect(page.getByRole('heading', { name: 'Evolução da equipe' })).toBeVisible();
+  await expect(page.getByText('Governança aplicada')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'PDI', exact: true })).toHaveAttribute('aria-current', 'page');
+});
+
 test('exige troca de senha no primeiro acesso antes de abrir o workspace', async ({ page }) => {
   await page.route('**/api/auth/login', (route) =>
     route.fulfill({

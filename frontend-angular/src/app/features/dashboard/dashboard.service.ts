@@ -167,6 +167,57 @@ export interface DashboardSatisfactionQuestionAnalytics {
   averageScoreLabel: string;
 }
 
+export interface DashboardPdiStatusItem {
+  status: string;
+  label: string;
+  total: number;
+  percentage: number;
+}
+
+export interface DashboardPdiEvolutionItem {
+  periodKey: string;
+  label: string;
+  totalPlans: number;
+  notStarted: number;
+  inProgress: number;
+  blocked: number;
+  completed: number;
+  overdue: number;
+  completionPercentage: number;
+}
+
+export interface DashboardPdiCompetencyItem {
+  competencyId: string;
+  competencyName: string;
+  peopleCount: number;
+  planCount: number;
+  previousPercentage: number;
+  currentPercentage: number;
+  delta: number;
+}
+
+export interface DashboardPdiAnalytics {
+  sampleSufficient: boolean;
+  minimumAggregateSize: number;
+  summary: {
+    peopleCount: number;
+    peopleWithPdi: number;
+    peopleWithoutPdi: number;
+    coveragePercentage: number;
+    activePlans: number;
+    executionPercentage: number;
+    completionPercentage: number;
+    onTimePercentage: number;
+    blockedPlans: number;
+    overduePlans: number;
+    stalePlans: number;
+    comparisonDelta: number;
+  };
+  statusDistribution: DashboardPdiStatusItem[];
+  evolution: DashboardPdiEvolutionItem[];
+  competencyEvolution: DashboardPdiCompetencyItem[];
+}
+
 export interface DashboardOverview {
   mode: DashboardMode;
   notice: string;
@@ -187,6 +238,7 @@ export interface DashboardOverview {
   performanceHealth: DashboardPerformanceHealth | null;
   assignmentStatus: DashboardAssignmentStatus[];
   developmentByType: DashboardDevelopmentByType[];
+  pdiAnalytics: DashboardPdiAnalytics;
   cycleTimeline: DashboardCycleTimelineItem[];
   timeGrouping: DashboardTimeGrouping;
 }
