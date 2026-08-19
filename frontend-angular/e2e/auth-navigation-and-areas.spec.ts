@@ -62,6 +62,8 @@ test('permite ao administrador aplicar um filtro governado de equipe no PDI', as
 
   await expect(page.locator('.pdi-dashboard__stamp strong')).toContainText('Equipe de');
   await expect(page.getByText('Como calculamos')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Cobertura do desenvolvimento' })).toBeVisible();
+  await expect(page.getByText(/Histórico exato a partir de 19\/08\/2026/)).toBeVisible();
 });
 
 test('exige troca de senha no primeiro acesso antes de abrir o workspace', async ({ page }) => {

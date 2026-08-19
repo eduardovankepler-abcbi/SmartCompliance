@@ -184,7 +184,11 @@ export interface DashboardPdiEvolutionItem {
   blocked: number;
   completed: number;
   overdue: number;
+  stale: number;
+  coveragePercentage: number;
+  executionPercentage: number;
   completionPercentage: number;
+  onTimePercentage: number;
 }
 
 export interface DashboardPdiCompetencyItem {
@@ -207,6 +211,7 @@ export interface DashboardPdiAnalytics {
     competencyScale: string;
     comparisonRule: string;
     dimensionMapping: string;
+    historyAccuracy: string;
   };
   summary: {
     peopleCount: number;
@@ -222,9 +227,34 @@ export interface DashboardPdiAnalytics {
     stalePlans: number;
     comparisonDelta: number;
   };
+  comparison: {
+    coverageDelta: number;
+    executionDelta: number;
+    completionDelta: number;
+    onTimeDelta: number;
+    blockedDelta: number;
+    overdueDelta: number;
+    staleDelta: number;
+  };
   statusDistribution: DashboardPdiStatusItem[];
   evolution: DashboardPdiEvolutionItem[];
   competencyEvolution: DashboardPdiCompetencyItem[];
+  competencyActionCoverage: Array<{
+    competencyId: string;
+    competencyName: string;
+    evaluatedPeopleCount: number;
+    latestScore: number | null;
+    activePlanCount: number;
+    developmentRecordCount: number;
+    pendingLearningEventCount: number;
+    hasDevelopmentAction: boolean;
+  }>;
+  competencyAlerts: Array<{
+    key: string;
+    competencyId: string;
+    label: string;
+    detail: string;
+  }>;
 }
 
 export interface DashboardOverview {

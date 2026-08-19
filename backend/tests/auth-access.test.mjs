@@ -428,6 +428,32 @@ export async function runAuthAccessRegression() {
       Array.isArray(adminDashboard.payload.pdiAnalytics.evolution),
       "Dashboard deve retornar evolucao historica de PDI"
     );
+    assert.ok(
+      adminDashboard.payload.pdiAnalytics.evolution.every(
+        (period) =>
+          Number.isFinite(period.coveragePercentage) &&
+          Number.isFinite(period.executionPercentage) &&
+          Number.isFinite(period.completionPercentage) &&
+          Number.isFinite(period.onTimePercentage) &&
+          Number.isFinite(period.stale)
+      ),
+      "Cada periodo deve expor todos os indicadores historicos de PDI"
+    );
+    assert.ok(
+      ["coverageDelta", "executionDelta", "completionDelta", "onTimeDelta", "blockedDelta", "overdueDelta", "staleDelta"].every(
+        (key) => Number.isFinite(adminDashboard.payload.pdiAnalytics.comparison[key])
+      ),
+      "Dashboard deve comparar todos os indicadores com o periodo anterior"
+    );
+    assert.ok(
+      adminDashboard.payload.pdiAnalytics.methodology.historyAccuracy.includes("19/08/2026"),
+      "Dashboard deve informar o limite de exatidao do historico"
+    );
+    assert.ok(
+      Array.isArray(adminDashboard.payload.pdiAnalytics.competencyActionCoverage) &&
+        Array.isArray(adminDashboard.payload.pdiAnalytics.competencyAlerts),
+      "Dashboard deve relacionar competencias, PDIs e aprendizagem"
+    );
     assert.equal(
       adminDashboard.payload.pdiAnalytics.methodology.competencyScale,
       "Media de 1 a 5",

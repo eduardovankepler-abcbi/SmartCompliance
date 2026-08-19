@@ -95,7 +95,9 @@ export function createMemoryDashboardStore({
           ),
           competencies: db.competencies || [],
           incidents: db.incidents || [],
-          learningEvents: db.learningIntegrationEvents || [],
+          learningEvents: (db.learningIntegrationEvents || []).filter(
+            (item) => !item.personId || scopedPersonIds.has(item.personId)
+          ),
           responses: scopedResponses,
           availableAreas,
           selectedArea: options.area,
@@ -266,7 +268,8 @@ export function createMysqlDashboardStore({
             .then(([rows]) => rows),
           pool
             .query(
-              `SELECT d.person_id AS personId, d.record_type AS recordType
+              `SELECT d.person_id AS personId, d.record_type AS recordType,
+                      d.skill_signal AS skillSignal, d.completed_at AS completedAt, d.status
                FROM development_records d`
             )
             .then(([rows]) => rows),
@@ -292,7 +295,9 @@ export function createMysqlDashboardStore({
           supportsLearningIntegrations
             ? pool
                 .query(
-                  `SELECT processing_status AS processingStatus
+                  `SELECT person_id AS personId, competency_key AS competencyKey,
+                          suggested_action AS suggestedAction,
+                          processing_status AS processingStatus, occurred_at AS occurredAt
                    FROM learning_integration_events`
                 )
                 .then(([rows]) => rows)
@@ -361,7 +366,9 @@ export function createMysqlDashboardStore({
           ),
           competencies,
           incidents: incidentRows,
-          learningEvents: learningRows,
+          learningEvents: learningRows.filter(
+            (item) => !item.personId || scopedPersonIds.has(item.personId)
+          ),
           responses: responses.filter((item) => scopedPersonIds.has(item.revieweePersonId)),
           availableAreas,
           selectedArea: options.area,

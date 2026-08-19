@@ -4302,6 +4302,8 @@ function buildPdiAnalytics({
   cycles,
   developmentPlans = [],
   developmentProgressEvents = [],
+  developmentRecords = [],
+  learningEvents = [],
   responses = [],
   competencies = [],
   timeGrouping = "semester"
@@ -4397,11 +4399,34 @@ function buildPdiAnalytics({
       const archivedAt = plan.archivedAt ? new Date(plan.archivedAt).getTime() : null;
       return createdAt <= period.endAt && (!archivedAt || archivedAt > period.endAt);
     });
-    const statuses = eligiblePlans.map((plan) =>
-      pdiDisplayStatus(plan, pdiStatusAt(plan, eventsByPlan, period.endAt), referenceDate)
-    );
+    const periodPlans = eligiblePlans.map((plan) => ({
+      plan,
+      status: pdiDisplayStatus(plan, pdiStatusAt(plan, eventsByPlan, period.endAt), referenceDate)
+    }));
+    const statuses = periodPlans.map((item) => item.status);
     const count = (status) => statuses.filter((item) => item === status).length;
     const done = count("done");
+    const periodPeopleWithPdi = new Set(eligiblePlans.map((plan) => plan.personId)).size;
+    const completedOnTimeInPeriod = periodPlans.filter(({ plan, status }) => {
+      if (status !== "done") return false;
+      const firstDone = (eventsByPlan.get(plan.id) || [])
+        .filter(
+          (event) =>
+            event.progressStatus === "done" && new Date(event.occurredAt).getTime() <= period.endAt
+        )
+        .sort((left, right) => new Date(left.occurredAt) - new Date(right.occurredAt))[0];
+      return firstDone && !isDevelopmentPlanOverdue(plan.dueDate, new Date(firstDone.occurredAt));
+    }).length;
+    const periodStaleBefore = period.endAt - 60 * 24 * 60 * 60 * 1000;
+    const stale = periodPlans.filter(({ plan, status }) => {
+      if (status === "done") return false;
+      const lastEvent = (eventsByPlan.get(plan.id) || [])
+        .filter((event) => new Date(event.occurredAt).getTime() <= period.endAt)
+        .sort((left, right) => new Date(left.occurredAt) - new Date(right.occurredAt))
+        .at(-1);
+      const lastUpdate = new Date(lastEvent?.occurredAt || plan.createdAt || 0).getTime();
+      return Number.isFinite(lastUpdate) && lastUpdate < periodStaleBefore;
+    }).length;
     return {
       periodKey: period.key,
       label: period.label,
@@ -4411,7 +4436,14 @@ function buildPdiAnalytics({
       blocked: count("blocked"),
       completed: done,
       overdue: count("overdue"),
-      completionPercentage: calculatePercentage(done, eligiblePlans.length)
+      stale,
+      coveragePercentage: calculatePercentage(periodPeopleWithPdi, people.length),
+      executionPercentage: calculatePercentage(
+        statuses.filter((status) => ["in_progress", "done"].includes(status)).length,
+        eligiblePlans.length
+      ),
+      completionPercentage: calculatePercentage(done, eligiblePlans.length),
+      onTimePercentage: calculatePercentage(completedOnTimeInPeriod, done)
     };
   });
 
@@ -4497,6 +4529,92 @@ function buildPdiAnalytics({
     .filter(Boolean)
     .sort((left, right) => right.delta - left.delta || right.peopleCount - left.peopleCount);
 
+  const normalizeCompetencySignal = (value) =>
+    String(value || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
+  const competencyActionCoverage = normalizedCompetencies
+    .map((competency) => {
+      const aliases = new Set(competency.aliases);
+      const plans = activePlans.filter((plan) => plan.competencyId === competency.id);
+      const records = developmentRecords.filter(
+        (record) =>
+          record.status !== "archived" && aliases.has(normalizeCompetencySignal(record.skillSignal))
+      );
+      const pendingEvents = learningEvents.filter(
+        (event) =>
+          event.processingStatus !== "applied" &&
+          aliases.has(normalizeCompetencySignal(event.competencyKey))
+      );
+      const evaluationPeriods = Object.values(competencyPeriodGroups)
+        .filter((entry) => entry.competencyId === competency.id && entry.personIds.size >= 3)
+        .sort((left, right) => left.sortValue - right.sortValue);
+      const latestEvaluation = evaluationPeriods.at(-1);
+      return {
+        competencyId: competency.id,
+        competencyName: competency.name,
+        evaluatedPeopleCount: latestEvaluation?.personIds.size || 0,
+        latestScore: latestEvaluation ? Number(average(latestEvaluation.scores).toFixed(1)) : null,
+        activePlanCount: plans.length,
+        developmentRecordCount: records.length,
+        pendingLearningEventCount: pendingEvents.length,
+        hasDevelopmentAction: plans.length + records.length > 0
+      };
+    })
+    .filter(
+      (item) =>
+        item.evaluatedPeopleCount >= 3 ||
+        item.activePlanCount > 0 ||
+        item.developmentRecordCount > 0 ||
+        item.pendingLearningEventCount > 0
+    )
+    .sort((left, right) => {
+      if (left.hasDevelopmentAction !== right.hasDevelopmentAction) {
+        return left.hasDevelopmentAction ? 1 : -1;
+      }
+      return (left.latestScore ?? 6) - (right.latestScore ?? 6);
+    });
+  const competencyAlerts = competencyActionCoverage
+    .filter(
+      (item) =>
+        item.evaluatedPeopleCount >= 3 &&
+        Number.isFinite(item.latestScore) &&
+        item.latestScore < 3.5 &&
+        !item.hasDevelopmentAction
+    )
+    .map((item) => ({
+      key: `competency_without_action:${item.competencyId}`,
+      competencyId: item.competencyId,
+      label: item.competencyName,
+      detail: `Media ${item.latestScore.toFixed(1)} sem PDI ou registro de desenvolvimento associado.`
+    }));
+  const comparison = {
+    coverageDelta: currentPeriod && previousPeriod
+      ? currentPeriod.coveragePercentage - previousPeriod.coveragePercentage
+      : 0,
+    executionDelta: currentPeriod && previousPeriod
+      ? currentPeriod.executionPercentage - previousPeriod.executionPercentage
+      : 0,
+    completionDelta: currentPeriod && previousPeriod
+      ? currentPeriod.completionPercentage - previousPeriod.completionPercentage
+      : 0,
+    onTimeDelta: currentPeriod && previousPeriod
+      ? currentPeriod.onTimePercentage - previousPeriod.onTimePercentage
+      : 0,
+    blockedDelta: currentPeriod && previousPeriod
+      ? currentPeriod.blocked - previousPeriod.blocked
+      : 0,
+    overdueDelta: currentPeriod && previousPeriod
+      ? currentPeriod.overdue - previousPeriod.overdue
+      : 0,
+    staleDelta: currentPeriod && previousPeriod
+      ? currentPeriod.stale - previousPeriod.stale
+      : 0
+  };
+
   return {
     sampleSufficient,
     minimumAggregateSize: 3,
@@ -4504,7 +4622,8 @@ function buildPdiAnalytics({
       competencySource: "Avaliacoes 360 de ciclos Encerrados ou Processados",
       competencyScale: "Media de 1 a 5",
       comparisonRule: "Dois ultimos periodos com ao menos 3 pessoas por competencia",
-      dimensionMapping: "Correspondencia entre dimensao da pergunta e nome ou chave da competencia"
+      dimensionMapping: "Correspondencia entre dimensao da pergunta e nome ou chave da competencia",
+      historyAccuracy: "Histórico exato a partir de 19/08/2026; eventos anteriores representam o último estado conhecido"
     },
     summary: {
       peopleCount: people.length,
@@ -4521,13 +4640,14 @@ function buildPdiAnalytics({
       blockedPlans: currentStatuses.filter((item) => item.status === "blocked").length,
       overduePlans: currentStatuses.filter((item) => item.status === "overdue").length,
       stalePlans,
-      comparisonDelta: currentPeriod && previousPeriod
-        ? currentPeriod.completionPercentage - previousPeriod.completionPercentage
-        : 0
+      comparisonDelta: comparison.completionDelta
     },
+    comparison,
     statusDistribution,
     evolution,
-    competencyEvolution
+    competencyEvolution,
+    competencyActionCoverage,
+    competencyAlerts
   };
 }
 
@@ -4933,6 +5053,8 @@ function buildDashboardPayload({
       cycles,
       developmentPlans,
       developmentProgressEvents,
+      developmentRecords,
+      learningEvents,
       responses: scopedResponses,
       competencies,
       timeGrouping
