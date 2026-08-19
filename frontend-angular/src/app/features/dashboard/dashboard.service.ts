@@ -255,6 +255,20 @@ export interface DashboardPdiAnalytics {
     label: string;
     detail: string;
   }>;
+  competencyPriorities: Array<{
+    competencyId: string;
+    competencyName: string;
+    latestScore: number;
+    gap: number;
+    priorityScore: number;
+    riskLevel: 'high' | 'medium' | 'low';
+    recommendation: string;
+  }>;
+  developmentRiskMatrix: Array<{
+    level: 'high' | 'medium' | 'low';
+    total: number;
+    competencies: string[];
+  }>;
 }
 
 export interface DashboardOverview {

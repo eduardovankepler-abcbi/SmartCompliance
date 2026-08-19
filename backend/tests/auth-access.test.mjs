@@ -454,6 +454,21 @@ export async function runAuthAccessRegression() {
         Array.isArray(adminDashboard.payload.pdiAnalytics.competencyAlerts),
       "Dashboard deve relacionar competencias, PDIs e aprendizagem"
     );
+    assert.ok(
+      Array.isArray(adminDashboard.payload.pdiAnalytics.competencyPriorities) &&
+        Array.isArray(adminDashboard.payload.pdiAnalytics.developmentRiskMatrix) &&
+        adminDashboard.payload.pdiAnalytics.developmentRiskMatrix.length === 3,
+      "Dashboard deve retornar ranking de gaps e matriz de risco"
+    );
+    assert.ok(
+      adminDashboard.payload.pdiAnalytics.competencyPriorities.every(
+        (item) =>
+          item.priorityScore >= 0 &&
+          item.priorityScore <= 100 &&
+          ["high", "medium", "low"].includes(item.riskLevel)
+      ),
+      "Prioridades devem respeitar score e classificacao governados"
+    );
     assert.equal(
       adminDashboard.payload.pdiAnalytics.methodology.competencyScale,
       "Media de 1 a 5",

@@ -4591,6 +4591,43 @@ function buildPdiAnalytics({
       label: item.competencyName,
       detail: `Media ${item.latestScore.toFixed(1)} sem PDI ou registro de desenvolvimento associado.`
     }));
+  const competencyPriorities = competencyActionCoverage
+    .filter((item) => item.evaluatedPeopleCount >= 3 && Number.isFinite(item.latestScore))
+    .map((item) => {
+      const gap = Number((5 - item.latestScore).toFixed(1));
+      const priorityScore = Math.min(
+        100,
+        Math.round(gap * 20 + (!item.hasDevelopmentAction ? 20 : 0) + (item.pendingLearningEventCount ? 5 : 0))
+      );
+      const riskLevel = item.latestScore < 3 && !item.hasDevelopmentAction
+        ? "high"
+        : item.latestScore < 3.5 || !item.hasDevelopmentAction
+          ? "medium"
+          : "low";
+      const recommendation = !item.hasDevelopmentAction
+        ? "Criar uma ação de desenvolvimento com responsável e prazo."
+        : item.pendingLearningEventCount
+          ? "Revisar as aprendizagens pendentes e confirmar aplicação no PDI."
+          : "Acompanhar a evolução no próximo ciclo homologado.";
+      return {
+        competencyId: item.competencyId,
+        competencyName: item.competencyName,
+        latestScore: item.latestScore,
+        gap,
+        priorityScore,
+        riskLevel,
+        recommendation
+      };
+    })
+    .sort((left, right) => right.priorityScore - left.priorityScore || left.latestScore - right.latestScore)
+    .slice(0, 5);
+  const developmentRiskMatrix = ["high", "medium", "low"].map((level) => ({
+    level,
+    total: competencyPriorities.filter((item) => item.riskLevel === level).length,
+    competencies: competencyPriorities
+      .filter((item) => item.riskLevel === level)
+      .map((item) => item.competencyName)
+  }));
   const comparison = {
     coverageDelta: currentPeriod && previousPeriod
       ? currentPeriod.coveragePercentage - previousPeriod.coveragePercentage
@@ -4647,7 +4684,9 @@ function buildPdiAnalytics({
     evolution,
     competencyEvolution,
     competencyActionCoverage,
-    competencyAlerts
+    competencyAlerts,
+    competencyPriorities,
+    developmentRiskMatrix
   };
 }
 
