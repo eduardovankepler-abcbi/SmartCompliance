@@ -4477,8 +4477,9 @@ function buildPdiAnalytics({
 
     for (const answer of response.answers || []) {
       const score = Number(answer.score);
-      if (!Number.isFinite(score) || !answer.dimensionTitle) continue;
-      const dimensionKey = String(answer.dimensionTitle)
+      const dimensionSignal = answer.dimensionKey || answer.dimensionTitle;
+      if (!Number.isFinite(score) || !dimensionSignal) continue;
+      const dimensionKey = String(dimensionSignal)
         .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "")
         .toLowerCase()
@@ -6129,6 +6130,7 @@ async function fetchMysqlResponses(
               a.questionnaire_question_id AS questionnaireQuestionId, a.answer_type AS answerType, a.score,
               a.evidence_note AS evidenceNote, a.answer_text AS textValue, a.answer_options_json AS answerOptionsJson,
               COALESCE(qq.prompt_text, q.prompt_text) AS questionPrompt,
+              COALESCE(qq.dimension_key, q.dimension_key) AS dimensionKey,
               COALESCE(qq.dimension_title, q.dimension_title) AS dimensionTitle,
               COALESCE(qq.is_sensitive, 0) AS isSensitive
        FROM evaluation_answers a
@@ -6139,6 +6141,7 @@ async function fetchMysqlResponses(
               NULL AS questionnaireQuestionId, a.answer_type AS answerType, a.score,
               a.evidence_note AS evidenceNote, a.answer_text AS textValue, a.answer_options_json AS answerOptionsJson,
               q.prompt_text AS questionPrompt,
+              q.dimension_key AS dimensionKey,
               q.dimension_title AS dimensionTitle,
               0 AS isSensitive
        FROM evaluation_answers a
@@ -6199,6 +6202,7 @@ async function fetchMysqlResponses(
         return {
           ...answer,
           questionPrompt: answer.questionPrompt || fallbackQuestion?.prompt || "",
+          dimensionKey: answer.dimensionKey || fallbackQuestion?.dimensionKey || "",
           dimensionTitle: answer.dimensionTitle || fallbackQuestion?.dimensionTitle || "",
           isSensitive: isQuestionnaireAnswer
             ? Boolean(answer.isSensitive)
