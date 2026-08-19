@@ -4638,7 +4638,11 @@ function buildPdiAnalytics({
       const person = people.find((item) => item.id === plan.personId);
       const competency = normalizedCompetencies.find((item) => item.id === plan.competencyId);
       const displayStatus = pdiDisplayStatus(plan, plan.progressStatus || "not_started", now);
-      const dueAt = new Date(String(plan.dueDate).slice(0, 10) + "T00:00:00").getTime();
+      const dueDateValue = plan.dueDate instanceof Date
+        ? `${plan.dueDate.getFullYear()}-${String(plan.dueDate.getMonth() + 1).padStart(2, "0")}-${String(plan.dueDate.getDate()).padStart(2, "0")}`
+        : String(plan.dueDate).slice(0, 10);
+      const [dueYear, dueMonth, dueDay] = dueDateValue.split("-").map(Number);
+      const dueAt = new Date(dueYear, dueMonth - 1, dueDay).getTime();
       const deadlineStatus = (plan.progressStatus || "not_started") === "done"
         ? "completed"
         : dueAt < todayStart
