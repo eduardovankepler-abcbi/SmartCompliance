@@ -4629,6 +4629,38 @@ function buildPdiAnalytics({
       .filter((item) => item.riskLevel === level)
       .map((item) => item.competencyName)
   }));
+  const priorityCompetencyIds = new Set(competencyPriorities.map((item) => item.competencyId));
+  const priorityActions = activePlans
+    .filter((plan) => priorityCompetencyIds.has(plan.competencyId))
+    .map((plan) => {
+      const person = people.find((item) => item.id === plan.personId);
+      const competency = normalizedCompetencies.find((item) => item.id === plan.competencyId);
+      const displayStatus = pdiDisplayStatus(plan, plan.progressStatus || "not_started", now);
+      return {
+        planId: plan.id,
+        personId: plan.personId,
+        personName: person?.name || "Pessoa do escopo",
+        competencyId: plan.competencyId,
+        competencyName: competency?.name || "Competencia vinculada",
+        focusTitle: plan.focusTitle,
+        actionText: plan.actionText,
+        dueDate: plan.dueDate,
+        progressStatus: plan.progressStatus || "not_started",
+        overdue: displayStatus === "overdue"
+      };
+    })
+    .sort((left, right) =>
+      Number(right.progressStatus === "blocked") - Number(left.progressStatus === "blocked") ||
+      Number(right.overdue) - Number(left.overdue) ||
+      new Date(left.dueDate).getTime() - new Date(right.dueDate).getTime()
+    );
+  const priorityActionSummary = {
+    notStarted: priorityActions.filter((item) => item.progressStatus === "not_started").length,
+    inProgress: priorityActions.filter((item) => item.progressStatus === "in_progress").length,
+    blocked: priorityActions.filter((item) => item.progressStatus === "blocked").length,
+    done: priorityActions.filter((item) => item.progressStatus === "done").length,
+    overdue: priorityActions.filter((item) => item.overdue).length
+  };
   const comparison = {
     coverageDelta: currentPeriod && previousPeriod
       ? currentPeriod.coveragePercentage - previousPeriod.coveragePercentage
@@ -4687,7 +4719,9 @@ function buildPdiAnalytics({
     competencyActionCoverage,
     competencyAlerts,
     competencyPriorities,
-    developmentRiskMatrix
+    developmentRiskMatrix,
+    priorityActions,
+    priorityActionSummary
   };
 }
 

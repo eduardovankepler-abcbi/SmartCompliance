@@ -46,6 +46,8 @@ const emptyAnalytics: DashboardPdiAnalytics = {
   competencyAlerts: [],
   competencyPriorities: [],
   developmentRiskMatrix: [],
+  priorityActions: [],
+  priorityActionSummary: { notStarted: 0, inProgress: 0, blocked: 0, done: 0, overdue: 0 },
 };
 
 @Component({
@@ -107,6 +109,12 @@ const emptyAnalytics: DashboardPdiAnalytics = {
             <div class="pdi-dashboard__timeline-legend"><span><i class="done"></i>Concluídos</span><span><i class="progress"></i>Em andamento</span><span><i class="blocked"></i>Bloqueados</span><span><i class="overdue"></i>Vencidos</span></div>
             <div class="pdi-dashboard__history-table">@for (period of analytics().evolution; track period.periodKey) { <article><strong>{{ period.label }}</strong><span>Cobertura {{ period.coveragePercentage }}%</span><span>Execução {{ period.executionPercentage }}%</span><span>Conclusão {{ period.completionPercentage }}%</span><span>No prazo {{ period.onTimePercentage }}%</span><small>{{ period.blocked }} bloqueados · {{ period.overdue }} vencidos · {{ period.stale }} sem atualização</small></article> }</div>
             <p class="pdi-dashboard__history-note">{{ analytics().methodology.historyAccuracy }}</p>
+          </article>
+
+          <article class="pdi-dashboard__panel pdi-dashboard__panel--wide">
+            <header><div><span>Execução das prioridades</span><h2>Ações vinculadas às prioridades</h2></div><small>responsável · prazo · andamento</small></header>
+            <div class="pdi-dashboard__attention"><div><span>Não iniciadas</span><strong>{{ analytics().priorityActionSummary.notStarted }}</strong></div><div><span>Em andamento</span><strong>{{ analytics().priorityActionSummary.inProgress }}</strong></div><div><span>Bloqueadas</span><strong>{{ analytics().priorityActionSummary.blocked }}</strong></div><div><span>Concluídas</span><strong>{{ analytics().priorityActionSummary.done }}</strong></div><div><span>Vencidas</span><strong>{{ analytics().priorityActionSummary.overdue }}</strong></div></div>
+            @if (analytics().priorityActions.length) { <div class="pdi-dashboard__action-coverage">@for (action of analytics().priorityActions; track action.planId) { <article><strong>{{ action.focusTitle }}</strong><span>{{ action.personName }} · {{ action.competencyName }}</span><p>{{ action.actionText }}</p><small>{{ progressLabel(action.progressStatus) }} · prazo {{ dueDateLabel(action.dueDate) }}{{ action.overdue ? ' · vencida' : '' }}</small></article> }</div> } @else { <p class="pdi-dashboard__empty">Nenhum PDI ativo está vinculado às competências priorizadas neste recorte.</p> }
           </article>
 
           <article class="pdi-dashboard__panel">
@@ -204,6 +212,8 @@ export class DashboardPdiPageComponent implements OnInit {
   deltaLabel(delta: number): string { return `${delta > 0 ? '+' : ''}${delta} p.p.`; }
   scoreDeltaLabel(delta: number): string { return `${delta > 0 ? '+' : ''}${delta.toFixed(1)} ponto${Math.abs(delta) === 1 ? '' : 's'}`; }
   riskLabel(level: 'high' | 'medium' | 'low'): string { return ({ high: 'Risco alto', medium: 'Risco moderado', low: 'Risco controlado' })[level]; }
+  progressLabel(status: 'not_started' | 'in_progress' | 'blocked' | 'done'): string { return ({ not_started: 'Não iniciada', in_progress: 'Em andamento', blocked: 'Bloqueada', done: 'Concluída' })[status]; }
+  dueDateLabel(value: string): string { const [year, month, day] = String(value).slice(0, 10).split('-'); return year && month && day ? `${day}/${month}/${year}` : value; }
   priorityActionParams(item: DashboardPdiAnalytics['competencyPriorities'][number]): Record<string, string> { return { source: 'pdi-priority', competencyId: item.competencyId, focusTitle: `Desenvolver ${item.competencyName}`, actionText: item.recommendation, expectedEvidence: `Evidência de evolução em ${item.competencyName}` }; }
   timeGroupingLabel(): string { return this.timeGroupingOptions.find((option) => option.value === this.timeGrouping())?.label || 'Período'; }
   governanceLabel(overview: DashboardOverview): string { if (overview.mode === 'team') return 'Somente equipe direta'; if (overview.mode === 'personal') return 'Somente visão individual'; return 'Consolidado autorizado para RH e administração'; }

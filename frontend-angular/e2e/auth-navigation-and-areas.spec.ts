@@ -64,6 +64,7 @@ test('permite ao administrador aplicar um filtro governado de equipe no PDI', as
   await expect(page.getByText('Como calculamos')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Cobertura do desenvolvimento' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Gaps e risco de desenvolvimento' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Ações vinculadas às prioridades' })).toBeVisible();
   await expect(page.getByText(/Histórico exato a partir de 19\/08\/2026/)).toBeVisible();
 });
 

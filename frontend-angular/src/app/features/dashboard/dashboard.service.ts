@@ -269,6 +269,25 @@ export interface DashboardPdiAnalytics {
     total: number;
     competencies: string[];
   }>;
+  priorityActions: Array<{
+    planId: string;
+    personId: string;
+    personName: string;
+    competencyId: string;
+    competencyName: string;
+    focusTitle: string;
+    actionText: string;
+    dueDate: string;
+    progressStatus: 'not_started' | 'in_progress' | 'blocked' | 'done';
+    overdue: boolean;
+  }>;
+  priorityActionSummary: {
+    notStarted: number;
+    inProgress: number;
+    blocked: number;
+    done: number;
+    overdue: number;
+  };
 }
 
 export interface DashboardOverview {
