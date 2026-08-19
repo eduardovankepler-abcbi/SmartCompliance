@@ -280,6 +280,7 @@ export interface DashboardPdiAnalytics {
     dueDate: string;
     progressStatus: 'not_started' | 'in_progress' | 'blocked' | 'done';
     overdue: boolean;
+    deadlineStatus: 'overdue' | 'due_soon' | 'on_track' | 'completed';
   }>;
   priorityActionSummary: {
     notStarted: number;
@@ -287,6 +288,8 @@ export interface DashboardPdiAnalytics {
     blocked: number;
     done: number;
     overdue: number;
+    dueSoon: number;
+    onTrack: number;
   };
 }
 

@@ -471,7 +471,7 @@ export async function runAuthAccessRegression() {
     );
     assert.ok(
       Array.isArray(adminDashboard.payload.pdiAnalytics.priorityActions) &&
-        ["notStarted", "inProgress", "blocked", "done", "overdue"].every(
+        ["notStarted", "inProgress", "blocked", "done", "overdue", "dueSoon", "onTrack"].every(
           (key) => Number.isFinite(adminDashboard.payload.pdiAnalytics.priorityActionSummary[key])
         ),
       "Dashboard deve retornar as acoes vinculadas as prioridades por andamento"
