@@ -62,7 +62,7 @@ const emptyCompliance: DashboardComplianceAnalytics = {
         <a [routerLink]="['/app/dashboard']" fragment="avaliacoes">Avaliacoes</a>
         <a [routerLink]="['/app/dashboard/pdi']">PDI</a>
         <a class="active" [routerLink]="['/app/dashboard/compliance']" aria-current="page">Compliance</a>
-        <a [routerLink]="['/app/dashboard']" fragment="applause">Aplause</a>
+        <a [routerLink]="['/app/dashboard/applause']">Aplause</a>
         <a [routerLink]="['/app/dashboard']" fragment="governanca">Governanca</a>
       </nav>
 

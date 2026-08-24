@@ -32,5 +32,20 @@ export function createDashboardsRouter(store) {
     }
   });
 
+  router.get("/applause", requireRoles("admin", "hr", "manager"), async (req, res, next) => {
+    try {
+      res.json(
+        await store.getApplauseDashboard(req.auth.user, {
+          area: req.query.area || null,
+          teamManagerId: req.query.teamManagerId || null,
+          timeGrouping: req.query.timeGrouping || "semester",
+          category: req.query.category || null
+        })
+      );
+    } catch (error) {
+      next(error);
+    }
+  });
+
   return router;
 }

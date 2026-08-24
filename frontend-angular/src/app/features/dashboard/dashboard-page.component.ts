@@ -92,7 +92,7 @@ const dashboardQuickActions: readonly DashboardQuickAction[] = [
           <a href="#avaliacoes">Avaliacoes</a>
           <a [routerLink]="['/app/dashboard/pdi']">PDI</a>
           <a [routerLink]="['/app/dashboard/compliance']">Compliance</a>
-          <a href="#applause">Aplause</a>
+          <a [routerLink]="['/app/dashboard/applause']">Aplause</a>
           <a href="#governanca">Governanca</a>
         </nav>
 

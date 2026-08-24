@@ -543,6 +543,50 @@ export async function runAuthAccessRegression() {
         Array.isArray(adminComplianceDashboard.payload.agingBuckets),
       "Dashboard de compliance deve retornar areas, motivos e envelhecimento"
     );
+    const employeeApplauseDashboard = await fetchJson(
+      "/api/dashboards/applause",
+      getAuthHeader(employee.id)
+    );
+    assert.equal(
+      employeeApplauseDashboard.response.status,
+      403,
+      "Colaborador nao deve acessar o dashboard executivo de Aplause"
+    );
+    const adminApplauseDashboard = await fetchJson(
+      "/api/dashboards/applause?timeGrouping=year",
+      getAuthHeader(admin.id)
+    );
+    assert.equal(
+      adminApplauseDashboard.response.status,
+      200,
+      "Admin deve acessar o dashboard de Aplause"
+    );
+    assert.ok(
+      adminApplauseDashboard.payload.summary.approvedApplauses >= 0 &&
+        Array.isArray(adminApplauseDashboard.payload.sentByArea) &&
+        Array.isArray(adminApplauseDashboard.payload.receivedByArea) &&
+        Array.isArray(adminApplauseDashboard.payload.unusualReciprocity),
+      "Dashboard de Aplause deve retornar KPIs, areas e reciprocidade incomum"
+    );
+    assert.equal(
+      adminApplauseDashboard.payload.summary.approvedApplauses,
+      adminApplauseDashboard.payload.dataQuality.approvedRecordsConsidered,
+      "Dashboard de Aplause deve considerar apenas registros validados"
+    );
+    const managerApplauseDashboard = await fetchJson(
+      "/api/dashboards/applause",
+      getAuthHeader(manager.id)
+    );
+    assert.equal(
+      managerApplauseDashboard.response.status,
+      200,
+      "Gestor deve acessar o dashboard de Aplause da propria equipe"
+    );
+    assert.equal(
+      managerApplauseDashboard.payload.mode,
+      "team",
+      "Dashboard de Aplause do gestor deve respeitar escopo de equipe"
+    );
     const firstDashboardTeam = adminDashboard.payload.teamOptions[0];
     if (firstDashboardTeam) {
       const teamDashboard = await fetchJson(

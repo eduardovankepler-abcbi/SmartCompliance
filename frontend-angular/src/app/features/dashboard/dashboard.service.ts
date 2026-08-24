@@ -362,6 +362,59 @@ export interface DashboardComplianceAnalytics {
   };
 }
 
+export interface DashboardApplauseAnalytics {
+  mode: DashboardMode;
+  notice: string;
+  scopeLabel: string;
+  selectedArea: string | null;
+  selectedTeamManagerId: string | null;
+  areaOptions: string[];
+  teamOptions: Array<{ managerPersonId: string; label: string; area: string; peopleCount: number }>;
+  filters: {
+    timeGrouping: DashboardTimeGrouping;
+    category: string | null;
+  };
+  summary: {
+    approvedApplauses: number;
+    activeSenders: number;
+    activeReceivers: number;
+    senderParticipationPercentage: number;
+    receiverCoveragePercentage: number;
+    averageSentPerEligiblePerson: number;
+    suspiciousReciprocityPairs: number;
+  };
+  sentByArea: Array<{ area: string; totalSent: number; activeSenders: number; senderParticipationPercentage: number; peopleCount: number }>;
+  receivedByArea: Array<{ area: string; totalReceived: number; activeReceivers: number; receiverCoveragePercentage: number; peopleCount: number }>;
+  areaBalance: Array<{ area: string; sent: number; received: number; netBalance: number; coveragePercentage: number }>;
+  categoryCounts: Array<{ category: string; total: number }>;
+  trend: Array<{ periodKey: string; label: string; totalApplauses: number; activeSenders: number; activeReceivers: number }>;
+  unusualReciprocity: Array<{
+    personAId: string;
+    personAName: string;
+    personAArea: string;
+    personBId: string;
+    personBName: string;
+    personBArea: string;
+    aToB: number;
+    bToA: number;
+    total: number;
+    concentrationPercentage: number;
+    lastApplauseAt: string;
+  }>;
+  alerts: {
+    silentReceivingAreas: string[];
+    silentSendingAreas: string[];
+    concentratedRecognition: boolean;
+    dominantCategory: string | null;
+  };
+  dataQuality: {
+    approvedRecordsConsidered: number;
+    ignoredRecords: number;
+    eligiblePeople: number;
+    note: string;
+  };
+}
+
 @Injectable({ providedIn: 'root' })
 export class DashboardService {
   private readonly api = inject(ApiClient);
@@ -396,6 +449,25 @@ export class DashboardService {
 
     const suffix = params.size ? `?${params.toString()}` : '';
     return this.api.get<DashboardComplianceAnalytics>(`/api/dashboards/compliance${suffix}`);
+  }
+
+  getApplause(query: DashboardComplianceQuery & { category?: string | null } = {}): Observable<DashboardApplauseAnalytics> {
+    const params = new URLSearchParams();
+    if (query.area) {
+      params.set('area', query.area);
+    }
+    if (query.teamManagerId) {
+      params.set('teamManagerId', query.teamManagerId);
+    }
+    if (query.timeGrouping) {
+      params.set('timeGrouping', query.timeGrouping);
+    }
+    if (query.category) {
+      params.set('category', query.category);
+    }
+
+    const suffix = params.size ? `?${params.toString()}` : '';
+    return this.api.get<DashboardApplauseAnalytics>(`/api/dashboards/applause${suffix}`);
   }
 
   updatePriorityActionProgress(

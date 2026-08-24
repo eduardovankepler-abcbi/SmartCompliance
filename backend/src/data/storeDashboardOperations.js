@@ -252,6 +252,230 @@ function buildComplianceDashboardPayload({
   };
 }
 
+function buildApplauseDashboardPayload({
+  mode,
+  notice,
+  scopeLabel,
+  people,
+  applauseEntries = [],
+  availableAreas = [],
+  selectedArea = null,
+  teamOptions = [],
+  selectedTeamManagerId = null,
+  timeGrouping = "semester",
+  category = null
+}) {
+  const scopedPeople = people || [];
+  const scopedPersonIds = new Set(scopedPeople.map((person) => person.id));
+  const peopleById = new Map(scopedPeople.map((person) => [person.id, person]));
+  const approvedEntries = applauseEntries.filter(
+    (entry) =>
+      entry.status === "Validado" &&
+      (scopedPersonIds.has(entry.senderPersonId) || scopedPersonIds.has(entry.receiverPersonId)) &&
+      (!category || entry.category === category)
+  );
+  const allConsideredEntries = applauseEntries.filter(
+    (entry) =>
+      (scopedPersonIds.has(entry.senderPersonId) || scopedPersonIds.has(entry.receiverPersonId)) &&
+      (!category || entry.category === category)
+  );
+  const senderIds = new Set(approvedEntries.filter((entry) => scopedPersonIds.has(entry.senderPersonId)).map((entry) => entry.senderPersonId));
+  const receiverIds = new Set(approvedEntries.filter((entry) => scopedPersonIds.has(entry.receiverPersonId)).map((entry) => entry.receiverPersonId));
+  const peopleCount = scopedPeople.length;
+  const entriesByCategory = new Map();
+  const trendMap = new Map();
+  const sentByAreaMap = new Map();
+  const receivedByAreaMap = new Map();
+  const sentTotalsByPerson = new Map();
+  const pairMap = new Map();
+  let lastApplauseAt = null;
+
+  const areaEntry = (map, area) => {
+    const normalizedArea = area || "Sem area";
+    const entry = map.get(normalizedArea) || {
+      area: normalizedArea,
+      totalSent: 0,
+      totalReceived: 0,
+      activeSenders: 0,
+      activeReceivers: 0,
+      senderParticipationPercentage: 0,
+      receiverCoveragePercentage: 0,
+      peopleCount: scopedPeople.filter((person) => (person.area || "Sem area") === normalizedArea).length
+    };
+    map.set(normalizedArea, entry);
+    return entry;
+  };
+
+  const sendersByArea = new Map();
+  const receiversByArea = new Map();
+
+  for (const entry of approvedEntries) {
+    const sender = peopleById.get(entry.senderPersonId);
+    const receiver = peopleById.get(entry.receiverPersonId);
+    const senderArea = sender?.area || "Sem area";
+    const receiverArea = receiver?.area || "Sem area";
+    if (scopedPersonIds.has(entry.senderPersonId)) {
+      const sentAreaEntry = areaEntry(sentByAreaMap, senderArea);
+      sentAreaEntry.totalSent += 1;
+      const areaSenders = sendersByArea.get(senderArea) || new Set();
+      areaSenders.add(entry.senderPersonId);
+      sendersByArea.set(senderArea, areaSenders);
+      sentTotalsByPerson.set(entry.senderPersonId, (sentTotalsByPerson.get(entry.senderPersonId) || 0) + 1);
+    }
+    if (scopedPersonIds.has(entry.receiverPersonId)) {
+      const receivedAreaEntry = areaEntry(receivedByAreaMap, receiverArea);
+      receivedAreaEntry.totalReceived += 1;
+      const areaReceivers = receiversByArea.get(receiverArea) || new Set();
+      areaReceivers.add(entry.receiverPersonId);
+      receiversByArea.set(receiverArea, areaReceivers);
+    }
+
+    entriesByCategory.set(entry.category, (entriesByCategory.get(entry.category) || 0) + 1);
+    const period = buildCompliancePeriodKey(entry.createdAt, timeGrouping);
+    const trend = trendMap.get(period.key) || {
+      periodKey: period.key,
+      label: period.label,
+      totalApplauses: 0,
+      activeSenders: new Set(),
+      activeReceivers: new Set()
+    };
+    trend.totalApplauses += 1;
+    trend.activeSenders.add(entry.senderPersonId);
+    trend.activeReceivers.add(entry.receiverPersonId);
+    trendMap.set(period.key, trend);
+
+    if (!lastApplauseAt || String(entry.createdAt).localeCompare(String(lastApplauseAt)) > 0) {
+      lastApplauseAt = entry.createdAt;
+    }
+
+    if (!scopedPersonIds.has(entry.senderPersonId) || !scopedPersonIds.has(entry.receiverPersonId)) {
+      continue;
+    }
+    const pairKey = [entry.senderPersonId, entry.receiverPersonId].sort().join("::");
+    const pair = pairMap.get(pairKey) || {
+      personAId: entry.senderPersonId,
+      personBId: entry.receiverPersonId,
+      aToB: 0,
+      bToA: 0,
+      lastApplauseAt: entry.createdAt
+    };
+    if (entry.senderPersonId === pair.personAId) pair.aToB += 1;
+    else pair.bToA += 1;
+    if (String(entry.createdAt).localeCompare(String(pair.lastApplauseAt || "")) > 0) {
+      pair.lastApplauseAt = entry.createdAt;
+    }
+    pairMap.set(pairKey, pair);
+  }
+
+  for (const [area, entry] of sentByAreaMap.entries()) {
+    entry.activeSenders = sendersByArea.get(area)?.size || 0;
+    entry.senderParticipationPercentage = dashboardPercentage(entry.activeSenders, entry.peopleCount);
+  }
+  for (const [area, entry] of receivedByAreaMap.entries()) {
+    entry.activeReceivers = receiversByArea.get(area)?.size || 0;
+    entry.receiverCoveragePercentage = dashboardPercentage(entry.activeReceivers, entry.peopleCount);
+  }
+
+  const areaNames = [...new Set(scopedPeople.map((person) => person.area || "Sem area"))].sort((left, right) => left.localeCompare(right, "pt-BR"));
+  const areaBalance = areaNames.map((area) => {
+    const sent = sentByAreaMap.get(area)?.totalSent || 0;
+    const received = receivedByAreaMap.get(area)?.totalReceived || 0;
+    const peopleInArea = scopedPeople.filter((person) => (person.area || "Sem area") === area);
+    return {
+      area,
+      sent,
+      received,
+      netBalance: received - sent,
+      coveragePercentage: dashboardPercentage(receiversByArea.get(area)?.size || 0, peopleInArea.length)
+    };
+  });
+
+  const unusualReciprocity = [...pairMap.values()]
+    .map((pair) => {
+      const personA = peopleById.get(pair.personAId);
+      const personB = peopleById.get(pair.personBId);
+      const concentration = Math.max(
+        dashboardPercentage(pair.aToB, sentTotalsByPerson.get(pair.personAId) || 0),
+        dashboardPercentage(pair.bToA, sentTotalsByPerson.get(pair.personBId) || 0)
+      );
+      return {
+        personAId: pair.personAId,
+        personAName: personA?.name || "",
+        personAArea: personA?.area || "Sem area",
+        personBId: pair.personBId,
+        personBName: personB?.name || "",
+        personBArea: personB?.area || "Sem area",
+        aToB: pair.aToB,
+        bToA: pair.bToA,
+        total: pair.aToB + pair.bToA,
+        concentrationPercentage: concentration,
+        lastApplauseAt: pair.lastApplauseAt
+      };
+    })
+    .filter((pair) => pair.aToB >= 2 && pair.bToA >= 2 && pair.total >= 4 && pair.concentrationPercentage >= 60)
+    .sort((left, right) => right.total - left.total || right.concentrationPercentage - left.concentrationPercentage)
+    .slice(0, 10);
+
+  const categoryCounts = [...entriesByCategory.entries()]
+    .map(([itemCategory, total]) => ({ category: itemCategory || "Sem categoria", total }))
+    .sort((left, right) => right.total - left.total);
+  const dominantCategory = categoryCounts[0] && approvedEntries.length
+    ? dashboardPercentage(categoryCounts[0].total, approvedEntries.length) >= 60
+      ? categoryCounts[0].category
+      : null
+    : null;
+  const topReceiverCount = Math.max(
+    0,
+    ...[...receiverIds].map((personId) => approvedEntries.filter((entry) => entry.receiverPersonId === personId).length)
+  );
+
+  return {
+    mode,
+    notice,
+    scopeLabel,
+    selectedArea,
+    selectedTeamManagerId,
+    areaOptions: availableAreas,
+    teamOptions,
+    filters: { timeGrouping, category },
+    summary: {
+      approvedApplauses: approvedEntries.length,
+      activeSenders: senderIds.size,
+      activeReceivers: receiverIds.size,
+      senderParticipationPercentage: dashboardPercentage(senderIds.size, peopleCount),
+      receiverCoveragePercentage: dashboardPercentage(receiverIds.size, peopleCount),
+      averageSentPerEligiblePerson: peopleCount ? Number((approvedEntries.length / peopleCount).toFixed(1)) : 0,
+      suspiciousReciprocityPairs: unusualReciprocity.length
+    },
+    sentByArea: [...sentByAreaMap.values()].sort((left, right) => right.totalSent - left.totalSent),
+    receivedByArea: [...receivedByAreaMap.values()].sort((left, right) => right.totalReceived - left.totalReceived),
+    areaBalance,
+    categoryCounts,
+    trend: [...trendMap.values()]
+      .map((item) => ({
+        periodKey: item.periodKey,
+        label: item.label,
+        totalApplauses: item.totalApplauses,
+        activeSenders: item.activeSenders.size,
+        activeReceivers: item.activeReceivers.size
+      }))
+      .sort((left, right) => left.periodKey.localeCompare(right.periodKey)),
+    unusualReciprocity,
+    alerts: {
+      silentReceivingAreas: areaNames.filter((area) => !(receivedByAreaMap.get(area)?.totalReceived)),
+      silentSendingAreas: areaNames.filter((area) => !(sentByAreaMap.get(area)?.totalSent)),
+      concentratedRecognition: approvedEntries.length >= 5 && dashboardPercentage(topReceiverCount, approvedEntries.length) >= 40,
+      dominantCategory
+    },
+    dataQuality: {
+      approvedRecordsConsidered: approvedEntries.length,
+      ignoredRecords: allConsideredEntries.length - approvedEntries.length,
+      eligiblePeople: peopleCount,
+      note: "Indicadores consideram apenas Aplause validado; padroes incomuns sao sinais para revisao humana, nao conclusoes automaticas."
+    }
+  };
+}
+
 export function createMemoryDashboardStore({
   db,
   anonymousResponseState,
@@ -503,6 +727,60 @@ export function createMemoryDashboardStore({
         developmentPlans: developmentPlans.filter((item) => item.personId === actorUser.person.id),
         incidents: (db.incidents || []).filter((item) => item.subjectPersonId === actorUser.person.id),
         timeGrouping: options.timeGrouping || "semester"
+      });
+    },
+
+    async getApplauseDashboard(actorUser, options = {}) {
+      const availableAreas = [...new Set(db.people.map((person) => person.area))].sort();
+      const entries = db.applauseEntries || [];
+
+      if (isOrgWideUser(actorUser)) {
+        const areaScopedPeople = options.area
+          ? db.people.filter((person) => person.area === options.area)
+          : db.people;
+        const scopedPeople = options.teamManagerId
+          ? areaScopedPeople.filter((person) => person.id === options.teamManagerId || person.managerPersonId === options.teamManagerId)
+          : areaScopedPeople;
+        const scopedPersonIds = new Set(scopedPeople.map((person) => person.id));
+        const selectedTeam = buildDashboardTeamOptions(db.people, options.area).find((team) => team.managerPersonId === options.teamManagerId);
+        return buildApplauseDashboardPayload({
+          mode: "executive",
+          notice: "Leitura de reconhecimentos enviados e recebidos pelas equipes.",
+          scopeLabel: selectedTeam ? selectedTeam.label : options.area ? `Area: ${options.area}` : "Consolidado organizacional",
+          people: scopedPeople,
+          applauseEntries: entries.filter((item) => scopedPersonIds.has(item.senderPersonId) || scopedPersonIds.has(item.receiverPersonId)),
+          availableAreas,
+          selectedArea: options.area,
+          teamOptions: buildDashboardTeamOptions(db.people, options.area),
+          selectedTeamManagerId: options.teamManagerId,
+          timeGrouping: options.timeGrouping || "semester",
+          category: options.category || null
+        });
+      }
+
+      if (isManagerUser(actorUser)) {
+        const teamPeople = getTeamPeople(db.people, actorUser.person.id);
+        const scopedPeople = [actorUser.person, ...teamPeople];
+        const scopedPersonIds = new Set(scopedPeople.map((person) => person.id));
+        return buildApplauseDashboardPayload({
+          mode: "team",
+          notice: "Leitura dos Aplause enviados e recebidos pela sua equipe.",
+          scopeLabel: "Equipe direta",
+          people: scopedPeople,
+          applauseEntries: entries.filter((item) => scopedPersonIds.has(item.senderPersonId) || scopedPersonIds.has(item.receiverPersonId)),
+          timeGrouping: options.timeGrouping || "semester",
+          category: options.category || null
+        });
+      }
+
+      return buildApplauseDashboardPayload({
+        mode: "personal",
+        notice: "Visao individual de reconhecimento.",
+        scopeLabel: "Visao pessoal",
+        people: [actorUser.person].filter(Boolean),
+        applauseEntries: entries.filter((item) => item.senderPersonId === actorUser.person.id || item.receiverPersonId === actorUser.person.id),
+        timeGrouping: options.timeGrouping || "semester",
+        category: options.category || null
       });
     }
   };
@@ -875,6 +1153,68 @@ export function createMysqlDashboardStore({
         developmentPlans: developmentPlanRows.filter((item) => item.personId === actorUser.person.id),
         incidents: incidentRows.filter((item) => item.subjectPersonId === actorUser.person.id),
         timeGrouping
+      });
+    },
+
+    async getApplauseDashboard(actorUser, options = {}) {
+      const timeGrouping = options.timeGrouping || "semester";
+      const [people, applauseRows] = await Promise.all([
+        fetchPeopleRows(pool),
+        pool
+          .query(
+            `SELECT a.id, a.sender_person_id AS senderPersonId,
+                    a.receiver_person_id AS receiverPersonId, a.category,
+                    a.created_at AS createdAt, a.status
+             FROM applause_entries a`
+          )
+          .then(([rows]) => rows)
+      ]);
+      const availableAreas = [...new Set(people.map((person) => person.area))].sort();
+
+      if (isFullAccessUser(actorUser)) {
+        const areaScopedPeople = options.area ? people.filter((person) => person.area === options.area) : people;
+        const scopedPeople = options.teamManagerId
+          ? areaScopedPeople.filter((person) => person.id === options.teamManagerId || person.managerPersonId === options.teamManagerId)
+          : areaScopedPeople;
+        const scopedPersonIds = new Set(scopedPeople.map((person) => person.id));
+        const selectedTeam = buildDashboardTeamOptions(people, options.area).find((team) => team.managerPersonId === options.teamManagerId);
+        return buildApplauseDashboardPayload({
+          mode: "executive",
+          notice: "Leitura de reconhecimentos enviados e recebidos pelas equipes.",
+          scopeLabel: selectedTeam ? selectedTeam.label : options.area ? `Area: ${options.area}` : "Consolidado organizacional",
+          people: scopedPeople,
+          applauseEntries: applauseRows.filter((item) => scopedPersonIds.has(item.senderPersonId) || scopedPersonIds.has(item.receiverPersonId)),
+          availableAreas,
+          selectedArea: options.area,
+          teamOptions: buildDashboardTeamOptions(people, options.area),
+          selectedTeamManagerId: options.teamManagerId,
+          timeGrouping,
+          category: options.category || null
+        });
+      }
+
+      if (isManagerUser(actorUser)) {
+        const scopedPeople = people.filter((person) => person.id === actorUser.person.id || person.managerPersonId === actorUser.person.id);
+        const scopedPersonIds = new Set(scopedPeople.map((person) => person.id));
+        return buildApplauseDashboardPayload({
+          mode: "team",
+          notice: "Leitura dos Aplause enviados e recebidos pela sua equipe.",
+          scopeLabel: "Equipe direta",
+          people: scopedPeople,
+          applauseEntries: applauseRows.filter((item) => scopedPersonIds.has(item.senderPersonId) || scopedPersonIds.has(item.receiverPersonId)),
+          timeGrouping,
+          category: options.category || null
+        });
+      }
+
+      return buildApplauseDashboardPayload({
+        mode: "personal",
+        notice: "Visao individual de reconhecimento.",
+        scopeLabel: "Visao pessoal",
+        people: people.filter((person) => person.id === actorUser.person.id),
+        applauseEntries: applauseRows.filter((item) => item.senderPersonId === actorUser.person.id || item.receiverPersonId === actorUser.person.id),
+        timeGrouping,
+        category: options.category || null
       });
     }
   };
