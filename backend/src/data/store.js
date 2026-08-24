@@ -812,6 +812,24 @@ function isAssignmentDelinquent(assignment, cycleStatus = assignment?.cycleStatu
   return due.getTime() < today.getTime();
 }
 
+function assertValidComplianceGraceDate(dueDate, complianceGraceDueDate) {
+  if (!complianceGraceDueDate) {
+    return;
+  }
+  const due = parseDateValue(dueDate);
+  const grace = parseDateValue(complianceGraceDueDate);
+  if (!grace) {
+    throw new Error("Data de tolerancia de compliance invalida.");
+  }
+  if (due) {
+    due.setHours(0, 0, 0, 0);
+    grace.setHours(0, 0, 0, 0);
+    if (grace.getTime() < due.getTime()) {
+      throw new Error("Data de tolerancia de compliance deve ser igual ou posterior ao prazo do ciclo.");
+    }
+  }
+}
+
 function buildCycleComplianceSummary(assignments, cycleStatus) {
   const today = getStartOfToday();
   const totalAssignments = assignments.length;
@@ -875,6 +893,10 @@ function enrichIncident(incident, people = [], areas = []) {
     closureNote: incident.closureNote || "",
     responsibleArea: incident.responsibleArea || "",
     assignedPersonId: incident.assignedPersonId || null,
+    subjectPersonId: incident.subjectPersonId || null,
+    findingStatus: incident.findingStatus || "pending",
+    findingDecidedAt: incident.findingDecidedAt || null,
+    findingDecidedByUserId: incident.findingDecidedByUserId || null,
     assignedPersonName: assignedPerson?.name || "",
     areaManagerPersonId: responsibleArea?.managerPersonId || null,
     areaManagerName: responsibleArea?.managerName || "",
@@ -916,6 +938,32 @@ function assertValidIncidentAssignee(people, assignedPersonId) {
   if (!assignedPerson) {
     throw new Error("Responsavel informado nao foi encontrado.");
   }
+}
+
+function assertValidIncidentSubject(people, subjectPersonId) {
+  if (!subjectPersonId) {
+    return;
+  }
+  const subject = people.find((person) => person.id === subjectPersonId);
+  if (!subject) {
+    throw new Error("Colaborador envolvido no caso nao foi encontrado.");
+  }
+}
+
+function normalizeIncidentFindingPayload(payload, actorUser) {
+  const findingStatus = payload.findingStatus || "pending";
+  if (!["pending", "substantiated", "unsubstantiated"].includes(findingStatus)) {
+    throw new Error("Status de procedencia invalido.");
+  }
+  if (findingStatus === "substantiated" && !payload.subjectPersonId) {
+    throw new Error("Caso procedente exige colaborador envolvido.");
+  }
+  return {
+    subjectPersonId: payload.subjectPersonId || null,
+    findingStatus,
+    findingDecidedAt: findingStatus === "pending" ? null : new Date().toISOString(),
+    findingDecidedByUserId: findingStatus === "pending" ? null : actorUser.id
+  };
 }
 
 function buildSummary(db, user) {
@@ -1686,7 +1734,10 @@ function presentCycle(row) {
     ),
     transversalConfig: normalizeTransversalConfig(
       row.transversalConfig ?? row.transversalConfigJson
-    )
+    ),
+    complianceGraceDueDate: row.complianceGraceDueDate || null,
+    complianceGraceConfiguredByUserId: row.complianceGraceConfiguredByUserId || null,
+    complianceGraceConfiguredAt: row.complianceGraceConfiguredAt || null
   };
 }
 
@@ -3438,6 +3489,7 @@ function presentCycleParticipantStructure(db, cycleId, customLibraries = []) {
       semesterLabel: cycle.semesterLabel,
       status: cycle.status,
       dueDate: cycle.dueDate,
+      complianceGraceDueDate: cycle.complianceGraceDueDate || null,
       transversalConfig: cycle.transversalConfig,
       participantCount: participants.length,
       raterCount: raterRows.length
@@ -5665,6 +5717,44 @@ function assertCanReportDevelopmentPlanProgress(actorUser, people, plan) {
   throw new Error("Voce so pode reportar andamento do proprio PDI ou da sua equipe.");
 }
 
+function canFormalizeMandatoryDevelopmentPlan(actorUser, people, personId) {
+  const actorPersonId = actorUser.person?.id || actorUser.personId;
+  if (["admin", "hr"].includes(actorUser?.roleKey || "")) {
+    return true;
+  }
+  return Boolean(
+    isManagerUser(actorUser) &&
+      (actorPersonId === personId ||
+        people.some((person) => person.id === personId && person.managerPersonId === actorPersonId))
+  );
+}
+
+function normalizeDevelopmentPlanCompliancePayload(payload, actorUser, people, existingPlan = null) {
+  const wasRequired = Boolean(existingPlan?.isComplianceRequired);
+  const nextRequired = payload.isComplianceRequired === undefined
+    ? wasRequired
+    : Boolean(payload.isComplianceRequired);
+  const personId = payload.personId || existingPlan?.personId;
+
+  if (nextRequired && !canFormalizeMandatoryDevelopmentPlan(actorUser, people, personId)) {
+    throw new Error("PDI obrigatorio precisa de formalizacao do RH, admin ou lider da area.");
+  }
+
+  return {
+    isComplianceRequired: nextRequired,
+    complianceRequiredAt: nextRequired && !wasRequired
+      ? new Date().toISOString()
+      : nextRequired
+        ? existingPlan?.complianceRequiredAt || null
+        : null,
+    complianceRequiredByUserId: nextRequired && !wasRequired
+      ? actorUser.id
+      : nextRequired
+        ? existingPlan?.complianceRequiredByUserId || actorUser.id
+        : null
+  };
+}
+
 function normalizeDevelopmentPlanProgressPayload(payload) {
   const progressStatus = payload.progressStatus || "in_progress";
   assertValidDevelopmentPlanProgressStatus(progressStatus);
@@ -5891,7 +5981,10 @@ function enrichDevelopmentPlan(plan, people, cycles, competencies) {
     archivedAt: plan.archivedAt || null,
     progressStatus: plan.progressStatus || "not_started",
     progressNote: plan.progressNote || "",
-    progressUpdatedAt: plan.progressUpdatedAt || null
+    progressUpdatedAt: plan.progressUpdatedAt || null,
+    isComplianceRequired: Boolean(plan.isComplianceRequired),
+    complianceRequiredAt: plan.complianceRequiredAt || null,
+    complianceRequiredByUserId: plan.complianceRequiredByUserId || null
   };
 }
 
@@ -6038,7 +6131,10 @@ async function fetchDevelopmentPlanRows(pool) {
             expected_evidence AS expectedEvidence, status, created_by_user_id AS createdByUserId,
             created_at AS createdAt, archived_at AS archivedAt,
             progress_status AS progressStatus, progress_note AS progressNote,
-            progress_updated_at AS progressUpdatedAt
+            progress_updated_at AS progressUpdatedAt,
+            is_compliance_required AS isComplianceRequired,
+            compliance_required_at AS complianceRequiredAt,
+            compliance_required_by_user_id AS complianceRequiredByUserId
      FROM development_plans
      ORDER BY due_date ASC, created_at DESC`
   );
@@ -6498,17 +6594,20 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         assertValidIncidentArea,
         assertValidIncidentAssignee
       });
+      assertValidIncidentSubject(db.people, payload.subjectPersonId);
       const incidentRouting = resolveIncidentAssignment({
         areas: db.areas,
         people: db.people,
         payload
       });
+      const finding = normalizeIncidentFindingPayload(payload, actorUser);
 
       const incident = {
         id: createId("incident"),
         status: "Em triagem",
         createdAt: new Date().toISOString(),
         ...payload,
+        ...finding,
         responsibleArea: incidentRouting.responsibleArea,
         assignedPersonId: incidentRouting.assignedPersonId,
         assignedTo: incidentRouting.assignedTo
@@ -6552,14 +6651,20 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         assertValidIncidentArea,
         assertValidIncidentAssignee
       });
+      assertValidIncidentSubject(db.people, payload.subjectPersonId);
       const incidentRouting = resolveIncidentAssignment({
         areas: db.areas,
         people: db.people,
         payload
       });
+      const finding = normalizeIncidentFindingPayload(payload, actorUser);
 
       incident.classification = payload.classification;
       incident.status = payload.status;
+      incident.subjectPersonId = finding.subjectPersonId;
+      incident.findingStatus = finding.findingStatus;
+      incident.findingDecidedAt = finding.findingDecidedAt;
+      incident.findingDecidedByUserId = finding.findingDecidedByUserId;
       incident.responsibleArea = incidentRouting.responsibleArea;
       incident.assignedPersonId = incidentRouting.assignedPersonId;
       incident.assignedTo = incidentRouting.assignedTo;
@@ -6703,6 +6808,7 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
       if (payload.libraryId && payload.libraryId !== DEFAULT_EVALUATION_LIBRARY_ID && !selectedLibrary) {
         throw new Error("Biblioteca selecionada nao foi encontrada.");
       }
+      assertValidComplianceGraceDate(payload.dueDate, payload.complianceGraceDueDate);
 
       const cycle = prepareEvaluationCycle({
         payload,
@@ -6949,6 +7055,7 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
       normalizeTransversalConfig,
       resolveCycleConfigUpdate,
       buildCycleConfigAuditDetail,
+      assertValidComplianceGraceDate,
       filterFeedbackRequestsForUser,
       assertCanCreateFeedbackRequest,
       prepareFeedbackRequest,
@@ -7035,7 +7142,8 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
       buildDevelopmentPlanAuditDetail,
       assertValidDevelopmentPlanStatus,
       assertCanReportDevelopmentPlanProgress,
-      normalizeDevelopmentPlanProgressPayload
+      normalizeDevelopmentPlanProgressPayload,
+      normalizeDevelopmentPlanCompliancePayload
     }),
     ...createMemoryDashboardStore({
       db,
@@ -7520,6 +7628,8 @@ function buildMysqlStore(
       const [rows] = await pool.query(
         `SELECT id, protocol, title, category, classification, status, anonymity, reporter_label AS reporterLabel,
                 responsible_area AS responsibleArea, assigned_person_id AS assignedPersonId,
+                subject_person_id AS subjectPersonId, finding_status AS findingStatus,
+                finding_decided_at AS findingDecidedAt, finding_decided_by_user_id AS findingDecidedByUserId,
                 assigned_to AS assignedTo, created_at AS createdAt, due_at AS dueAt,
                 closed_at AS closedAt, closure_note AS closureNote, description
          FROM incident_reports
@@ -7536,13 +7646,16 @@ function buildMysqlStore(
         assertValidIncidentArea,
         assertValidIncidentAssignee
       });
+      assertValidIncidentSubject(people, payload.subjectPersonId);
       const incidentRouting = resolveIncidentAssignment({ areas, people, payload });
+      const finding = normalizeIncidentFindingPayload(payload, actorUser);
 
       const incident = {
         id: createId("incident"),
         status: "Em triagem",
         createdAt: new Date().toISOString(),
         ...payload,
+        ...finding,
         responsibleArea: incidentRouting.responsibleArea,
         assignedPersonId: incidentRouting.assignedPersonId,
         assignedTo: incidentRouting.assignedTo
@@ -7554,8 +7667,8 @@ function buildMysqlStore(
 
       await pool.query(
         `INSERT INTO incident_reports
-         (id, protocol, title, category, classification, status, anonymity, reporter_label, responsible_area, assigned_person_id, assigned_to, created_at, due_at, closed_at, closure_note, description)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (id, protocol, title, category, classification, status, anonymity, reporter_label, responsible_area, assigned_person_id, subject_person_id, finding_status, finding_decided_at, finding_decided_by_user_id, assigned_to, created_at, due_at, closed_at, closure_note, description)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           incident.id,
           incident.protocol,
@@ -7567,6 +7680,10 @@ function buildMysqlStore(
           incident.reporterLabel,
           incident.responsibleArea,
           incident.assignedPersonId,
+          incident.subjectPersonId,
+          incident.findingStatus,
+          toMysqlDateTime(incident.findingDecidedAt),
+          incident.findingDecidedByUserId,
           incident.assignedTo,
           toMysqlDateTime(incident.createdAt),
           toMysqlDateTime(incident.dueAt),
@@ -7607,7 +7724,9 @@ function buildMysqlStore(
         assertValidIncidentArea,
         assertValidIncidentAssignee
       });
+      assertValidIncidentSubject(people, payload.subjectPersonId);
       const incidentRouting = resolveIncidentAssignment({ areas, people, payload });
+      const finding = normalizeIncidentFindingPayload(payload, actorUser);
 
       const [rows] = await pool.query(
         `SELECT id
@@ -7623,7 +7742,9 @@ function buildMysqlStore(
 
       await pool.query(
         `UPDATE incident_reports
-         SET classification = ?, status = ?, responsible_area = ?, assigned_person_id = ?, assigned_to = ?,
+         SET classification = ?, status = ?, responsible_area = ?, assigned_person_id = ?,
+             subject_person_id = ?, finding_status = ?, finding_decided_at = ?,
+             finding_decided_by_user_id = ?, assigned_to = ?,
              closed_at = ?, closure_note = ?
          WHERE id = ?`,
         [
@@ -7631,6 +7752,10 @@ function buildMysqlStore(
           payload.status,
           incidentRouting.responsibleArea,
           incidentRouting.assignedPersonId,
+          finding.subjectPersonId,
+          finding.findingStatus,
+          toMysqlDateTime(finding.findingDecidedAt),
+          finding.findingDecidedByUserId,
           incidentRouting.assignedTo,
           payload.status === "Concluido" ? toMysqlDateTime(new Date().toISOString()) : null,
           payload.status === "Concluido" ? String(payload.closureNote || "").trim() : "",
@@ -7641,6 +7766,8 @@ function buildMysqlStore(
       const [updatedRows] = await pool.query(
         `SELECT id, protocol, title, category, classification, status, anonymity, reporter_label AS reporterLabel,
                 responsible_area AS responsibleArea, assigned_person_id AS assignedPersonId,
+                subject_person_id AS subjectPersonId, finding_status AS findingStatus,
+                finding_decided_at AS findingDecidedAt, finding_decided_by_user_id AS findingDecidedByUserId,
                 assigned_to AS assignedTo, created_at AS createdAt, due_at AS dueAt,
                 closed_at AS closedAt, closure_note AS closureNote, description
          FROM incident_reports
@@ -7828,6 +7955,7 @@ function buildMysqlStore(
       if (payload.libraryId && payload.libraryId !== DEFAULT_EVALUATION_LIBRARY_ID && !selectedLibrary) {
         throw new Error("Biblioteca selecionada nao foi encontrada.");
       }
+      assertValidComplianceGraceDate(payload.dueDate, payload.complianceGraceDueDate);
 
       const cycle = prepareEvaluationCycle({
         payload,
@@ -7876,8 +8004,8 @@ function buildMysqlStore(
         if (supportsCycleConfig) {
           await connection.query(
             `INSERT INTO evaluation_cycles
-             (id, template_id, title, semester_label, status, is_enabled, enabled_relationships_json, transversal_config_json, due_date, target_group, created_by_user_id, library_id, library_name)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             (id, template_id, title, semester_label, status, is_enabled, enabled_relationships_json, transversal_config_json, due_date, compliance_grace_due_date, compliance_grace_configured_by_user_id, compliance_grace_configured_at, target_group, created_by_user_id, library_id, library_name)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
               cycle.id,
               cycle.templateId,
@@ -7888,6 +8016,9 @@ function buildMysqlStore(
               null,
               JSON.stringify(cycle.transversalConfig),
               cycle.dueDate,
+              cycle.complianceGraceDueDate,
+              cycle.complianceGraceConfiguredByUserId,
+              toMysqlDateTime(cycle.complianceGraceConfiguredAt),
               cycle.targetGroup,
               cycle.createdByUserId,
               cycle.libraryId,
@@ -7897,8 +8028,8 @@ function buildMysqlStore(
         } else {
           await connection.query(
             `INSERT INTO evaluation_cycles
-             (id, template_id, title, semester_label, status, due_date, target_group, created_by_user_id, library_id, library_name)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             (id, template_id, title, semester_label, status, due_date, compliance_grace_due_date, compliance_grace_configured_by_user_id, compliance_grace_configured_at, target_group, created_by_user_id, library_id, library_name)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
               cycle.id,
               cycle.templateId,
@@ -7906,6 +8037,9 @@ function buildMysqlStore(
               cycle.semesterLabel,
               cycle.status,
               cycle.dueDate,
+              cycle.complianceGraceDueDate,
+              cycle.complianceGraceConfiguredByUserId,
+              toMysqlDateTime(cycle.complianceGraceConfiguredAt),
               cycle.targetGroup,
               cycle.createdByUserId,
               cycle.libraryId,
@@ -8392,6 +8526,7 @@ function buildMysqlStore(
       normalizeTransversalConfig,
       resolveCycleConfigUpdate,
       buildCycleConfigAuditDetail,
+      assertValidComplianceGraceDate,
       isOrgWideUser,
       isManagerUser,
       assertCanCreateFeedbackRequest,
@@ -8499,6 +8634,7 @@ function buildMysqlStore(
       assertValidDevelopmentPlanStatus,
       assertCanReportDevelopmentPlanProgress,
       normalizeDevelopmentPlanProgressPayload,
+      normalizeDevelopmentPlanCompliancePayload,
       toMysqlDateTime,
       supportsProgressHistory
     }),

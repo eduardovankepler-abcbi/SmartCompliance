@@ -64,6 +64,7 @@ export async function runOperationsRegistryDevelopmentRegression() {
         title: "Ciclo de apoio a desenvolvimento",
         semesterLabel: "2026.8",
         dueDate: "2026-11-15",
+        complianceGraceDueDate: "2026-11-20",
         targetGroup: "Todos os colaboradores",
         createdByUserId: admin.id
       },
@@ -327,6 +328,80 @@ export async function runOperationsRegistryDevelopmentRegression() {
     assert.ok(
       employeeDevelopmentPlans.some((plan) => plan.id === createdDevelopmentPlan.id),
       "Colaborador deve visualizar o proprio PDI"
+    );
+
+    const overdueMandatoryDevelopmentPlan = await store.createDevelopmentPlan(
+      {
+        personId: managerRevieweeEmployee.personId,
+        cycleId: createdCycle.id,
+        competencyId: "cmp_communication",
+        focusTitle: "PDI obrigatorio de compliance",
+        actionText: "Executar compromisso formal de melhoria documentado pelo lider.",
+        dueDate: "2020-08-15",
+        expectedEvidence: "Evidencia formal anexada ao acompanhamento.",
+        isComplianceRequired: true
+      },
+      manager
+    );
+
+    const mandatoryPdiComplianceBeforeExtension = await fetchJson(
+      "/api/dashboards/compliance",
+      getAuthHeader(admin.id)
+    );
+    const mandatoryPdiIssuesBeforeExtension =
+      mandatoryPdiComplianceBeforeExtension.payload.reasonCounts.find(
+        (reason) => reason.key === "mandatory_pdi"
+      )?.total || 0;
+    assert.ok(
+      mandatoryPdiIssuesBeforeExtension > 0,
+      "PDI obrigatorio vencido deve tirar colaborador de compliance"
+    );
+
+    const extensionRequestResponse = await sendJson(
+      `/api/development/plans/${overdueMandatoryDevelopmentPlan.id}/extensions`,
+      {
+        method: "POST",
+        headers: getAuthHeader(manager.id),
+        body: {
+          requestedDueDate: "2099-12-31",
+          reason: "Dependencia de agenda formal aprovada pelo lider."
+        }
+      }
+    );
+    assert.equal(
+      extensionRequestResponse.response.status,
+      201,
+      "Gestor deve solicitar extensao formal para PDI obrigatorio"
+    );
+
+    const extensionDecisionResponse = await sendJson(
+      `/api/development/plans/${overdueMandatoryDevelopmentPlan.id}/extensions/${extensionRequestResponse.payload.id}`,
+      {
+        method: "PATCH",
+        headers: getAuthHeader(manager.id),
+        body: {
+          status: "approved",
+          decisionNote: "Novo prazo aprovado dentro do ciclo de compliance."
+        }
+      }
+    );
+    assert.equal(
+      extensionDecisionResponse.response.status,
+      200,
+      "Gestor deve aprovar extensao formal de PDI no seu escopo"
+    );
+
+    const mandatoryPdiComplianceAfterExtension = await fetchJson(
+      "/api/dashboards/compliance",
+      getAuthHeader(admin.id)
+    );
+    const mandatoryPdiIssuesAfterExtension =
+      mandatoryPdiComplianceAfterExtension.payload.reasonCounts.find(
+        (reason) => reason.key === "mandatory_pdi"
+      )?.total || 0;
+    assert.ok(
+      mandatoryPdiIssuesAfterExtension < mandatoryPdiIssuesBeforeExtension,
+      "Extensao aprovada e futura deve remover atraso de PDI do compliance"
     );
 
     const createdApplause = await store.createApplauseEntry({
@@ -648,6 +723,7 @@ export async function runOperationsRegistryDevelopmentRegression() {
         title: "Ciclo por unidade",
         semesterLabel: "2026.3",
         dueDate: "2026-11-30",
+        complianceGraceDueDate: "2026-12-05",
         targetGroup: "Todos os colaboradores",
         createdByUserId: admin.id
       },
@@ -771,6 +847,7 @@ export async function runOperationsRegistryDevelopmentRegression() {
         title: "Ciclo transversal parametrizado",
         semesterLabel: "2026.4",
         dueDate: "2026-12-15",
+        complianceGraceDueDate: "2026-12-20",
         targetGroup: "Todos os colaboradores",
         createdByUserId: admin.id
       },
@@ -830,6 +907,7 @@ export async function runOperationsRegistryDevelopmentRegression() {
         title: "Ciclo inadimplencia",
         semesterLabel: "2026.0",
         dueDate: "2026-03-01",
+        complianceGraceDueDate: "2026-03-05",
         targetGroup: "Todos os colaboradores",
         createdByUserId: admin.id
       },

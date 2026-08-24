@@ -251,7 +251,7 @@ export function createEvaluationsRouter(store) {
   );
 
   router.post("/cycles", requireRoles("admin", "hr"), async (req, res, next) => {
-    const { title, semesterLabel, dueDate, targetGroup, libraryId } = req.body;
+    const { title, semesterLabel, dueDate, complianceGraceDueDate, targetGroup, libraryId } = req.body;
 
     if (!title || !semesterLabel || !dueDate || !targetGroup) {
       return badRequest(res, "Campos obrigatorios do ciclo nao informados.");
@@ -263,6 +263,9 @@ export function createEvaluationsRouter(store) {
         title,
         semesterLabel,
         dueDate,
+        complianceGraceDueDate: complianceGraceDueDate || null,
+        complianceGraceConfiguredByUserId: complianceGraceDueDate ? req.auth.user.id : null,
+        complianceGraceConfiguredAt: complianceGraceDueDate ? new Date().toISOString() : null,
         targetGroup,
         createdByUserId: req.auth.user.id
       }, req.auth.user);
@@ -301,23 +304,24 @@ export function createEvaluationsRouter(store) {
     "/cycles/:cycleId/config",
     requireRoles("admin", "hr"),
     async (req, res) => {
-      const { isEnabled, moduleAvailability, transversalConfig } = req.body || {};
+      const { isEnabled, moduleAvailability, transversalConfig, complianceGraceDueDate } = req.body || {};
 
       if (
         isEnabled === undefined &&
         moduleAvailability === undefined &&
-        transversalConfig === undefined
+        transversalConfig === undefined &&
+        complianceGraceDueDate === undefined
       ) {
         return badRequest(
           res,
-          "Informe isEnabled, moduleAvailability e/ou transversalConfig."
+          "Informe isEnabled, moduleAvailability, transversalConfig e/ou complianceGraceDueDate."
         );
       }
 
       try {
         const cycle = await store.updateEvaluationCycleConfig(
           req.params.cycleId,
-          { isEnabled, moduleAvailability, transversalConfig },
+          { isEnabled, moduleAvailability, transversalConfig, complianceGraceDueDate },
           req.auth.user
         );
         res.json(cycle);

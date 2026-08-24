@@ -8,6 +8,7 @@ export interface EvaluationCycle {
   title: string;
   semesterLabel: string;
   dueDate: string;
+  complianceGraceDueDate: string | null;
   targetGroup: string;
   status: string;
   libraryId: string;
@@ -21,13 +22,13 @@ export interface EvaluationCycle {
   transversalConfig?: { defaultReviewersPerPerson: number; unitOverrides: Record<string, number> };
 }
 
-export interface EvaluationCyclePayload { libraryId: string | null; title: string; semesterLabel: string; dueDate: string; targetGroup: string; }
+export interface EvaluationCyclePayload { libraryId: string | null; title: string; semesterLabel: string; dueDate: string; complianceGraceDueDate: string | null; targetGroup: string; }
 export interface CycleParticipant { personId: string; personName: string; personArea: string; personRoleTitle: string; personWorkUnit: string; personWorkMode: string; managerName: string; totalRaters: number; completedRaters: number; pendingRaters: number; }
 export interface CycleDelinquent { id: string; reviewerUserId: string; reviewerName: string; revieweePersonId: string; revieweeName: string; relationshipType: string; dueDate: string; daysOverdue: number; reminderCount: number; lastReminderSentAt: string | null; }
 export interface TransversalPerson { personId: string; reviewerUserId?: string; personName: string; personArea: string; personWorkUnit: string; personWorkMode: string; candidateCount?: number; assignedCount?: number; targetCount?: number; reason?: string; }
 export interface TransversalPairing { pairingId?: string; reviewerUserId: string; reviewerName: string; reviewerArea: string; revieweePersonId: string; revieweeName: string; revieweeArea: string; workUnit: string; }
 export interface EvaluationCycleStructure {
-  cycle: { id: string; title: string; semesterLabel: string; status: string; dueDate: string; participantCount: number; raterCount: number; transversalConfig: { defaultReviewersPerPerson: number; unitOverrides: Record<string, number> } };
+  cycle: { id: string; title: string; semesterLabel: string; status: string; dueDate: string; complianceGraceDueDate: string | null; participantCount: number; raterCount: number; transversalConfig: { defaultReviewersPerPerson: number; unitOverrides: Record<string, number> } };
   compliance: { totalAssignments: number; submittedAssignments: number; pendingAssignments: number; delinquentAssignments: number; adherenceRate: number; delinquencyRate: number };
   participants: CycleParticipant[];
   delinquents: CycleDelinquent[];
@@ -287,7 +288,7 @@ export class EvaluationsService {
 
   createCycle(payload: EvaluationCyclePayload): Observable<EvaluationCycle> { return this.api.post('/api/evaluations/cycles', payload); }
   updateCycleStatus(id: string, status: string): Observable<EvaluationCycle> { return this.api.patch(`/api/evaluations/cycles/${id}/status`, { status }); }
-  updateCycleConfig(id: string, payload: { isEnabled?: boolean; moduleAvailability?: Record<string, boolean>; transversalConfig?: { defaultReviewersPerPerson: number; unitOverrides: Record<string, number> } }): Observable<EvaluationCycle> { return this.api.patch(`/api/evaluations/cycles/${id}/config`, payload); }
+  updateCycleConfig(id: string, payload: { isEnabled?: boolean; moduleAvailability?: Record<string, boolean>; transversalConfig?: { defaultReviewersPerPerson: number; unitOverrides: Record<string, number> }; complianceGraceDueDate?: string | null }): Observable<EvaluationCycle> { return this.api.patch(`/api/evaluations/cycles/${id}/config`, payload); }
   getCycleParticipants(id: string): Observable<EvaluationCycleStructure> { return this.api.get(`/api/evaluations/cycles/${id}/participants`); }
   notifyDelinquents(id: string): Observable<{ notified: number; assignments?: CycleDelinquent[] }> { return this.api.post(`/api/evaluations/cycles/${id}/notify-delinquents`); }
   forceTransversalPairing(id: string, payload: { reviewerUserId: string; revieweePersonId: string; reason: string }): Observable<EvaluationCycleStructure> { return this.api.post(`/api/evaluations/cycles/${id}/transversal-pairings/force`, payload); }

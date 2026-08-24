@@ -513,6 +513,36 @@ export async function runAuthAccessRegression() {
       Array.isArray(adminDashboard.payload.teamOptions),
       "Dashboard executivo deve retornar somente equipes disponiveis para filtro"
     );
+    const employeeComplianceDashboard = await fetchJson(
+      "/api/dashboards/compliance",
+      getAuthHeader(employee.id)
+    );
+    assert.equal(
+      employeeComplianceDashboard.response.status,
+      403,
+      "Colaborador nao deve acessar o dashboard de compliance"
+    );
+    const adminComplianceDashboard = await fetchJson(
+      "/api/dashboards/compliance?timeGrouping=year",
+      getAuthHeader(admin.id)
+    );
+    assert.equal(
+      adminComplianceDashboard.response.status,
+      200,
+      "Admin deve acessar o dashboard de compliance"
+    );
+    assert.ok(
+      adminComplianceDashboard.payload.summary?.eligiblePeople >= 0 &&
+        Number.isFinite(adminComplianceDashboard.payload.summary.compliancePercentage),
+      "Dashboard de compliance deve retornar resumo elegivel e percentual"
+    );
+    assert.ok(
+      Array.isArray(adminComplianceDashboard.payload.byCurrentArea) &&
+        Array.isArray(adminComplianceDashboard.payload.byOriginArea) &&
+        Array.isArray(adminComplianceDashboard.payload.reasonCounts) &&
+        Array.isArray(adminComplianceDashboard.payload.agingBuckets),
+      "Dashboard de compliance deve retornar areas, motivos e envelhecimento"
+    );
     const firstDashboardTeam = adminDashboard.payload.teamOptions[0];
     if (firstDashboardTeam) {
       const teamDashboard = await fetchJson(

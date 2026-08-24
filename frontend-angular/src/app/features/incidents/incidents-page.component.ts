@@ -24,7 +24,7 @@ import { Incident, IncidentAnonymity, IncidentEvidence, IncidentsService, Update
       @if (loading()) { <p class="state">Carregando fila...</p> }
       @else if (!incidents().length) { <p class="state">Nenhum incidente no seu escopo.</p> }
       @else { <section class="queue" aria-label="Fila de tratamento"><header><h2>Fila de tratamento</h2><span>Casos visiveis para RH, administracao e compliance</span></header>@for (incident of incidents(); track incident.id) {
-        <article><div class="row"><strong>{{ incident.protocol }} · {{ incident.title }}</strong><span>{{ incident.status }}</span></div><p>{{ incident.category }} · {{ incident.classification }}</p><p>{{ incident.description }}</p><small>Area responsavel: {{ incident.responsibleArea }} · Responsavel: {{ incident.assignedTo }} · Abertura: {{ incident.createdAt | date:'short' }} · Prazo: {{ incident.dueAt | date:'short' }}</small>
+        <article><div class="row"><strong>{{ incident.protocol }} · {{ incident.title }}</strong><span>{{ incident.status }}</span></div><p>{{ incident.category }} · {{ incident.classification }}</p><p>{{ incident.description }}</p><small>Area responsavel: {{ incident.responsibleArea }} · Responsavel: {{ incident.assignedTo }} · Envolvido: {{ subjectName(incident.subjectPersonId) || 'A definir' }} · Procedencia: {{ findingLabel(incident.findingStatus) }}</small><small>Abertura: {{ incident.createdAt | date:'short' }} · Prazo: {{ incident.dueAt | date:'short' }}</small>
           @if (incident.closedAt) { <small>Conclusao: {{ incident.closedAt | date:'short' }} · {{ incident.closureNote }}</small> }
           @if (canTreat()) { <div class="readiness"><strong>Prontidao</strong>@for (item of readinessFor(incident); track item.label) { <span [class.done]="item.done">{{ item.done ? 'OK' : 'Pendente' }} · {{ item.label }}</span> }</div> }
           @if (canTreat()) { <div class="evidences"><div><strong>Evidencias</strong><span>{{ evidencesFor(incident.id).length }} arquivo(s)</span></div><label>Adicionar evidencia<input type="file" accept=".pdf,.png,.jpg,.jpeg,.txt" (change)="uploadEvidence(incident, $any($event.target).files?.[0], $any($event.target))" /></label>@if (uploadingEvidence() === incident.id) { <small>Enviando evidencia...</small> }@for (evidence of evidencesFor(incident.id); track evidence.id) { <button class="link" type="button" (click)="downloadEvidence(incident, evidence)">{{ evidence.fileName }} · {{ evidence.sizeBytes }} bytes · {{ evidence.uploadedAt | date:'short' }}</button> }</div> }
@@ -62,7 +62,7 @@ export class IncidentsPageComponent implements OnInit {
     title: ['', Validators.required], description: ['', Validators.required],
     category: ['Conduta Impropria', Validators.required], classification: ['Nao classificado', Validators.required],
     anonymity: ['anonymous' as IncidentAnonymity], reporterLabel: [''],
-    responsibleArea: ['', Validators.required], assignedPersonId: [''],
+    responsibleArea: ['', Validators.required], assignedPersonId: [''], subjectPersonId: [''],
   });
 
   async ngOnInit(): Promise<void> {
@@ -71,14 +71,14 @@ export class IncidentsPageComponent implements OnInit {
   }
   openCreate(): void {
     const area = this.areas()[0];
-    this.form.reset({ title:'', description:'', category:'Conduta Impropria', classification:'Nao classificado', anonymity:'anonymous', reporterLabel:'', responsibleArea:area?.name || '', assignedPersonId:area?.managerPersonId || '' });
+    this.form.reset({ title:'', description:'', category:'Conduta Impropria', classification:'Nao classificado', anonymity:'anonymous', reporterLabel:'', responsibleArea:area?.name || '', assignedPersonId:area?.managerPersonId || '', subjectPersonId:'' });
     this.creating.set(true);
   }
   cancelCreate(): void { this.creating.set(false); this.form.reset(); }
   async create(): Promise<void> {
     if (this.form.invalid) { this.form.markAllAsTouched(); return; }
     this.saving.set(true); this.errorMessage.set('');
-    try { const value = this.form.getRawValue(); await firstValueFrom(this.api.create({ ...value, assignedPersonId:value.assignedPersonId || null })); this.cancelCreate(); await this.load(); }
+    try { const value = this.form.getRawValue(); await firstValueFrom(this.api.create({ ...value, assignedPersonId:value.assignedPersonId || null, subjectPersonId:value.subjectPersonId || null })); this.cancelCreate(); await this.load(); }
     catch (error) { this.errorMessage.set(error instanceof ApiError ? error.message : 'Falha ao registrar relato.'); }
     finally { this.saving.set(false); }
   }
@@ -88,6 +88,8 @@ export class IncidentsPageComponent implements OnInit {
     catch (error) { this.errorMessage.set(error instanceof ApiError ? error.message : 'Falha ao atualizar incidente.'); }
   }
   evidencesFor(incidentId: string): IncidentEvidence[] { return this.evidences()[incidentId] || []; }
+  subjectName(personId: string | null): string { return this.people().find((person) => person.id === personId)?.name || ''; }
+  findingLabel(status: string): string { return ({ pending:'Em apuracao', substantiated:'Procedente', unsubstantiated:'Improcedente' } as Record<string,string>)[status] || 'Em apuracao'; }
   auditFor(incidentId: string): AuditEntry[] { return this.caseAudit()[incidentId] || []; }
   readinessFor(incident: Incident): Array<{ label: string; done: boolean }> {
     return [

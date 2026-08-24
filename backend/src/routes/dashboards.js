@@ -18,5 +18,19 @@ export function createDashboardsRouter(store) {
     }
   });
 
+  router.get("/compliance", requireRoles("admin", "hr", "manager"), async (req, res, next) => {
+    try {
+      res.json(
+        await store.getComplianceDashboard(req.auth.user, {
+          area: req.query.area || null,
+          teamManagerId: req.query.teamManagerId || null,
+          timeGrouping: req.query.timeGrouping || "semester"
+        })
+      );
+    } catch (error) {
+      next(error);
+    }
+  });
+
   return router;
 }

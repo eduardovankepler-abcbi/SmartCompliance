@@ -286,6 +286,7 @@ export async function runEvaluationsRegression() {
         title: "Ciclo customizado",
         semesterLabel: "2026.2",
         dueDate: "2026-10-15",
+        complianceGraceDueDate: "2026-10-20",
         targetGroup: "Todos os colaboradores",
         createdByUserId: admin.id
       },
@@ -1133,6 +1134,7 @@ export async function runEvaluationsRegression() {
         title: "Ciclo toggle",
         semesterLabel: "2026.99",
         dueDate: "2026-12-31",
+        complianceGraceDueDate: "2027-01-05",
         targetGroup: "Todos os colaboradores",
         createdByUserId: admin.id
       },

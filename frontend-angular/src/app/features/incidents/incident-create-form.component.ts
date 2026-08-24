@@ -46,6 +46,11 @@ const classifications = [
             @for (person of peopleForArea(); track person.id) { <option [value]="person.id">{{ person.name }}</option> }
           </select>
         </label>
+        <label>Colaborador envolvido
+          <select formControlName="subjectPersonId"><option value="">A definir na apuracao</option>
+            @for (person of people(); track person.id) { <option [value]="person.id">{{ person.name }}</option> }
+          </select>
+        </label>
         <p>{{ selectedAreaName() || 'Defina a area responsavel' }} · {{ selectedAssigneeName() || 'Sem responsavel inicial definido' }}</p>
       </aside>
       @if (validationMessage()) { <p class="validation wide" role="alert">{{ validationMessage() }}</p> }

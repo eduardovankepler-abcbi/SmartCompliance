@@ -75,7 +75,7 @@ const emptyAnalytics: DashboardPdiAnalytics = {
         <strong>Navegação</strong>
         <a [routerLink]="['/app/dashboard']" fragment="avaliacoes">Avaliações</a>
         <a class="active" [routerLink]="['/app/dashboard/pdi']" aria-current="page">PDI</a>
-        <a [routerLink]="['/app/dashboard']" fragment="compliance">Compliance</a>
+        <a [routerLink]="['/app/dashboard/compliance']">Compliance</a>
         <a [routerLink]="['/app/dashboard']" fragment="applause">Aplause</a>
         <a [routerLink]="['/app/dashboard']" fragment="governanca">Governança</a>
       </nav>

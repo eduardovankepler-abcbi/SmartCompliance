@@ -34,6 +34,9 @@ export interface DevelopmentPlan {
   progressStatus: string;
   progressNote: string;
   progressUpdatedAt: string | null;
+  isComplianceRequired: boolean;
+  complianceRequiredAt: string | null;
+  complianceRequiredByUserId: string | null;
   createdAt: string;
   archivedAt: string | null;
 }
@@ -52,7 +55,26 @@ export type DevelopmentPlanPayload = Pick<
   | 'actionText'
   | 'dueDate'
   | 'expectedEvidence'
+  | 'isComplianceRequired'
 >;
+
+export interface DevelopmentPlanExtension {
+  id: string;
+  planId: string;
+  requestedDueDate: string;
+  reason: string;
+  status: 'pending' | 'approved' | 'rejected' | 'cancelled';
+  requestedByUserId: string;
+  requestedAt: string;
+  decidedByUserId: string | null;
+  decidedAt: string | null;
+  leaderAreaName: string | null;
+  decisionNote: string;
+  planTitle?: string;
+  personId?: string;
+  personName?: string;
+  currentDueDate?: string | null;
+}
 
 export interface DevelopmentProgressPayload {
   progressStatus: string;
@@ -128,6 +150,25 @@ export class DevelopmentService {
     payload: DevelopmentProgressPayload,
   ): Observable<DevelopmentPlan> {
     return this.api.patch<DevelopmentPlan>(`/api/development/plans/${planId}/progress`, payload);
+  }
+
+  listPlanExtensions(): Observable<DevelopmentPlanExtension[]> {
+    return this.api.get<DevelopmentPlanExtension[]>('/api/development/plans/extensions');
+  }
+
+  requestPlanExtension(
+    planId: string,
+    payload: { requestedDueDate: string; reason: string },
+  ): Observable<DevelopmentPlanExtension> {
+    return this.api.post<DevelopmentPlanExtension>(`/api/development/plans/${planId}/extensions`, payload);
+  }
+
+  decidePlanExtension(
+    planId: string,
+    extensionId: string,
+    payload: { status: 'approved' | 'rejected' | 'cancelled'; decisionNote: string },
+  ): Observable<DevelopmentPlanExtension> {
+    return this.api.patch<DevelopmentPlanExtension>(`/api/development/plans/${planId}/extensions/${extensionId}`, payload);
   }
 
   listLearningEvents(): Observable<LearningIntegrationEvent[]> {

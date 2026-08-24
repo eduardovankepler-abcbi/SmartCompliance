@@ -5,6 +5,7 @@ import { ApiClient } from '../../core/http/api-client.service';
 
 export type IncidentAnonymity = 'anonymous' | 'identified';
 export type IncidentStatus = 'Em triagem' | 'Em apuracao' | 'Aguardando retorno' | 'Concluido';
+export type IncidentFindingStatus = 'pending' | 'substantiated' | 'unsubstantiated';
 
 export interface Incident {
   id: string;
@@ -18,6 +19,10 @@ export interface Incident {
   responsibleArea: string;
   assignedPersonId: string | null;
   assignedPersonName: string;
+  subjectPersonId: string | null;
+  findingStatus: IncidentFindingStatus;
+  findingDecidedAt: string | null;
+  findingDecidedByUserId: string | null;
   assignedTo: string;
   areaManagerPersonId: string | null;
   areaManagerName: string;
@@ -47,6 +52,7 @@ export interface CreateIncidentPayload {
   reporterLabel: string;
   responsibleArea: string;
   assignedPersonId: string | null;
+  subjectPersonId: string | null;
   description: string;
 }
 
@@ -55,6 +61,8 @@ export interface UpdateIncidentPayload {
   status: IncidentStatus;
   responsibleArea: string;
   assignedPersonId: string | null;
+  subjectPersonId: string | null;
+  findingStatus: IncidentFindingStatus;
   closureNote: string;
 }
 

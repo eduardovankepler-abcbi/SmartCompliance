@@ -20,6 +20,7 @@ export function createMemoryEvaluationWorkflowStore({
   normalizeTransversalConfig,
   resolveCycleConfigUpdate,
   buildCycleConfigAuditDetail,
+  assertValidComplianceGraceDate,
   filterFeedbackRequestsForUser,
   assertCanCreateFeedbackRequest,
   prepareFeedbackRequest,
@@ -85,6 +86,9 @@ export function createMemoryEvaluationWorkflowStore({
 
       const previousStatus = cycle.status;
       assertCycleStatusTransition(cycle.status, nextStatus);
+      if (nextStatus === CYCLE_STATUS.released && !cycle.complianceGraceDueDate) {
+        throw new Error("Defina a tolerancia de compliance antes de liberar o ciclo.");
+      }
       cycle.status = nextStatus;
       if (nextStatus === CYCLE_STATUS.processed) {
         const responses = [
@@ -135,6 +139,12 @@ export function createMemoryEvaluationWorkflowStore({
       }
       if (cycleConfigUpdate.nextTransversalConfig) {
         cycle.transversalConfig = cycleConfigUpdate.nextTransversalConfig;
+      }
+      if (payload.complianceGraceDueDate !== undefined) {
+        assertValidComplianceGraceDate(cycle.dueDate, payload.complianceGraceDueDate);
+        cycle.complianceGraceDueDate = payload.complianceGraceDueDate || null;
+        cycle.complianceGraceConfiguredByUserId = payload.complianceGraceDueDate ? actorUser.id : null;
+        cycle.complianceGraceConfiguredAt = payload.complianceGraceDueDate ? new Date().toISOString() : null;
       }
 
       pushAuditLog(db.auditLogs, {
@@ -293,6 +303,7 @@ export function createMysqlEvaluationWorkflowStore({
   normalizeTransversalConfig,
   resolveCycleConfigUpdate,
   buildCycleConfigAuditDetail,
+  assertValidComplianceGraceDate,
   isOrgWideUser,
   isManagerUser,
   assertCanCreateFeedbackRequest,
@@ -389,7 +400,7 @@ export function createMysqlEvaluationWorkflowStore({
     },
     async updateEvaluationCycleStatus(cycleId, nextStatus, actorUser) {
       const [rows] = await pool.query(
-        `SELECT id, status
+        `SELECT id, status, compliance_grace_due_date AS complianceGraceDueDate
          FROM evaluation_cycles
          WHERE id = ?
          LIMIT 1`,
@@ -402,6 +413,9 @@ export function createMysqlEvaluationWorkflowStore({
 
       const previousStatus = rows[0].status;
       assertCycleStatusTransition(rows[0].status, nextStatus);
+      if (nextStatus === CYCLE_STATUS.released && !rows[0].complianceGraceDueDate) {
+        throw new Error("Defina a tolerancia de compliance antes de liberar o ciclo.");
+      }
 
       const connection = await pool.getConnection();
       try {
@@ -489,7 +503,9 @@ export function createMysqlEvaluationWorkflowStore({
       }
 
       const [rows] = await pool.query(
-        `SELECT id, title, is_enabled AS isEnabled, enabled_relationships_json AS enabledRelationshipsJson, transversal_config_json AS transversalConfigJson
+        `SELECT id, title, due_date AS dueDate,
+                compliance_grace_due_date AS complianceGraceDueDate,
+                is_enabled AS isEnabled, enabled_relationships_json AS enabledRelationshipsJson, transversal_config_json AS transversalConfigJson
          FROM evaluation_cycles
          WHERE id = ?
          LIMIT 1`,
@@ -516,6 +532,13 @@ export function createMysqlEvaluationWorkflowStore({
       const nextTransversalConfig =
         cycleConfigUpdate.nextTransversalConfig ||
         normalizeTransversalConfig(current.transversalConfig);
+      const nextComplianceGraceDueDate =
+        payload.complianceGraceDueDate === undefined
+          ? current.complianceGraceDueDate
+          : payload.complianceGraceDueDate || null;
+      if (payload.complianceGraceDueDate !== undefined) {
+        assertValidComplianceGraceDate(current.dueDate, nextComplianceGraceDueDate);
+      }
 
       const connection = await pool.getConnection();
       try {
@@ -523,12 +546,17 @@ export function createMysqlEvaluationWorkflowStore({
 
         await connection.query(
           `UPDATE evaluation_cycles
-           SET is_enabled = ?, enabled_relationships_json = ?, transversal_config_json = ?
+           SET is_enabled = ?, enabled_relationships_json = ?, transversal_config_json = ?,
+               compliance_grace_due_date = ?, compliance_grace_configured_by_user_id = ?,
+               compliance_grace_configured_at = ?
            WHERE id = ?`,
           [
             nextIsEnabled ? 1 : 0,
             JSON.stringify(nextModuleAvailability),
             JSON.stringify(nextTransversalConfig),
+            nextComplianceGraceDueDate,
+            payload.complianceGraceDueDate === undefined ? current.complianceGraceConfiguredByUserId || null : nextComplianceGraceDueDate ? actorUser.id : null,
+            payload.complianceGraceDueDate === undefined ? current.complianceGraceConfiguredAt || null : nextComplianceGraceDueDate ? toMysqlDateTime(new Date()) : null,
             cycleId
           ]
         );
@@ -557,6 +585,9 @@ export function createMysqlEvaluationWorkflowStore({
                 c.status, c.is_enabled AS isEnabled, c.enabled_relationships_json AS enabledRelationshipsJson,
                 c.transversal_config_json AS transversalConfigJson,
                 c.due_date AS dueDate, c.target_group AS targetGroup,
+                c.compliance_grace_due_date AS complianceGraceDueDate,
+                c.compliance_grace_configured_by_user_id AS complianceGraceConfiguredByUserId,
+                c.compliance_grace_configured_at AS complianceGraceConfiguredAt,
                 c.library_id AS libraryId, c.library_name AS libraryName,
                 COALESCE(c.library_name, t.name) AS modelName, c.created_by_user_id AS createdByUserId
          FROM evaluation_cycles c

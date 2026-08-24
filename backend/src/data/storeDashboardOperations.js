@@ -22,6 +22,236 @@ function buildDashboardTeamOptions(people, selectedArea = null) {
   return [...teams.values()].sort((left, right) => left.label.localeCompare(right.label, "pt-BR"));
 }
 
+function parseDashboardDate(value) {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function startOfDashboardDay(value = new Date()) {
+  const date = new Date(value);
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function dashboardPercentage(value, total) {
+  if (!total) return 0;
+  return Math.round((Number(value || 0) / Number(total || 0)) * 100);
+}
+
+function getComplianceBand(percentage) {
+  if (percentage >= 95) return { key: "excellent", label: "Excelente", tone: "positive" };
+  if (percentage >= 80) return { key: "good", label: "Bom", tone: "positive" };
+  if (percentage >= 50) return { key: "medium", label: "Medio", tone: "warning" };
+  if (percentage >= 30) return { key: "low", label: "Baixo", tone: "warning" };
+  return { key: "critical", label: "Critico", tone: "critical" };
+}
+
+function attachApprovedDevelopmentPlanExtensions(developmentPlans = [], extensions = []) {
+  const approvedExtensionsByPlanId = new Map();
+  for (const extension of extensions) {
+    if (extension.status !== "approved" || !extension.requestedDueDate) continue;
+    const current = approvedExtensionsByPlanId.get(extension.planId);
+    if (!current || String(extension.decidedAt || extension.requestedAt).localeCompare(String(current.decidedAt || current.requestedAt)) > 0) {
+      approvedExtensionsByPlanId.set(extension.planId, extension);
+    }
+  }
+
+  return developmentPlans.map((plan) => ({
+    ...plan,
+    approvedExtensionDueDate: approvedExtensionsByPlanId.get(plan.id)?.requestedDueDate || null
+  }));
+}
+
+function buildCompliancePeriodKey(dateValue, timeGrouping = "semester") {
+  const date = parseDashboardDate(dateValue) || new Date();
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  if (timeGrouping === "year") return { key: String(year), label: String(year) };
+  if (timeGrouping === "quarter") {
+    const quarter = Math.floor(month / 3) + 1;
+    return { key: `${year}-Q${quarter}`, label: `${quarter}T ${year}` };
+  }
+  if (timeGrouping === "cycle") return { key: `${year}-${month + 1}`, label: `${String(month + 1).padStart(2, "0")}/${year}` };
+  return {
+    key: `${year}-S${month < 6 ? 1 : 2}`,
+    label: `${month < 6 ? 1 : 2}S ${year}`
+  };
+}
+
+function buildComplianceDashboardPayload({
+  mode,
+  notice,
+  scopeLabel,
+  people,
+  assignments = [],
+  cycles = [],
+  developmentPlans = [],
+  incidents = [],
+  availableAreas = [],
+  selectedArea = null,
+  teamOptions = [],
+  selectedTeamManagerId = null,
+  timeGrouping = "semester"
+}) {
+  const today = startOfDashboardDay();
+  const peopleById = new Map((people || []).map((person) => [person.id, person]));
+  const cycleById = new Map((cycles || []).map((cycle) => [cycle.id, cycle]));
+  const issueMap = new Map();
+  const addIssue = (personId, issue) => {
+    if (!personId || !peopleById.has(personId)) return;
+    const person = peopleById.get(personId);
+    const current = issueMap.get(personId) || [];
+    current.push({
+      ...issue,
+      personId,
+      personName: person.name || "",
+      currentArea: person.area || "Sem area",
+      originArea: issue.originArea || person.area || "Sem area"
+    });
+    issueMap.set(personId, current);
+  };
+
+  for (const assignment of assignments) {
+    const cycle = cycleById.get(assignment.cycleId) || {};
+    const graceDate = assignment.complianceGraceDueDate || cycle.complianceGraceDueDate;
+    const due = parseDashboardDate(graceDate);
+    if (!due || assignment.status !== "pending") continue;
+    due.setHours(0, 0, 0, 0);
+    if (due.getTime() >= today.getTime()) continue;
+    addIssue(assignment.reviewerPersonId, {
+      type: "evaluation_response",
+      label: "Resposta de avaliacao em atraso",
+      sourceId: assignment.id || `${assignment.cycleId}:${assignment.reviewerUserId}`,
+      originArea: assignment.reviewerArea,
+      occurredAt: graceDate,
+      daysOpen: Math.max(1, Math.floor((today.getTime() - due.getTime()) / 86400000))
+    });
+  }
+
+  for (const plan of developmentPlans) {
+    if (!plan.isComplianceRequired || plan.status === "archived" || plan.progressStatus === "done") continue;
+    const approvedExtension = parseDashboardDate(plan.approvedExtensionDueDate);
+    const due = parseDashboardDate(approvedExtension || plan.dueDate);
+    if (!due) continue;
+    due.setHours(0, 0, 0, 0);
+    if (due.getTime() >= today.getTime()) continue;
+    addIssue(plan.personId, {
+      type: "mandatory_pdi",
+      label: "PDI obrigatorio em atraso",
+      sourceId: plan.id,
+      originArea: plan.originArea,
+      occurredAt: approvedExtension || plan.dueDate,
+      daysOpen: Math.max(1, Math.floor((today.getTime() - due.getTime()) / 86400000))
+    });
+  }
+
+  for (const incident of incidents) {
+    if (incident.findingStatus !== "substantiated" || !incident.subjectPersonId || incident.closedAt) continue;
+    addIssue(incident.subjectPersonId, {
+      type: "conduct",
+      label: "Conduta inadequada procedente",
+      sourceId: incident.id,
+      originArea: incident.originArea || incident.responsibleArea,
+      occurredAt: incident.findingDecidedAt || incident.createdAt,
+      daysOpen: Math.max(0, Math.floor((today.getTime() - (parseDashboardDate(incident.findingDecidedAt || incident.createdAt) || today).getTime()) / 86400000))
+    });
+  }
+
+  const eligiblePeople = (people || []).filter((person) => {
+    if (!person?.id) return false;
+    return assignments.some((assignment) => assignment.reviewerPersonId === person.id)
+      || developmentPlans.some((plan) => plan.personId === person.id && plan.isComplianceRequired)
+      || incidents.some((incident) => incident.subjectPersonId === person.id);
+  });
+  const eligibleIds = new Set(eligiblePeople.map((person) => person.id));
+  const nonCompliantIds = new Set([...issueMap.keys()].filter((personId) => eligibleIds.has(personId)));
+  const compliantPeopleCount = eligiblePeople.length - nonCompliantIds.size;
+  const compliancePercentage = dashboardPercentage(compliantPeopleCount, eligiblePeople.length);
+  const band = getComplianceBand(compliancePercentage);
+  const issues = [...issueMap.values()].flat().filter((issue) => eligibleIds.has(issue.personId));
+  const byCurrentAreaMap = new Map();
+  const byOriginAreaMap = new Map();
+
+  for (const person of eligiblePeople) {
+    const area = person.area || "Sem area";
+    const entry = byCurrentAreaMap.get(area) || { area, eligiblePeople: 0, compliantPeople: 0, nonCompliantPeople: 0, compliancePercentage: 0, band: getComplianceBand(0) };
+    entry.eligiblePeople += 1;
+    if (nonCompliantIds.has(person.id)) entry.nonCompliantPeople += 1;
+    else entry.compliantPeople += 1;
+    byCurrentAreaMap.set(area, entry);
+  }
+  for (const entry of byCurrentAreaMap.values()) {
+    entry.compliancePercentage = dashboardPercentage(entry.compliantPeople, entry.eligiblePeople);
+    entry.band = getComplianceBand(entry.compliancePercentage);
+  }
+  for (const issue of issues) {
+    const area = issue.originArea || "Sem area";
+    const entry = byOriginAreaMap.get(area) || { area, conduct: 0, evaluationResponse: 0, mandatoryPdi: 0, totalIssues: 0 };
+    if (issue.type === "conduct") entry.conduct += 1;
+    if (issue.type === "evaluation_response") entry.evaluationResponse += 1;
+    if (issue.type === "mandatory_pdi") entry.mandatoryPdi += 1;
+    entry.totalIssues += 1;
+    byOriginAreaMap.set(area, entry);
+  }
+
+  const reasonCounts = [
+    { key: "conduct", label: "Condutas procedentes", total: issues.filter((issue) => issue.type === "conduct").length },
+    { key: "evaluation_response", label: "Avaliacoes em atraso", total: issues.filter((issue) => issue.type === "evaluation_response").length },
+    { key: "mandatory_pdi", label: "PDIs obrigatorios atrasados", total: issues.filter((issue) => issue.type === "mandatory_pdi").length }
+  ];
+  const agingBuckets = [
+    { key: "0_7", label: "0-7 dias", total: issues.filter((issue) => issue.daysOpen <= 7).length },
+    { key: "8_30", label: "8-30 dias", total: issues.filter((issue) => issue.daysOpen > 7 && issue.daysOpen <= 30).length },
+    { key: "31_60", label: "31-60 dias", total: issues.filter((issue) => issue.daysOpen > 30 && issue.daysOpen <= 60).length },
+    { key: "60_plus", label: "60+ dias", total: issues.filter((issue) => issue.daysOpen > 60).length }
+  ];
+  const trendMap = new Map();
+  for (const issue of issues) {
+    const period = buildCompliancePeriodKey(issue.occurredAt, timeGrouping);
+    const entry = trendMap.get(period.key) || { periodKey: period.key, label: period.label, totalIssues: 0 };
+    entry.totalIssues += 1;
+    trendMap.set(period.key, entry);
+  }
+
+  return {
+    mode,
+    notice,
+    scopeLabel,
+    selectedArea,
+    selectedTeamManagerId,
+    areaOptions: availableAreas,
+    teamOptions,
+    targetPercentage: 95,
+    bands: [
+      { key: "critical", label: "Critico", min: 0, max: 29 },
+      { key: "low", label: "Baixo", min: 30, max: 49 },
+      { key: "medium", label: "Medio", min: 50, max: 79 },
+      { key: "good", label: "Bom", min: 80, max: 94 },
+      { key: "excellent", label: "Excelente", min: 95, max: 100 }
+    ],
+    summary: {
+      eligiblePeople: eligiblePeople.length,
+      compliantPeople: compliantPeopleCount,
+      nonCompliantPeople: nonCompliantIds.size,
+      compliancePercentage,
+      statusBand: band,
+      totalIssues: issues.length
+    },
+    reasonCounts,
+    agingBuckets,
+    byCurrentArea: [...byCurrentAreaMap.values()].sort((left, right) => left.area.localeCompare(right.area, "pt-BR")),
+    byOriginArea: [...byOriginAreaMap.values()].sort((left, right) => right.totalIssues - left.totalIssues),
+    trend: [...trendMap.values()].sort((left, right) => left.periodKey.localeCompare(right.periodKey)),
+    dataQuality: {
+      evaluationGraceConfigured: assignments.some((assignment) => assignment.complianceGraceDueDate || cycleById.get(assignment.cycleId)?.complianceGraceDueDate),
+      substantiatedIncidentSubjects: incidents.filter((incident) => incident.findingStatus === "substantiated" && incident.subjectPersonId).length,
+      mandatoryPdiRecords: developmentPlans.filter((plan) => plan.isComplianceRequired).length,
+      note: "Indicadores usam apenas controles elegiveis e dados estruturados disponiveis."
+    }
+  };
+}
+
 export function createMemoryDashboardStore({
   db,
   anonymousResponseState,
@@ -204,6 +434,76 @@ export function createMemoryDashboardStore({
           "A trilha de desenvolvimento e o ciclo aparecem no mesmo contexto operacional."
         ]
       });
+    },
+
+    async getComplianceDashboard(actorUser, options = {}) {
+      const availableAreas = [...new Set(db.people.map((person) => person.area))].sort();
+      const cyclesById = new Map((db.cycles || []).map((cycle) => [cycle.id, cycle]));
+      const developmentPlans = attachApprovedDevelopmentPlanExtensions(
+        db.developmentPlans || [],
+        db.developmentPlanExtensions || []
+      );
+      const assignments = (db.assignments || []).map((assignment) => ({
+        ...assignment,
+        reviewerPersonId: db.users.find((user) => user.id === assignment.reviewerUserId)?.personId || null,
+        reviewerArea: db.people.find((person) => person.id === db.users.find((user) => user.id === assignment.reviewerUserId)?.personId)?.area || "",
+        complianceGraceDueDate: cyclesById.get(assignment.cycleId)?.complianceGraceDueDate || null
+      }));
+
+      if (isOrgWideUser(actorUser)) {
+        const areaScopedPeople = options.area
+          ? db.people.filter((person) => person.area === options.area)
+          : db.people;
+        const scopedPeople = options.teamManagerId
+          ? areaScopedPeople.filter((person) => person.id === options.teamManagerId || person.managerPersonId === options.teamManagerId)
+          : areaScopedPeople;
+        const scopedPersonIds = new Set(scopedPeople.map((person) => person.id));
+        const selectedTeam = buildDashboardTeamOptions(db.people, options.area).find((team) => team.managerPersonId === options.teamManagerId);
+        return buildComplianceDashboardPayload({
+          mode: "executive",
+          notice: "Leitura de compliance por area com controles elegiveis.",
+          scopeLabel: selectedTeam ? selectedTeam.label : options.area ? `Area: ${options.area}` : "Consolidado organizacional",
+          people: scopedPeople,
+          cycles: db.cycles || [],
+          assignments: assignments.filter((item) => scopedPersonIds.has(item.reviewerPersonId)),
+          developmentPlans: developmentPlans.filter((item) => scopedPersonIds.has(item.personId)),
+          incidents: (db.incidents || []).filter((item) => !item.subjectPersonId || scopedPersonIds.has(item.subjectPersonId)),
+          availableAreas,
+          selectedArea: options.area,
+          teamOptions: buildDashboardTeamOptions(db.people, options.area),
+          selectedTeamManagerId: options.teamManagerId,
+          timeGrouping: options.timeGrouping || "semester"
+        });
+      }
+
+      if (isManagerUser(actorUser)) {
+        const teamPeople = getTeamPeople(db.people, actorUser.person.id);
+        const scopedPeople = [actorUser.person, ...teamPeople];
+        const scopedPersonIds = new Set(scopedPeople.map((person) => person.id));
+        return buildComplianceDashboardPayload({
+          mode: "team",
+          notice: "Leitura da sua equipe direta, sem detalhes sensiveis dos casos.",
+          scopeLabel: "Equipe direta",
+          people: scopedPeople,
+          cycles: db.cycles || [],
+          assignments: assignments.filter((item) => scopedPersonIds.has(item.reviewerPersonId)),
+          developmentPlans: developmentPlans.filter((item) => scopedPersonIds.has(item.personId)),
+          incidents: (db.incidents || []).filter((item) => scopedPersonIds.has(item.subjectPersonId)),
+          timeGrouping: options.timeGrouping || "semester"
+        });
+      }
+
+      return buildComplianceDashboardPayload({
+        mode: "personal",
+        notice: "Visao individual dos seus controles elegiveis.",
+        scopeLabel: "Visao pessoal",
+        people: [actorUser.person].filter(Boolean),
+        cycles: db.cycles || [],
+        assignments: assignments.filter((item) => item.reviewerPersonId === actorUser.person.id),
+        developmentPlans: developmentPlans.filter((item) => item.personId === actorUser.person.id),
+        incidents: (db.incidents || []).filter((item) => item.subjectPersonId === actorUser.person.id),
+        timeGrouping: options.timeGrouping || "semester"
+      });
     }
   };
 }
@@ -244,7 +544,8 @@ export function createMysqlDashboardStore({
           fetchPeopleRows(pool),
           pool
             .query(
-              `SELECT id, title, semester_label AS semesterLabel, status, due_date AS dueDate
+              `SELECT id, title, semester_label AS semesterLabel, status, due_date AS dueDate,
+                      compliance_grace_due_date AS complianceGraceDueDate
                FROM evaluation_cycles`
             )
             .then(([rows]) => rows),
@@ -254,10 +555,13 @@ export function createMysqlDashboardStore({
           }).then((items) => [...items, ...anonymousResponseState.responses]),
           pool
             .query(
-              `SELECT cycle_id AS cycleId, relationship_type AS relationshipType,
+              `SELECT assignment.id, assignment.cycle_id AS cycleId, assignment.relationship_type AS relationshipType,
                       reviewer_user_id AS reviewerUserId,
-                      reviewee_person_id AS revieweePersonId, status
-               FROM evaluation_assignments`
+                      reviewer_person.id AS reviewerPersonId, reviewer_person.area AS reviewerArea,
+                      reviewee_person_id AS revieweePersonId, assignment.status
+               FROM evaluation_assignments assignment
+               LEFT JOIN users reviewer_user ON reviewer_user.id = assignment.reviewer_user_id
+               LEFT JOIN people reviewer_person ON reviewer_person.id = reviewer_user.person_id`
             )
             .then(([rows]) => rows),
           pool
@@ -279,16 +583,23 @@ export function createMysqlDashboardStore({
                       plan.competency_id AS competencyId, competency.name AS competencyName,
                       plan.due_date AS dueDate, plan.status,
                       plan.progress_status AS progressStatus,
+                      plan.is_compliance_required AS isComplianceRequired,
+                      approved_extension.requested_due_date AS approvedExtensionDueDate,
                       plan.created_at AS createdAt, plan.archived_at AS archivedAt,
                       plan.progress_updated_at AS progressUpdatedAt
                FROM development_plans plan
-               LEFT JOIN competencies competency ON competency.id = plan.competency_id`
+               LEFT JOIN competencies competency ON competency.id = plan.competency_id
+               LEFT JOIN development_plan_extensions approved_extension
+                 ON approved_extension.plan_id = plan.id
+                AND approved_extension.status = 'approved'`
             )
             .then(([rows]) => rows),
           pool
             .query(
-              `SELECT status, assigned_person_id AS assignedPersonId, assigned_to AS assignedTo,
-                      due_at AS dueAt
+              `SELECT id, status, assigned_person_id AS assignedPersonId, assigned_to AS assignedTo,
+                      due_at AS dueAt, closed_at AS closedAt, created_at AS createdAt,
+                      responsible_area AS responsibleArea, subject_person_id AS subjectPersonId,
+                      finding_status AS findingStatus, finding_decided_at AS findingDecidedAt
                FROM incident_reports`
             )
             .then(([rows]) => rows),
@@ -458,6 +769,112 @@ export function createMysqlDashboardStore({
           "Respostas confidenciais de lideranca e empresa entram somente em leitura agregada.",
           "A trilha de desenvolvimento e o ciclo aparecem no mesmo contexto operacional."
         ]
+      });
+    },
+
+    async getComplianceDashboard(actorUser, options = {}) {
+      const timeGrouping = options.timeGrouping || "semester";
+      const [
+        people,
+        cycles,
+        assignmentRows,
+        developmentPlanRows,
+        incidentRows
+      ] = await Promise.all([
+        fetchPeopleRows(pool),
+        pool
+          .query(
+            `SELECT id, title, semester_label AS semesterLabel, status, due_date AS dueDate,
+                    compliance_grace_due_date AS complianceGraceDueDate
+             FROM evaluation_cycles`
+          )
+          .then(([rows]) => rows),
+        pool
+          .query(
+            `SELECT assignment.id, assignment.cycle_id AS cycleId, assignment.relationship_type AS relationshipType,
+                    assignment.reviewer_user_id AS reviewerUserId,
+                    reviewer_person.id AS reviewerPersonId, reviewer_person.area AS reviewerArea,
+                    assignment.reviewee_person_id AS revieweePersonId, assignment.status
+             FROM evaluation_assignments assignment
+             LEFT JOIN users reviewer_user ON reviewer_user.id = assignment.reviewer_user_id
+             LEFT JOIN people reviewer_person ON reviewer_person.id = reviewer_user.person_id`
+          )
+          .then(([rows]) => rows),
+        pool
+          .query(
+            `SELECT plan.id, plan.person_id AS personId, person.area AS originArea,
+                    plan.due_date AS dueDate, plan.status,
+                    plan.progress_status AS progressStatus,
+                    plan.is_compliance_required AS isComplianceRequired,
+                    approved_extension.requested_due_date AS approvedExtensionDueDate
+             FROM development_plans plan
+             LEFT JOIN people person ON person.id = plan.person_id
+             LEFT JOIN development_plan_extensions approved_extension
+               ON approved_extension.plan_id = plan.id
+              AND approved_extension.status = 'approved'`
+          )
+          .then(([rows]) => rows),
+        pool
+          .query(
+            `SELECT id, status, responsible_area AS responsibleArea, closed_at AS closedAt,
+                    created_at AS createdAt, subject_person_id AS subjectPersonId,
+                    finding_status AS findingStatus, finding_decided_at AS findingDecidedAt
+             FROM incident_reports`
+          )
+          .then(([rows]) => rows)
+      ]);
+      const availableAreas = [...new Set(people.map((person) => person.area))].sort();
+
+      if (isFullAccessUser(actorUser)) {
+        const areaScopedPeople = options.area ? people.filter((person) => person.area === options.area) : people;
+        const scopedPeople = options.teamManagerId
+          ? areaScopedPeople.filter((person) => person.id === options.teamManagerId || person.managerPersonId === options.teamManagerId)
+          : areaScopedPeople;
+        const scopedPersonIds = new Set(scopedPeople.map((person) => person.id));
+        const selectedTeam = buildDashboardTeamOptions(people, options.area).find((team) => team.managerPersonId === options.teamManagerId);
+        return buildComplianceDashboardPayload({
+          mode: "executive",
+          notice: "Leitura de compliance por area com controles elegiveis.",
+          scopeLabel: selectedTeam ? selectedTeam.label : options.area ? `Area: ${options.area}` : "Consolidado organizacional",
+          people: scopedPeople,
+          cycles,
+          assignments: assignmentRows.filter((item) => scopedPersonIds.has(item.reviewerPersonId)),
+          developmentPlans: developmentPlanRows.filter((item) => scopedPersonIds.has(item.personId)),
+          incidents: incidentRows.filter((item) => !item.subjectPersonId || scopedPersonIds.has(item.subjectPersonId)),
+          availableAreas,
+          selectedArea: options.area,
+          teamOptions: buildDashboardTeamOptions(people, options.area),
+          selectedTeamManagerId: options.teamManagerId,
+          timeGrouping
+        });
+      }
+
+      if (isManagerUser(actorUser)) {
+        const scopedPeople = people.filter((person) => person.id === actorUser.person.id || person.managerPersonId === actorUser.person.id);
+        const scopedPersonIds = new Set(scopedPeople.map((person) => person.id));
+        return buildComplianceDashboardPayload({
+          mode: "team",
+          notice: "Leitura da sua equipe direta, sem detalhes sensiveis dos casos.",
+          scopeLabel: "Equipe direta",
+          people: scopedPeople,
+          cycles,
+          assignments: assignmentRows.filter((item) => scopedPersonIds.has(item.reviewerPersonId)),
+          developmentPlans: developmentPlanRows.filter((item) => scopedPersonIds.has(item.personId)),
+          incidents: incidentRows.filter((item) => scopedPersonIds.has(item.subjectPersonId)),
+          timeGrouping
+        });
+      }
+
+      return buildComplianceDashboardPayload({
+        mode: "personal",
+        notice: "Visao individual dos seus controles elegiveis.",
+        scopeLabel: "Visao pessoal",
+        people: people.filter((person) => person.id === actorUser.person.id),
+        cycles,
+        assignments: assignmentRows.filter((item) => item.reviewerPersonId === actorUser.person.id),
+        developmentPlans: developmentPlanRows.filter((item) => item.personId === actorUser.person.id),
+        incidents: incidentRows.filter((item) => item.subjectPersonId === actorUser.person.id),
+        timeGrouping
       });
     }
   };

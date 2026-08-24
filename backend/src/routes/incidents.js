@@ -31,6 +31,7 @@ export function createIncidentsRouter(store) {
       reporterLabel,
       responsibleArea,
       assignedPersonId,
+      subjectPersonId,
       description
     } =
       req.body;
@@ -49,6 +50,7 @@ export function createIncidentsRouter(store) {
           reporterLabel || (anonymity === "anonymous" ? "Anonimo" : "Identificado"),
         responsibleArea,
         assignedPersonId: assignedPersonId || null,
+        subjectPersonId: subjectPersonId || null,
         description
       }, req.auth.user);
 
@@ -62,7 +64,7 @@ export function createIncidentsRouter(store) {
     "/:incidentId",
     requireRoles(...PERMISSIONS.incidentQueue),
     async (req, res) => {
-      const { classification, status, responsibleArea, assignedPersonId, closureNote } = req.body;
+      const { classification, status, responsibleArea, assignedPersonId, subjectPersonId, findingStatus, closureNote } = req.body;
 
       if (!classification || !status || !responsibleArea) {
         return badRequest(res, "classification, status e responsibleArea sao obrigatorios.");
@@ -76,6 +78,8 @@ export function createIncidentsRouter(store) {
             status,
             responsibleArea,
             assignedPersonId: assignedPersonId || null,
+            subjectPersonId: subjectPersonId || null,
+            findingStatus: findingStatus || "pending",
             closureNote: closureNote || ""
           },
           req.auth.user

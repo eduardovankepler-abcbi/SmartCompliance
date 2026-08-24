@@ -46,6 +46,12 @@ export const routes: Routes = [
         canActivate: [dashboardAccessGuard],
       },
       {
+        path: 'dashboard/compliance',
+        loadComponent: () =>
+          import('./features/dashboard/dashboard-compliance-page.component').then((m) => m.DashboardCompliancePageComponent),
+        canActivate: [dashboardAccessGuard],
+      },
+      {
         path: 'dashboard',
         loadComponent: () => import('./features/dashboard/dashboard-page.component').then((m) => m.DashboardPageComponent),
         canActivate: [dashboardAccessGuard],

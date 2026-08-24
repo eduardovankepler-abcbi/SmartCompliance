@@ -163,7 +163,8 @@ export function createDevelopmentRouter(store) {
       focusTitle,
       actionText,
       dueDate,
-      expectedEvidence
+      expectedEvidence,
+      isComplianceRequired
     } = req.body;
 
     if (!personId || !focusTitle || !actionText || !dueDate || !expectedEvidence) {
@@ -179,7 +180,8 @@ export function createDevelopmentRouter(store) {
           focusTitle,
           actionText,
           dueDate,
-          expectedEvidence
+          expectedEvidence,
+          isComplianceRequired: Boolean(isComplianceRequired)
         },
         req.auth.user
       );
@@ -203,7 +205,8 @@ export function createDevelopmentRouter(store) {
       actionText,
       dueDate,
       expectedEvidence,
-      status
+      status,
+      isComplianceRequired
     } = req.body;
 
     if (
@@ -228,7 +231,8 @@ export function createDevelopmentRouter(store) {
           actionText,
           dueDate,
           expectedEvidence,
-          status
+          status,
+          isComplianceRequired: Boolean(isComplianceRequired)
         },
         req.auth.user
       );
@@ -267,6 +271,67 @@ export function createDevelopmentRouter(store) {
         .status(400)
         .json({ error: error.message || "Falha ao atualizar andamento do PDI." });
     }
+    }
+  );
+
+  router.get(
+    "/plans/extensions",
+    requireRoles("admin", "hr", "manager"),
+    async (req, res, next) => {
+      try {
+        res.json(await store.listDevelopmentPlanExtensions(req.auth.user));
+      } catch (error) {
+        next(error);
+      }
+    }
+  );
+
+  router.post(
+    "/plans/:planId/extensions",
+    requireRoles("admin", "hr", "manager"),
+    async (req, res) => {
+      const { requestedDueDate, reason } = req.body || {};
+      if (!requestedDueDate || !reason) {
+        return badRequest(res, "requestedDueDate e reason sao obrigatorios.");
+      }
+
+      try {
+        const extension = await store.requestDevelopmentPlanExtension(
+          req.params.planId,
+          { requestedDueDate, reason },
+          req.auth.user
+        );
+        res.status(201).json(extension);
+      } catch (error) {
+        res
+          .status(400)
+          .json({ error: error.message || "Falha ao solicitar extensao do PDI." });
+      }
+    }
+  );
+
+  router.patch(
+    "/plans/:planId/extensions/:extensionId",
+    requireRoles("admin", "hr", "manager"),
+    async (req, res) => {
+      const { status, decisionNote } = req.body || {};
+      if (!status) {
+        return badRequest(res, "status da decisao obrigatorio.");
+      }
+
+      try {
+        const extension = await store.decideDevelopmentPlanExtension(
+          req.params.planId,
+          req.params.extensionId,
+          { status, decisionNote: decisionNote || "" },
+          req.auth.user
+        );
+        res.json(extension);
+      } catch (error) {
+        res
+          .status(400)
+          .json({ error: error.message || "Falha ao decidir extensao do PDI." });
+      }
     }
   );
 

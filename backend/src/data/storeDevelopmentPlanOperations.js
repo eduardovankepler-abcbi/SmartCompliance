@@ -11,7 +11,8 @@ export function createMemoryDevelopmentPlanStore({
   buildDevelopmentPlanAuditDetail,
   assertValidDevelopmentPlanStatus,
   assertCanReportDevelopmentPlanProgress,
-  normalizeDevelopmentPlanProgressPayload
+  normalizeDevelopmentPlanProgressPayload,
+  normalizeDevelopmentPlanCompliancePayload
 }) {
   return {
     async getDevelopmentPlans(actorUser) {
@@ -46,6 +47,7 @@ export function createMemoryDevelopmentPlanStore({
         throw new Error("Competencia do PDI nao encontrada.");
       }
 
+      const compliance = normalizeDevelopmentPlanCompliancePayload(payload, actorUser, db.people);
       const plan = {
         id: createId("development_plan"),
         personId: payload.personId,
@@ -61,7 +63,8 @@ export function createMemoryDevelopmentPlanStore({
         archivedAt: null,
         progressStatus: "not_started",
         progressNote: "",
-        progressUpdatedAt: null
+        progressUpdatedAt: null,
+        ...compliance
       };
       db.developmentPlans.unshift(plan);
       db.developmentPlanProgressEvents = db.developmentPlanProgressEvents || [];
@@ -113,11 +116,15 @@ export function createMemoryDevelopmentPlanStore({
       plan.actionText = payload.actionText;
       plan.dueDate = payload.dueDate;
       plan.expectedEvidence = payload.expectedEvidence;
+      const compliance = normalizeDevelopmentPlanCompliancePayload(payload, actorUser, db.people, plan);
       plan.status = payload.status;
       plan.archivedAt = payload.status === "archived" ? new Date().toISOString() : null;
       plan.progressStatus = plan.progressStatus || "not_started";
       plan.progressNote = plan.progressNote || "";
       plan.progressUpdatedAt = plan.progressUpdatedAt || null;
+      plan.isComplianceRequired = compliance.isComplianceRequired;
+      plan.complianceRequiredAt = compliance.complianceRequiredAt;
+      plan.complianceRequiredByUserId = compliance.complianceRequiredByUserId;
 
       const person = db.people.find((item) => item.id === plan.personId);
       pushAuditLog(db.auditLogs, {
@@ -135,6 +142,83 @@ export function createMemoryDevelopmentPlanStore({
       });
 
       return enrichDevelopmentPlan(plan, db.people, db.cycles, db.competencies);
+    },
+    async listDevelopmentPlanExtensions(actorUser) {
+      db.developmentPlanExtensions ||= [];
+      const enrichedPlans = db.developmentPlans.map((plan) =>
+        enrichDevelopmentPlan(plan, db.people, db.cycles, db.competencies)
+      );
+      return db.developmentPlanExtensions
+        .map((extension) => {
+          const plan = enrichedPlans.find((item) => item.id === extension.planId);
+          const person = db.people.find((item) => item.id === plan?.personId);
+          return {
+            ...extension,
+            planTitle: plan?.focusTitle || "",
+            personId: plan?.personId || "",
+            personName: person?.name || plan?.personName || "",
+            currentDueDate: plan?.dueDate || null
+          };
+        })
+        .filter((extension) => extension.planId && extension.personId)
+        .filter((extension) =>
+          ["admin", "hr"].includes(actorUser?.roleKey || "") ||
+          db.people.some(
+            (person) =>
+              person.id === extension.personId &&
+              person.managerPersonId === (actorUser.person?.id || actorUser.personId)
+          )
+        )
+        .sort((left, right) => String(right.requestedAt).localeCompare(String(left.requestedAt)));
+    },
+    async requestDevelopmentPlanExtension(planId, payload, actorUser) {
+      const plan = db.developmentPlans.find((item) => item.id === planId);
+      if (!plan) {
+        throw new Error("PDI nao encontrado.");
+      }
+      assertCanReportDevelopmentPlanProgress(actorUser, db.people, plan);
+      if (!plan.isComplianceRequired) {
+        throw new Error("Extensao formal se aplica apenas a PDI obrigatorio.");
+      }
+      db.developmentPlanExtensions ||= [];
+      const extension = {
+        id: createId("development_plan_extension"),
+        planId,
+        requestedDueDate: payload.requestedDueDate,
+        reason: String(payload.reason || "").trim(),
+        status: "pending",
+        requestedByUserId: actorUser.id,
+        requestedAt: new Date().toISOString(),
+        decidedByUserId: null,
+        decidedAt: null,
+        leaderAreaName: actorUser.person?.area || null,
+        decisionNote: ""
+      };
+      db.developmentPlanExtensions.unshift(extension);
+      return extension;
+    },
+    async decideDevelopmentPlanExtension(planId, extensionId, payload, actorUser) {
+      const plan = db.developmentPlans.find((item) => item.id === planId);
+      if (!plan) {
+        throw new Error("PDI nao encontrado.");
+      }
+      if (!["approved", "rejected", "cancelled"].includes(payload.status)) {
+        throw new Error("Status de decisao de extensao invalido.");
+      }
+      if (!normalizeDevelopmentPlanCompliancePayload({ isComplianceRequired: true, personId: plan.personId }, actorUser, db.people, plan).isComplianceRequired) {
+        throw new Error("Perfil sem permissao para decidir extensao.");
+      }
+      db.developmentPlanExtensions ||= [];
+      const extension = db.developmentPlanExtensions.find((item) => item.id === extensionId && item.planId === planId);
+      if (!extension) {
+        throw new Error("Solicitacao de extensao nao encontrada.");
+      }
+      extension.status = payload.status;
+      extension.decisionNote = String(payload.decisionNote || "").trim();
+      extension.decidedByUserId = actorUser.id;
+      extension.decidedAt = new Date().toISOString();
+      extension.leaderAreaName = actorUser.person?.area || extension.leaderAreaName || null;
+      return extension;
     },
     async updateDevelopmentPlanProgress(planId, payload, actorUser) {
       const plan = db.developmentPlans.find((item) => item.id === planId);
@@ -195,6 +279,7 @@ export function createMysqlDevelopmentPlanStore({
   assertValidDevelopmentPlanStatus,
   assertCanReportDevelopmentPlanProgress,
   normalizeDevelopmentPlanProgressPayload,
+  normalizeDevelopmentPlanCompliancePayload,
   toMysqlDateTime,
   supportsProgressHistory
 }) {
@@ -252,6 +337,7 @@ export function createMysqlDevelopmentPlanStore({
         throw new Error("Competencia do PDI nao encontrada.");
       }
 
+      const compliance = normalizeDevelopmentPlanCompliancePayload(payload, actorUser, people);
       const plan = {
         id: createId("development_plan"),
         personId: payload.personId,
@@ -267,15 +353,17 @@ export function createMysqlDevelopmentPlanStore({
         archivedAt: null,
         progressStatus: "not_started",
         progressNote: "",
-        progressUpdatedAt: null
+        progressUpdatedAt: null,
+        ...compliance
       };
 
       await pool.query(
         `INSERT INTO development_plans
          (id, person_id, cycle_id, competency_id, focus_title, action_text, due_date,
           expected_evidence, status, created_by_user_id, created_at, archived_at,
-          progress_status, progress_note, progress_updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          progress_status, progress_note, progress_updated_at,
+          is_compliance_required, compliance_required_at, compliance_required_by_user_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           plan.id,
           plan.personId,
@@ -291,7 +379,10 @@ export function createMysqlDevelopmentPlanStore({
           plan.archivedAt,
           plan.progressStatus,
           plan.progressNote,
-          plan.progressUpdatedAt
+          plan.progressUpdatedAt,
+          plan.isComplianceRequired,
+          toMysqlDateTime(plan.complianceRequiredAt),
+          plan.complianceRequiredByUserId
         ]
       );
 
@@ -340,7 +431,10 @@ export function createMysqlDevelopmentPlanStore({
       const [[existingPlan]] = await pool.query(
         `SELECT id, person_id AS personId, created_by_user_id AS createdByUserId,
                 created_at AS createdAt, progress_status AS progressStatus,
-                progress_note AS progressNote, progress_updated_at AS progressUpdatedAt
+                progress_note AS progressNote, progress_updated_at AS progressUpdatedAt,
+                is_compliance_required AS isComplianceRequired,
+                compliance_required_at AS complianceRequiredAt,
+                compliance_required_by_user_id AS complianceRequiredByUserId
          FROM development_plans
          WHERE id = ?`,
         [planId]
@@ -369,10 +463,12 @@ export function createMysqlDevelopmentPlanStore({
 
       const archivedAt =
         payload.status === "archived" ? toMysqlDateTime(new Date()) : null;
+      const compliance = normalizeDevelopmentPlanCompliancePayload(payload, actorUser, people, existingPlan);
       await pool.query(
         `UPDATE development_plans
          SET person_id = ?, cycle_id = ?, competency_id = ?, focus_title = ?, action_text = ?,
-             due_date = ?, expected_evidence = ?, status = ?, archived_at = ?
+             due_date = ?, expected_evidence = ?, status = ?, archived_at = ?,
+             is_compliance_required = ?, compliance_required_at = ?, compliance_required_by_user_id = ?
          WHERE id = ?`,
         [
           payload.personId,
@@ -384,6 +480,9 @@ export function createMysqlDevelopmentPlanStore({
           payload.expectedEvidence,
           payload.status,
           archivedAt,
+          compliance.isComplianceRequired,
+          toMysqlDateTime(compliance.complianceRequiredAt),
+          compliance.complianceRequiredByUserId,
           planId
         ]
       );
@@ -418,12 +517,138 @@ export function createMysqlDevelopmentPlanStore({
           archivedAt,
           progressStatus: existingPlan.progressStatus || "not_started",
           progressNote: existingPlan.progressNote || "",
-          progressUpdatedAt: existingPlan.progressUpdatedAt || null
+          progressUpdatedAt: existingPlan.progressUpdatedAt || null,
+          ...compliance
         },
         people,
         cycles,
         competencies
       );
+    },
+    async listDevelopmentPlanExtensions(actorUser) {
+      const people = await fetchPeopleRows(pool);
+      const [rows] = await pool.query(
+        `SELECT extension.id, extension.plan_id AS planId,
+                extension.requested_due_date AS requestedDueDate, extension.reason,
+                extension.status, extension.requested_by_user_id AS requestedByUserId,
+                extension.requested_at AS requestedAt, extension.decided_by_user_id AS decidedByUserId,
+                extension.decided_at AS decidedAt, extension.leader_area_name AS leaderAreaName,
+                extension.decision_note AS decisionNote,
+                plan.focus_title AS planTitle, plan.person_id AS personId,
+                plan.due_date AS currentDueDate, person.name AS personName
+         FROM development_plan_extensions extension
+         JOIN development_plans plan ON plan.id = extension.plan_id
+         JOIN people person ON person.id = plan.person_id
+         ORDER BY extension.requested_at DESC`
+      );
+      const actorPersonId = actorUser.person?.id || actorUser.personId;
+      return rows.filter((extension) =>
+        ["admin", "hr"].includes(actorUser?.roleKey || "") ||
+        people.some(
+          (person) =>
+            person.id === extension.personId &&
+            person.managerPersonId === actorPersonId
+        )
+      );
+    },
+    async requestDevelopmentPlanExtension(planId, payload, actorUser) {
+      const [people] = await Promise.all([fetchPeopleRows(pool)]);
+      const [[plan]] = await pool.query(
+        `SELECT id, person_id AS personId, is_compliance_required AS isComplianceRequired
+         FROM development_plans
+         WHERE id = ?`,
+        [planId]
+      );
+      if (!plan) {
+        throw new Error("PDI nao encontrado.");
+      }
+      assertCanReportDevelopmentPlanProgress(actorUser, people, plan);
+      if (!plan.isComplianceRequired) {
+        throw new Error("Extensao formal se aplica apenas a PDI obrigatorio.");
+      }
+      const extension = {
+        id: createId("development_plan_extension"),
+        planId,
+        requestedDueDate: payload.requestedDueDate,
+        reason: String(payload.reason || "").trim(),
+        status: "pending",
+        requestedByUserId: actorUser.id,
+        requestedAt: new Date().toISOString(),
+        decidedByUserId: null,
+        decidedAt: null,
+        leaderAreaName: actorUser.person?.area || null,
+        decisionNote: ""
+      };
+      await pool.query(
+        `INSERT INTO development_plan_extensions
+         (id, plan_id, requested_due_date, reason, status, requested_by_user_id, requested_at,
+          decided_by_user_id, decided_at, leader_area_name, decision_note)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          extension.id,
+          extension.planId,
+          extension.requestedDueDate,
+          extension.reason,
+          extension.status,
+          extension.requestedByUserId,
+          toMysqlDateTime(extension.requestedAt),
+          extension.decidedByUserId,
+          extension.decidedAt,
+          extension.leaderAreaName,
+          extension.decisionNote
+        ]
+      );
+      return extension;
+    },
+    async decideDevelopmentPlanExtension(planId, extensionId, payload, actorUser) {
+      if (!["approved", "rejected", "cancelled"].includes(payload.status)) {
+        throw new Error("Status de decisao de extensao invalido.");
+      }
+      const people = await fetchPeopleRows(pool);
+      const [[plan]] = await pool.query(
+        `SELECT id, person_id AS personId, is_compliance_required AS isComplianceRequired,
+                compliance_required_at AS complianceRequiredAt,
+                compliance_required_by_user_id AS complianceRequiredByUserId
+         FROM development_plans
+         WHERE id = ?`,
+        [planId]
+      );
+      if (!plan) {
+        throw new Error("PDI nao encontrado.");
+      }
+      normalizeDevelopmentPlanCompliancePayload({ isComplianceRequired: true, personId: plan.personId }, actorUser, people, plan);
+      const [[extension]] = await pool.query(
+        `SELECT id FROM development_plan_extensions WHERE id = ? AND plan_id = ?`,
+        [extensionId, planId]
+      );
+      if (!extension) {
+        throw new Error("Solicitacao de extensao nao encontrada.");
+      }
+      const decidedAt = new Date().toISOString();
+      await pool.query(
+        `UPDATE development_plan_extensions
+         SET status = ?, decided_by_user_id = ?, decided_at = ?, leader_area_name = ?, decision_note = ?
+         WHERE id = ? AND plan_id = ?`,
+        [
+          payload.status,
+          actorUser.id,
+          toMysqlDateTime(decidedAt),
+          actorUser.person?.area || null,
+          String(payload.decisionNote || "").trim(),
+          extensionId,
+          planId
+        ]
+      );
+      const [[updated]] = await pool.query(
+        `SELECT id, plan_id AS planId, requested_due_date AS requestedDueDate, reason, status,
+                requested_by_user_id AS requestedByUserId, requested_at AS requestedAt,
+                decided_by_user_id AS decidedByUserId, decided_at AS decidedAt,
+                leader_area_name AS leaderAreaName, decision_note AS decisionNote
+         FROM development_plan_extensions
+         WHERE id = ? AND plan_id = ?`,
+        [extensionId, planId]
+      );
+      return updated;
     },
     async updateDevelopmentPlanProgress(planId, payload, actorUser) {
       const [people, cycles, competencies] = await Promise.all([

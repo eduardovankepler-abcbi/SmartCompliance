@@ -13,6 +13,8 @@ export interface DashboardOverviewQuery {
   timeGrouping?: DashboardTimeGrouping;
 }
 
+export interface DashboardComplianceQuery extends DashboardOverviewQuery {}
+
 export interface DashboardScopeSummary {
   peopleCount: number;
   pendingAssignments: number;
@@ -330,6 +332,36 @@ export interface DashboardOverview {
   timeGrouping: DashboardTimeGrouping;
 }
 
+export interface DashboardComplianceAnalytics {
+  mode: DashboardMode;
+  notice: string;
+  scopeLabel: string;
+  selectedArea: string | null;
+  selectedTeamManagerId: string | null;
+  areaOptions: string[];
+  teamOptions: Array<{ managerPersonId: string; label: string; area: string; peopleCount: number }>;
+  targetPercentage: number;
+  summary: {
+    eligiblePeople: number;
+    compliantPeople: number;
+    nonCompliantPeople: number;
+    compliancePercentage: number;
+    statusBand: { key: 'critical' | 'low' | 'medium' | 'good' | 'excellent'; label: string; tone: DashboardTone };
+    totalIssues: number;
+  };
+  reasonCounts: Array<{ key: 'conduct' | 'evaluation_response' | 'mandatory_pdi'; label: string; total: number }>;
+  agingBuckets: Array<{ key: string; label: string; total: number }>;
+  byCurrentArea: Array<{ area: string; eligiblePeople: number; compliantPeople: number; nonCompliantPeople: number; compliancePercentage: number; band: { key: string; label: string; tone: DashboardTone } }>;
+  byOriginArea: Array<{ area: string; conduct: number; evaluationResponse: number; mandatoryPdi: number; totalIssues: number }>;
+  trend: Array<{ periodKey: string; label: string; totalIssues: number }>;
+  dataQuality: {
+    evaluationGraceConfigured: boolean;
+    substantiatedIncidentSubjects: number;
+    mandatoryPdiRecords: number;
+    note: string;
+  };
+}
+
 @Injectable({ providedIn: 'root' })
 export class DashboardService {
   private readonly api = inject(ApiClient);
@@ -348,6 +380,22 @@ export class DashboardService {
 
     const suffix = params.size ? `?${params.toString()}` : '';
     return this.api.get<DashboardOverview>(`/api/dashboards/overview${suffix}`);
+  }
+
+  getCompliance(query: DashboardComplianceQuery = {}): Observable<DashboardComplianceAnalytics> {
+    const params = new URLSearchParams();
+    if (query.area) {
+      params.set('area', query.area);
+    }
+    if (query.teamManagerId) {
+      params.set('teamManagerId', query.teamManagerId);
+    }
+    if (query.timeGrouping) {
+      params.set('timeGrouping', query.timeGrouping);
+    }
+
+    const suffix = params.size ? `?${params.toString()}` : '';
+    return this.api.get<DashboardComplianceAnalytics>(`/api/dashboards/compliance${suffix}`);
   }
 
   updatePriorityActionProgress(

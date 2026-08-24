@@ -10,6 +10,7 @@ import { Competency, CompetenciesService } from '../competencies/competencies.se
 import { Person, PeopleService } from '../people/people.service';
 import {
   DevelopmentPlan,
+  DevelopmentPlanExtension,
   DevelopmentPlanPayload,
   DevelopmentRecord,
   DevelopmentRecordPayload,
@@ -92,6 +93,7 @@ const progressLabels: Record<string, string> = {
             <label class="wide">Acao planejada<textarea rows="3" formControlName="actionText"></textarea></label>
             <label>Prazo<input type="date" formControlName="dueDate" /></label>
             <label>Evidencia esperada<input formControlName="expectedEvidence" /></label>
+            <label class="wide"><input type="checkbox" formControlName="isComplianceRequired" /> PDI obrigatorio para compliance</label>
             @if (planForm.touched && planValidationMessage()) { <p class="validation wide" role="alert">{{ planValidationMessage() }}</p> }
           </div>
           <button type="submit" [disabled]="saving()">{{ saving() ? 'Salvando...' : 'Salvar PDI' }}</button>
@@ -115,13 +117,24 @@ const progressLabels: Record<string, string> = {
         }
         <div class="metrics" aria-label="Resumo de desenvolvimento"><article><strong>{{ activeRecords().length }}</strong><span>Registros ativos</span></article><article><strong>{{ activePlans().length }}</strong><span>PDIs ativos</span></article><article><strong>{{ plansInProgress() }}</strong><span>PDIs em andamento</span></article></div>
 
+        @if (canApproveExtensions()) {
+          <section class="panel" aria-labelledby="extension-approvals-title">
+            <div class="panel__heading"><div><p>Compliance PDI</p><h2 id="extension-approvals-title">Extensoes pendentes</h2></div><span>{{ pendingExtensions().length }} aguardando decisao formal</span></div>
+            @if (!pendingExtensions().length) { <p class="state">Nenhuma extensao pendente no seu escopo.</p> }
+            @else { <div class="cards">@for (extension of pendingExtensions(); track extension.id) {
+              <article class="card"><div class="card__top"><div><strong>{{ extension.planTitle || 'PDI obrigatorio' }}</strong><span>{{ extension.personName || 'Pessoa vinculada' }}</span></div><span class="badge">Pendente</span></div><p>{{ extension.reason }}</p><dl><div><dt>Prazo atual</dt><dd>{{ extension.currentDueDate | date:'dd/MM/yyyy' }}</dd></div><div><dt>Novo prazo solicitado</dt><dd>{{ extension.requestedDueDate | date:'dd/MM/yyyy' }}</dd></div><div><dt>Solicitado em</dt><dd>{{ extension.requestedAt | date:'short' }}</dd></div></dl><form class="progress-form" [formGroup]="extensionDecisionForm" (ngSubmit)="decideExtension(extension, 'approved')"><label class="wide">Nota da decisao<input formControlName="decisionNote" /></label><button type="submit" [disabled]="saving()">Aprovar</button><button class="danger" type="button" (click)="decideExtension(extension, 'rejected')" [disabled]="saving()">Rejeitar</button></form></article>
+            }</div> }
+          </section>
+        }
+
         <section class="panel" aria-labelledby="plans-title">
           <div class="panel__heading"><div><p>Planos individuais</p><h2 id="plans-title">PDIs</h2></div><span>{{ activePlans().length }} no escopo</span></div>
           @if (!activePlans().length) { <p class="state">Nenhum PDI ativo no seu escopo.</p> }
           @else { <div class="cards">@for (plan of activePlans(); track plan.id) {
-            <article class="card"><div class="card__top"><div><strong>{{ plan.focusTitle }}</strong><span>{{ plan.personName }}</span></div><span class="badge">{{ progressLabel(plan.progressStatus) }}</span></div><p>{{ plan.actionText }}</p><dl><div><dt>Prazo</dt><dd>{{ plan.dueDate | date:'dd/MM/yyyy' }}</dd></div><div><dt>Competencia</dt><dd>{{ plan.competencyName || 'Nao vinculada' }}</dd></div><div><dt>Evidencia esperada</dt><dd>{{ plan.expectedEvidence }}</dd></div></dl>@if (plan.progressNote) { <small>Ultimo andamento: {{ plan.progressNote }}</small> }
-              <div class="card-actions"><button class="secondary" type="button" (click)="openPlanForm(plan)">Editar</button><button class="secondary" type="button" (click)="openProgressForm(plan)">Andamento</button><button class="danger" type="button" (click)="archivePlan(plan)">Arquivar</button></div>
+            <article class="card"><div class="card__top"><div><strong>{{ plan.focusTitle }}</strong><span>{{ plan.personName }}</span></div><span class="badge">{{ plan.isComplianceRequired ? 'Compliance obrigatorio' : progressLabel(plan.progressStatus) }}</span></div><p>{{ plan.actionText }}</p><dl><div><dt>Prazo</dt><dd>{{ plan.dueDate | date:'dd/MM/yyyy' }}</dd></div><div><dt>Competencia</dt><dd>{{ plan.competencyName || 'Nao vinculada' }}</dd></div><div><dt>Evidencia esperada</dt><dd>{{ plan.expectedEvidence }}</dd></div></dl>@if (plan.progressNote) { <small>Ultimo andamento: {{ plan.progressNote }}</small> }
+              <div class="card-actions"><button class="secondary" type="button" (click)="openPlanForm(plan)">Editar</button><button class="secondary" type="button" (click)="openProgressForm(plan)">Andamento</button>@if (plan.isComplianceRequired) { <button class="secondary" type="button" (click)="openExtensionForm(plan)">Solicitar extensao</button> }<button class="danger" type="button" (click)="archivePlan(plan)">Arquivar</button></div>
               @if (progressPlan()?.id === plan.id) { <form class="progress-form" [formGroup]="progressForm" (ngSubmit)="saveProgress(plan)"><label>Status<select formControlName="progressStatus"><option value="not_started">Nao iniciado</option><option value="in_progress">Em andamento</option><option value="blocked">Bloqueado</option><option value="done">Concluido</option></select></label><label>Nota<input formControlName="progressNote" /></label><button type="submit" [disabled]="saving()">Salvar andamento</button><button class="secondary" type="button" (click)="progressPlan.set(null)">Cancelar</button></form> }
+              @if (extensionPlan()?.id === plan.id) { <form class="progress-form" [formGroup]="extensionForm" (ngSubmit)="requestExtension(plan)"><label>Novo prazo solicitado<input type="date" formControlName="requestedDueDate" /></label><label>Justificativa<input formControlName="reason" /></label><button type="submit" [disabled]="saving()">Enviar extensao</button><button class="secondary" type="button" (click)="extensionPlan.set(null)">Cancelar</button></form> }
             </article>
           }</div> }
         </section>
@@ -151,6 +164,7 @@ export class DevelopmentPageComponent implements OnInit {
   readonly recordTypes = ['Graduacao', 'Pos-graduacao', 'MBA', 'Certificacao', 'Curso', 'Treinamento', 'Projeto', 'Palestra'];
   readonly records = signal<DevelopmentRecord[]>([]);
   readonly plans = signal<DevelopmentPlan[]>([]);
+  readonly planExtensions = signal<DevelopmentPlanExtension[]>([]);
   readonly learningEvents = signal<LearningIntegrationEvent[]>([]);
   readonly people = signal<Person[]>([]);
   readonly competencies = signal<Competency[]>([]);
@@ -163,12 +177,14 @@ export class DevelopmentPageComponent implements OnInit {
   readonly editingRecord = signal<DevelopmentRecord | null>(null);
   readonly editingPlan = signal<DevelopmentPlan | null>(null);
   readonly progressPlan = signal<DevelopmentPlan | null>(null);
+  readonly extensionPlan = signal<DevelopmentPlan | null>(null);
   readonly reviewingLearningEvent = signal<LearningIntegrationEvent | null>(null);
   readonly activeDevelopmentView = signal<'organization' | 'team' | 'personal'>('personal');
   readonly developmentAreaFilter = signal('all');
   readonly developmentPersonFilter = signal('all');
   readonly canViewOrganizationDevelopment = computed(() => ['admin', 'hr'].includes(this.auth.user()?.roleKey || ''));
   readonly canManageLearningIntegrations = computed(() => ['admin', 'hr'].includes(this.auth.user()?.roleKey || ''));
+  readonly canApproveExtensions = computed(() => ['admin', 'hr', 'manager'].includes(this.auth.user()?.roleKey || ''));
   readonly directReportPeople = computed(() => this.peopleOptions().filter((person) => person.managerPersonId === this.auth.user()?.person?.id));
   readonly canViewTeamDevelopment = computed(() => this.auth.user()?.roleKey === 'manager' || this.directReportPeople().length > 0);
   readonly developmentViews = computed(() => {
@@ -208,6 +224,7 @@ export class DevelopmentPageComponent implements OnInit {
   readonly activePlans = computed(() => this.plans().filter((item) => item.status !== 'archived' && this.scopedPersonIds().has(item.personId)));
   readonly plansInProgress = computed(() => this.activePlans().filter((item) => item.progressStatus === 'in_progress').length);
   readonly pendingLearningEvents = computed(() => this.learningEvents().filter((item) => item.processingStatus !== 'applied'));
+  readonly pendingExtensions = computed(() => this.planExtensions().filter((item) => item.status === 'pending' && (!item.personId || this.scopedPersonIds().has(item.personId))));
   readonly readyLearningEvents = computed(() => this.learningEvents().filter((item) => item.processingStatus === 'ready_for_review').length);
   readonly needsReviewLearningEvents = computed(() => this.learningEvents().filter((item) => item.processingStatus === 'needs_review').length);
   readonly appliedLearningEvents = computed(() => this.learningEvents().filter((item) => item.processingStatus === 'applied').length);
@@ -221,8 +238,10 @@ export class DevelopmentPageComponent implements OnInit {
   });
 
   readonly recordForm = this.fb.nonNullable.group({ personId:['', Validators.required], recordType:['Graduacao', Validators.required], title:['', Validators.required], providerName:['', Validators.required], completedAt:['', Validators.required], skillSignal:['', Validators.required], notes:[''] });
-  readonly planForm = this.fb.nonNullable.group({ personId:['', Validators.required], cycleId:[''], competencyId:[''], focusTitle:['', Validators.required], actionText:['', Validators.required], dueDate:['', Validators.required], expectedEvidence:['', Validators.required] });
+  readonly planForm = this.fb.nonNullable.group({ personId:['', Validators.required], cycleId:[''], competencyId:[''], focusTitle:['', Validators.required], actionText:['', Validators.required], dueDate:['', Validators.required], expectedEvidence:['', Validators.required], isComplianceRequired:[false] });
   readonly progressForm = this.fb.nonNullable.group({ progressStatus:['not_started', Validators.required], progressNote:[''] });
+  readonly extensionForm = this.fb.nonNullable.group({ requestedDueDate:['', Validators.required], reason:['', Validators.required] });
+  readonly extensionDecisionForm = this.fb.nonNullable.group({ decisionNote:[''] });
   readonly learningForm = this.fb.nonNullable.group({ personId:['', Validators.required], competencyId:[''], dueDate:[''], reviewNote:[''] });
 
   async ngOnInit(): Promise<void> {
@@ -269,7 +288,7 @@ export class DevelopmentPageComponent implements OnInit {
   closeRecordForm(): void { this.showRecordForm.set(false); this.editingRecord.set(null); }
   openPlanForm(plan: DevelopmentPlan | null = null): void {
     this.editingPlan.set(plan);
-    this.planForm.reset(plan ? { personId:plan.personId, cycleId:plan.cycleId || '', competencyId:plan.competencyId || '', focusTitle:plan.focusTitle, actionText:plan.actionText, dueDate:this.dateInput(plan.dueDate), expectedEvidence:plan.expectedEvidence } : { personId:this.defaultScopedPersonId(), cycleId:'', competencyId:'', focusTitle:'', actionText:'', dueDate:'', expectedEvidence:'' });
+    this.planForm.reset(plan ? { personId:plan.personId, cycleId:plan.cycleId || '', competencyId:plan.competencyId || '', focusTitle:plan.focusTitle, actionText:plan.actionText, dueDate:this.dateInput(plan.dueDate), expectedEvidence:plan.expectedEvidence, isComplianceRequired:Boolean(plan.isComplianceRequired) } : { personId:this.defaultScopedPersonId(), cycleId:'', competencyId:'', focusTitle:'', actionText:'', dueDate:'', expectedEvidence:'', isComplianceRequired:false });
     this.showPlanForm.set(true);
   }
   closePlanForm(): void { this.showPlanForm.set(false); this.editingPlan.set(null); }
@@ -286,7 +305,8 @@ export class DevelopmentPageComponent implements OnInit {
       expectedEvidence: params.get('expectedEvidence') || ''
     });
   }
-  openProgressForm(plan: DevelopmentPlan): void { this.progressPlan.set(plan); this.progressForm.reset({ progressStatus:plan.progressStatus || 'not_started', progressNote:plan.progressNote || '' }); }
+  openProgressForm(plan: DevelopmentPlan): void { this.extensionPlan.set(null); this.progressPlan.set(plan); this.progressForm.reset({ progressStatus:plan.progressStatus || 'not_started', progressNote:plan.progressNote || '' }); }
+  openExtensionForm(plan: DevelopmentPlan): void { this.progressPlan.set(null); this.extensionPlan.set(plan); this.extensionForm.reset({ requestedDueDate:this.dateInput(plan.dueDate), reason:'' }); }
   openLearningReview(event: LearningIntegrationEvent): void {
     const competencyId = this.competencies().find((item) => item.key.toLowerCase() === (event.competencyKey || '').toLowerCase())?.id || '';
     this.reviewingLearningEvent.set(event);
@@ -304,7 +324,9 @@ export class DevelopmentPageComponent implements OnInit {
   }
   async saveProgress(plan: DevelopmentPlan): Promise<void> { await this.performSave(async () => { await firstValueFrom(this.api.updatePlanProgress(plan.id, this.progressForm.getRawValue())); this.progressPlan.set(null); }); }
   async archiveRecord(record: DevelopmentRecord): Promise<void> { await this.performSave(async () => { await firstValueFrom(this.api.updateRecord(record.id, { personId:record.personId, recordType:record.recordType, title:record.title, providerName:record.providerName, completedAt:record.completedAt, skillSignal:record.skillSignal, notes:record.notes, status:'archived' })); }); }
-  async archivePlan(plan: DevelopmentPlan): Promise<void> { await this.performSave(async () => { await firstValueFrom(this.api.updatePlan(plan.id, { personId:plan.personId, cycleId:plan.cycleId, competencyId:plan.competencyId, focusTitle:plan.focusTitle, actionText:plan.actionText, dueDate:plan.dueDate, expectedEvidence:plan.expectedEvidence, status:'archived' })); }); }
+  async archivePlan(plan: DevelopmentPlan): Promise<void> { await this.performSave(async () => { await firstValueFrom(this.api.updatePlan(plan.id, { personId:plan.personId, cycleId:plan.cycleId, competencyId:plan.competencyId, focusTitle:plan.focusTitle, actionText:plan.actionText, dueDate:plan.dueDate, expectedEvidence:plan.expectedEvidence, isComplianceRequired:Boolean(plan.isComplianceRequired), status:'archived' })); }); }
+  async requestExtension(plan: DevelopmentPlan): Promise<void> { if (this.extensionForm.invalid) { this.extensionForm.markAllAsTouched(); return; } await this.performSave(async () => { await firstValueFrom(this.api.requestPlanExtension(plan.id, this.extensionForm.getRawValue())); this.extensionPlan.set(null); }); }
+  async decideExtension(extension: DevelopmentPlanExtension, status: 'approved' | 'rejected' | 'cancelled'): Promise<void> { await this.performSave(async () => { await firstValueFrom(this.api.decidePlanExtension(extension.planId, extension.id, { status, decisionNote:this.extensionDecisionForm.controls.decisionNote.value || '' })); this.extensionDecisionForm.reset({ decisionNote:'' }); }); }
   async applyLearningEvent(event: LearningIntegrationEvent): Promise<void> {
     if (this.learningForm.invalid) { this.learningForm.markAllAsTouched(); return; }
     await this.performSave(async () => {
@@ -317,8 +339,8 @@ export class DevelopmentPageComponent implements OnInit {
   async load(): Promise<void> {
     this.loading.set(true); this.errorMessage.set('');
     try {
-      const data = await firstValueFrom(forkJoin({ records:this.api.listRecords(), plans:this.api.listPlans(), people:this.peopleApi.list().pipe(catchError(() => of([] as Person[]))), competencies:this.competenciesApi.list().pipe(catchError(() => of([] as Competency[]))) }));
-      this.records.set(data.records); this.plans.set(data.plans); this.people.set(data.people); this.competencies.set(data.competencies);
+      const data = await firstValueFrom(forkJoin({ records:this.api.listRecords(), plans:this.api.listPlans(), extensions:this.canApproveExtensions()?this.api.listPlanExtensions().pipe(catchError(() => of([] as DevelopmentPlanExtension[]))):of([] as DevelopmentPlanExtension[]), people:this.peopleApi.list().pipe(catchError(() => of([] as Person[]))), competencies:this.competenciesApi.list().pipe(catchError(() => of([] as Competency[]))) }));
+      this.records.set(data.records); this.plans.set(data.plans); this.planExtensions.set(data.extensions); this.people.set(data.people); this.competencies.set(data.competencies);
       void this.loadLearningEvents();
     } catch (error) { this.setError(error, 'Falha ao carregar dados de desenvolvimento.'); }
     finally { this.loading.set(false); }
