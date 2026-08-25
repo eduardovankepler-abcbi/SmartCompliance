@@ -61,6 +61,44 @@ export function buildDimensionSummary(questions) {
     });
 }
 
+export function buildQuestionCategoryGroups(questions = []) {
+  const summaryByDimension = new Map(
+    buildDimensionSummary(questions).map((item) => [item.dimensionTitle, item])
+  );
+
+  return Object.values(
+    (questions || []).reduce((acc, question) => {
+      const category = question.dimensionTitle || "Sem categoria";
+      const entry = acc[category] || {
+        category,
+        questions: []
+      };
+      entry.questions.push(question);
+      acc[category] = entry;
+      return acc;
+    }, {})
+  )
+    .map((entry) => ({
+      ...entry,
+      summary: summaryByDimension.get(entry.category) || {
+        dimensionTitle: entry.category,
+        questionCount: entry.questions.length,
+        answeredCount: entry.questions.reduce(
+          (total, question) => total + Number(question.answeredCount || question.totalAnswers || 0),
+          0
+        ),
+        averageScore: null,
+        averageScoreLabel: "-",
+        tone: "neutral"
+      }
+    }))
+    .sort((left, right) => {
+      const leftScore = left.summary.averageScore === null ? -1 : left.summary.averageScore;
+      const rightScore = right.summary.averageScore === null ? -1 : right.summary.averageScore;
+      return rightScore - leftScore || left.category.localeCompare(right.category, "pt-BR");
+    });
+}
+
 function getQuestionMetricValue(question, metric) {
   if (metric === "critical") {
     return Number(question.criticalPercentage || 0);

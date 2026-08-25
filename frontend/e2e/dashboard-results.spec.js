@@ -52,6 +52,12 @@ test("admin explora o dashboard analitico de resultados", async ({ page }) => {
   await expect(
     executivePanel.locator(".response-chart-grid .response-chart-card").first()
   ).toBeVisible();
+  await expect(
+    executivePanel.locator(".dashboard-question-category-section").first()
+  ).toBeVisible();
+  await expect(
+    executivePanel.locator(".dashboard-question-category-section").first().locator(".response-chart-card").first()
+  ).toBeVisible();
 
   await page.getByRole("tab", { name: "Resultados" }).click();
   await expect(

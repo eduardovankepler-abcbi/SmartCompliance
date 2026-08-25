@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 
 import {
   buildEvaluationQuestionsCsv,
+  buildQuestionCategoryGroups,
   buildDimensionSummary,
   buildQuestionRanking,
   formatSatisfactionScore
@@ -598,6 +599,14 @@ function SelectedRelationshipPanel({
     () => buildQuestionRanking(filteredQuestions, { metric: rankingMetric, limit: rankingLimit }),
     [filteredQuestions, rankingLimit, rankingMetric]
   );
+  const questionCategoryGroups = useMemo(
+    () => buildQuestionCategoryGroups(filteredQuestions),
+    [filteredQuestions]
+  );
+  const satisfactionCategoryGroups = useMemo(
+    () => buildQuestionCategoryGroups(satisfactionQuestionTrendItems),
+    [satisfactionQuestionTrendItems]
+  );
 
   function handleExportCsv() {
     const csv = buildEvaluationQuestionsCsv({
@@ -689,40 +698,47 @@ function SelectedRelationshipPanel({
             </label>
           </div>
           {satisfactionQuestionTrendItems.length ? (
-            <div className="dashboard-satisfaction-question-grid">
-              {satisfactionQuestionTrendItems.map((question) => (
-                <article
-                  className="dashboard-satisfaction-question-card"
-                  key={`${question.questionId}-${resolvedSatisfactionQuestionAreaFilter}`}
-                >
-                  <div className="dashboard-satisfaction-question-head">
-                    <div>
-                      <span className="dashboard-card-eyebrow secondary">
-                        {question.dimensionTitle || "Satisfacao"}
-                      </span>
-                      <strong>{question.latestScoreLabel}/5</strong>
-                    </div>
-                    <div className="dashboard-satisfaction-question-meta">
-                      <span>{question.totalAnswers} respostas</span>
-                      {question.trendDelta !== null ? (
-                        <b className={question.trendDelta >= 0 ? "positive" : "warning"}>
-                          {question.trendDelta > 0 ? "+" : ""}
-                          {formatSatisfactionScore(question.trendDelta)}
-                        </b>
-                      ) : null}
-                    </div>
+            <div className="dashboard-question-category-list">
+              {satisfactionCategoryGroups.map((group) => (
+                <section className="dashboard-question-category-section" key={`satisfaction-${group.category}`}>
+                  <CategorySectionHeader group={group} />
+                  <div className="dashboard-satisfaction-question-grid">
+                    {group.questions.map((question) => (
+                      <article
+                        className="dashboard-satisfaction-question-card"
+                        key={`${question.questionId}-${resolvedSatisfactionQuestionAreaFilter}`}
+                      >
+                        <div className="dashboard-satisfaction-question-head">
+                          <div>
+                            <span className="dashboard-card-eyebrow secondary">
+                              {question.dimensionTitle || "Satisfacao"}
+                            </span>
+                            <strong>{question.latestScoreLabel}/5</strong>
+                          </div>
+                          <div className="dashboard-satisfaction-question-meta">
+                            <span>{question.totalAnswers} respostas</span>
+                            {question.trendDelta !== null ? (
+                              <b className={question.trendDelta >= 0 ? "positive" : "warning"}>
+                                {question.trendDelta > 0 ? "+" : ""}
+                                {formatSatisfactionScore(question.trendDelta)}
+                              </b>
+                            ) : null}
+                          </div>
+                        </div>
+                        <p className="muted dashboard-satisfaction-question-prompt">
+                          {question.questionPrompt}
+                        </p>
+                        <SafeTrendAreaChartCard
+                          items={question.periods}
+                          valueKey="averageScore"
+                          labelKey="label"
+                          formatter={formatSatisfactionScore}
+                          detailFormatter={(item) => `${item.totalAnswers} resp.`}
+                        />
+                      </article>
+                    ))}
                   </div>
-                  <p className="muted dashboard-satisfaction-question-prompt">
-                    {question.questionPrompt}
-                  </p>
-                  <SafeTrendAreaChartCard
-                    items={question.periods}
-                    valueKey="averageScore"
-                    labelKey="label"
-                    formatter={formatSatisfactionScore}
-                    detailFormatter={(item) => `${item.totalAnswers} resp.`}
-                  />
-                </article>
+                </section>
               ))}
             </div>
           ) : (
@@ -797,9 +813,16 @@ function SelectedRelationshipPanel({
       ) : null}
       {!isSatisfactionAnalyticsSelected && filteredQuestions.length ? (
         <>
-          <div className="response-chart-grid">
-            {filteredQuestions.map((question) => (
-              <SafeResponseDistributionChartCard key={question.questionKey || question.questionId} question={question} />
+          <div className="dashboard-question-category-list">
+            {questionCategoryGroups.map((group) => (
+              <section className="dashboard-question-category-section" key={`${relationshipType}-${group.category}`}>
+                <CategorySectionHeader group={group} />
+                <div className="response-chart-grid">
+                  {group.questions.map((question) => (
+                    <SafeResponseDistributionChartCard key={question.questionKey || question.questionId} question={question} />
+                  ))}
+                </div>
+              </section>
             ))}
           </div>
           <QuestionComparisonPanels questions={filteredQuestions} />
@@ -814,6 +837,24 @@ function SelectedRelationshipPanel({
           </p>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function CategorySectionHeader({ group }) {
+  return (
+    <div className="dashboard-question-category-head">
+      <div>
+        <span className={`dashboard-card-eyebrow ${group.summary?.tone || "secondary"}`}>
+          Categoria
+        </span>
+        <strong>{group.category}</strong>
+      </div>
+      <div className="dashboard-question-category-metrics">
+        <span>{group.summary?.questionCount || group.questions.length} perguntas</span>
+        <span>{group.summary?.answeredCount || 0} respostas</span>
+        <span>media {group.summary?.averageScoreLabel || "-"}</span>
+      </div>
     </div>
   );
 }
