@@ -635,6 +635,31 @@ export async function runAuthAccessRegression() {
       ),
       "Leitura de satisfacao deve permitir comparacao temporal e filtro por area"
     );
+    const dashboardQuestionRows = adminDashboard.payload.responseDistributions.flatMap(
+      (group) => group.questions || []
+    );
+    assert.ok(
+      dashboardQuestionRows.every(
+        (question) =>
+          Array.isArray(question.options) &&
+          question.comparisons &&
+          Array.isArray(question.comparisons.periods) &&
+          Array.isArray(question.comparisons.areas) &&
+          Number.isInteger(question.responseRate)
+      ),
+      "Dashboard deve retornar perguntas agregadas com distribuicao, comparativos e taxa de resposta"
+    );
+    assert.ok(
+      dashboardQuestionRows.every(
+        (question) =>
+          !question.protected ||
+          (question.options.length === 0 &&
+            question.comparisons.periods.length === 0 &&
+            question.comparisons.areas.length === 0 &&
+            question.questionPrompt.includes("privacidade"))
+      ),
+      "Perguntas protegidas nao devem abrir prompt sensivel nem distribuicao detalhada"
+    );
     assert.ok(
       adminDashboard.payload.performanceHealth === null ||
         Array.isArray(adminDashboard.payload.performanceHealth.areaSeries),

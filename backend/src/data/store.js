@@ -3584,7 +3584,114 @@ function buildCycleReportSnapshots(cycleId, responses) {
     }));
 }
 
-function buildQuestionDistributions(responses) {
+function getAnswerQuestionKey(answer) {
+  return answer.questionnaireQuestionId || answer.questionId || "unknown_question";
+}
+
+function getAnswerType(answer) {
+  const answerType = String(answer.answerType || "").trim();
+  if (answerType) {
+    return answerType;
+  }
+  if (Array.isArray(answer.selectedOptions) && answer.selectedOptions.length) {
+    return "multi-select";
+  }
+  if (String(answer.textValue || "").trim()) {
+    return "text";
+  }
+  return "scale";
+}
+
+function hasAnswerValue(answer) {
+  return (
+    Number.isFinite(Number(answer.score)) ||
+    (Array.isArray(answer.selectedOptions) && answer.selectedOptions.length > 0) ||
+    String(answer.textValue || "").trim().length > 0
+  );
+}
+
+function getAnswerOptionValues(answer) {
+  const values = [];
+  if (Array.isArray(answer.selectedOptions)) {
+    values.push(...answer.selectedOptions.filter((item) => item !== null && item !== undefined && item !== ""));
+  }
+  if (!values.length && Number.isFinite(Number(answer.score))) {
+    values.push(Number(answer.score));
+  }
+  return values;
+}
+
+function getAnswerOptionLabel({ answer, value, relationshipType }) {
+  const numericValue = Number(value);
+  const questionDefinition = findQuestionDefinition(answer.questionId);
+  const libraryOption = questionDefinition?.options?.find(
+    (item) => String(item.value) === String(value)
+  );
+  if (libraryOption?.label) {
+    return libraryOption.label;
+  }
+  if (Number.isFinite(numericValue)) {
+    if (questionDefinition?.scaleProfile === "satisfaction") {
+      return evaluationLibrary.scale.find((item) => item.value === numericValue)?.label || String(value);
+    }
+    return (
+      getTemplateForRelationship(relationshipType)?.policy?.scale?.find(
+        (item) => item.value === numericValue
+      )?.label || String(value)
+    );
+  }
+  return String(value);
+}
+
+function buildQuestionMetricSnapshot(question) {
+  const averageScore = question.scores.length
+    ? Number(average(question.scores).toFixed(2))
+    : null;
+  const favorableAnswers = question.scores.filter((score) => score >= 4).length;
+  const neutralAnswers = question.scores.filter((score) => score === 3).length;
+  const criticalAnswers = question.scores.filter((score) => score <= 2).length;
+  const leadingOption = [...question.options.values()].sort(
+    (left, right) => right.total - left.total || String(left.label).localeCompare(String(right.label), "pt-BR")
+  )[0] || null;
+
+  return {
+    answeredCount: question.answeredCount,
+    totalAnswers: question.answeredCount,
+    unansweredCount: Math.max(question.totalEligibleResponses - question.answeredCount, 0),
+    responseRate: calculatePercentage(question.answeredCount, question.totalEligibleResponses),
+    averageScore,
+    averageScoreLabel: averageScore === null ? "-" : averageScore.toFixed(1),
+    favorablePercentage: calculatePercentage(favorableAnswers, question.scores.length),
+    neutralPercentage: calculatePercentage(neutralAnswers, question.scores.length),
+    criticalPercentage: calculatePercentage(criticalAnswers, question.scores.length),
+    leadingOption: leadingOption
+      ? {
+          value: leadingOption.value,
+          label: leadingOption.label,
+          total: leadingOption.total,
+          percentage: calculatePercentage(leadingOption.total, question.answeredCount)
+        }
+      : null
+  };
+}
+
+function presentQuestionSegment(entry) {
+  const scores = entry.scores || [];
+  const averageScore = scores.length ? Number(average(scores).toFixed(2)) : null;
+  return {
+    key: entry.key,
+    label: entry.label,
+    sortValue: entry.sortValue ?? 0,
+    totalAnswers: entry.totalAnswers,
+    answeredCount: entry.totalAnswers,
+    averageScore,
+    averageScoreLabel: averageScore === null ? "-" : averageScore.toFixed(1),
+    responseRate: calculatePercentage(entry.totalAnswers, entry.totalEligibleResponses || entry.totalAnswers)
+  };
+}
+
+function buildQuestionDistributions(responses, { cycles = [], timeGrouping = "semester" } = {}) {
+  const cyclesById = new Map((cycles || []).map((cycle) => [cycle.id, cycle]));
   return Object.entries(
     responses.reduce((acc, response) => {
       const relationshipEntry = acc[response.relationshipType] || {
@@ -3594,30 +3701,99 @@ function buildQuestionDistributions(responses) {
       };
       relationshipEntry.totalResponses += 1;
 
-      for (const answer of response.answers) {
-        if (!Number.isFinite(Number(answer.score))) {
+      for (const answer of response.answers || []) {
+        const questionKey = getAnswerQuestionKey(answer);
+        const answerType = getAnswerType(answer);
+        const questionEntry = relationshipEntry.questions[questionKey] || {
+          questionId: answer.questionId,
+          questionnaireQuestionId: answer.questionnaireQuestionId || null,
+          questionKey,
+          questionPrompt: answer.isSensitive
+            ? "Pergunta sensivel protegida"
+            : answer.questionPrompt || findQuestionDefinition(answer.questionId)?.prompt || "",
+          dimensionTitle:
+            answer.dimensionTitle || findQuestionDefinition(answer.questionId)?.dimensionTitle || "Sem dimensao",
+          answerType,
+          position: Number(findQuestionDefinition(answer.questionId)?.sortOrder || 0),
+          isSensitive: Boolean(answer.isSensitive),
+          totalEligibleResponses: relationshipEntry.totalResponses,
+          answeredCount: 0,
+          scores: [],
+          options: new Map(),
+          periods: {},
+          areas: {}
+        };
+        questionEntry.totalEligibleResponses = relationshipEntry.totalResponses;
+        questionEntry.isSensitive = questionEntry.isSensitive || Boolean(answer.isSensitive);
+
+        if (!hasAnswerValue(answer)) {
           continue;
         }
-        const questionEntry = relationshipEntry.questions[answer.questionId] || {
-          questionId: answer.questionId,
-          questionPrompt: answer.questionPrompt,
-          dimensionTitle: answer.dimensionTitle,
-          totalAnswers: 0,
-          distribution: {
-            1: 0,
-            2: 0,
-            3: 0,
-            4: 0,
-            5: 0
-          }
-        };
 
-        const scoreKey = String(Number(answer.score));
-        questionEntry.totalAnswers += 1;
-        questionEntry.distribution[scoreKey] =
-          (questionEntry.distribution[scoreKey] || 0) + 1;
-        relationshipEntry.questions[answer.questionId] = questionEntry;
+        const score = Number(answer.score);
+        questionEntry.answeredCount += 1;
+        if (Number.isFinite(score)) {
+          questionEntry.scores.push(score);
+        }
+
+        for (const optionValue of getAnswerOptionValues(answer)) {
+          const optionKey = String(optionValue);
+          const optionEntry = questionEntry.options.get(optionKey) || {
+            value: optionValue,
+            label: getAnswerOptionLabel({
+              answer,
+              value: optionValue,
+              relationshipType: response.relationshipType
+            }),
+            total: 0
+          };
+          optionEntry.total += 1;
+          questionEntry.options.set(optionKey, optionEntry);
+        }
+
+        const cycle = cyclesById.get(response.cycleId);
+        if (cycle) {
+          const period = getCyclePeriodMeta(cycle, timeGrouping);
+          const periodEntry = questionEntry.periods[period.key] || {
+            key: period.key,
+            label: period.label,
+            sortValue: period.sortValue,
+            totalAnswers: 0,
+            totalEligibleResponses: 0,
+            scores: []
+          };
+          periodEntry.totalAnswers += 1;
+          periodEntry.totalEligibleResponses += 1;
+          if (Number.isFinite(score)) {
+            periodEntry.scores.push(score);
+          }
+          questionEntry.periods[period.key] = periodEntry;
+        }
+
+        const areaLabel =
+          response.relationshipType === "company"
+            ? response.respondentArea || response.reviewerArea || response.revieweeArea || "Sem area"
+            : response.revieweeArea || response.respondentArea || "Sem area";
+        const areaEntry = questionEntry.areas[areaLabel] || {
+          key: areaLabel,
+          label: areaLabel,
+          totalAnswers: 0,
+          totalEligibleResponses: 0,
+          scores: []
+        };
+        areaEntry.totalAnswers += 1;
+        areaEntry.totalEligibleResponses += 1;
+        if (Number.isFinite(score)) {
+          areaEntry.scores.push(score);
+        }
+        questionEntry.areas[areaLabel] = areaEntry;
+
+        relationshipEntry.questions[questionKey] = questionEntry;
       }
+
+      Object.values(relationshipEntry.questions).forEach((question) => {
+        question.totalEligibleResponses = relationshipEntry.totalResponses;
+      });
 
       acc[response.relationshipType] = relationshipEntry;
       return acc;
@@ -3625,25 +3801,77 @@ function buildQuestionDistributions(responses) {
   ).map(([, relationshipEntry]) => ({
     relationshipType: relationshipEntry.relationshipType,
     totalResponses: relationshipEntry.totalResponses,
-    questions: Object.values(relationshipEntry.questions).map((question) => ({
-      questionId: question.questionId,
-      questionPrompt: question.questionPrompt,
-      dimensionTitle: question.dimensionTitle,
-      totalAnswers: question.totalAnswers,
-      options: Object.entries(question.distribution).map(([value, total]) => ({
-        value: Number(value),
-        label:
-          findQuestionDefinition(question.questionId)?.scaleProfile === "satisfaction"
-            ? evaluationLibrary.scale.find((item) => item.value === Number(value))?.label
-            : getTemplateForRelationship(relationshipEntry.relationshipType)?.policy?.scale?.find(
-                (item) => item.value === Number(value)
-              )?.label || value,
-        total,
-        percentage: question.totalAnswers
-          ? Number(((total / question.totalAnswers) * 100).toFixed(1))
-          : 0
-      }))
-    }))
+    totalEligibleResponses: relationshipEntry.totalResponses,
+    sampleSufficient:
+      !isAnonymousRelationship(relationshipEntry.relationshipType) ||
+      relationshipEntry.totalResponses >= MIN_ANONYMOUS_AGGREGATE_RESPONSES,
+    questions: Object.values(relationshipEntry.questions)
+      .filter((question) => question.answeredCount > 0)
+      .map((question) => {
+        const metricSnapshot = buildQuestionMetricSnapshot(question);
+        const protectedBySample =
+          question.isSensitive ||
+          (isAnonymousRelationship(relationshipEntry.relationshipType) &&
+            question.answeredCount < MIN_ANONYMOUS_AGGREGATE_RESPONSES);
+
+        return {
+          questionId: question.questionId,
+          questionnaireQuestionId: question.questionnaireQuestionId,
+          questionKey: question.questionKey,
+          questionPrompt: protectedBySample ? "Pergunta protegida por privacidade" : question.questionPrompt,
+          dimensionTitle: question.dimensionTitle,
+          answerType: question.answerType,
+          position: question.position,
+          totalEligibleResponses: question.totalEligibleResponses,
+          sampleSufficient: !protectedBySample,
+          protected: protectedBySample,
+          ...metricSnapshot,
+          leadingOption: protectedBySample ? null : metricSnapshot.leadingOption,
+          options: protectedBySample
+            ? []
+            : [...question.options.values()].map((option) => ({
+                value: option.value,
+                label: option.label,
+                total: option.total,
+                percentage: question.answeredCount
+                  ? Number(((option.total / question.answeredCount) * 100).toFixed(1))
+                  : 0
+              })),
+          comparisons: {
+            periods: protectedBySample
+              ? []
+              : Object.values(question.periods)
+                  .filter(
+                    (period) =>
+                      !isAnonymousRelationship(relationshipEntry.relationshipType) ||
+                      period.totalAnswers >= MIN_ANONYMOUS_AGGREGATE_RESPONSES
+                  )
+                  .map(presentQuestionSegment)
+                  .sort((left, right) => left.sortValue - right.sortValue),
+            areas: protectedBySample
+              ? []
+              : Object.values(question.areas)
+                  .filter(
+                    (area) =>
+                      !isAnonymousRelationship(relationshipEntry.relationshipType) ||
+                      area.totalAnswers >= MIN_ANONYMOUS_AGGREGATE_RESPONSES
+                  )
+                  .map(presentQuestionSegment)
+                  .sort(
+                    (left, right) =>
+                      (right.averageScore ?? -1) - (left.averageScore ?? -1) ||
+                      right.totalAnswers - left.totalAnswers ||
+                      left.label.localeCompare(right.label, "pt-BR")
+                  )
+          }
+        };
+      })
+      .sort(
+        (left, right) =>
+          left.position - right.position ||
+          String(left.dimensionTitle || "").localeCompare(String(right.dimensionTitle || ""), "pt-BR") ||
+          String(left.questionPrompt || "").localeCompare(String(right.questionPrompt || ""), "pt-BR")
+      )
   })).filter(
     (group) =>
       !isAnonymousRelationship(group.relationshipType) ||
@@ -5189,7 +5417,7 @@ function buildDashboardPayload({
       timeGrouping
     }),
     evaluationHighlights,
-    responseDistributions: buildQuestionDistributions(scopedResponses),
+    responseDistributions: buildQuestionDistributions(scopedResponses, { cycles, timeGrouping }),
     evaluationMix: buildEvaluationMixSeries(assignments),
     evaluationResultsSummary: buildEvaluationResultsSummarySeries(assignments, scopedResponses),
     performanceHealth,

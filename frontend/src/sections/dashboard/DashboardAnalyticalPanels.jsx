@@ -1,5 +1,9 @@
+import { useMemo, useState } from "react";
+
 import {
+  buildEvaluationQuestionsCsv,
   buildDimensionSummary,
+  buildQuestionRanking,
   formatSatisfactionScore
 } from "./dashboardData.js";
 
@@ -236,6 +240,7 @@ export function DashboardOperationsPanels({
                       dimensionFilters={dimensionFilters}
                       getRelationshipLabel={getRelationshipLabel}
                       isSatisfactionAnalyticsSelected={isSatisfactionAnalyticsSelected}
+                      onSectionChange={onSectionChange}
                       relationshipType={selectedAnalyticalRelationship.relationshipType}
                       resolvedSatisfactionQuestionAreaFilter={resolvedSatisfactionQuestionAreaFilter}
                       satisfactionQuestionAreaOptions={satisfactionQuestionAreaOptions}
@@ -567,6 +572,7 @@ function SelectedRelationshipPanel({
   dimensionFilters,
   getRelationshipLabel,
   isSatisfactionAnalyticsSelected,
+  onSectionChange,
   relationshipType,
   resolvedSatisfactionQuestionAreaFilter,
   satisfactionQuestionAreaOptions,
@@ -578,6 +584,8 @@ function SelectedRelationshipPanel({
   totalResponses,
   visibleRelationshipTypes
 }) {
+  const [rankingMetric, setRankingMetric] = useState("critical");
+  const [rankingLimit, setRankingLimit] = useState("5");
   const dimensionSummary = buildDimensionSummary(distribution?.questions || []);
   const selectedDimension = dimensionFilters[relationshipType] || "all";
   const filteredQuestions =
@@ -586,6 +594,26 @@ function SelectedRelationshipPanel({
       : (distribution?.questions || []).filter(
           (question) => question.dimensionTitle === selectedDimension
         );
+  const questionRanking = useMemo(
+    () => buildQuestionRanking(filteredQuestions, { metric: rankingMetric, limit: rankingLimit }),
+    [filteredQuestions, rankingLimit, rankingMetric]
+  );
+
+  function handleExportCsv() {
+    const csv = buildEvaluationQuestionsCsv({
+      relationshipLabel: getRelationshipLabel(relationshipType),
+      questions: filteredQuestions
+    });
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `dashboard-avaliacoes-${relationshipType}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
 
   return (
     <div className="list-card" key={relationshipType}>
@@ -604,6 +632,38 @@ function SelectedRelationshipPanel({
           </select>
         </label>
         <span className="badge">{totalResponses} respostas</span>
+      </div>
+      <div className="dashboard-question-toolbar">
+        <label className="dashboard-card-filter-card">
+          <span>Ranking</span>
+          <select value={rankingMetric} onChange={(event) => setRankingMetric(event.target.value)}>
+            <option value="critical">Mais criticas</option>
+            <option value="averageScore">Menores medias</option>
+            <option value="responseRate">Maior adesao</option>
+            <option value="unanswered">Mais sem resposta</option>
+          </select>
+        </label>
+        <label className="dashboard-card-filter-card">
+          <span>Limite</span>
+          <select value={rankingLimit} onChange={(event) => setRankingLimit(event.target.value)}>
+            <option value="3">3</option>
+            <option value="5">5</option>
+            <option value="10">10</option>
+          </select>
+        </label>
+        <button
+          type="button"
+          className="utility-button"
+          onClick={handleExportCsv}
+          disabled={!filteredQuestions.length}
+        >
+          Exportar CSV
+        </button>
+        {onSectionChange ? (
+          <button type="button" className="utility-button" onClick={() => onSectionChange("Avaliacoes")}>
+            Abrir Avaliacoes
+          </button>
+        ) : null}
       </div>
       {isSatisfactionAnalyticsSelected ? (
         <div className="dashboard-satisfaction-analytics-panel">
@@ -712,12 +772,38 @@ function SelectedRelationshipPanel({
           </div>
         </div>
       ) : null}
-      {!isSatisfactionAnalyticsSelected && filteredQuestions.length ? (
-        <div className="response-chart-grid">
-          {filteredQuestions.map((question) => (
-            <SafeResponseDistributionChartCard key={question.questionId} question={question} />
-          ))}
+      {questionRanking.length ? (
+        <div className="dashboard-dimension-summary-block">
+          <div className="dashboard-dimension-summary-head">
+            <strong>Perguntas priorizadas</strong>
+            <span className="muted">{questionRanking.length} itens no recorte</span>
+          </div>
+          <div className="dashboard-question-ranking-list">
+            {questionRanking.map((question) => (
+              <article className="dashboard-question-ranking-card" key={`rank-${question.questionKey || question.questionId}`}>
+                <div>
+                  <span className="dashboard-card-eyebrow warning">{question.dimensionTitle}</span>
+                  <strong>{question.questionPrompt}</strong>
+                </div>
+                <div className="dashboard-question-ranking-metrics">
+                  <span>{question.averageScoreLabel || "-"} media</span>
+                  <span>{question.criticalPercentage || 0}% criticas</span>
+                  <span>{question.responseRate || 0}% preenchida</span>
+                </div>
+              </article>
+            ))}
+          </div>
         </div>
+      ) : null}
+      {!isSatisfactionAnalyticsSelected && filteredQuestions.length ? (
+        <>
+          <div className="response-chart-grid">
+            {filteredQuestions.map((question) => (
+              <SafeResponseDistributionChartCard key={question.questionKey || question.questionId} question={question} />
+            ))}
+          </div>
+          <QuestionComparisonPanels questions={filteredQuestions} />
+        </>
       ) : !isSatisfactionAnalyticsSelected ? (
         <div className="dashboard-empty-relationship-state">
           <strong>Sem detalhe analitico disponivel</strong>
@@ -726,6 +812,84 @@ function SelectedRelationshipPanel({
               ? "Esta modalidade ainda nao tem volume suficiente para abrir a leitura pergunta por pergunta."
               : "Ainda nao existem respostas registradas para esta modalidade neste recorte."}
           </p>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function QuestionComparisonPanels({ questions }) {
+  const strongestAreaQuestions = questions
+    .map((question) => ({
+      question,
+      area: question.comparisons?.areas?.[0] || null
+    }))
+    .filter((item) => item.area);
+  const trendQuestions = questions
+    .map((question) => {
+      const periods = question.comparisons?.periods || [];
+      const latest = periods[periods.length - 1] || null;
+      const previous = periods[periods.length - 2] || null;
+      return {
+        question,
+        latest,
+        previous,
+        delta:
+          latest && previous && latest.averageScore !== null && previous.averageScore !== null
+            ? Number((latest.averageScore - previous.averageScore).toFixed(1))
+            : null
+      };
+    })
+    .filter((item) => item.latest);
+
+  if (!strongestAreaQuestions.length && !trendQuestions.length) {
+    return null;
+  }
+
+  return (
+    <div className="dashboard-comparison-grid">
+      {trendQuestions.length ? (
+        <div className="list-card">
+          <div className="row">
+            <strong>Comparacao temporal</strong>
+            <span className="muted">Ultimo periodo vs anterior</span>
+          </div>
+          <div className="dashboard-mode-comparison-list">
+            {trendQuestions.slice(0, 5).map(({ question, latest, delta }) => (
+              <div className="dashboard-mode-comparison-row" key={`trend-${question.questionKey || question.questionId}`}>
+                <div className="dashboard-mode-comparison-copy">
+                  <strong>{question.dimensionTitle}</strong>
+                  <span>{latest.label} · {latest.totalAnswers} resp.</span>
+                </div>
+                <div className="dashboard-mode-comparison-values">
+                  <strong>{latest.averageScoreLabel}</strong>
+                  <span>{delta === null ? "sem base" : `${delta > 0 ? "+" : ""}${delta}`}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+      {strongestAreaQuestions.length ? (
+        <div className="list-card">
+          <div className="row">
+            <strong>Comparacao entre areas</strong>
+            <span className="muted">Melhor media disponivel</span>
+          </div>
+          <div className="dashboard-mode-comparison-list">
+            {strongestAreaQuestions.slice(0, 5).map(({ question, area }) => (
+              <div className="dashboard-mode-comparison-row" key={`area-${question.questionKey || question.questionId}`}>
+                <div className="dashboard-mode-comparison-copy">
+                  <strong>{area.label}</strong>
+                  <span>{question.dimensionTitle} · {area.totalAnswers} resp.</span>
+                </div>
+                <div className="dashboard-mode-comparison-values">
+                  <strong>{area.averageScoreLabel}</strong>
+                  <span>{question.responseRate || 0}%</span>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       ) : null}
     </div>

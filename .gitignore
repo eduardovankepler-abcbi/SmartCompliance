@@ -16,6 +16,7 @@ frontend/.env.*
 backend/src/data/custom-libraries.json
 backend/src/data/anonymous-responses.json
 backend/.data/
+backend/backups/*.sql
 frontend/playwright-report/
 frontend/test-results/
 *.pem

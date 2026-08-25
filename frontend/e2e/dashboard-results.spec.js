@@ -40,6 +40,12 @@ test("admin explora o dashboard analitico de resultados", async ({ page }) => {
 
   await compositionSelect.selectOption("peer");
   await expect(executivePanel.getByText("Leitura por dimensão")).toBeVisible();
+  await expect(executivePanel.getByText("Perguntas priorizadas")).toBeVisible();
+  await expect(executivePanel.getByRole("button", { name: "Exportar CSV" })).toBeVisible();
+  const downloadPromise = page.waitForEvent("download");
+  await executivePanel.getByRole("button", { name: "Exportar CSV" }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toContain("dashboard-avaliacoes");
   await expect(
     executivePanel.locator(".response-chart-grid .response-chart-card").first()
   ).toBeVisible();

@@ -350,6 +350,61 @@
   border-color: rgba(255, 108, 138, 0.2);
 }
 
+.dashboard-question-toolbar {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.dashboard-question-ranking-list,
+.dashboard-comparison-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.dashboard-question-ranking-card {
+  display: grid;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 157, 99, 0.16);
+  background: rgba(9, 14, 24, 0.34);
+}
+
+.dashboard-question-ranking-card strong {
+  display: block;
+  margin-top: 6px;
+  line-height: 1.35;
+}
+
+.dashboard-question-ranking-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.dashboard-question-ranking-metrics span,
+.response-chart-microcopy {
+  font-size: 0.78rem;
+}
+
+.dashboard-question-ranking-metrics span {
+  padding: 6px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--muted);
+}
+
+.response-chart-microcopy {
+  margin: 4px 0 0;
+}
+
+.dashboard-comparison-grid {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
 .dashboard-empty-relationship-state {
   display: grid;
   gap: 8px;

@@ -248,6 +248,7 @@ export function FunnelSeriesChart({ items }) {
 export function ResponseDistributionChartCard({ question }) {
   const [isOpen, setIsOpen] = useState(false);
   const safeOptions = (question?.options || []).filter(Boolean);
+  const hasScore = question?.averageScore !== null && question?.averageScore !== undefined;
   const chartValues = safeOptions.map((option) => Math.max(Number(option.percentage || 0), 0));
   const chartTotal = chartValues.reduce((total, value) => total + value, 0);
   const chartLabels = chartTotal > 0 ? safeOptions.map((option) => option.label) : ["Sem respostas"];
@@ -280,63 +281,87 @@ export function ResponseDistributionChartCard({ question }) {
     <>
       <div className="mini-card response-chart-card">
         <div className="row response-chart-header">
-          <strong>{question.dimensionTitle}</strong>
+          <div>
+            <strong>{question.dimensionTitle}</strong>
+            <p className="muted response-chart-microcopy">
+              {question.responseRate ?? 0}% preenchida
+              {hasScore ? ` · media ${question.averageScoreLabel}/5` : ""}
+            </p>
+          </div>
           <div className="response-chart-actions">
             <span className="response-chart-total">{question.totalAnswers} resp.</span>
-            <button
-              type="button"
-              className="button-reset response-expand-button"
-              onClick={() => setIsOpen(true)}
-              aria-label={`Expandir grafico de ${question.dimensionTitle}`}
-              title="Expandir grafico"
-            >
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path
-                  d="M9 4H4v5M15 4h5v5M20 15v5h-5M4 15v5h5M9 4 4 9M15 4l5 5M20 15l-5 5M4 15l5 5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </button>
+            {safeOptions.length ? (
+              <button
+                type="button"
+                className="button-reset response-expand-button"
+                onClick={() => setIsOpen(true)}
+                aria-label={`Expandir grafico de ${question.dimensionTitle}`}
+                title="Expandir grafico"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M9 4H4v5M15 4h5v5M20 15v5h-5M4 15v5h5M9 4 4 9M15 4l5 5M20 15l-5 5M4 15l5 5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
+            ) : null}
           </div>
         </div>
         <p className="muted response-chart-prompt">{question.questionPrompt}</p>
-        <div className="response-pie-layout">
-          <div className="response-pie-visual">
-            <DoughnutChart
-              className="response-pie-chart-canvas"
-              labels={chartLabels}
-              options={responseTooltipOptions}
-              segmentColors={chartSegmentColors}
-              seed={question.questionId}
-              values={visualValues}
-            />
-            <div className="response-pie-hole">
-              <strong>{question.totalAnswers}</strong>
-              <span>resp.</span>
+        {question.protected ? (
+          <div className="dashboard-empty-relationship-state">
+            <strong>Detalhe protegido</strong>
+            <p className="muted">A pergunta entra nos totais, mas o detalhamento foi ocultado por privacidade.</p>
+          </div>
+        ) : safeOptions.length ? (
+          <div className="response-pie-layout">
+            <div className="response-pie-visual">
+              <DoughnutChart
+                className="response-pie-chart-canvas"
+                labels={chartLabels}
+                options={responseTooltipOptions}
+                segmentColors={chartSegmentColors}
+                seed={question.questionKey || question.questionId}
+                values={visualValues}
+              />
+              <div className="response-pie-hole">
+                <strong>{question.totalAnswers}</strong>
+                <span>resp.</span>
+              </div>
+            </div>
+            <div className="response-pie-legend">
+              {safeOptions.map((option) => {
+                const tone = getSeriesTone(`${question.questionKey || question.questionId}-${option.value}`);
+                return (
+                  <div className="response-pie-legend-item" key={`${question.questionKey || question.questionId}-${option.value}`}>
+                    <div className="response-pie-legend-meta">
+                      <span className="response-pie-legend-dot" style={{ background: tone.solid }} />
+                      <span className="response-pie-legend-label">{option.label}</span>
+                    </div>
+                    <strong>{option.percentage}%</strong>
+                  </div>
+                );
+              })}
             </div>
           </div>
-          <div className="response-pie-legend">
-            {safeOptions.map((option) => {
-              const tone = getSeriesTone(`${question.questionId}-${option.value}`);
-              return (
-                <div className="response-pie-legend-item" key={`${question.questionId}-${option.value}`}>
-                  <div className="response-pie-legend-meta">
-                    <span className="response-pie-legend-dot" style={{ background: tone.solid }} />
-                    <span className="response-pie-legend-label">{option.label}</span>
-                  </div>
-                  <strong>{option.percentage}%</strong>
-                </div>
-              );
-            })}
+        ) : (
+          <div className="dashboard-empty-relationship-state">
+            <strong>{question.answerType === "text" ? "Resposta textual contabilizada" : "Sem distribuicao"}</strong>
+            <p className="muted">
+              {question.answerType === "text"
+                ? "O dashboard mostra somente volume de respostas textuais, sem abrir comentarios individuais."
+                : "A pergunta foi respondida, mas nao possui opcoes agregaveis para grafico."}
+            </p>
           </div>
-        </div>
+        )}
       </div>
 
-      {isOpen ? (
+      {isOpen && safeOptions.length ? (
         <div className="modal-overlay" role="presentation" onClick={() => setIsOpen(false)}>
           <div
             className="modal-card response-modal-card"

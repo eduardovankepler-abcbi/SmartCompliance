@@ -2,16 +2,22 @@ export function buildDimensionSummary(questions) {
   return Object.values(
     (questions || []).reduce((acc, question) => {
       const averageScore =
-        (question.options || []).reduce(
-          (sum, option) => sum + Number(option.value || 0) * (Number(option.percentage || 0) / 100),
-          0
-        ) || 0;
+        question.averageScore === null || question.averageScore === undefined
+          ? null
+          : Number(question.averageScore);
       const entry = acc[question.dimensionTitle] || {
         dimensionTitle: question.dimensionTitle || "Sem dimensão",
         scores: [],
+        answeredCount: 0,
         questionCount: 0
       };
-      entry.scores.push(averageScore);
+      if (averageScore !== null && Number.isFinite(averageScore)) {
+        entry.scores.push({
+          averageScore,
+          answeredCount: Number(question.answeredCount || question.totalAnswers || 0) || 1
+        });
+      }
+      entry.answeredCount += Number(question.answeredCount || question.totalAnswers || 0);
       entry.questionCount += 1;
       acc[question.dimensionTitle] = entry;
       return acc;
@@ -19,11 +25,23 @@ export function buildDimensionSummary(questions) {
   )
     .map((entry) => {
       const averageScore = entry.scores.length
-        ? Number((entry.scores.reduce((sum, value) => sum + value, 0) / entry.scores.length).toFixed(2))
+        ? Number(
+            (
+              entry.scores.reduce(
+                (sum, item) => sum + Number(item.averageScore || 0) * Number(item.answeredCount || 0),
+                0
+              ) /
+              Math.max(
+                entry.scores.reduce((sum, item) => sum + Number(item.answeredCount || 0), 0),
+                1
+              )
+            ).toFixed(2)
+          )
         : null;
       return {
         dimensionTitle: entry.dimensionTitle,
         questionCount: entry.questionCount,
+        answeredCount: entry.answeredCount,
         averageScore,
         averageScoreLabel: averageScore === null ? "-" : averageScore.toFixed(1),
         tone:
@@ -41,6 +59,80 @@ export function buildDimensionSummary(questions) {
       const rightScore = right.averageScore === null ? -1 : right.averageScore;
       return rightScore - leftScore || left.dimensionTitle.localeCompare(right.dimensionTitle, "pt-BR");
     });
+}
+
+function getQuestionMetricValue(question, metric) {
+  if (metric === "critical") {
+    return Number(question.criticalPercentage || 0);
+  }
+  if (metric === "responseRate") {
+    return Number(question.responseRate || 0);
+  }
+  if (metric === "unanswered") {
+    return Number(question.unansweredCount || 0);
+  }
+  return question.averageScore === null || question.averageScore === undefined
+    ? -1
+    : Number(question.averageScore);
+}
+
+export function buildQuestionRanking(questions = [], { metric = "critical", limit = 5 } = {}) {
+  const direction = metric === "averageScore" ? -1 : 1;
+  return [...questions]
+    .filter((question) => !question.protected && Number(question.answeredCount || question.totalAnswers || 0) > 0)
+    .sort((left, right) => {
+      const leftValue = getQuestionMetricValue(left, metric);
+      const rightValue = getQuestionMetricValue(right, metric);
+      return (
+        (rightValue - leftValue) * direction ||
+        String(left.dimensionTitle || "").localeCompare(String(right.dimensionTitle || ""), "pt-BR") ||
+        String(left.questionPrompt || "").localeCompare(String(right.questionPrompt || ""), "pt-BR")
+      );
+    })
+    .slice(0, Number(limit) || 5);
+}
+
+function escapeCsvValue(value) {
+  const stringValue = String(value ?? "");
+  const safeValue = /^[=+\-@\t\r]/.test(stringValue) ? `'${stringValue}` : stringValue;
+  return `"${safeValue.replace(/"/g, '""')}"`;
+}
+
+export function buildEvaluationQuestionsCsv({ relationshipLabel = "", questions = [] } = {}) {
+  const rows = [
+    [
+      "Modalidade",
+      "Dimensao",
+      "Pergunta",
+      "Tipo",
+      "Respondidas",
+      "Nao respondidas",
+      "Taxa de resposta",
+      "Media",
+      "Favoraveis",
+      "Neutras",
+      "Criticas",
+      "Opcao principal",
+      "Protegida"
+    ],
+    ...questions.map((question) => [
+      relationshipLabel,
+      question.dimensionTitle || "",
+      question.questionPrompt || "",
+      question.answerType || "",
+      question.answeredCount || question.totalAnswers || 0,
+      question.unansweredCount || 0,
+      `${question.responseRate || 0}%`,
+      question.averageScoreLabel || "",
+      `${question.favorablePercentage || 0}%`,
+      `${question.neutralPercentage || 0}%`,
+      `${question.criticalPercentage || 0}%`,
+      question.leadingOption?.label || "",
+      question.protected ? "Sim" : "Nao"
+    ])
+  ];
+
+  return rows.map((row) => row.map(escapeCsvValue).join(",")).join("\n");
 }
 
 export function buildExecutiveHighlights({
