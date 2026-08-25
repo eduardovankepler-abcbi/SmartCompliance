@@ -24,6 +24,8 @@ export function DashboardInsightPanels({
   setDevelopmentView,
   setSatisfactionView
 }) {
+  const isEvaluationTheme = dashboardAnalyticalTheme === "evaluations";
+
   if (isExecutiveView) {
     return (
       <>
@@ -212,17 +214,21 @@ export function DashboardInsightPanels({
     <>
       <div className="card-span dashboard-section-band insights">
         <div className="dashboard-section-band-copy">
-          <span>Analise</span>
+          <span>{isEvaluationTheme ? "Avaliacoes" : "Analise"}</span>
           <strong>
-            {isExecutiveView
-              ? "Leituras complementares para a decisao"
-              : "Camadas de apoio para detalhamento do recorte"}
+            {isEvaluationTheme
+              ? "Adesao, ciclo e composicao das avaliacoes"
+              : isExecutiveView
+                ? "Leituras complementares para a decisao"
+                : "Camadas de apoio para detalhamento do recorte"}
           </strong>
         </div>
         <p>
-          {isExecutiveView
-            ? "Cards de apoio para interpretar satisfacao, assignments, desenvolvimento e variacoes."
-            : "Visoes complementares para composicao, adesao e sinais de comportamento do ciclo."}
+          {isEvaluationTheme
+            ? "Apoios exclusivamente ligados ao fluxo de avaliacoes, respostas e modalidades."
+            : isExecutiveView
+              ? "Cards de apoio para interpretar satisfacao, assignments, desenvolvimento e variacoes."
+              : "Visoes complementares para composicao, adesao e sinais de comportamento do ciclo."}
         </p>
       </div>
 
@@ -249,9 +255,9 @@ export function DashboardInsightPanels({
           <div className={`card dashboard-side-card dashboard-insight-card-wide ${isExecutiveView ? "dashboard-card-tall" : ""}`}>
             <div className="card-header">
               <div>
-                <span className="dashboard-card-eyebrow secondary">Satisfacao</span>
-                <h3>Satisfacao por area</h3>
-                <span>Mapa de calor</span>
+                <span className="dashboard-card-eyebrow secondary">Avaliacao de satisfacao</span>
+                <h3>{isEvaluationTheme ? "Satisfacao por area avaliada" : "Satisfacao por area"}</h3>
+                <span>{isEvaluationTheme ? "Comparativo da pesquisa" : "Mapa de calor"}</span>
               </div>
               <div className="dashboard-card-filter">
                 <label className="dashboard-card-filter-card">

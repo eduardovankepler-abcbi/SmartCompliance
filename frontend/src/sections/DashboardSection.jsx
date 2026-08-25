@@ -176,6 +176,7 @@ export function DashboardSection({
     dashboardTimeGroupingLabel
   });
   const isExecutiveView = dashboardViewMode === "executive";
+  const isEvaluationFocused = !isExecutiveView && dashboardAnalyticalTheme === "evaluations";
   const assignmentStatusItems = dashboard?.assignmentStatus || [];
   const cycleTimelineItems = dashboard?.cycleTimeline || [];
   const latestCyclePeriod = cycleTimelineItems[0] || null;
@@ -332,6 +333,43 @@ export function DashboardSection({
       detail: `adesao em ${latestCyclePeriod?.label || "andamento"}`
     }
   ];
+  const evaluationFocusHighlights = [
+    {
+      title: "Modalidades no ciclo",
+      value: String(evaluationResultsSummaryItems.length || visibleRelationshipTypes.length || 0),
+      detail: "Tipos de avaliacao disponiveis para leitura no recorte."
+    },
+    {
+      title: "Respostas concluidas",
+      value: String(dashboard?.scopeSummary?.submittedAssignments ?? summary?.submittedAssignments ?? 0),
+      detail: `${dashboard?.scopeSummary?.pendingAssignments ?? summary?.pendingAssignments ?? 0} assignments seguem pendentes.`
+    },
+    {
+      title: "Adesao ao ciclo",
+      value: dashboard?.cards?.find((item) => item.label === "Adesao ao ciclo")?.value || "0%",
+      detail: latestCyclePeriod
+        ? `${latestCyclePeriod.submittedAssignments}/${latestCyclePeriod.totalAssignments} concluidas em ${latestCyclePeriod.label}.`
+        : "Sem periodo consolidado no recorte atual."
+    },
+    {
+      title: "Perguntas analisaveis",
+      value: String(
+        filteredDashboardResponseDistributions.reduce(
+          (total, group) => total + (group.questions || []).filter((question) => !question.protected).length,
+          0
+        )
+      ),
+      detail: "Perguntas com distribuicao, ranking, comparativos ou CSV disponiveis."
+    }
+  ];
+  const evaluationQuickActions = [
+    {
+      key: "Avaliacoes",
+      label: "Abrir Avaliacoes",
+      detail: "Responder, operar ciclos e consultar leituras",
+      tone: "primary"
+    }
+  ];
   const topKpis = [
     {
       label: "Saude 360",
@@ -460,13 +498,14 @@ export function DashboardSection({
         dashboardHeadline={dashboardHeadline}
         dashboardTimeGrouping={dashboardTimeGrouping}
         dashboardTimeGroupingOptions={dashboardTimeGroupingOptions}
-        executiveHighlights={executiveHighlights}
+        executiveHighlights={isEvaluationFocused ? evaluationFocusHighlights : executiveHighlights}
         focusPills={focusPills}
+        isEvaluationFocused={isEvaluationFocused}
         isExecutiveView={isExecutiveView}
         onSectionChange={onSectionChange}
         profileName={profileName}
         priorityActions={priorityActions}
-        quickActions={quickActions}
+        quickActions={isEvaluationFocused ? evaluationQuickActions : quickActions}
         setDashboardAnalyticalTheme={setDashboardAnalyticalTheme}
         setDashboardAreaFilter={setDashboardAreaFilter}
         setDashboardCompositionFilter={setDashboardCompositionFilter}

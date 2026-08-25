@@ -11,7 +11,10 @@ test("admin explora o dashboard analitico de resultados", async ({ page }) => {
   await expect(page.locator('[aria-label="Filtros do dashboard"]')).toBeVisible();
 
   await page.getByRole("button", { name: /Leitura analitica/i }).click();
-  await expect(page.getByText("Sintese rapida do recorte")).toBeVisible();
+  await expect(page.getByText("Sintese das avaliacoes")).toBeVisible();
+  await expect(page.getByText("Avaliacoes, perguntas e respostas")).toBeVisible();
+  await expect(page.getByText("Panorama por tema")).toHaveCount(0);
+  await expect(page.getByText("Indicadores executivos")).toHaveCount(0);
   const executivePanel = page.getByRole("tabpanel", { name: "Visão Executiva" });
 
   const areaSelect = page

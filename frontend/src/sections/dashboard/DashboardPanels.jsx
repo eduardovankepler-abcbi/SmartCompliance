@@ -62,6 +62,7 @@ export function DashboardTopPanels({
   dashboardTimeGroupingOptions,
   executiveHighlights,
   focusPills,
+  isEvaluationFocused,
   isExecutiveView,
   onSectionChange,
   profileName,
@@ -104,9 +105,13 @@ export function DashboardTopPanels({
               </p>
               <span className="badge">Painel {isExecutiveView ? "executivo" : "analitico"}</span>
             </div>
-            <p className="dashboard-command-headline">{dashboardHeadline}</p>
+            <p className="dashboard-command-headline">
+              {isEvaluationFocused ? "Avaliacoes, perguntas e respostas" : dashboardHeadline}
+            </p>
             <p className="muted">
-              {dashboard?.notice || `Contexto de leitura para ${profileName || "time"}.`}
+              {isEvaluationFocused
+                ? "Leitura dedicada ao ciclo: adesao, modalidades, perguntas, respostas e pendencias."
+                : dashboard?.notice || `Contexto de leitura para ${profileName || "time"}.`}
             </p>
           </div>
           <div className="dashboard-command-controls">
@@ -210,8 +215,8 @@ export function DashboardTopPanels({
         <div className="card card-span dashboard-executive-brief-card">
           <DashboardCardHeader
             eyebrow="Resumo"
-            title="Sintese rapida do recorte"
-            subtitle="Sintese orientada a decisao"
+            title={isEvaluationFocused ? "Sintese das avaliacoes" : "Sintese rapida do recorte"}
+            subtitle={isEvaluationFocused ? "Ciclo, respostas e pendencias" : "Sintese orientada a decisao"}
             tone="primary"
           />
           <div className="executive-brief-grid">
@@ -226,7 +231,7 @@ export function DashboardTopPanels({
         </div>
       ) : null}
 
-      {!isExecutiveView && storyCards.length ? (
+      {!isExecutiveView && !isEvaluationFocused && storyCards.length ? (
         <div className="card card-span dashboard-story-card">
           <DashboardCardHeader
             eyebrow="Panorama"
@@ -257,7 +262,7 @@ export function DashboardTopPanels({
         </div>
       ) : null}
 
-      {!isExecutiveView ? (
+      {!isExecutiveView && !isEvaluationFocused ? (
         <>
           <div className="card-span dashboard-section-band summary">
             <div className="dashboard-section-band-copy">
