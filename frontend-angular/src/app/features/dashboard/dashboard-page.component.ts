@@ -203,7 +203,10 @@ const dashboardQuickActions: readonly DashboardQuickAction[] = [
               </div>
 
               @if (evaluationQuestionGroups().length) {
-                @for (relationship of evaluationQuestionGroups(); track relationship.relationshipType) {
+                @for (relationship of evaluationQuestionGroups(); track relationship.relationshipType; let firstRelationship = $first) {
+                  @if (!firstRelationship) {
+                    <hr aria-hidden="true" />
+                  }
                   <article class="dashboard__relationship-analysis">
                     <header>
                       <div>
@@ -229,7 +232,7 @@ const dashboardQuickActions: readonly DashboardQuickAction[] = [
                               <article class="dashboard__question-card">
                                 <div>
                                   <div class="dashboard__question-card-head">
-                                    <strong>{{ question.questionPrompt }}</strong>
+                                    <strong>{{ questionOrderLabel(question) }}{{ question.questionPrompt }}</strong>
                                     <span>{{ question.totalAnswers || 0 }} resp.</span>
                                   </div>
                                   @if (!(question.totalAnswers || question.answeredCount || 0)) {
@@ -760,17 +763,18 @@ export class DashboardPageComponent implements OnInit {
       categories: [...categories.entries()]
         .map(([category, questions]) => ({
           category,
-          questions: [...questions].sort(
-            (left, right) =>
-              String(left.questionPrompt || '').localeCompare(String(right.questionPrompt || ''), 'pt-BR'),
-          ),
+          questions: [...questions].sort((left, right) => this.questionSortValue(left) - this.questionSortValue(right)),
           totalAnswers: questions.reduce(
             (total, question) => total + Number(question.totalAnswers || question.answeredCount || 0),
             0,
           ),
           averageScoreLabel: this.categoryAverageScoreLabel(questions),
         }))
-        .sort((left, right) => left.category.localeCompare(right.category, 'pt-BR')),
+        .sort(
+          (left, right) =>
+            this.categorySortValue(left.questions) - this.categorySortValue(right.questions) ||
+            left.category.localeCompare(right.category, 'pt-BR'),
+        ),
     };
   }
 
@@ -800,6 +804,19 @@ export class DashboardPageComponent implements OnInit {
     const order = ['manager', 'leader', 'leader-self', 'self', 'cross-functional'];
     const index = order.indexOf(relationshipType);
     return index === -1 ? order.length : index;
+  }
+
+  private questionSortValue(question: DashboardQuestionDistribution): number {
+    return Number.isFinite(Number(question.position)) ? Number(question.position) : Number.MAX_SAFE_INTEGER;
+  }
+
+  private categorySortValue(questions: DashboardQuestionDistribution[]): number {
+    return Math.min(...questions.map((question) => this.questionSortValue(question)));
+  }
+
+  questionOrderLabel(question: DashboardQuestionDistribution): string {
+    const position = Number(question.position);
+    return Number.isFinite(position) && position > 0 ? `${position}. ` : '';
   }
 
   ngOnInit(): void {

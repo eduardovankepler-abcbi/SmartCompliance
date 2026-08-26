@@ -61,6 +61,7 @@ export interface DashboardQuestionDistribution {
   questionPrompt: string;
   dimensionTitle: string;
   answerType?: string;
+  position?: number;
   totalEligibleResponses?: number;
   answeredCount?: number;
   totalAnswers: number;
