@@ -176,12 +176,28 @@ const dashboardQuickActions: readonly DashboardQuickAction[] = [
                 </div>
               </div>
             </div>
+          </article>
 
+          <article class="dashboard__panel">
+            <header>
+              <div>
+                <span>Cobertura</span>
+                <h2>Indicadores do recorte</h2>
+              </div>
+            </header>
+            <div class="dashboard__donuts">
+              @for (metric of currentOverview.donutMetrics; track metric.key) {
+                <app-dashboard-donut-metric [metric]="metric" />
+              }
+            </div>
+          </article>
+
+          <article class="dashboard__panel dashboard__panel--full">
             <section class="dashboard__question-analysis" aria-label="Analise das respostas por pergunta">
               <div class="dashboard__question-analysis-head">
                 <div>
                   <span>Analise por categoria</span>
-                  <h3>Perguntas e respostas</h3>
+                  <h2>Perguntas e respostas</h2>
                 </div>
                 <small>{{ evaluationQuestionCount() }} perguntas no recorte</small>
               </div>
@@ -265,20 +281,6 @@ const dashboardQuickActions: readonly DashboardQuickAction[] = [
                 </div>
               }
             </section>
-          </article>
-
-          <article class="dashboard__panel">
-            <header>
-              <div>
-                <span>Cobertura</span>
-                <h2>Indicadores do recorte</h2>
-              </div>
-            </header>
-            <div class="dashboard__donuts">
-              @for (metric of currentOverview.donutMetrics; track metric.key) {
-                <app-dashboard-donut-metric [metric]="metric" />
-              }
-            </div>
           </article>
 
           <article class="dashboard__panel" id="pdi">
@@ -515,6 +517,7 @@ const dashboardQuickActions: readonly DashboardQuickAction[] = [
     .dashboard__board { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
     .dashboard__panel { display: grid; gap: 16px; min-height: 250px; padding: 16px; }
     .dashboard__panel--wide { grid-column: span 2; }
+    .dashboard__panel--full { grid-column: 1 / -1; }
     .dashboard__panel header {
       display: flex;
       align-items: start;
@@ -531,7 +534,7 @@ const dashboardQuickActions: readonly DashboardQuickAction[] = [
     .dashboard__relationship-analysis, .dashboard__category, .dashboard__question-card { border: 1px solid var(--abc-border); border-radius: 8px; }
     .dashboard__relationship-analysis, .dashboard__category { display: grid; gap: 8px; padding: 10px; background: var(--abc-surface-muted); }
     .dashboard__category-list { display: grid; gap: 8px; }
-    .dashboard__question-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+    .dashboard__question-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
     .dashboard__question-card { display: grid; gap: 7px; padding: 10px; background: var(--abc-surface); }
     .dashboard__question-card-head span, .dashboard__zero-badge { font-size: 12px; }
     .dashboard__option-list { display: grid; gap: 5px; }
