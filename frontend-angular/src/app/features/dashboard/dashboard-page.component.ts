@@ -227,13 +227,15 @@ const dashboardQuickActions: readonly DashboardQuickAction[] = [
                           <div class="dashboard__question-grid">
                             @for (question of category.questions; track questionTrackKey(question)) {
                               <article class="dashboard__question-card">
-                                <div class="dashboard__question-card-head">
-                                  <strong>{{ question.questionPrompt }}</strong>
-                                  <span>{{ question.totalAnswers || 0 }} resp.</span>
+                                <div>
+                                  <div class="dashboard__question-card-head">
+                                    <strong>{{ question.questionPrompt }}</strong>
+                                    <span>{{ question.totalAnswers || 0 }} resp.</span>
+                                  </div>
+                                  @if (!(question.totalAnswers || question.answeredCount || 0)) {
+                                    <small class="dashboard__zero-badge">Sem respostas ainda</small>
+                                  }
                                 </div>
-                                @if (!(question.totalAnswers || question.answeredCount || 0)) {
-                                  <small class="dashboard__zero-badge">Sem respostas ainda</small>
-                                }
 
                                 @if (question.protected) {
                                   <div class="dashboard__question-empty">
@@ -534,9 +536,8 @@ const dashboardQuickActions: readonly DashboardQuickAction[] = [
     .dashboard__relationship-analysis, .dashboard__category, .dashboard__question-card { border: 1px solid var(--abc-border); border-radius: 8px; }
     .dashboard__relationship-analysis, .dashboard__category { display: grid; gap: 8px; padding: 10px; background: var(--abc-surface-muted); }
     .dashboard__category-list { display: grid; gap: 8px; }
-    .dashboard__question-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
-    .dashboard__question-card { display: grid; gap: 7px; padding: 10px; background: var(--abc-surface); }
-    .dashboard__question-card-head span, .dashboard__zero-badge { font-size: 12px; }
+    .dashboard__question-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 8px; }
+    .dashboard__question-card { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(220px, 1.1fr); gap: 12px; padding: 10px; background: var(--abc-surface); }
     .dashboard__option-list { display: grid; gap: 5px; }
     .dashboard__option-track { height: 6px; overflow: hidden; background: var(--abc-border); border-radius: 999px; }
     .dashboard__option-track span { display: block; height: 100%; background: var(--abc-blue); }
