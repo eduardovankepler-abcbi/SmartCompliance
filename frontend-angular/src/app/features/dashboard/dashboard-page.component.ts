@@ -8,6 +8,8 @@ import { AppSectionKey, getNavigationSection } from '../../core/navigation/navig
 import {
   DashboardOperationalAlert,
   DashboardOverview,
+  DashboardQuestionDistribution,
+  DashboardResponseDistribution,
   DashboardRiskSummary,
   DashboardService,
   DashboardTimeGrouping,
@@ -26,6 +28,21 @@ interface DashboardQuickAction {
   label: string;
   detail: string;
   path: string[];
+}
+
+interface DashboardQuestionCategoryGroup {
+  category: string;
+  questions: DashboardQuestionDistribution[];
+  totalAnswers: number;
+  averageScoreLabel: string;
+}
+
+interface DashboardRelationshipQuestionGroup {
+  relationshipType: string;
+  relationshipLabel: string;
+  totalResponses: number;
+  totalEligibleResponses: number;
+  categories: DashboardQuestionCategoryGroup[];
 }
 
 const dashboardQuickActions: readonly DashboardQuickAction[] = [
@@ -159,6 +176,96 @@ const dashboardQuickActions: readonly DashboardQuickAction[] = [
                 </div>
               </div>
             </div>
+
+            <section class="dashboard__question-analysis" aria-label="Analise das respostas por pergunta">
+              <div class="dashboard__question-analysis-head">
+                <div>
+                  <span>Analise por categoria</span>
+                  <h3>Perguntas e respostas</h3>
+                </div>
+                <small>{{ evaluationQuestionCount() }} perguntas no recorte</small>
+              </div>
+
+              @if (evaluationQuestionGroups().length) {
+                @for (relationship of evaluationQuestionGroups(); track relationship.relationshipType) {
+                  <article class="dashboard__relationship-analysis">
+                    <header>
+                      <div>
+                        <span>Modalidade</span>
+                        <h4>{{ relationship.relationshipLabel }}</h4>
+                      </div>
+                      <small>{{ relationship.totalResponses }}/{{ relationship.totalEligibleResponses }} respostas</small>
+                    </header>
+
+                    <div class="dashboard__category-list">
+                      @for (category of relationship.categories; track category.category) {
+                        <section class="dashboard__category">
+                          <div class="dashboard__category-head">
+                            <div>
+                              <span>Categoria</span>
+                              <strong>{{ category.category }}</strong>
+                            </div>
+                            <small>{{ category.questions.length }} perguntas · {{ category.totalAnswers }} respostas · media {{ category.averageScoreLabel }}</small>
+                          </div>
+
+                          <div class="dashboard__question-grid">
+                            @for (question of category.questions; track questionTrackKey(question)) {
+                              <article class="dashboard__question-card">
+                                <div class="dashboard__question-card-head">
+                                  <strong>{{ question.dimensionTitle || 'Pergunta' }}</strong>
+                                  <span>{{ question.totalAnswers || 0 }} resp.</span>
+                                </div>
+                                @if (!(question.totalAnswers || question.answeredCount || 0)) {
+                                  <small class="dashboard__zero-badge">Sem respostas ainda</small>
+                                }
+                                <p>{{ question.questionPrompt }}</p>
+
+                                @if (question.protected) {
+                                  <div class="dashboard__question-empty">
+                                    <strong>Detalhe protegido</strong>
+                                    <span>A pergunta entra nos totais, mas o detalhamento foi ocultado por privacidade.</span>
+                                  </div>
+                                } @else if (question.options.length) {
+                                  <div class="dashboard__option-list">
+                                    @for (option of question.options; track option.value) {
+                                      <div class="dashboard__option-row">
+                                        <div class="dashboard__option-label">
+                                          <span>{{ option.label }}</span>
+                                          <strong>{{ option.total }} · {{ option.percentage }}%</strong>
+                                        </div>
+                                        <div class="dashboard__option-track">
+                                          <span [style.width.%]="option.percentage"></span>
+                                        </div>
+                                      </div>
+                                    }
+                                  </div>
+                                } @else {
+                                  <div class="dashboard__question-empty">
+                                    <strong>{{ (question.totalAnswers || question.answeredCount || 0) ? 'Sem distribuicao' : 'Sem respostas ainda' }}</strong>
+                                    <span>
+                                      {{
+                                        (question.totalAnswers || question.answeredCount || 0)
+                                          ? 'Esta pergunta nao possui alternativas agregaveis para grafico.'
+                                          : 'A estrutura ja esta pronta; os indicadores serao preenchidos quando houver respostas.'
+                                      }}
+                                    </span>
+                                  </div>
+                                }
+                              </article>
+                            }
+                          </div>
+                        </section>
+                      }
+                    </div>
+                  </article>
+                }
+              } @else {
+                <div class="dashboard__question-empty">
+                  <strong>Sem perguntas esperadas no recorte</strong>
+                  <span>Publique questionarios ou distribua assignments para habilitar a analise por pergunta.</span>
+                </div>
+              }
+            </section>
           </article>
 
           <article class="dashboard__panel">
@@ -420,6 +527,17 @@ const dashboardQuickActions: readonly DashboardQuickAction[] = [
     .dashboard__stack { display: grid; gap: 14px; }
     .dashboard__mini-list { display: grid; gap: 8px; }
     .dashboard__mini-list p { margin: 0; padding: 10px 12px; background: var(--abc-surface-muted); border: 1px solid var(--abc-border); border-radius: 6px; }
+    .dashboard__question-analysis { display: grid; gap: 12px; padding-top: 14px; border-top: 1px solid var(--abc-border); }
+    .dashboard__question-analysis-head, .dashboard__category-head, .dashboard__question-card-head, .dashboard__option-label { display: flex; align-items: start; justify-content: space-between; gap: 12px; }
+    .dashboard__relationship-analysis, .dashboard__category, .dashboard__question-card { border: 1px solid var(--abc-border); border-radius: 8px; }
+    .dashboard__relationship-analysis, .dashboard__category { display: grid; gap: 12px; padding: 12px; background: var(--abc-surface-muted); }
+    .dashboard__question-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .dashboard__question-card { display: grid; gap: 10px; padding: 12px; background: var(--abc-surface); }
+    .dashboard__question-card-head span, .dashboard__zero-badge { font-size: 12px; }
+    .dashboard__question-card p { margin: 0; }
+    .dashboard__option-list { display: grid; gap: 8px; }
+    .dashboard__option-track { height: 8px; overflow: hidden; background: var(--abc-border); border-radius: 999px; }
+    .dashboard__option-track span { display: block; height: 100%; background: var(--abc-blue); }
     .dashboard__donuts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; align-items: start; }
     .dashboard__risk-strip, .dashboard__alerts {
       display: grid;
@@ -467,7 +585,7 @@ const dashboardQuickActions: readonly DashboardQuickAction[] = [
       .dashboard__hero, .dashboard__panel header, .dashboard__error { align-items: stretch; flex-direction: column; }
       .dashboard__hero-actions, .dashboard__brand { align-items: stretch; flex-direction: column; }
       .dashboard__brand-mark { width: 100%; height: 44px; border-right: 0; border-bottom: 1px solid rgb(255 255 255 / 22%); }
-      .dashboard__nav, .dashboard__kpis, .dashboard__board, .dashboard__split, .dashboard__donuts, .dashboard__risk-strip, .dashboard__alerts, .dashboard__governance-grid {
+      .dashboard__nav, .dashboard__kpis, .dashboard__board, .dashboard__split, .dashboard__donuts, .dashboard__risk-strip, .dashboard__alerts, .dashboard__governance-grid, .dashboard__question-grid {
         grid-template-columns: 1fr;
       }
       label, .dashboard__filter-note { width: 100%; }
@@ -533,6 +651,18 @@ export class DashboardPageComponent implements OnInit {
       value: item.adherencePercentage,
       valueLabel: `${item.adherencePercentage}%`,
     })),
+  );
+  readonly evaluationQuestionGroups = computed<DashboardRelationshipQuestionGroup[]>(() =>
+    (this.overview()?.responseDistributions ?? [])
+      .map((distribution) => this.buildRelationshipQuestionGroup(distribution))
+      .filter((group) => group.categories.length > 0),
+  );
+  readonly evaluationQuestionCount = computed(() =>
+    this.evaluationQuestionGroups().reduce(
+      (total, group) =>
+        total + group.categories.reduce((categoryTotal, category) => categoryTotal + category.questions.length, 0),
+      0,
+    ),
   );
 
   healthScoreLabel(overview: DashboardOverview): string {
@@ -601,6 +731,60 @@ export class DashboardPageComponent implements OnInit {
   bestSatisfactionScore(): string {
     const best = [...(this.overview()?.satisfactionByArea ?? [])].sort((left, right) => right.scoreValue - left.scoreValue)[0];
     return best ? `${best.score} de media em ${best.area}` : 'Sem leitura suficiente';
+  }
+
+  questionTrackKey(question: DashboardQuestionDistribution): string {
+    return question.questionKey || question.questionnaireQuestionId || question.questionId;
+  }
+
+  private buildRelationshipQuestionGroup(distribution: DashboardResponseDistribution): DashboardRelationshipQuestionGroup {
+    const categories = new Map<string, DashboardQuestionDistribution[]>();
+    for (const question of distribution.questions ?? []) {
+      const category = question.dimensionTitle || 'Sem categoria';
+      categories.set(category, [...(categories.get(category) ?? []), question]);
+    }
+
+    return {
+      relationshipType: distribution.relationshipType,
+      relationshipLabel: this.relationshipLabel(distribution.relationshipType),
+      totalResponses: distribution.totalResponses || 0,
+      totalEligibleResponses: distribution.totalEligibleResponses || distribution.totalResponses || 0,
+      categories: [...categories.entries()]
+        .map(([category, questions]) => ({
+          category,
+          questions: [...questions].sort(
+            (left, right) =>
+              String(left.questionPrompt || '').localeCompare(String(right.questionPrompt || ''), 'pt-BR'),
+          ),
+          totalAnswers: questions.reduce(
+            (total, question) => total + Number(question.totalAnswers || question.answeredCount || 0),
+            0,
+          ),
+          averageScoreLabel: this.categoryAverageScoreLabel(questions),
+        }))
+        .sort((left, right) => left.category.localeCompare(right.category, 'pt-BR')),
+    };
+  }
+
+  private categoryAverageScoreLabel(questions: DashboardQuestionDistribution[]): string {
+    const scores = questions
+      .map((question) => question.averageScore)
+      .filter((score): score is number => typeof score === 'number' && Number.isFinite(score));
+    if (!scores.length) return '-';
+    return (scores.reduce((total, score) => total + score, 0) / scores.length).toFixed(1);
+  }
+
+  private relationshipLabel(relationshipType: string): string {
+    const labels: Record<string, string> = {
+      manager: 'Lider avalia liderado',
+      peer: 'Pares',
+      self: 'Autoavaliacao',
+      'cross-functional': 'Avaliacao transversal',
+      'leader-self': 'Autoavaliacao do lider',
+      'peer-same-area': 'Mesmo setor',
+      company: 'Satisfacao',
+    };
+    return labels[relationshipType] || relationshipType;
   }
 
   ngOnInit(): void {

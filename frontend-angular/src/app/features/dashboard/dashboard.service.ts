@@ -56,15 +56,27 @@ export interface DashboardDistributionOption {
 
 export interface DashboardQuestionDistribution {
   questionId: string;
+  questionKey?: string;
+  questionnaireQuestionId?: string | null;
   questionPrompt: string;
   dimensionTitle: string;
+  answerType?: string;
+  totalEligibleResponses?: number;
+  answeredCount?: number;
   totalAnswers: number;
+  responseRate?: number;
+  averageScore?: number | null;
+  averageScoreLabel?: string;
+  protected?: boolean;
+  sampleSufficient?: boolean;
   options: DashboardDistributionOption[];
 }
 
 export interface DashboardResponseDistribution {
   relationshipType: string;
   totalResponses: number;
+  totalEligibleResponses?: number;
+  sampleSufficient?: boolean;
   questions: DashboardQuestionDistribution[];
 }
 
