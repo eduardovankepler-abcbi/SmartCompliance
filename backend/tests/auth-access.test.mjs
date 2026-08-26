@@ -650,6 +650,10 @@ export async function runAuthAccessRegression() {
       "Dashboard deve retornar perguntas agregadas com distribuicao, comparativos e taxa de resposta"
     );
     assert.ok(
+      dashboardQuestionRows.some((question) => Number(question.answeredCount || 0) === 0),
+      "Dashboard deve manter perguntas esperadas mesmo antes da primeira resposta"
+    );
+    assert.ok(
       dashboardQuestionRows.every(
         (question) =>
           !question.protected ||

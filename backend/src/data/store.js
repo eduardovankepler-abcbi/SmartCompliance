@@ -3643,6 +3643,49 @@ function getAnswerOptionLabel({ answer, value, relationshipType }) {
   return String(value);
 }
 
+function getQuestionOptionLabel({ question, value, relationshipType }) {
+  const numericValue = Number(value);
+  const libraryOption = question?.options?.find((item) => String(item.value) === String(value));
+  if (libraryOption?.label) {
+    return libraryOption.label;
+  }
+  if (Number.isFinite(numericValue)) {
+    if (question?.scaleProfile === "satisfaction") {
+      return evaluationLibrary.scale.find((item) => item.value === numericValue)?.label || String(value);
+    }
+    return (
+      getTemplateForRelationship(relationshipType)?.policy?.scale?.find(
+        (item) => item.value === numericValue
+      )?.label || String(value)
+    );
+  }
+  return String(value);
+}
+
+function getQuestionExpectedOptions(question, relationshipType) {
+  if (Array.isArray(question?.options) && question.options.length) {
+    return question.options.map((option) => ({
+      value: option.value,
+      label: option.label || String(option.value),
+      total: 0
+    }));
+  }
+
+  if (question?.inputType === "scale") {
+    const scale =
+      question.scaleProfile === "satisfaction"
+        ? evaluationLibrary.scale
+        : getTemplateForRelationship(relationshipType)?.policy?.scale || evaluationLibrary.scale;
+    return (scale || []).map((option) => ({
+      value: option.value,
+      label: option.label || String(option.value),
+      total: 0
+    }));
+  }
+
+  return [];
+}
+
 function buildQuestionMetricSnapshot(question) {
   const averageScore = question.scores.length
     ? Number(average(question.scores).toFixed(2))
@@ -3690,13 +3733,83 @@ function presentQuestionSegment(entry) {
   };
 }
 
-function buildQuestionDistributions(responses, { cycles = [], timeGrouping = "semester" } = {}) {
+function buildExpectedQuestionDistributionSeed({ assignments = [], cycles = [] } = {}) {
+  const cyclesById = new Map((cycles || []).map((cycle) => [cycle.id, cycle]));
+
+  return (assignments || []).reduce((acc, assignment) => {
+    if (!assignment?.relationshipType) {
+      return acc;
+    }
+
+    const relationshipEntry = acc[assignment.relationshipType] || {
+      relationshipType: assignment.relationshipType,
+      totalResponses: 0,
+      totalEligibleResponses: 0,
+      questions: {}
+    };
+    relationshipEntry.totalEligibleResponses += 1;
+
+    const cycle = cyclesById.get(assignment.cycleId) || null;
+    const template = getTemplateDefinitionForCycle({
+      cycle,
+      relationshipType: assignment.relationshipType
+    }) || getTemplateForRelationship(assignment.relationshipType);
+
+    for (const question of template?.questions || []) {
+      const questionKey = question.questionnaireQuestionId || question.id;
+      if (!questionKey) {
+        continue;
+      }
+
+      const questionEntry = relationshipEntry.questions[questionKey] || {
+        questionId: question.sourceQuestionId || question.id,
+        questionnaireQuestionId: question.questionnaireQuestionId || null,
+        questionKey,
+        questionPrompt: question.prompt || "",
+        dimensionTitle: question.dimensionTitle || "Sem dimensao",
+        answerType: question.inputType || "scale",
+        position: Number(question.sortOrder || 0),
+        isSensitive: isSensitiveQuestionDefinition(question),
+        totalEligibleResponses: 0,
+        answeredCount: 0,
+        scores: [],
+        options: new Map(),
+        periods: {},
+        areas: {}
+      };
+      questionEntry.totalEligibleResponses += 1;
+
+      for (const option of getQuestionExpectedOptions(question, assignment.relationshipType)) {
+        const optionKey = String(option.value);
+        if (!questionEntry.options.has(optionKey)) {
+          questionEntry.options.set(optionKey, {
+            value: option.value,
+            label: option.label || getQuestionOptionLabel({
+              question,
+              value: option.value,
+              relationshipType: assignment.relationshipType
+            }),
+            total: 0
+          });
+        }
+      }
+
+      relationshipEntry.questions[questionKey] = questionEntry;
+    }
+
+    acc[assignment.relationshipType] = relationshipEntry;
+    return acc;
+  }, {});
+}
+
+function buildQuestionDistributions(responses, { cycles = [], timeGrouping = "semester", assignments = [] } = {}) {
   const cyclesById = new Map((cycles || []).map((cycle) => [cycle.id, cycle]));
   return Object.entries(
     responses.reduce((acc, response) => {
       const relationshipEntry = acc[response.relationshipType] || {
         relationshipType: response.relationshipType,
         totalResponses: 0,
+        totalEligibleResponses: 0,
         questions: {}
       };
       relationshipEntry.totalResponses += 1;
@@ -3716,14 +3829,15 @@ function buildQuestionDistributions(responses, { cycles = [], timeGrouping = "se
           answerType,
           position: Number(findQuestionDefinition(answer.questionId)?.sortOrder || 0),
           isSensitive: Boolean(answer.isSensitive),
-          totalEligibleResponses: relationshipEntry.totalResponses,
+          totalEligibleResponses: relationshipEntry.totalEligibleResponses || relationshipEntry.totalResponses,
           answeredCount: 0,
           scores: [],
           options: new Map(),
           periods: {},
           areas: {}
         };
-        questionEntry.totalEligibleResponses = relationshipEntry.totalResponses;
+        questionEntry.totalEligibleResponses =
+          questionEntry.totalEligibleResponses || relationshipEntry.totalEligibleResponses || relationshipEntry.totalResponses;
         questionEntry.isSensitive = questionEntry.isSensitive || Boolean(answer.isSensitive);
 
         if (!hasAnswerValue(answer)) {
@@ -3791,27 +3905,23 @@ function buildQuestionDistributions(responses, { cycles = [], timeGrouping = "se
         relationshipEntry.questions[questionKey] = questionEntry;
       }
 
-      Object.values(relationshipEntry.questions).forEach((question) => {
-        question.totalEligibleResponses = relationshipEntry.totalResponses;
-      });
-
       acc[response.relationshipType] = relationshipEntry;
       return acc;
-    }, {})
+    }, buildExpectedQuestionDistributionSeed({ assignments, cycles }))
   ).map(([, relationshipEntry]) => ({
     relationshipType: relationshipEntry.relationshipType,
     totalResponses: relationshipEntry.totalResponses,
-    totalEligibleResponses: relationshipEntry.totalResponses,
+    totalEligibleResponses: relationshipEntry.totalEligibleResponses || relationshipEntry.totalResponses,
     sampleSufficient:
       !isAnonymousRelationship(relationshipEntry.relationshipType) ||
       relationshipEntry.totalResponses >= MIN_ANONYMOUS_AGGREGATE_RESPONSES,
     questions: Object.values(relationshipEntry.questions)
-      .filter((question) => question.answeredCount > 0)
       .map((question) => {
         const metricSnapshot = buildQuestionMetricSnapshot(question);
         const protectedBySample =
           question.isSensitive ||
           (isAnonymousRelationship(relationshipEntry.relationshipType) &&
+            question.answeredCount > 0 &&
             question.answeredCount < MIN_ANONYMOUS_AGGREGATE_RESPONSES);
 
         return {
@@ -3875,7 +3985,8 @@ function buildQuestionDistributions(responses, { cycles = [], timeGrouping = "se
   })).filter(
     (group) =>
       !isAnonymousRelationship(group.relationshipType) ||
-      group.totalResponses >= MIN_ANONYMOUS_AGGREGATE_RESPONSES
+      group.totalResponses >= MIN_ANONYMOUS_AGGREGATE_RESPONSES ||
+      group.totalEligibleResponses > 0
   );
 }
 
@@ -5417,7 +5528,11 @@ function buildDashboardPayload({
       timeGrouping
     }),
     evaluationHighlights,
-    responseDistributions: buildQuestionDistributions(scopedResponses, { cycles, timeGrouping }),
+    responseDistributions: buildQuestionDistributions(scopedResponses, {
+      cycles,
+      timeGrouping,
+      assignments
+    }),
     evaluationMix: buildEvaluationMixSeries(assignments),
     evaluationResultsSummary: buildEvaluationResultsSummarySeries(assignments, scopedResponses),
     performanceHealth,

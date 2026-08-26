@@ -59,6 +59,14 @@ test("admin explora o dashboard analitico de resultados", async ({ page }) => {
     executivePanel.locator(".dashboard-question-category-section").first().locator(".response-chart-card").first()
   ).toBeVisible();
 
+  await areaSelect.selectOption("all");
+  await compositionSelect.selectOption("cross-functional");
+  await expect(executivePanel.locator(".dashboard-question-category-section").first()).toBeVisible();
+  await expect(executivePanel.getByText("Sem respostas ainda").first()).toBeVisible();
+  await expect(
+    executivePanel.locator(".dashboard-question-category-section").first().locator(".response-chart-card").first()
+  ).toContainText("0 resp.");
+
   await page.getByRole("tab", { name: "Resultados" }).click();
   await expect(
     page.getByRole("tabpanel", { name: "Resultados" }).getByText("Resultado por modalidade")

@@ -249,6 +249,7 @@ export function ResponseDistributionChartCard({ question }) {
   const [isOpen, setIsOpen] = useState(false);
   const safeOptions = (question?.options || []).filter(Boolean);
   const hasScore = question?.averageScore !== null && question?.averageScore !== undefined;
+  const hasResponses = Number(question?.totalAnswers || question?.answeredCount || 0) > 0;
   const chartValues = safeOptions.map((option) => Math.max(Number(option.percentage || 0), 0));
   const chartTotal = chartValues.reduce((total, value) => total + value, 0);
   const chartLabels = chartTotal > 0 ? safeOptions.map((option) => option.label) : ["Sem respostas"];
@@ -289,6 +290,7 @@ export function ResponseDistributionChartCard({ question }) {
             </p>
           </div>
           <div className="response-chart-actions">
+            {!hasResponses ? <span className="badge">Sem respostas ainda</span> : null}
             <span className="response-chart-total">{question.totalAnswers} resp.</span>
             {safeOptions.length ? (
               <button
@@ -351,9 +353,17 @@ export function ResponseDistributionChartCard({ question }) {
           </div>
         ) : (
           <div className="dashboard-empty-relationship-state">
-            <strong>{question.answerType === "text" ? "Resposta textual contabilizada" : "Sem distribuicao"}</strong>
+            <strong>
+              {!hasResponses
+                ? "Sem respostas ainda"
+                : question.answerType === "text"
+                  ? "Resposta textual contabilizada"
+                  : "Sem distribuicao"}
+            </strong>
             <p className="muted">
-              {question.answerType === "text"
+              {!hasResponses
+                ? "A estrutura da pergunta ja esta pronta; os indicadores serao preenchidos quando houver respostas."
+                : question.answerType === "text"
                 ? "O dashboard mostra somente volume de respostas textuais, sem abrir comentarios individuais."
                 : "A pergunta foi respondida, mas nao possui opcoes agregaveis para grafico."}
             </p>
