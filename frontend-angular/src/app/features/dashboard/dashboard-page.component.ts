@@ -816,6 +816,9 @@ export class DashboardPageComponent implements OnInit {
 
   questionOrderLabel(question: DashboardQuestionDistribution): string {
     const position = Number(question.position);
+    if (/^\s*\d+\s*[\).:-]/.test(question.questionPrompt || '')) {
+      return '';
+    }
     return Number.isFinite(position) && position > 0 ? `${position}. ` : '';
   }
 
