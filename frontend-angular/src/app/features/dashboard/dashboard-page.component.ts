@@ -650,7 +650,7 @@ export class DashboardPageComponent implements OnInit {
   );
   readonly evaluationResultItems = computed<DashboardChartDatum[]>(() =>
     (this.overview()?.evaluationResultsSummary ?? []).map((item) => ({
-      label: item.relationshipType,
+      label: this.relationshipLabel(item.relationshipType),
       value: item.adherencePercentage,
       valueLabel: `${item.adherencePercentage}%`,
     })),
@@ -658,7 +658,12 @@ export class DashboardPageComponent implements OnInit {
   readonly evaluationQuestionGroups = computed<DashboardRelationshipQuestionGroup[]>(() =>
     (this.overview()?.responseDistributions ?? [])
       .map((distribution) => this.buildRelationshipQuestionGroup(distribution))
-      .filter((group) => group.categories.length > 0),
+      .filter((group) => group.categories.length > 0)
+      .sort(
+        (left, right) =>
+          this.relationshipSortValue(left.relationshipType) - this.relationshipSortValue(right.relationshipType) ||
+          left.relationshipLabel.localeCompare(right.relationshipLabel, 'pt-BR'),
+      ),
   );
   readonly evaluationQuestionCount = computed(() =>
     this.evaluationQuestionGroups().reduce(
@@ -779,15 +784,22 @@ export class DashboardPageComponent implements OnInit {
 
   private relationshipLabel(relationshipType: string): string {
     const labels: Record<string, string> = {
-      manager: 'Lider avalia liderado',
+      manager: 'Avaliação do líder sobre o colaborador',
+      leader: 'Avaliação do colaborador sobre o líder',
+      'leader-self': 'Autoavaliação do líder',
+      self: 'Autoavaliação profissional',
+      'cross-functional': 'Avaliação por Colaborador de Outro Setor – não entra na pontuação',
       peer: 'Pares',
-      self: 'Autoavaliacao',
-      'cross-functional': 'Avaliacao transversal',
-      'leader-self': 'Autoavaliacao do lider',
-      'peer-same-area': 'Mesmo setor',
-      company: 'Satisfacao',
+      'peer-same-area': 'Colega da mesma área',
+      company: 'Satisfação',
     };
     return labels[relationshipType] || relationshipType;
+  }
+
+  private relationshipSortValue(relationshipType: string): number {
+    const order = ['manager', 'leader', 'leader-self', 'self', 'cross-functional'];
+    const index = order.indexOf(relationshipType);
+    return index === -1 ? order.length : index;
   }
 
   ngOnInit(): void {
