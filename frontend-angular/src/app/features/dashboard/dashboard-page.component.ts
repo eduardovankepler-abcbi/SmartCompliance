@@ -212,13 +212,12 @@ const dashboardQuickActions: readonly DashboardQuickAction[] = [
                             @for (question of category.questions; track questionTrackKey(question)) {
                               <article class="dashboard__question-card">
                                 <div class="dashboard__question-card-head">
-                                  <strong>{{ question.dimensionTitle || 'Pergunta' }}</strong>
+                                  <strong>{{ question.questionPrompt }}</strong>
                                   <span>{{ question.totalAnswers || 0 }} resp.</span>
                                 </div>
                                 @if (!(question.totalAnswers || question.answeredCount || 0)) {
                                   <small class="dashboard__zero-badge">Sem respostas ainda</small>
                                 }
-                                <p>{{ question.questionPrompt }}</p>
 
                                 @if (question.protected) {
                                   <div class="dashboard__question-empty">
@@ -527,16 +526,16 @@ const dashboardQuickActions: readonly DashboardQuickAction[] = [
     .dashboard__stack { display: grid; gap: 14px; }
     .dashboard__mini-list { display: grid; gap: 8px; }
     .dashboard__mini-list p { margin: 0; padding: 10px 12px; background: var(--abc-surface-muted); border: 1px solid var(--abc-border); border-radius: 6px; }
-    .dashboard__question-analysis { display: grid; gap: 12px; padding-top: 14px; border-top: 1px solid var(--abc-border); }
+    .dashboard__question-analysis { display: grid; gap: 10px; padding-top: 12px; border-top: 1px solid var(--abc-border); }
     .dashboard__question-analysis-head, .dashboard__category-head, .dashboard__question-card-head, .dashboard__option-label { display: flex; align-items: start; justify-content: space-between; gap: 12px; }
     .dashboard__relationship-analysis, .dashboard__category, .dashboard__question-card { border: 1px solid var(--abc-border); border-radius: 8px; }
-    .dashboard__relationship-analysis, .dashboard__category { display: grid; gap: 12px; padding: 12px; background: var(--abc-surface-muted); }
-    .dashboard__question-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-    .dashboard__question-card { display: grid; gap: 10px; padding: 12px; background: var(--abc-surface); }
+    .dashboard__relationship-analysis, .dashboard__category { display: grid; gap: 8px; padding: 10px; background: var(--abc-surface-muted); }
+    .dashboard__category-list { display: grid; gap: 8px; }
+    .dashboard__question-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+    .dashboard__question-card { display: grid; gap: 7px; padding: 10px; background: var(--abc-surface); }
     .dashboard__question-card-head span, .dashboard__zero-badge { font-size: 12px; }
-    .dashboard__question-card p { margin: 0; }
-    .dashboard__option-list { display: grid; gap: 8px; }
-    .dashboard__option-track { height: 8px; overflow: hidden; background: var(--abc-border); border-radius: 999px; }
+    .dashboard__option-list { display: grid; gap: 5px; }
+    .dashboard__option-track { height: 6px; overflow: hidden; background: var(--abc-border); border-radius: 999px; }
     .dashboard__option-track span { display: block; height: 100%; background: var(--abc-blue); }
     .dashboard__donuts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; align-items: start; }
     .dashboard__risk-strip, .dashboard__alerts {
