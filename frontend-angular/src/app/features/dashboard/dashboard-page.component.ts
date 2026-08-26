@@ -4,7 +4,6 @@ import { firstValueFrom } from 'rxjs';
 
 import { AuthService } from '../../core/auth/auth.service';
 import { ApiError } from '../../core/http/api-error';
-import { AppSectionKey, getNavigationSection } from '../../core/navigation/navigation.config';
 import {
   DashboardDistributionOption,
   DashboardOperationalAlert,
@@ -23,13 +22,6 @@ import { DashboardLineChartComponent } from './charts/dashboard-line-chart.compo
 interface TimeGroupingOption {
   value: DashboardTimeGrouping;
   label: string;
-}
-
-interface DashboardQuickAction {
-  sectionKey: AppSectionKey;
-  label: string;
-  detail: string;
-  path: string[];
 }
 
 interface DashboardQuestionCategoryGroup {
@@ -61,38 +53,26 @@ interface QuestionTrendSeries {
   latestPercentage: number;
 }
 
-const dashboardQuickActions: readonly DashboardQuickAction[] = [
-  {
-    sectionKey: 'evaluations',
-    label: 'Avaliacoes',
-    detail: 'Respostas e ciclos',
-    path: ['/app', 'evaluations'],
-  },
-  {
-    sectionKey: 'development',
-    label: 'PDI',
-    detail: 'Planos e trilhas',
-    path: ['/app', 'development'],
-  },
-  {
-    sectionKey: 'compliance',
-    label: 'Compliance',
-    detail: 'Issues e inconformidades',
-    path: ['/app', 'compliance'],
-  },
-  {
-    sectionKey: 'applause',
-    label: 'Aplause',
-    detail: 'Reconhecimentos recebidos',
-    path: ['/app', 'applause'],
-  },
-  {
-    sectionKey: 'people',
-    label: 'Pessoas',
-    detail: 'Estrutura de equipes',
-    path: ['/app', 'people'],
-  },
-];
+type DashboardTab = 'evaluations' | 'governance';
+type GovernanceTone = 'positive' | 'warning' | 'critical' | 'neutral';
+
+interface GovernanceModalityRow {
+  relationshipType: string;
+  label: string;
+  totalAssignments: number;
+  totalResponses: number;
+  adherencePercentage: number;
+  readingLabel: string;
+  readingTone: GovernanceTone;
+  scoreParticipationLabel: string;
+}
+
+interface GovernanceChecklistItem {
+  key: string;
+  label: string;
+  detail: string;
+  tone: GovernanceTone;
+}
 
 @Component({
   selector: 'app-dashboard-page',
@@ -122,11 +102,27 @@ const dashboardQuickActions: readonly DashboardQuickAction[] = [
       @if (overview(); as currentOverview) {
         <nav class="dashboard__nav" aria-label="Navegacao do dashboard">
           <strong>Navegacao</strong>
-          <a href="#avaliacoes">Avaliacoes</a>
+          <button
+            type="button"
+            class="dashboard__nav-tab"
+            [class.dashboard__nav-tab--active]="activeDashboardTab() === 'evaluations'"
+            [attr.aria-current]="activeDashboardTab() === 'evaluations' ? 'page' : null"
+            (click)="selectDashboardTab('evaluations')"
+          >
+            Avaliacoes
+          </button>
           <a [routerLink]="['/app/dashboard/pdi']">PDI</a>
           <a [routerLink]="['/app/dashboard/compliance']">Compliance</a>
           <a [routerLink]="['/app/dashboard/applause']">Aplause</a>
-          <a href="#governanca">Governanca</a>
+          <button
+            type="button"
+            class="dashboard__nav-tab"
+            [class.dashboard__nav-tab--active]="activeDashboardTab() === 'governance'"
+            [attr.aria-current]="activeDashboardTab() === 'governance' ? 'page' : null"
+            (click)="selectDashboardTab('governance')"
+          >
+            Governanca
+          </button>
         </nav>
 
         <section class="dashboard__filters" aria-label="Filtros do dashboard">
@@ -145,7 +141,7 @@ const dashboardQuickActions: readonly DashboardQuickAction[] = [
             Consolidar por
             <select [value]="timeGrouping()" (change)="changeTimeGrouping($any($event.target).value)">
               @for (option of timeGroupingOptions; track option.value) {
-                <option [value]="option.value">{{ option.label }}</option>
+                <option [value]="option.value" [selected]="option.value === timeGrouping()">{{ option.label }}</option>
               }
             </select>
           </label>
@@ -162,17 +158,18 @@ const dashboardQuickActions: readonly DashboardQuickAction[] = [
           </div>
         }
 
-        <section class="dashboard__kpis" aria-label="Indicadores principais">
-          @for (card of currentOverview.cards; track card.label) {
-            <article>
-              <span>{{ card.label }}</span>
-              <strong>{{ card.value }}</strong>
-              <small>{{ card.trend }}</small>
-            </article>
-          }
-        </section>
+        @if (activeDashboardTab() === 'evaluations') {
+          <section class="dashboard__kpis" aria-label="Indicadores principais">
+            @for (card of currentOverview.cards; track card.label) {
+              <article>
+                <span>{{ card.label }}</span>
+                <strong>{{ card.value }}</strong>
+                <small>{{ card.trend }}</small>
+              </article>
+            }
+          </section>
 
-        <section class="dashboard__board" aria-label="Painel executivo">
+          <section class="dashboard__board" aria-label="Painel executivo">
           <article class="dashboard__panel dashboard__panel--wide" id="avaliacoes">
             <header>
               <div>
@@ -384,24 +381,102 @@ const dashboardQuickActions: readonly DashboardQuickAction[] = [
             <app-dashboard-bar-chart [items]="satisfactionItems()" ariaLabel="Satisfacao media por area" [valueMax]="5" />
           </article>
 
-          <article class="dashboard__panel dashboard__panel--wide" id="governanca">
-            <header>
+          </section>
+        } @else {
+          <section class="dashboard__governance" aria-labelledby="governance-title">
+            <header class="dashboard__governance-head">
               <div>
-                <span>Governanca</span>
-                <h2>{{ modeLabel(currentOverview) }}</h2>
+                <span>Governanca executiva</span>
+                <h2 id="governance-title">Controle, cobertura e prontidao do recorte</h2>
               </div>
               <small>{{ currentOverview.scopeLabel }}</small>
             </header>
-            <div class="dashboard__governance-grid">
-              @for (action of quickActions(); track action.label) {
-                <a [routerLink]="action.path" [attr.aria-label]="'Abrir ' + action.label">
-                  <span>{{ action.label }}</span>
-                  <strong>{{ action.detail }}</strong>
-                </a>
+
+            <section class="dashboard__governance-block" aria-labelledby="governance-panorama-title">
+              <header>
+                <div>
+                  <span>Panorama de governanca</span>
+                  <h3 id="governance-panorama-title">Contexto administrativo atual</h3>
+                </div>
+              </header>
+              <div class="dashboard__governance-panorama">
+                <article class="dashboard__governance-context">
+                  <dl>
+                    <div><dt>Escopo</dt><dd>{{ currentOverview.scopeLabel }}</dd></div>
+                    <div><dt>Visibilidade</dt><dd>{{ visibilityProfileLabel(currentOverview) }}</dd></div>
+                    <div><dt>Agrupamento</dt><dd>{{ timeGroupingLabel(currentOverview.timeGrouping) }}</dd></div>
+                    <div><dt>Area</dt><dd>{{ governanceAreaLabel(currentOverview) }}</dd></div>
+                  </dl>
+                  <p><strong>Privacidade:</strong> {{ privacyRuleLabel(currentOverview) }}</p>
+                </article>
+                <div class="dashboard__governance-metrics" aria-label="Totais do recorte">
+                  <article><span>Pessoas</span><strong>{{ currentOverview.scopeSummary.peopleCount }}</strong></article>
+                  <article><span>Distribuidos</span><strong>{{ currentOverview.scopeSummary.totalAssignments }}</strong></article>
+                  <article><span>Concluidos</span><strong>{{ currentOverview.scopeSummary.submittedAssignments }}</strong></article>
+                  <article><span>Pendentes</span><strong>{{ currentOverview.scopeSummary.pendingAssignments }}</strong></article>
+                </div>
+              </div>
+            </section>
+
+            <section class="dashboard__governance-block" aria-labelledby="governance-coverage-title">
+              <header>
+                <div>
+                  <span>Cobertura e privacidade</span>
+                  <h3 id="governance-coverage-title">Leitura por modalidade</h3>
+                </div>
+                <small>{{ governanceModalities().length }} modalidades</small>
+              </header>
+              @if (governanceModalities().length) {
+                <div class="dashboard__governance-table-wrap">
+                  <table class="dashboard__governance-table">
+                    <thead>
+                      <tr>
+                        <th>Modalidade</th>
+                        <th>Assignments</th>
+                        <th>Respostas</th>
+                        <th>Adesao</th>
+                        <th>Leitura</th>
+                        <th>Pontuacao</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (modality of governanceModalities(); track modality.relationshipType) {
+                        <tr>
+                          <td><strong>{{ modality.label }}</strong></td>
+                          <td>{{ modality.totalAssignments }}</td>
+                          <td>{{ modality.totalResponses }}</td>
+                          <td>{{ modality.adherencePercentage }}%</td>
+                          <td><span class="dashboard__status" [attr.data-tone]="modality.readingTone">{{ modality.readingLabel }}</span></td>
+                          <td>{{ modality.scoreParticipationLabel }}</td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              } @else {
+                <p class="dashboard__empty">Nenhuma modalidade distribuida no recorte atual.</p>
               }
-            </div>
-          </article>
-        </section>
+            </section>
+
+            <section class="dashboard__governance-block" aria-labelledby="governance-checklist-title">
+              <header>
+                <div>
+                  <span>Alertas e checklist</span>
+                  <h3 id="governance-checklist-title">Prontidao para decisao</h3>
+                </div>
+              </header>
+              <div class="dashboard__governance-checklist">
+                @for (item of governanceChecklist(); track item.key) {
+                  <article [attr.data-tone]="item.tone">
+                    <span class="dashboard__status" [attr.data-tone]="item.tone">{{ governanceToneLabel(item.tone) }}</span>
+                    <strong>{{ item.label }}</strong>
+                    <p>{{ item.detail }}</p>
+                  </article>
+                }
+              </div>
+            </section>
+          </section>
+        }
 
         @if (isLoading()) {
           <p class="dashboard__updating" aria-live="polite">Atualizando indicadores...</p>
@@ -478,7 +553,7 @@ const dashboardQuickActions: readonly DashboardQuickAction[] = [
   `,
   styles: `
     .dashboard { display: grid; gap: 14px; max-width: 1280px; }
-    .dashboard__hero, .dashboard__nav, .dashboard__filters, .dashboard__panel, .dashboard__kpis article {
+    .dashboard__hero, .dashboard__nav, .dashboard__filters, .dashboard__panel, .dashboard__kpis article, .dashboard__governance-head, .dashboard__governance-block {
       color: var(--abc-text);
       background: var(--abc-surface);
       border: 1px solid var(--abc-border);
@@ -545,7 +620,7 @@ const dashboardQuickActions: readonly DashboardQuickAction[] = [
       font-size: 13px;
       text-transform: uppercase;
     }
-    .dashboard__nav a, .dashboard__governance-grid a {
+    .dashboard__nav a, .dashboard__nav-tab {
       min-height: 36px;
       padding: 9px 12px;
       color: inherit;
@@ -556,7 +631,7 @@ const dashboardQuickActions: readonly DashboardQuickAction[] = [
       border-radius: 6px;
       font-weight: 800;
     }
-    .dashboard__nav a:first-of-type { color: var(--abc-on-blue); background: var(--abc-blue); border-color: var(--abc-blue); box-shadow: 0 8px 18px color-mix(in srgb, var(--abc-blue) 22%, transparent); }
+    .dashboard__nav-tab--active { color: var(--abc-on-blue); background: var(--abc-blue); border-color: var(--abc-blue); box-shadow: 0 8px 18px color-mix(in srgb, var(--abc-blue) 22%, transparent); }
     .dashboard__filters {
       display: flex;
       flex-wrap: wrap;
@@ -658,23 +733,63 @@ const dashboardQuickActions: readonly DashboardQuickAction[] = [
     }
     .dashboard__applause strong { font-size: 54px; line-height: 1; color: var(--abc-success); }
     .dashboard__applause span { margin-top: 8px; font-weight: 800; text-transform: uppercase; }
-    .dashboard__governance-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
-    .dashboard__governance-grid a { display: grid; gap: 4px; text-align: left; }
-    .dashboard__governance-grid span { color: var(--abc-blue-dark); font-size: 12px; font-weight: 800; text-transform: uppercase; }
-    .dashboard__governance-grid strong { font-size: 13px; }
+    .dashboard__governance { display: grid; gap: 14px; }
+    .dashboard__governance-head, .dashboard__governance-block > header {
+      display: flex;
+      align-items: start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .dashboard__governance-head { padding: 16px; border-left: 3px solid var(--abc-blue); }
+    .dashboard__governance-head span, .dashboard__governance-block header span, .dashboard__governance-metrics span {
+      color: var(--abc-text-muted);
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+    .dashboard__governance-head small, .dashboard__governance-block header small { color: var(--abc-text-muted); }
+    .dashboard__governance-block { display: grid; gap: 14px; padding: 16px; }
+    .dashboard__governance-block h3 { margin: 3px 0 0; font-size: 16px; }
+    .dashboard__governance-panorama { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(420px, .65fr); gap: 14px; }
+    .dashboard__governance-context { padding: 14px; background: var(--abc-surface-muted); border: 1px solid var(--abc-border); border-radius: 7px; }
+    .dashboard__governance-context dl { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 0; }
+    .dashboard__governance-context dt { color: var(--abc-text-muted); font-size: 11px; font-weight: 800; text-transform: uppercase; }
+    .dashboard__governance-context dd { margin: 4px 0 0; font-size: 13px; font-weight: 800; }
+    .dashboard__governance-context p { margin: 14px 0 0; padding-top: 12px; color: var(--abc-text-muted); border-top: 1px solid var(--abc-border); font-size: 13px; line-height: 1.45; }
+    .dashboard__governance-context p strong { color: var(--abc-text); }
+    .dashboard__governance-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+    .dashboard__governance-metrics article { padding: 12px; background: var(--abc-surface-muted); border: 1px solid var(--abc-border); border-top: 3px solid var(--abc-blue); border-radius: 7px; }
+    .dashboard__governance-metrics strong { display: block; margin-top: 7px; font-size: 24px; }
+    .dashboard__governance-table-wrap { overflow-x: auto; border: 1px solid var(--abc-border); border-radius: 7px; }
+    .dashboard__governance-table { width: 100%; min-width: 820px; border-collapse: collapse; font-size: 13px; }
+    .dashboard__governance-table th, .dashboard__governance-table td { padding: 11px 12px; text-align: left; border-bottom: 1px solid var(--abc-border); }
+    .dashboard__governance-table th { color: var(--abc-text-muted); background: var(--abc-surface-muted); font-size: 11px; text-transform: uppercase; }
+    .dashboard__governance-table tbody tr:last-child td { border-bottom: 0; }
+    .dashboard__status { display: inline-flex; padding: 4px 8px; color: var(--abc-text-muted); background: var(--abc-surface-muted); border: 1px solid var(--abc-border); border-radius: 999px; font-size: 11px; font-weight: 800; }
+    .dashboard__status[data-tone='positive'] { color: var(--abc-success); background: color-mix(in srgb, var(--abc-success) 9%, var(--abc-surface)); border-color: color-mix(in srgb, var(--abc-success) 28%, var(--abc-border)); }
+    .dashboard__status[data-tone='warning'] { color: var(--abc-warning); background: color-mix(in srgb, var(--abc-warning) 9%, var(--abc-surface)); border-color: color-mix(in srgb, var(--abc-warning) 28%, var(--abc-border)); }
+    .dashboard__status[data-tone='critical'] { color: var(--abc-danger); background: color-mix(in srgb, var(--abc-danger) 9%, var(--abc-surface)); border-color: color-mix(in srgb, var(--abc-danger) 28%, var(--abc-border)); }
+    .dashboard__governance-checklist { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+    .dashboard__governance-checklist article { display: grid; align-content: start; gap: 8px; padding: 12px; border: 1px solid var(--abc-border); border-left: 3px solid var(--abc-border); border-radius: 7px; }
+    .dashboard__governance-checklist article[data-tone='positive'] { border-left-color: var(--abc-success); }
+    .dashboard__governance-checklist article[data-tone='warning'] { border-left-color: var(--abc-warning); }
+    .dashboard__governance-checklist article[data-tone='critical'] { border-left-color: var(--abc-danger); }
+    .dashboard__governance-checklist p { margin: 0; color: var(--abc-text-muted); font-size: 13px; line-height: 1.4; }
     @media (max-width: 1120px) {
       .dashboard__kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
       .dashboard__board { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .dashboard__panel--wide { grid-column: 1 / -1; }
-      .dashboard__governance-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .dashboard__governance-panorama { grid-template-columns: 1fr; }
+      .dashboard__governance-checklist { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
     @media (max-width: 760px) {
-      .dashboard__hero, .dashboard__panel header, .dashboard__error { align-items: stretch; flex-direction: column; }
+      .dashboard__hero, .dashboard__panel header, .dashboard__error, .dashboard__governance-head, .dashboard__governance-block > header { align-items: stretch; flex-direction: column; }
       .dashboard__hero-actions, .dashboard__brand { align-items: stretch; flex-direction: column; }
       .dashboard__brand-mark { width: 100%; height: 44px; border-right: 0; border-bottom: 1px solid rgb(255 255 255 / 22%); }
-      .dashboard__nav, .dashboard__kpis, .dashboard__board, .dashboard__split, .dashboard__donuts, .dashboard__risk-strip, .dashboard__alerts, .dashboard__governance-grid, .dashboard__question-grid {
+      .dashboard__nav, .dashboard__kpis, .dashboard__board, .dashboard__split, .dashboard__donuts, .dashboard__risk-strip, .dashboard__alerts, .dashboard__question-grid, .dashboard__governance-context dl, .dashboard__governance-checklist {
         grid-template-columns: 1fr;
       }
+      .dashboard__governance-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       label, .dashboard__filter-note { width: 100%; }
       h1 { font-size: 24px; }
     }
@@ -686,6 +801,7 @@ export class DashboardPageComponent implements OnInit {
   private requestId = 0;
 
   readonly overview = signal<DashboardOverview | null>(null);
+  readonly activeDashboardTab = signal<DashboardTab>('evaluations');
   readonly selectedQuestion = signal<SelectedDashboardQuestion | null>(null);
   readonly errorMessage = signal('');
   readonly isLoading = signal(true);
@@ -694,10 +810,6 @@ export class DashboardPageComponent implements OnInit {
   readonly canFilterByArea = computed(() => {
     const roleKey = this.auth.user()?.roleKey;
     return roleKey === 'admin' || roleKey === 'hr';
-  });
-  readonly quickActions = computed(() => {
-    const roleKey = this.auth.user()?.roleKey ?? '';
-    return dashboardQuickActions.filter((action) => getNavigationSection(action.sectionKey)?.roles.includes(roleKey));
   });
   readonly timeGroupingOptions: readonly TimeGroupingOption[] = [
     { value: 'cycle', label: 'Ciclo' },
@@ -758,6 +870,178 @@ export class DashboardPageComponent implements OnInit {
       0,
     ),
   );
+  readonly governanceModalities = computed<GovernanceModalityRow[]>(() => {
+    const overview = this.overview();
+    if (!overview) return [];
+
+    const relationshipTypes = new Set([
+      ...(overview.evaluationMix ?? []).map((item) => item.type),
+      ...(overview.evaluationResultsSummary ?? []).map((item) => item.relationshipType),
+      ...(overview.responseDistributions ?? []).map((item) => item.relationshipType),
+    ]);
+    return [...relationshipTypes]
+      .map((relationshipType) => {
+        const mix = overview.evaluationMix?.find((item) => item.type === relationshipType);
+        const result = overview.evaluationResultsSummary?.find((item) => item.relationshipType === relationshipType);
+        const distribution = overview.responseDistributions?.find((item) => item.relationshipType === relationshipType);
+        const totalAssignments = Number(result?.totalAssignments ?? mix?.total ?? distribution?.totalEligibleResponses ?? 0);
+        const totalResponses = Number(result?.totalResponses ?? distribution?.totalResponses ?? 0);
+        const protectedBySample =
+          distribution?.sampleSufficient === false ||
+          (distribution?.questions ?? []).some((question) => question.protected || question.sampleSufficient === false);
+        const adherencePercentage = Number(
+          result?.adherencePercentage ?? (totalAssignments ? Math.round((totalResponses / totalAssignments) * 100) : 0),
+        );
+
+        let readingLabel = 'Leitura liberada';
+        let readingTone: GovernanceTone = 'positive';
+        if (!totalResponses) {
+          readingLabel = 'Sem respostas';
+          readingTone = 'critical';
+        } else if (protectedBySample) {
+          readingLabel = 'Protegida por amostra';
+          readingTone = 'warning';
+        } else if (totalAssignments > totalResponses) {
+          readingLabel = 'Leitura parcial';
+          readingTone = 'warning';
+        }
+
+        return {
+          relationshipType,
+          label: this.relationshipLabel(relationshipType),
+          totalAssignments,
+          totalResponses,
+          adherencePercentage,
+          readingLabel,
+          readingTone,
+          scoreParticipationLabel:
+            relationshipType === 'cross-functional'
+              ? 'Nao'
+              : 'Nao informado',
+        };
+      })
+      .sort(
+        (left, right) =>
+          this.relationshipSortValue(left.relationshipType) - this.relationshipSortValue(right.relationshipType) ||
+          left.label.localeCompare(right.label, 'pt-BR'),
+      );
+  });
+  readonly governanceChecklist = computed<GovernanceChecklistItem[]>(() => {
+    const overview = this.overview();
+    if (!overview) return [];
+
+    const pendingAssignments = overview.scopeSummary.pendingAssignments;
+    const modalitiesWithoutResponses = this.governanceModalities().filter((item) => item.totalResponses === 0).length;
+    const questions = (overview.responseDistributions ?? []).flatMap((distribution) => distribution.questions ?? []);
+    const questionsWithoutHistory = questions.filter(
+      (question) =>
+        !question.protected &&
+        Number(question.totalAnswers || question.answeredCount || 0) > 0 &&
+        !this.hasComparableTrend(question),
+    ).length;
+    const protectedQuestions = questions.filter(
+      (question) => question.protected || question.sampleSufficient === false,
+    ).length;
+    const risk = this.riskSummary(overview);
+    const operationalRiskIndicators = [
+      risk.openIncidents,
+      risk.overdueIncidents,
+      risk.unassignedIncidents,
+      risk.blockedDevelopmentPlans,
+      risk.notStartedDevelopmentPlans,
+      risk.pendingLearningEvents,
+    ].filter((value) => value > 0).length;
+    const readyForExecutiveReading =
+      overview.scopeSummary.totalAssignments > 0 &&
+      overview.scopeSummary.submittedAssignments > 0 &&
+      pendingAssignments === 0 &&
+      modalitiesWithoutResponses === 0 &&
+      protectedQuestions === 0;
+
+    return [
+      {
+        key: 'pending-assignments',
+        label: 'Avaliacoes pendentes',
+        detail: pendingAssignments
+          ? `${pendingAssignments} assignments ainda aguardam conclusao.`
+          : 'Todos os assignments distribuidos foram concluidos.',
+        tone: pendingAssignments ? 'warning' : 'positive',
+      },
+      {
+        key: 'modalities-without-responses',
+        label: 'Modalidades sem respostas',
+        detail: modalitiesWithoutResponses
+          ? `${modalitiesWithoutResponses} modalidades ainda nao possuem respostas.`
+          : 'Todas as modalidades distribuidas possuem ao menos uma resposta.',
+        tone: modalitiesWithoutResponses ? 'critical' : 'positive',
+      },
+      {
+        key: 'questions-without-history',
+        label: 'Historico comparavel',
+        detail: questionsWithoutHistory
+          ? `${questionsWithoutHistory} perguntas respondidas ainda nao possuem dois periodos comparaveis.`
+          : 'Nao foram identificadas perguntas respondidas sem historico comparavel.',
+        tone: questionsWithoutHistory ? 'warning' : 'positive',
+      },
+      {
+        key: 'protected-data',
+        label: 'Protecao por amostra',
+        detail: protectedQuestions
+          ? `${protectedQuestions} perguntas possuem detalhe protegido por privacidade ou amostra insuficiente.`
+          : 'Nenhum detalhe esta protegido por insuficiencia de amostra neste recorte.',
+        tone: protectedQuestions ? 'warning' : 'positive',
+      },
+      {
+        key: 'executive-readiness',
+        label: 'Prontidao executiva',
+        detail: readyForExecutiveReading
+          ? 'O recorte possui cobertura completa e leitura liberada para decisao executiva.'
+          : 'O recorte exige atencao aos itens sinalizados antes de uma leitura executiva conclusiva.',
+        tone: readyForExecutiveReading ? 'positive' : 'warning',
+      },
+      {
+        key: 'operational-risks',
+        label: 'Riscos operacionais',
+        detail: operationalRiskIndicators
+          ? `${operationalRiskIndicators} indicadores operacionais demandam acompanhamento no dashboard.`
+          : 'Nao ha riscos operacionais relevantes sinalizados no recorte atual.',
+        tone: risk.overdueIncidents || risk.unassignedIncidents ? 'critical' : operationalRiskIndicators ? 'warning' : 'positive',
+      },
+    ];
+  });
+
+  selectDashboardTab(tab: DashboardTab): void {
+    this.activeDashboardTab.set(tab);
+  }
+
+  visibilityProfileLabel(overview: DashboardOverview): string {
+    if (overview.mode === 'team') return 'Gestor · equipe direta';
+    if (overview.mode === 'personal') return 'Usuario · recorte pessoal';
+    return 'Admin/RH · consolidado autorizado';
+  }
+
+  timeGroupingLabel(grouping: DashboardTimeGrouping): string {
+    return this.timeGroupingOptions.find((option) => option.value === grouping)?.label ?? grouping;
+  }
+
+  governanceAreaLabel(overview: DashboardOverview): string {
+    return overview.selectedArea || (this.areaFilter() === 'all' ? 'Todas as areas' : this.areaFilter());
+  }
+
+  privacyRuleLabel(overview: DashboardOverview): string {
+    const minimumAggregateSize = overview.pdiAnalytics?.minimumAggregateSize;
+    const sampleDescription = minimumAggregateSize
+      ? `Amostra minima indicada: ${minimumAggregateSize}. `
+      : '';
+    return `${sampleDescription}Leituras agregadas abaixo do limite aplicavel e detalhes sensiveis permanecem protegidos.`;
+  }
+
+  governanceToneLabel(tone: GovernanceTone): string {
+    if (tone === 'positive') return 'Regular';
+    if (tone === 'critical') return 'Critico';
+    if (tone === 'warning') return 'Atencao';
+    return 'Informativo';
+  }
 
   healthScoreLabel(overview: DashboardOverview): string {
     return overview.performanceHealth?.averageScoreLabel || overview.cards[0]?.value || '-';
@@ -939,6 +1223,8 @@ export class DashboardPageComponent implements OnInit {
       peer: 'Pares',
       'peer-same-area': 'Colega da mesma área',
       company: 'Satisfação',
+      'client-internal': 'Cliente interno',
+      'client-external': 'Cliente externo',
     };
     return labels[relationshipType] || relationshipType;
   }
