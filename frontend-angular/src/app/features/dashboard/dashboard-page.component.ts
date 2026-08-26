@@ -6,8 +6,10 @@ import { AuthService } from '../../core/auth/auth.service';
 import { ApiError } from '../../core/http/api-error';
 import { AppSectionKey, getNavigationSection } from '../../core/navigation/navigation.config';
 import {
+  DashboardDistributionOption,
   DashboardOperationalAlert,
   DashboardOverview,
+  DashboardQuestionPeriodComparison,
   DashboardQuestionDistribution,
   DashboardResponseDistribution,
   DashboardRiskSummary,
@@ -43,6 +45,20 @@ interface DashboardRelationshipQuestionGroup {
   totalResponses: number;
   totalEligibleResponses: number;
   categories: DashboardQuestionCategoryGroup[];
+}
+
+interface SelectedDashboardQuestion {
+  relationshipLabel: string;
+  category: string;
+  question: DashboardQuestionDistribution;
+}
+
+interface QuestionTrendSeries {
+  value: string | number;
+  label: string | number;
+  color: string;
+  points: string;
+  latestPercentage: number;
 }
 
 const dashboardQuickActions: readonly DashboardQuickAction[] = [
@@ -238,6 +254,13 @@ const dashboardQuickActions: readonly DashboardQuickAction[] = [
                                   @if (!(question.totalAnswers || question.answeredCount || 0)) {
                                     <small class="dashboard__zero-badge">Sem respostas ainda</small>
                                   }
+                                  <button
+                                    type="button"
+                                    class="dashboard__secondary dashboard__question-action"
+                                    (click)="openQuestionTrend(relationship.relationshipLabel, category.category, question)"
+                                  >
+                                    Ver evolução
+                                  </button>
                                 </div>
 
                                 @if (question.protected) {
@@ -392,6 +415,64 @@ const dashboardQuickActions: readonly DashboardQuickAction[] = [
         } @else {
           <p class="dashboard__state">Carregando indicadores...</p>
         }
+      }
+
+      @if (selectedQuestion(); as selected) {
+        <div
+          role="presentation"
+          style="position:fixed;inset:0;z-index:20;padding:24px;overflow:auto;background:rgb(15 23 42 / 72%)"
+          (click)="closeQuestionTrend()"
+        >
+          <section
+            class="dashboard__panel dashboard__modal"
+            style="width:min(980px,100%);max-height:90vh;margin:auto;overflow:auto"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="question-trend-title"
+            (click)="$event.stopPropagation()"
+          >
+            <header>
+              <div>
+                <span>{{ selected.relationshipLabel }} · {{ selected.category }}</span>
+                <h2 id="question-trend-title">{{ selected.question.questionPrompt }}</h2>
+              </div>
+              <button type="button" class="dashboard__secondary" (click)="closeQuestionTrend()">Fechar</button>
+            </header>
+
+            @if (hasComparableTrend(selected.question)) {
+              <div class="dashboard__trend-layout">
+                <svg width="100%" height="300" viewBox="0 0 640 260" role="img" [attr.aria-label]="'Evolucao percentual das respostas por periodo'">
+                  <line x1="44" y1="24" x2="44" y2="212" stroke="currentColor" stroke-width="2" />
+                  <line x1="44" y1="212" x2="612" y2="212" stroke="currentColor" stroke-width="2" />
+                  @for (tick of trendTicks; track tick) {
+                    <line [attr.x1]="44" [attr.x2]="612" [attr.y1]="trendY(tick)" [attr.y2]="trendY(tick)" stroke="currentColor" stroke-width="1" opacity=".35" />
+                    <text x="8" [attr.y]="trendY(tick) + 4" fill="currentColor">{{ tick }}%</text>
+                  }
+                  @for (series of trendSeries(selected.question); track series.value) {
+                    <polyline [attr.points]="series.points" [attr.stroke]="series.color" fill="none" stroke-width="3" />
+                  }
+                  @for (period of trendPeriods(selected.question); track period.key; let i = $index) {
+                    <text [attr.x]="trendX(i, trendPeriods(selected.question).length)" y="238" text-anchor="middle" fill="currentColor">{{ period.label }}</text>
+                  }
+                </svg>
+                <div class="dashboard__trend-legend">
+                  @for (series of trendSeries(selected.question); track series.value) {
+                    <div>
+                      <span [style.color]="series.color">●</span>
+                      <strong>{{ series.label }}</strong>
+                      <small>{{ series.latestPercentage }}% no periodo atual</small>
+                    </div>
+                  }
+                </div>
+              </div>
+            } @else {
+              <div class="dashboard__question-empty">
+                <strong>Sem histórico comparável</strong>
+                <span>O gráfico será exibido quando houver pelo menos dois períodos com distribuição de respostas disponível.</span>
+              </div>
+            }
+          </section>
+        </div>
       }
     </section>
   `,
@@ -605,6 +686,7 @@ export class DashboardPageComponent implements OnInit {
   private requestId = 0;
 
   readonly overview = signal<DashboardOverview | null>(null);
+  readonly selectedQuestion = signal<SelectedDashboardQuestion | null>(null);
   readonly errorMessage = signal('');
   readonly isLoading = signal(true);
   readonly areaFilter = signal('all');
@@ -623,6 +705,7 @@ export class DashboardPageComponent implements OnInit {
     { value: 'quarter', label: 'Trimestre' },
     { value: 'year', label: 'Ano' },
   ];
+  readonly trendTicks = [0, 25, 50, 75, 100];
   readonly timelineItems = computed<DashboardChartDatum[]>(() =>
     (this.overview()?.cycleTimeline ?? []).map((item) => ({
       label: item.label,
@@ -746,6 +829,66 @@ export class DashboardPageComponent implements OnInit {
 
   questionTrackKey(question: DashboardQuestionDistribution): string {
     return question.questionKey || question.questionnaireQuestionId || question.questionId;
+  }
+
+  openQuestionTrend(relationshipLabel: string, category: string, question: DashboardQuestionDistribution): void {
+    this.selectedQuestion.set({ relationshipLabel, category, question });
+  }
+
+  closeQuestionTrend(): void {
+    this.selectedQuestion.set(null);
+  }
+
+  trendPeriods(question: DashboardQuestionDistribution): DashboardQuestionPeriodComparison[] {
+    return (question.comparisons?.periods || []).filter(
+      (period) => Number(period.totalAnswers || 0) > 0 && Array.isArray(period.options),
+    );
+  }
+
+  hasComparableTrend(question: DashboardQuestionDistribution): boolean {
+    return this.trendPeriods(question).length >= 2;
+  }
+
+  trendSeries(question: DashboardQuestionDistribution): QuestionTrendSeries[] {
+    const periods = this.trendPeriods(question);
+    const values = new Map<string, DashboardDistributionOption>();
+    for (const option of question.options || []) {
+      values.set(String(option.value), option);
+    }
+    for (const period of periods) {
+      for (const option of period.options || []) {
+        values.set(String(option.value), option);
+      }
+    }
+
+    return [...values.values()].slice(0, 5).map((option, index) => {
+      const points = periods
+        .map((period, periodIndex) => {
+          const periodOption = (period.options || []).find((item) => String(item.value) === String(option.value));
+          return `${this.trendX(periodIndex, periods.length)},${this.trendY(Number(periodOption?.percentage || 0))}`;
+        })
+        .join(' ');
+      const latest = periods.at(-1)?.options?.find((item) => String(item.value) === String(option.value));
+      return {
+        value: option.value,
+        label: option.label,
+        color: this.trendColor(index),
+        points,
+        latestPercentage: Number(latest?.percentage || 0),
+      };
+    });
+  }
+
+  trendX(index: number, total: number): number {
+    return total <= 1 ? 44 : 44 + (index / (total - 1)) * 568;
+  }
+
+  trendY(percentage: number): number {
+    return 212 - (Math.max(0, Math.min(100, percentage)) / 100) * 188;
+  }
+
+  private trendColor(index: number): string {
+    return ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#a855f7'][index % 5];
   }
 
   private buildRelationshipQuestionGroup(distribution: DashboardResponseDistribution): DashboardRelationshipQuestionGroup {

@@ -3721,7 +3721,7 @@ function buildQuestionMetricSnapshot(question) {
 function presentQuestionSegment(entry) {
   const scores = entry.scores || [];
   const averageScore = scores.length ? Number(average(scores).toFixed(2)) : null;
-  return {
+  const segment = {
     key: entry.key,
     label: entry.label,
     sortValue: entry.sortValue ?? 0,
@@ -3731,6 +3731,17 @@ function presentQuestionSegment(entry) {
     averageScoreLabel: averageScore === null ? "-" : averageScore.toFixed(1),
     responseRate: calculatePercentage(entry.totalAnswers, entry.totalEligibleResponses || entry.totalAnswers)
   };
+  if (entry.options instanceof Map) {
+    segment.options = [...entry.options.values()].map((option) => ({
+      value: option.value,
+      label: option.label,
+      total: option.total,
+      percentage: entry.totalAnswers
+        ? Number(((option.total / entry.totalAnswers) * 100).toFixed(1))
+        : 0
+    }));
+  }
+  return segment;
 }
 
 function buildExpectedQuestionDistributionSeed({ assignments = [], cycles = [] } = {}) {
@@ -3874,12 +3885,27 @@ function buildQuestionDistributions(responses, { cycles = [], timeGrouping = "se
             sortValue: period.sortValue,
             totalAnswers: 0,
             totalEligibleResponses: 0,
-            scores: []
+            scores: [],
+            options: new Map()
           };
           periodEntry.totalAnswers += 1;
           periodEntry.totalEligibleResponses += 1;
           if (Number.isFinite(score)) {
             periodEntry.scores.push(score);
+          }
+          for (const optionValue of getAnswerOptionValues(answer)) {
+            const optionKey = String(optionValue);
+            const optionEntry = periodEntry.options.get(optionKey) || {
+              value: optionValue,
+              label: getAnswerOptionLabel({
+                answer,
+                value: optionValue,
+                relationshipType: response.relationshipType
+              }),
+              total: 0
+            };
+            optionEntry.total += 1;
+            periodEntry.options.set(optionKey, optionEntry);
           }
           questionEntry.periods[period.key] = periodEntry;
         }

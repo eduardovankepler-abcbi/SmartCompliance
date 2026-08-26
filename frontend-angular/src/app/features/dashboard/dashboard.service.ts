@@ -48,10 +48,22 @@ export interface DashboardSatisfactionByArea {
 }
 
 export interface DashboardDistributionOption {
-  value: number;
+  value: string | number;
   label: string | number;
   total: number;
   percentage: number;
+}
+
+export interface DashboardQuestionPeriodComparison {
+  key: string;
+  label: string;
+  sortValue: number;
+  totalAnswers: number;
+  answeredCount: number;
+  averageScore: number | null;
+  averageScoreLabel: string;
+  responseRate: number;
+  options?: DashboardDistributionOption[];
 }
 
 export interface DashboardQuestionDistribution {
@@ -71,6 +83,10 @@ export interface DashboardQuestionDistribution {
   protected?: boolean;
   sampleSufficient?: boolean;
   options: DashboardDistributionOption[];
+  comparisons?: {
+    periods: DashboardQuestionPeriodComparison[];
+    areas: unknown[];
+  };
 }
 
 export interface DashboardResponseDistribution {

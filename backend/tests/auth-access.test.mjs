@@ -654,6 +654,14 @@ export async function runAuthAccessRegression() {
       "Dashboard deve manter perguntas esperadas mesmo antes da primeira resposta"
     );
     assert.ok(
+      dashboardQuestionRows.some((question) =>
+        (question.comparisons?.periods || []).some(
+          (period) => Number(period.totalAnswers || 0) > 0 && Array.isArray(period.options)
+        )
+      ),
+      "Comparativo temporal por pergunta deve expor distribuicao de alternativas por periodo"
+    );
+    assert.ok(
       dashboardQuestionRows.every(
         (question) =>
           !question.protected ||
