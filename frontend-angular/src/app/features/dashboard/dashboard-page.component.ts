@@ -61,6 +61,7 @@ interface GovernanceModalityRow {
   label: string;
   totalAssignments: number;
   totalResponses: number;
+  pendingAssignments: number;
   adherencePercentage: number;
   readingLabel: string;
   readingTone: GovernanceTone;
@@ -71,6 +72,62 @@ interface GovernanceChecklistItem {
   key: string;
   label: string;
   detail: string;
+  tone: GovernanceTone;
+}
+
+interface GovernanceExecutiveSummary {
+  statusLabel: string;
+  limitationLabel: string;
+  riskLabel: string;
+  nextActionLabel: string;
+  adherencePercentage: number;
+  respondingModalities: number;
+  totalModalities: number;
+  comparableQuestions: number;
+  protectedQuestions: number;
+  tone: GovernanceTone;
+}
+
+interface GovernanceTimelineRow {
+  key: string;
+  label: string;
+  totalAssignments: number;
+  submittedAssignments: number;
+  pendingAssignments: number;
+  adherencePercentage: number;
+  deltaLabel: string;
+  tone: GovernanceTone;
+}
+
+interface GovernanceDataQuality {
+  totalQuestions: number;
+  answeredQuestions: number;
+  unansweredQuestions: number;
+  comparableQuestions: number;
+  nonComparableQuestions: number;
+  protectedQuestions: number;
+  readablePercentage: number;
+  conclusionLabel: string;
+  conclusionDetail: string;
+  tone: GovernanceTone;
+}
+
+interface GovernanceCoverageGap {
+  relationshipType: string;
+  label: string;
+  pendingAssignments: number;
+  adherencePercentage: number;
+  detail: string;
+  tone: GovernanceTone;
+}
+
+interface GovernancePriorityAction {
+  key: string;
+  domain: string;
+  label: string;
+  detail: string;
+  recommendation: string;
+  value: number;
   tone: GovernanceTone;
 }
 
@@ -392,6 +449,34 @@ interface GovernanceChecklistItem {
               <small>{{ currentOverview.scopeLabel }}</small>
             </header>
 
+            @if (governanceExecutiveSummary(); as summary) {
+              <section class="dashboard__governance-block" aria-labelledby="governance-summary-title">
+                <header>
+                  <div>
+                    <span>Sintese para decisao</span>
+                    <h3 id="governance-summary-title">Leitura executiva do recorte</h3>
+                  </div>
+                  <span class="dashboard__status" [attr.data-tone]="summary.tone">{{ summary.statusLabel }}</span>
+                </header>
+                <div class="dashboard__governance-panorama">
+                  <article class="dashboard__governance-context">
+                    <dl>
+                      <div><dt>Principal limitacao</dt><dd>{{ summary.limitationLabel }}</dd></div>
+                      <div><dt>Risco mais urgente</dt><dd>{{ summary.riskLabel }}</dd></div>
+                      <div><dt>Proxima acao</dt><dd>{{ summary.nextActionLabel }}</dd></div>
+                    </dl>
+                    <p><strong>Critério:</strong> a situação combina cobertura, comparabilidade, privacidade e riscos já disponíveis no dashboard.</p>
+                  </article>
+                  <div class="dashboard__governance-metrics" aria-label="Evidencias da sintese executiva">
+                    <article><span>Adesao geral</span><strong>{{ summary.adherencePercentage }}%</strong></article>
+                    <article><span>Modalidades ativas</span><strong>{{ summary.respondingModalities }}/{{ summary.totalModalities }}</strong></article>
+                    <article><span>Comparaveis</span><strong>{{ summary.comparableQuestions }}</strong></article>
+                    <article><span>Protegidas</span><strong>{{ summary.protectedQuestions }}</strong></article>
+                  </div>
+                </div>
+              </section>
+            }
+
             <section class="dashboard__governance-block" aria-labelledby="governance-panorama-title">
               <header>
                 <div>
@@ -418,6 +503,55 @@ interface GovernanceChecklistItem {
               </div>
             </section>
 
+            <section class="dashboard__governance-block" aria-labelledby="governance-evolution-title">
+              <header>
+                <div>
+                  <span>Evolucao e confiabilidade</span>
+                  <h3 id="governance-evolution-title">Cobertura ao longo do tempo e qualidade da leitura</h3>
+                </div>
+              </header>
+              <div class="dashboard__governance-panorama">
+                <article class="dashboard__governance-context">
+                  <strong>Evolucao de cobertura</strong>
+                  @if (governanceTimeline().length) {
+                    <div class="dashboard__governance-table-wrap" style="margin-top:12px">
+                      <table class="dashboard__governance-table" style="min-width:560px">
+                        <thead><tr><th>Periodo</th><th>Distribuidos</th><th>Concluidos</th><th>Pendentes</th><th>Adesao</th><th>Variacao</th></tr></thead>
+                        <tbody>
+                          @for (period of governanceTimeline(); track period.key) {
+                            <tr>
+                              <td><strong>{{ period.label }}</strong></td>
+                              <td>{{ period.totalAssignments }}</td>
+                              <td>{{ period.submittedAssignments }}</td>
+                              <td>{{ period.pendingAssignments }}</td>
+                              <td>{{ period.adherencePercentage }}%</td>
+                              <td><span class="dashboard__status" [attr.data-tone]="period.tone">{{ period.deltaLabel }}</span></td>
+                            </tr>
+                          }
+                        </tbody>
+                      </table>
+                    </div>
+                  } @else {
+                    <p>Sem periodos disponiveis para comparacao.</p>
+                  }
+                </article>
+                @if (governanceDataQuality(); as quality) {
+                  <article class="dashboard__governance-context">
+                    <strong>Qualidade dos dados</strong>
+                    <p><span class="dashboard__status" [attr.data-tone]="quality.tone">{{ quality.conclusionLabel }}</span> {{ quality.conclusionDetail }}</p>
+                    <div class="dashboard__governance-checklist">
+                      <article data-tone="neutral"><span>Total</span><strong>{{ quality.totalQuestions }}</strong><p>Perguntas esperadas</p></article>
+                      <article data-tone="positive"><span>Respondidas</span><strong>{{ quality.answeredQuestions }}</strong><p>Com alguma resposta</p></article>
+                      <article data-tone="neutral"><span>Leitura</span><strong>{{ quality.readablePercentage }}%</strong><p>Disponibilidade útil</p></article>
+                      <article data-tone="warning"><span>Sem resposta</span><strong>{{ quality.unansweredQuestions }}</strong><p>Aguardando cobertura</p></article>
+                      <article data-tone="warning"><span>Sem historico</span><strong>{{ quality.nonComparableQuestions }}</strong><p>Ainda não comparáveis</p></article>
+                      <article data-tone="warning"><span>Protegidas</span><strong>{{ quality.protectedQuestions }}</strong><p>Privacidade aplicada</p></article>
+                    </div>
+                  </article>
+                }
+              </div>
+            </section>
+
             <section class="dashboard__governance-block" aria-labelledby="governance-coverage-title">
               <header>
                 <div>
@@ -426,6 +560,17 @@ interface GovernanceChecklistItem {
                 </div>
                 <small>{{ governanceModalities().length }} modalidades</small>
               </header>
+              @if (governanceCoverageGaps().length) {
+                <div class="dashboard__governance-checklist" aria-label="Maiores lacunas de cobertura">
+                  @for (gap of governanceCoverageGaps(); track gap.relationshipType) {
+                    <article [attr.data-tone]="gap.tone">
+                      <span class="dashboard__status" [attr.data-tone]="gap.tone">{{ gap.pendingAssignments }} pendentes</span>
+                      <strong>{{ gap.label }}</strong>
+                      <p>{{ gap.detail }}</p>
+                    </article>
+                  }
+                </div>
+              }
               @if (governanceModalities().length) {
                 <div class="dashboard__governance-table-wrap">
                   <table class="dashboard__governance-table">
@@ -434,6 +579,7 @@ interface GovernanceChecklistItem {
                         <th>Modalidade</th>
                         <th>Assignments</th>
                         <th>Respostas</th>
+                        <th>Pendentes</th>
                         <th>Adesao</th>
                         <th>Leitura</th>
                         <th>Pontuacao</th>
@@ -445,7 +591,11 @@ interface GovernanceChecklistItem {
                           <td><strong>{{ modality.label }}</strong></td>
                           <td>{{ modality.totalAssignments }}</td>
                           <td>{{ modality.totalResponses }}</td>
-                          <td>{{ modality.adherencePercentage }}%</td>
+                          <td>{{ modality.pendingAssignments }}</td>
+                          <td>
+                            <strong>{{ modality.adherencePercentage }}%</strong>
+                            <div class="dashboard__option-track"><span [style.width.%]="modality.adherencePercentage"></span></div>
+                          </td>
                           <td><span class="dashboard__status" [attr.data-tone]="modality.readingTone">{{ modality.readingLabel }}</span></td>
                           <td>{{ modality.scoreParticipationLabel }}</td>
                         </tr>
@@ -458,21 +608,42 @@ interface GovernanceChecklistItem {
               }
             </section>
 
-            <section class="dashboard__governance-block" aria-labelledby="governance-checklist-title">
+            <section class="dashboard__governance-block" aria-labelledby="governance-actions-title">
               <header>
                 <div>
-                  <span>Alertas e checklist</span>
-                  <h3 id="governance-checklist-title">Prontidao para decisao</h3>
+                  <span>Agenda prioritaria</span>
+                  <h3 id="governance-actions-title">Acoes recomendadas para o recorte</h3>
                 </div>
               </header>
               <div class="dashboard__governance-checklist">
-                @for (item of governanceChecklist(); track item.key) {
-                  <article [attr.data-tone]="item.tone">
-                    <span class="dashboard__status" [attr.data-tone]="item.tone">{{ governanceToneLabel(item.tone) }}</span>
-                    <strong>{{ item.label }}</strong>
-                    <p>{{ item.detail }}</p>
+                @for (action of governancePriorityActions(); track action.key) {
+                  <article [attr.data-tone]="action.tone">
+                    <span class="dashboard__status" [attr.data-tone]="action.tone">{{ action.domain }} · {{ governanceToneLabel(action.tone) }}</span>
+                    <strong>{{ action.label }}</strong>
+                    <p>{{ action.detail }}</p>
+                    <p><strong>Acao:</strong> {{ action.recommendation }}</p>
                   </article>
                 }
+              </div>
+              <header>
+                <div>
+                  <span>Checklist de controles</span>
+                  <h3>Prontidao para decisao</h3>
+                </div>
+              </header>
+              <div class="dashboard__governance-table-wrap">
+                <table class="dashboard__governance-table" style="min-width:700px">
+                  <thead><tr><th>Controle</th><th>Situacao</th><th>Evidencia</th></tr></thead>
+                  <tbody>
+                    @for (item of governanceChecklist(); track item.key) {
+                      <tr>
+                        <td><strong>{{ item.label }}</strong></td>
+                        <td><span class="dashboard__status" [attr.data-tone]="item.tone">{{ governanceToneLabel(item.tone) }}</span></td>
+                        <td>{{ item.detail }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
               </div>
             </section>
           </section>
@@ -751,7 +922,7 @@ interface GovernanceChecklistItem {
     .dashboard__governance-block { display: grid; gap: 14px; padding: 16px; }
     .dashboard__governance-block h3 { margin: 3px 0 0; font-size: 16px; }
     .dashboard__governance-panorama { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(420px, .65fr); gap: 14px; }
-    .dashboard__governance-context { padding: 14px; background: var(--abc-surface-muted); border: 1px solid var(--abc-border); border-radius: 7px; }
+    .dashboard__governance-context { min-width: 0; padding: 14px; background: var(--abc-surface-muted); border: 1px solid var(--abc-border); border-radius: 7px; }
     .dashboard__governance-context dl { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 0; }
     .dashboard__governance-context dt { color: var(--abc-text-muted); font-size: 11px; font-weight: 800; text-transform: uppercase; }
     .dashboard__governance-context dd { margin: 4px 0 0; font-size: 13px; font-weight: 800; }
@@ -911,6 +1082,7 @@ export class DashboardPageComponent implements OnInit {
           label: this.relationshipLabel(relationshipType),
           totalAssignments,
           totalResponses,
+          pendingAssignments: Math.max(totalAssignments - totalResponses, 0),
           adherencePercentage,
           readingLabel,
           readingTone,
@@ -926,13 +1098,209 @@ export class DashboardPageComponent implements OnInit {
           left.label.localeCompare(right.label, 'pt-BR'),
       );
   });
+  readonly governanceDataQuality = computed<GovernanceDataQuality | null>(() => {
+    const overview = this.overview();
+    if (!overview) return null;
+
+    const questions = this.governanceQuestions(overview);
+    const answeredQuestions = questions.filter(
+      (question) => Number(question.totalAnswers || question.answeredCount || 0) > 0,
+    );
+    const protectedQuestions = questions.filter(
+      (question) => question.protected || question.sampleSufficient === false,
+    );
+    const comparableQuestions = answeredQuestions.filter(
+      (question) => !question.protected && question.sampleSufficient !== false && this.hasComparableTrend(question),
+    );
+    const nonComparableQuestions = answeredQuestions.filter(
+      (question) => !question.protected && question.sampleSufficient !== false && !this.hasComparableTrend(question),
+    );
+    const readableQuestions = answeredQuestions.filter(
+      (question) => !question.protected && question.sampleSufficient !== false,
+    );
+    const readablePercentage = questions.length
+      ? Math.round((readableQuestions.length / questions.length) * 100)
+      : 0;
+
+    let conclusionLabel = 'Leitura suficiente';
+    let conclusionDetail = 'O recorte possui respostas visiveis e base comparavel para analise executiva.';
+    let tone: GovernanceTone = 'positive';
+    if (!questions.length || !answeredQuestions.length || readablePercentage < 25) {
+      conclusionLabel = 'Leitura limitada';
+      conclusionDetail = questions.length
+        ? 'A baixa cobertura ainda impede conclusoes consistentes.'
+        : 'Nao existem perguntas esperadas no recorte atual.';
+      tone = 'critical';
+    } else if (
+      protectedQuestions.length ||
+      nonComparableQuestions.length ||
+      answeredQuestions.length < questions.length
+    ) {
+      conclusionLabel = 'Leitura parcial';
+      conclusionDetail = 'Existem evidencias uteis, mas cobertura, historico ou privacidade limitam a conclusao.';
+      tone = 'warning';
+    }
+
+    return {
+      totalQuestions: questions.length,
+      answeredQuestions: answeredQuestions.length,
+      unansweredQuestions: Math.max(questions.length - answeredQuestions.length, 0),
+      comparableQuestions: comparableQuestions.length,
+      nonComparableQuestions: nonComparableQuestions.length,
+      protectedQuestions: protectedQuestions.length,
+      readablePercentage,
+      conclusionLabel,
+      conclusionDetail,
+      tone,
+    };
+  });
+  readonly governanceExecutiveSummary = computed<GovernanceExecutiveSummary | null>(() => {
+    const overview = this.overview();
+    const quality = this.governanceDataQuality();
+    if (!overview || !quality) return null;
+
+    const modalities = this.governanceModalities();
+    const respondingModalities = modalities.filter((item) => item.totalResponses > 0).length;
+    const modalitiesWithoutResponses = modalities.length - respondingModalities;
+    const risk = this.riskSummary(overview);
+    const adherencePercentage = overview.scopeSummary.totalAssignments
+      ? Math.round((overview.scopeSummary.submittedAssignments / overview.scopeSummary.totalAssignments) * 100)
+      : 0;
+
+    let limitationLabel = 'Sem limitacoes relevantes no recorte';
+    let nextActionLabel = 'Manter acompanhamento periodico';
+    let statusLabel = 'Leitura liberada';
+    let tone: GovernanceTone = 'positive';
+    if (!overview.scopeSummary.submittedAssignments) {
+      limitationLabel = 'Recorte ainda sem assignments concluidos';
+      nextActionLabel = 'Mobilizar os responsaveis pelas respostas';
+      statusLabel = 'Leitura limitada';
+      tone = 'critical';
+    } else if (modalitiesWithoutResponses) {
+      limitationLabel = `${modalitiesWithoutResponses} modalidades sem respostas`;
+      nextActionLabel = 'Ativar as modalidades sem cobertura';
+      statusLabel = 'Leitura parcial';
+      tone = 'warning';
+    } else if (quality.protectedQuestions) {
+      limitationLabel = `${quality.protectedQuestions} perguntas protegidas por privacidade`;
+      nextActionLabel = 'Aguardar amostra suficiente antes de interpretar';
+      statusLabel = 'Leitura parcial';
+      tone = 'warning';
+    } else if (overview.scopeSummary.pendingAssignments) {
+      limitationLabel = `${overview.scopeSummary.pendingAssignments} assignments pendentes`;
+      nextActionLabel = 'Concluir a cobertura do recorte';
+      statusLabel = 'Leitura parcial';
+      tone = 'warning';
+    } else if (quality.nonComparableQuestions) {
+      limitationLabel = `${quality.nonComparableQuestions} perguntas ainda sem historico comparavel`;
+      nextActionLabel = 'Consolidar o proximo periodo de medicao';
+      statusLabel = 'Leitura parcial';
+      tone = 'warning';
+    }
+
+    const riskLabel = risk.overdueIncidents
+      ? `${risk.overdueIncidents} incidentes fora do prazo`
+      : risk.unassignedIncidents
+        ? `${risk.unassignedIncidents} incidentes sem responsavel`
+        : risk.blockedDevelopmentPlans
+          ? `${risk.blockedDevelopmentPlans} PDIs bloqueados`
+          : risk.openIncidents
+            ? `${risk.openIncidents} incidentes abertos`
+            : 'Sem risco operacional critico sinalizado';
+
+    return {
+      statusLabel,
+      limitationLabel,
+      riskLabel,
+      nextActionLabel,
+      adherencePercentage,
+      respondingModalities,
+      totalModalities: modalities.length,
+      comparableQuestions: quality.comparableQuestions,
+      protectedQuestions: quality.protectedQuestions,
+      tone,
+    };
+  });
+  readonly governanceTimeline = computed<GovernanceTimelineRow[]>(() => {
+    const timeline = this.overview()?.cycleTimeline ?? [];
+    return timeline
+      .map((period, index) => {
+        const previous = timeline[index - 1];
+        const delta = previous ? period.adherencePercentage - previous.adherencePercentage : null;
+        return {
+          key: period.key || `${period.label}-${index}`,
+          label: period.label,
+          totalAssignments: period.totalAssignments,
+          submittedAssignments: period.submittedAssignments,
+          pendingAssignments: period.pendingAssignments,
+          adherencePercentage: period.adherencePercentage,
+          deltaLabel: delta === null ? 'Sem comparacao' : delta === 0 ? 'Estavel' : `${delta > 0 ? '+' : ''}${delta} p.p.`,
+          tone: delta === null || delta === 0 ? 'neutral' : delta > 0 ? 'positive' : 'warning',
+        } satisfies GovernanceTimelineRow;
+      })
+      .slice(-6);
+  });
+  readonly governanceCoverageGaps = computed<GovernanceCoverageGap[]>(() =>
+    this.governanceModalities()
+      .filter((item) => item.totalAssignments > 0 && item.pendingAssignments > 0)
+      .sort(
+        (left, right) =>
+          right.pendingAssignments - left.pendingAssignments ||
+          left.adherencePercentage - right.adherencePercentage,
+      )
+      .slice(0, 3)
+      .map((item) => ({
+        relationshipType: item.relationshipType,
+        label: item.label,
+        pendingAssignments: item.pendingAssignments,
+        adherencePercentage: item.adherencePercentage,
+        detail: item.totalResponses
+          ? `${item.adherencePercentage}% de adesao; concluir a cobertura restante.`
+          : 'Nenhuma resposta recebida; modalidade ainda sem leitura.',
+        tone: item.totalResponses ? 'warning' : 'critical',
+      })),
+  );
+  readonly governancePriorityActions = computed<GovernancePriorityAction[]>(() => {
+    const overview = this.overview();
+    const quality = this.governanceDataQuality();
+    if (!overview || !quality) return [];
+
+    const risk = this.riskSummary(overview);
+    const modalitiesWithoutResponses = this.governanceModalities().filter((item) => item.totalResponses === 0).length;
+    const actions: GovernancePriorityAction[] = [];
+    const add = (
+      key: string,
+      domain: string,
+      label: string,
+      detail: string,
+      recommendation: string,
+      value: number,
+      tone: GovernanceTone,
+    ) => actions.push({ key, domain, label, detail, recommendation, value, tone });
+
+    if (risk.overdueIncidents) add('overdue-incidents', 'Compliance', 'Incidentes fora do prazo', `${risk.overdueIncidents} ocorrencias vencidas.`, 'Priorizar triagem, responsabilizacao e fechamento.', risk.overdueIncidents, 'critical');
+    if (risk.unassignedIncidents) add('unassigned-incidents', 'Compliance', 'Incidentes sem responsavel', `${risk.unassignedIncidents} ocorrencias sem atribuicao.`, 'Definir responsavel e proximo marco de tratamento.', risk.unassignedIncidents, 'critical');
+    if (modalitiesWithoutResponses) add('empty-modalities', 'Avaliacoes', 'Modalidades sem respostas', `${modalitiesWithoutResponses} modalidades ainda sem leitura.`, 'Acionar os grupos responsaveis e verificar bloqueios de distribuicao.', modalitiesWithoutResponses, 'critical');
+    if (risk.blockedDevelopmentPlans) add('blocked-pdis', 'Desenvolvimento', 'PDIs bloqueados', `${risk.blockedDevelopmentPlans} ${risk.blockedDevelopmentPlans === 1 ? 'plano impedido' : 'planos impedidos'} de avancar.`, 'Remover impedimentos e registrar o proximo checkpoint.', risk.blockedDevelopmentPlans, 'critical');
+    if (overview.scopeSummary.pendingAssignments) add('pending-assignments', 'Avaliacoes', 'Cobertura incompleta', `${overview.scopeSummary.pendingAssignments} assignments pendentes.`, 'Concentrar cobranca nas modalidades com maior lacuna.', overview.scopeSummary.pendingAssignments, 'warning');
+    if (quality.protectedQuestions) add('protected-questions', 'Privacidade', 'Amostra insuficiente', `${quality.protectedQuestions} perguntas protegidas.`, 'Preservar a protecao e aguardar volume suficiente.', quality.protectedQuestions, 'warning');
+    if (risk.notStartedDevelopmentPlans) add('not-started-pdis', 'Desenvolvimento', 'PDIs nao iniciados', `${risk.notStartedDevelopmentPlans} ${risk.notStartedDevelopmentPlans === 1 ? 'plano aguarda' : 'planos aguardam'} inicio.`, 'Programar o primeiro checkpoint com gestor e colaborador.', risk.notStartedDevelopmentPlans, 'warning');
+    if (risk.pendingLearningEvents) add('pending-learning', 'Desenvolvimento', 'Aprendizagem pendente', `${risk.pendingLearningEvents} eventos ainda nao realizados.`, 'Revalidar agenda, responsavel e aplicacao esperada.', risk.pendingLearningEvents, 'warning');
+    if (quality.nonComparableQuestions) add('non-comparable', 'Governanca', 'Historico ainda curto', `${quality.nonComparableQuestions} perguntas sem dois periodos comparaveis.`, 'Manter a medicao ate formar uma serie confiavel.', quality.nonComparableQuestions, 'warning');
+    if (!actions.length) add('monitoring', 'Governanca', 'Manter monitoramento', 'Nenhuma acao critica foi identificada.', 'Revisar cobertura e riscos no proximo rito executivo.', 0, 'positive');
+
+    const toneOrder: Record<GovernanceTone, number> = { critical: 0, warning: 1, neutral: 2, positive: 3 };
+    return actions
+      .sort((left, right) => toneOrder[left.tone] - toneOrder[right.tone])
+      .slice(0, 6);
+  });
   readonly governanceChecklist = computed<GovernanceChecklistItem[]>(() => {
     const overview = this.overview();
     if (!overview) return [];
 
     const pendingAssignments = overview.scopeSummary.pendingAssignments;
     const modalitiesWithoutResponses = this.governanceModalities().filter((item) => item.totalResponses === 0).length;
-    const questions = (overview.responseDistributions ?? []).flatMap((distribution) => distribution.questions ?? []);
+    const questions = this.governanceQuestions(overview);
     const questionsWithoutHistory = questions.filter(
       (question) =>
         !question.protected &&
@@ -1041,6 +1409,10 @@ export class DashboardPageComponent implements OnInit {
     if (tone === 'critical') return 'Critico';
     if (tone === 'warning') return 'Atencao';
     return 'Informativo';
+  }
+
+  private governanceQuestions(overview: DashboardOverview): DashboardQuestionDistribution[] {
+    return (overview.responseDistributions ?? []).flatMap((distribution) => distribution.questions ?? []);
   }
 
   healthScoreLabel(overview: DashboardOverview): string {
