@@ -866,6 +866,15 @@ export async function runEvaluationsRegression() {
       legacyCrossFunctionalAssignment.id,
       managerRevieweeEmployee.id
     );
+    const performanceBeforeCrossFunctionalSubmission = await fetchJson(
+      "/api/evaluations/performance-360",
+      getAuthHeader(admin.id)
+    );
+    assert.equal(
+      performanceBeforeCrossFunctionalSubmission.response.status,
+      200,
+      "Admin deve acessar a performance antes do feedback transversal"
+    );
     const legacyCrossFunctionalSubmission = await store.submitEvaluationAssignment({
       assignmentId: legacyCrossFunctionalAssignment.id,
       reviewerUserId: managerRevieweeEmployee.id,
@@ -887,6 +896,20 @@ export async function runEvaluationsRegression() {
       legacyCrossFunctionalSubmission.weightedScore,
       0,
       "Colega de outro setor nao deve entrar na pontuacao final"
+    );
+    const performanceAfterCrossFunctionalSubmission = await fetchJson(
+      "/api/evaluations/performance-360",
+      getAuthHeader(admin.id)
+    );
+    assert.equal(
+      performanceAfterCrossFunctionalSubmission.response.status,
+      200,
+      "Admin deve acessar a performance depois do feedback transversal"
+    );
+    assert.deepEqual(
+      performanceAfterCrossFunctionalSubmission.payload,
+      performanceBeforeCrossFunctionalSubmission.payload,
+      "Feedback transversal nao deve alterar a performance 360"
     );
 
     const rawManagerQuestionnaire = await store.createEvaluationQuestionnaire(

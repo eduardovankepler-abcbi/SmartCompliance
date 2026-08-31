@@ -4020,16 +4020,14 @@ const PERFORMANCE_360_WEIGHTS = {
   manager: 0.4,
   peer: 0.25,
   self: 0.2,
-  "leader-self": 0.2,
-  "cross-functional": 0.15
+  "leader-self": 0.2
 };
 
 const PERFORMANCE_360_LABELS = {
   manager: "Feedback do lider",
   peer: "Feedback direto",
   self: "Autoavaliacao",
-  "leader-self": "Autoavaliacao do lider",
-  "cross-functional": "Feedback transversal"
+  "leader-self": "Autoavaliacao do lider"
 };
 
 function getPerformanceGuidance(score10, focusAreas) {
