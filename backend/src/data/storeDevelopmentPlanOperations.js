@@ -97,6 +97,7 @@ export function createMemoryDevelopmentPlanStore({
         throw new Error("PDI nao encontrado.");
       }
 
+      assertCanCreateDevelopmentPlan(actorUser, db.people, plan.personId);
       assertCanCreateDevelopmentPlan(actorUser, db.people, payload.personId);
       assertValidDevelopmentPlanStatus(payload.status);
       if (payload.cycleId && !db.cycles.some((item) => item.id === payload.cycleId)) {
@@ -444,6 +445,7 @@ export function createMysqlDevelopmentPlanStore({
         throw new Error("PDI nao encontrado.");
       }
 
+      assertCanCreateDevelopmentPlan(actorUser, people, existingPlan.personId);
       assertCanCreateDevelopmentPlan(actorUser, people, payload.personId || existingPlan.personId);
       assertValidDevelopmentPlanStatus(payload.status);
 

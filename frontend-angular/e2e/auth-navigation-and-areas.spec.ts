@@ -29,12 +29,12 @@ function suggestedUserEmail(personName: string): string {
 test('restaura a sessao apos atualizar a pagina', async ({ page }) => {
   await login(page, 'admin@demo.local');
   await expect(page).toHaveURL(/\/app\/dashboard$/);
-  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
+  await expect(page.locator('#dashboard-title')).toHaveText('Gestao Executiva');
 
   await page.reload();
 
   await expect(page).toHaveURL(/\/app\/dashboard$/);
-  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
+  await expect(page.locator('#dashboard-title')).toHaveText('Gestao Executiva');
 });
 
 test('abre o dashboard de PDI pela navegacao executiva', async ({ page }) => {
@@ -133,79 +133,45 @@ test('atualiza o andamento de uma acao priorizada no dashboard', async ({ page }
   expect(progressPayload).toEqual({ progressStatus:'done', progressNote:'Evidência de conclusão validada.' });
 });
 
-test('exige troca de senha no primeiro acesso antes de abrir o workspace', async ({ page }) => {
-  await page.route('**/api/auth/login', (route) =>
-    route.fulfill({
-      status: 200,
-      json: {
-        token: 'temporary-token',
-        user: {
-          id: 'user_temp',
-          email: 'temporario@empresa.local',
-          roleKey: 'employee',
-          status: 'active',
-          mustChangePassword: true,
-          passwordChangedAt: null,
-          person: {
-            id: 'person_temp',
-            name: 'Usuario Temporario',
-            area: 'Gente',
-          },
-        },
-      },
-    }),
-  );
-  await page.route('**/api/auth/me', (route) =>
-    route.fulfill({
-      status: 200,
-      json: {
-        id: 'user_temp',
-        email: 'temporario@empresa.local',
-        roleKey: 'employee',
-        status: 'active',
-        mustChangePassword: true,
-        passwordChangedAt: null,
-        person: {
-          id: 'person_temp',
-          name: 'Usuario Temporario',
-          area: 'Gente',
-        },
-      },
-    }),
-  );
-  await page.route('**/api/auth/change-password', (route) =>
-    route.fulfill({
-      status: 200,
-      json: {
-        id: 'user_temp',
-        email: 'temporario@empresa.local',
-        roleKey: 'employee',
-        status: 'active',
-        mustChangePassword: false,
-        passwordChangedAt: new Date().toISOString(),
-        person: {
-          id: 'person_temp',
-          name: 'Usuario Temporario',
-          area: 'Gente',
-        },
-      },
-    }),
-  );
-
+test('exige troca de senha no primeiro acesso antes de abrir o workspace', async ({ page, request }) => {
+  const api = 'http://127.0.0.1:4001';
+  const adminLogin = await request.post(api + '/api/auth/login', {
+    data: { email: 'admin@demo.local', password: 'demo123' },
+  });
+  expect(adminLogin.ok()).toBeTruthy();
+  const admin = await adminLogin.json();
+  const headers = { Authorization: 'Bearer ' + admin.token };
+  const email = 'temporario-' + Date.now() + '@empresa.local';
+  const createdPerson = await request.post(api + '/api/people', {
+    headers, data: { name: email, roleTitle: 'Analista E2E', area: admin.user.person.area,
+      workUnit: 'Sao Paulo', workMode: 'hybrid', employmentType: 'internal' },
+  });
+  expect(createdPerson.status()).toBe(201);
+  const person = await createdPerson.json();
+  const createdUser = await request.post(api + '/api/users', {
+    headers, data: { personId: person.id, email, password: 'demo123', roleKey: 'employee', status: 'active' },
+  });
+  expect(createdUser.status()).toBe(201);
   await page.goto('/login');
-  await page.getByLabel('E-mail').fill('temporario@empresa.local');
+  await page.getByLabel('E-mail').fill(email);
   await page.getByLabel('Senha').fill('demo123');
   await page.getByRole('button', { name: 'Acessar', exact: true }).click();
-
   await expect(page).toHaveURL(/\/change-password$/);
+  const oldToken = await page.evaluate(() => localStorage.getItem('smart-compliance-token'));
   await page.goto('/app/dashboard');
   await expect(page).toHaveURL(/\/change-password$/);
-
   await page.getByLabel('Senha atual').fill('demo123');
   await page.getByLabel('Nova senha', { exact: true }).fill('novaSenha123');
   await page.getByLabel('Confirmar nova senha').fill('novaSenha123');
   await page.getByRole('button', { name: 'Atualizar senha' }).click();
-
+  await expect(page).toHaveURL(/\/app\/compliance$/);
+  const renewedToken = await page.evaluate(() => localStorage.getItem('smart-compliance-token'));
+  expect(renewedToken).toBeTruthy();
+  expect(renewedToken).not.toBe(oldToken);
+  expect((await request.get(api + '/api/auth/me', {
+    headers: { Authorization: 'Bearer ' + oldToken },
+  })).status()).toBe(401);
+  await page.reload();
   await expect(page).toHaveURL(/\/app\/compliance$/);
 });
 

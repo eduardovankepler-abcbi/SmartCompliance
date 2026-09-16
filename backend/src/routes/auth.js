@@ -3,7 +3,7 @@ import { requireAuth } from "../auth/middleware.js";
 import { env } from "../config/env.js";
 import { logger } from "../observability/logger.js";
 import { badRequest } from "./helpers.js";
-import { createToken } from "../auth/token.js";
+import { createUserToken } from "../auth/token.js";
 
 const loginAttempts = new Map();
 
@@ -20,7 +20,7 @@ function getClientIp(req) {
 }
 
 function getClientKey(req, email) {
-  return `${getClientIp(req)}:${String(email || "").toLowerCase()}`;
+  return `${getClientIp(req)}:${String(email || "").trim().toLowerCase()}`;
 }
 
 function pruneExpiredLoginAttempts(now = Date.now()) {
@@ -36,7 +36,7 @@ function getRateLimitState(key) {
   pruneExpiredLoginAttempts(now);
   const current = loginAttempts.get(key);
 
-  if (!current || current.windowEndsAt < now) {
+  if (!current || (current.windowEndsAt < now && current.lockedUntil <= now)) {
     const fresh = {
       failedAttempts: 0,
       windowEndsAt: now + env.auth.loginWindowMs,
@@ -99,10 +99,7 @@ export function createAuthRouter(store) {
 
       let token;
       try {
-        token = createToken({
-          userId: user.id,
-          roleKey: user.roleKey
-        });
+        token = await createUserToken(store, user, password);
       } catch (error) {
         error.authStage = "issue_token";
         throw error;
@@ -125,11 +122,11 @@ export function createAuthRouter(store) {
     }
   });
 
-  router.get("/me", requireAuth(store), async (req, res) => {
+  router.get("/me", requireAuth(store, { allowPasswordChange: true }), async (req, res) => {
     res.json(req.auth.user);
   });
 
-  router.post("/change-password", requireAuth(store), async (req, res) => {
+  router.post("/change-password", requireAuth(store, { allowPasswordChange: true }), async (req, res) => {
     const { currentPassword, nextPassword } = req.body;
     if (!currentPassword || !nextPassword) {
       return badRequest(res, "Senha atual e nova senha sao obrigatorias.");
@@ -140,7 +137,7 @@ export function createAuthRouter(store) {
         currentPassword,
         nextPassword
       });
-      res.json(user);
+      res.json({ ...user, token: await createUserToken(store, user, String(nextPassword).trim()) });
     } catch (error) {
       res.status(400).json({ error: error.message || "Falha ao alterar senha." });
     }

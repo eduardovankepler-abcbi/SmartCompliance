@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import { env } from "../config/env.js";
+import { verifyPasswordHash } from "../data/storeSecurity.js";
 
 function encode(value) {
   return Buffer.from(JSON.stringify(value)).toString("base64url");
@@ -36,6 +37,22 @@ export function createToken(payload) {
   const encodedPayload = encode(body);
   const signature = sign(encodedPayload);
   return `${encodedPayload}.${signature}`;
+}
+
+export function credentialVersion(passwordHash) {
+  return sign(`credential:${String(passwordHash)}`);
+}
+
+export async function createUserToken(store, user, authenticatedPassword) {
+  const credentials = await store.findUserByEmail(user.email);
+  if (!credentials || credentials.id !== user.id || credentials.status !== "active") {
+    throw new Error("Usuario indisponivel para iniciar sessao.");
+  }
+  // Uma redefinicao concorrente nao pode transformar um login antigo em sessao nova.
+  if (authenticatedPassword !== undefined && !verifyPasswordHash(credentials.passwordHash, authenticatedPassword)) {
+    throw new Error("Credenciais alteradas durante a autenticacao. Entre novamente.");
+  }
+  return createToken({ userId: user.id, credentialVersion: credentialVersion(credentials.passwordHash) });
 }
 
 export function verifyToken(token) {

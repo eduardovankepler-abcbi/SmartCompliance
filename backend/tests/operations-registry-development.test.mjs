@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import { createTestContext } from "./testContext.mjs";
 import { createMysqlApplauseStore } from "../src/data/storeApplauseOperations.js";
+import { createMysqlDevelopmentRecordStore } from "../src/data/storeDevelopmentRecordOperations.js";
+import { createMysqlDevelopmentPlanStore } from "../src/data/storeDevelopmentPlanOperations.js";
+import { assertCanManageDevelopmentSubject } from "../src/data/storeGrowthDomain.js";
+import { isOrgWideUser, isManagerUser } from "../src/data/storeAccess.js";
 
 export async function runOperationsRegistryDevelopmentRegression() {
   const context = await createTestContext();
@@ -20,6 +24,60 @@ export async function runOperationsRegistryDevelopmentRegression() {
     );
 
     const mysqlQueries = [];
+    const actorAdmin = await store.getUserById(admin.id);
+    const actorManager = await store.getUserById(manager.id);
+    const recordsBefore = await store.getDevelopmentRecords(actorAdmin);
+    const foreignRecord = recordsBefore.find((record) => record.personId !== employee.personId);
+    assert.ok(foreignRecord, "Fixture deve incluir registro de outro colaborador");
+    const recordSnapshot = structuredClone(foreignRecord);
+    const stolenRecord = await sendJson(`/api/development/records/${foreignRecord.id}`, {
+      method: "PATCH", headers: getAuthHeader(employee.id),
+      body: { ...foreignRecord, personId: employee.personId, status: "active" }
+    });
+    assert.equal(stolenRecord.response.status, 400, "Colaborador nao pode transferir registro alheio para si");
+    assert.deepEqual((await store.getDevelopmentRecords(actorAdmin)).find((r) => r.id === foreignRecord.id), recordSnapshot);
+    const allowedRecord = await sendJson(`/api/development/records/${foreignRecord.id}`, {
+      method: "PATCH", headers: getAuthHeader(admin.id),
+      body: { ...foreignRecord, status: "active" }
+    });
+    assert.equal(allowedRecord.response.status, 200, "Admin deve manter acesso legitimo ao registro");
+    const teamIds = new Set((await store.getPeople(actorAdmin))
+      .filter((person) => person.id === manager.personId || person.managerPersonId === manager.personId)
+      .map((person) => person.id));
+    const foreignPlan = (await store.getDevelopmentPlans(actorAdmin)).find((plan) => !teamIds.has(plan.personId));
+    assert.ok(foreignPlan, "Fixture deve incluir PDI fora da equipe");
+    const planSnapshot = structuredClone(foreignPlan);
+    await assert.rejects(store.updateDevelopmentPlan(foreignPlan.id,
+      { ...foreignPlan, personId: manager.personId, status: "active" }, actorManager), /PDI deve ser estruturado/);
+    assert.deepEqual((await store.getDevelopmentPlans(actorAdmin)).find((p) => p.id === foreignPlan.id), planSnapshot);
+
+    const people = await store.getPeople(actorAdmin);
+    const actorEmployee = await store.getUserById(employee.id);
+    const mysqlWrites = [];
+    const fakePool = {
+      async query(sql, params) {
+        if (sql.includes("SELECT")) return [[{ id: "foreign", personId: foreignRecord.personId }]];
+        mysqlWrites.push({ sql, params });
+        return [{}];
+      }
+    };
+    const mysqlRecords = createMysqlDevelopmentRecordStore({
+      pool: fakePool, fetchPeopleRows: async () => people,
+      assertCanManageDevelopmentSubject, isOrgWideUser, isManagerUser, getTeamPeople: () => []
+    });
+    await assert.rejects(mysqlRecords.updateDevelopmentRecord("foreign",
+      { ...foreignRecord, personId: employee.personId, status: "active" }, actorEmployee), /proprio perfil/);
+    assert.equal(mysqlWrites.length, 0, "Caminho MySQL deve negar antes do UPDATE");
+    const mysqlPlans = createMysqlDevelopmentPlanStore({
+      pool: { async query() { return [[{ id: "foreign", personId: foreignPlan.personId }]]; } },
+      fetchPeopleRows: async () => people, fetchCompetencyRows: async () => [],
+      assertCanCreateDevelopmentPlan(actor, _people, personId) {
+        assert.ok(teamIds.has(personId), "PDI fora da equipe deve ser negado antes de alterar");
+      }
+    });
+    await assert.rejects(mysqlPlans.updateDevelopmentPlan("foreign",
+      { ...foreignPlan, personId: manager.personId, status: "active" }, actorManager), /PDI fora da equipe/);
+
     const mysqlApplauseStore = createMysqlApplauseStore({
       pool: {
         async query(sql, params = []) {

@@ -95,6 +95,12 @@ export function createApp(store) {
   app.use("/api/analytics", createAnalyticsRouter(store));
 
   app.use((error, req, res, _next) => {
+    if (error.type === "entity.parse.failed") {
+      return res.status(400).json({ error: "JSON invalido." });
+    }
+    if (error.type === "entity.too.large" || error.code === "LIMIT_FILE_SIZE") {
+      return res.status(413).json({ error: "Conteudo excede o limite permitido." });
+    }
     logger.error("http.unhandled_error", {
       requestId: req.requestId,
       method: req.method,

@@ -1,7 +1,23 @@
 import assert from "node:assert/strict";
 import { createTestContext } from "./testContext.mjs";
+import crypto from "node:crypto";
+import { hashPassword, verifyPasswordHash } from "../src/data/storeSecurity.js";
+import { env } from "../src/config/env.js";
+import { createUserToken } from "../src/auth/token.js";
 
 export async function runAuthAccessRegression() {
+  const secureHash = hashPassword("TesteSenha123");
+  assert.ok(secureHash.length <= 128, "Hash deve caber no schema existente");
+  assert.notEqual(secureHash, hashPassword("TesteSenha123"), "Cada senha deve receber salt aleatorio");
+  assert.equal(verifyPasswordHash(secureHash, "TesteSenha123"), true);
+  assert.equal(verifyPasswordHash(secureHash, "errada"), false);
+  assert.equal(verifyPasswordHash(crypto.createHash("sha256").update("legacy").digest("hex"), "legacy"), true);
+  const legacyDerived = crypto.pbkdf2Sync("legacy", "salt", 1000, 64, "sha512").toString("hex");
+  assert.equal(verifyPasswordHash(`pbkdf2$1000$salt$${legacyDerived}`, "legacy"), true);
+  assert.equal(verifyPasswordHash("pbkdf2$-1$salt$bad", "legacy"), false);
+  await assert.rejects(createUserToken({
+    findUserByEmail: async () => ({ id: "race", status: "active", passwordHash: secureHash })
+  }, { id: "race", email: "race@demo.local" }, "senhaAnterior"), /Credenciais alteradas/);
   const context = await createTestContext();
 
   try {
@@ -307,6 +323,9 @@ export async function runAuthAccessRegression() {
       true,
       "Usuario criado por gestor deve ser sinalizado para trocar senha"
     );
+    const temporaryHeaders = { Authorization: `Bearer ${temporaryPasswordLogin.payload.token}` };
+    assert.equal((await fetchJson("/api/development/records", temporaryHeaders)).response.status, 403,
+      "Senha temporaria nao deve permitir acesso aos modulos");
 
     const changedOwnPassword = await sendJson("/api/auth/change-password", {
       headers: {
@@ -327,6 +346,22 @@ export async function runAuthAccessRegression() {
       false,
       "Troca de senha propria deve remover obrigatoriedade de troca"
     );
+    assert.equal((await fetchJson("/api/auth/me", temporaryHeaders)).response.status, 401,
+      "Troca de senha deve revogar o token anterior");
+    const renewedHeaders = { Authorization: `Bearer ${changedOwnPassword.payload.token}` };
+    assert.equal((await fetchJson("/api/development/records", renewedHeaders)).response.status, 200,
+      "Sessao renovada deve permitir continuar apos trocar senha");
+    const changedUser = changedOwnPassword.payload;
+    await store.updateUser(changedUser.id, {
+      email: changedUser.email, roleKey: changedUser.roleKey, status: "inactive", password: ""
+    }, await store.getUserById(admin.id));
+    assert.equal((await fetchJson("/api/auth/me", renewedHeaders)).response.status, 401,
+      "Usuario desativado nao deve manter acesso");
+    await store.updateUser(changedUser.id, {
+      email: changedUser.email, roleKey: changedUser.roleKey, status: "active", password: "ResetSenha123"
+    }, await store.getUserById(admin.id));
+    assert.equal((await fetchJson("/api/auth/me", renewedHeaders)).response.status, 401,
+      "Redefinicao administrativa deve revogar sessoes anteriores");
 
     const oldTemporaryPasswordLogin = await sendJson("/api/auth/login", {
       body: {
@@ -850,6 +885,38 @@ export async function runAuthAccessRegression() {
       adminAudit.payload.some((entry) => entry.category === "cycle"),
       "Auditoria deve retornar eventos de ciclo"
     );
+    const malformed = await fetch(`${context.baseUrl}/api/auth/login`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: "{"
+    });
+    assert.equal(malformed.status, 400);
+    const oversized = await sendJson("/api/auth/login", { body: { email: "x".repeat(60000), password: "x" } });
+    assert.equal(oversized.response.status, 413);
+    const validHeaders = await getAuthHeader(admin.id);
+    const originalGetUser = store.getUserById;
+    try {
+      store.getUserById = async () => { throw new Error("Falha de banco simulada"); };
+      assert.equal((await fetchJson("/api/summary", validHeaders)).response.status, 500,
+        "Falha assincrona deve produzir resposta controlada");
+    } finally { store.getUserById = originalGetUser; }
+    assert.equal((await fetchJson("/api/summary", validHeaders)).response.status, 200);
+
+    const originalNow = Date.now;
+    const clockStart = originalNow();
+    const lockedEmail = `lock-window-${clockStart}@demo.local`;
+    try {
+      Date.now = () => clockStart;
+      for (let i = 0; i < env.auth.maxFailedLogins; i += 1) {
+        await sendJson("/api/auth/login", { body: { email: lockedEmail, password: "wrong" } });
+      }
+      Date.now = () => clockStart + env.auth.loginWindowMs + 1;
+      assert.equal((await sendJson("/api/auth/login", {
+        body: { email: ` ${lockedEmail} `, password: "wrong" }
+      })).response.status, 429, "Expirar janela nao deve cancelar bloqueio ativo");
+      Date.now = () => clockStart + Math.max(env.auth.loginLockMs, env.auth.loginWindowMs) + 1;
+      assert.equal((await sendJson("/api/auth/login", {
+        body: { email: lockedEmail, password: "wrong" }
+      })).response.status, 401, "Bloqueio deve liberar apos vencimento");
+    } finally { Date.now = originalNow; }
   } finally {
     await context.close();
   }

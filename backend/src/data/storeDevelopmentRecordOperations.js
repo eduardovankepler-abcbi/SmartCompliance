@@ -70,6 +70,11 @@ export function createMemoryDevelopmentRecordStore({
         throw new Error("Registro de desenvolvimento nao encontrado.");
       }
 
+      assertCanManageDevelopmentSubject(actorUser, db.people, record.personId, {
+        isOrgWideUser,
+        isManagerUser,
+        getTeamPeople
+      });
       assertCanManageDevelopmentSubject(actorUser, db.people, payload.personId, {
         isOrgWideUser,
         isManagerUser,
@@ -209,6 +214,11 @@ export function createMysqlDevelopmentRecordStore({
         throw new Error("Registro de desenvolvimento nao encontrado.");
       }
 
+      assertCanManageDevelopmentSubject(actorUser, people, existingRecord.personId, {
+        isOrgWideUser,
+        isManagerUser,
+        getTeamPeople
+      });
       assertCanManageDevelopmentSubject(
         actorUser,
         people,

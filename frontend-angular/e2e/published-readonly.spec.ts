@@ -15,8 +15,8 @@ test('valida dashboard e auditoria publicados sem mutacao funcional', async ({ p
   await login(page, adminEmail);
 
   await expect(page).toHaveURL(/\/app\/dashboard$/);
-  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
-  await expect(page.getByText('Riscos operacionais')).toBeVisible();
+  await expect(page.locator('#dashboard-title')).toHaveText('Gestao Executiva');
+  await expect(page.getByRole('navigation', { name: 'Navegacao do dashboard' })).toBeVisible();
 
   await page.goto('/app/audit');
   await expect(page.getByRole('heading', { name: 'Auditoria' })).toBeVisible();

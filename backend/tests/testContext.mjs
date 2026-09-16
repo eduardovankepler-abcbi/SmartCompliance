@@ -1,16 +1,16 @@
 import { createApp } from "../src/app.js";
-import { createToken } from "../src/auth/token.js";
+import { createUserToken } from "../src/auth/token.js";
 import { createStore } from "../src/data/store.js";
 
-function getAuthHeader(userId) {
+async function getAuthHeader(store, userId) {
   return {
-    Authorization: `Bearer ${createToken({ userId })}`
+    Authorization: `Bearer ${await createUserToken(store, await store.getUserById(userId))}`
   };
 }
 
 async function fetchJson(baseUrl, path, headers = {}) {
   const response = await fetch(`${baseUrl}${path}`, {
-    headers
+    headers: await headers
   });
   const payload = await response.json().catch(() => ({}));
   return { response, payload };
@@ -21,7 +21,7 @@ async function sendJson(baseUrl, path, { method = "POST", headers = {}, body } =
     method,
     headers: {
       "Content-Type": "application/json",
-      ...headers
+      ...await headers
     },
     body: body ? JSON.stringify(body) : undefined
   });
@@ -43,7 +43,7 @@ export async function createTestContext() {
     app,
     baseUrl,
     fetchJson: (path, headers = {}) => fetchJson(baseUrl, path, headers),
-    getAuthHeader,
+    getAuthHeader: (userId) => getAuthHeader(store, userId),
     sendJson: (path, options = {}) => sendJson(baseUrl, path, options),
     server,
     store,
