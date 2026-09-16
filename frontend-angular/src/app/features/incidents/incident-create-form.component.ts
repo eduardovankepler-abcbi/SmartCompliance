@@ -53,7 +53,7 @@ const classifications = [
         </label>
         <p>{{ selectedAreaName() || 'Defina a area responsavel' }} · {{ selectedAssigneeName() || 'Sem responsavel inicial definido' }}</p>
       </aside>
-      @if (validationMessage()) { <p class="validation wide" role="alert">{{ validationMessage() }}</p> }
+      @if (showValidation() && validationMessage()) { <p class="validation wide" role="alert">{{ validationMessage() }}</p> }
       <div class="actions"><button type="button" class="secondary" (click)="cancelled.emit()">Cancelar</button><button [disabled]="saving()">{{ saving() ? 'Registrando...' : 'Registrar relato' }}</button></div>
     </form>
   `,
@@ -64,6 +64,7 @@ export class IncidentCreateFormComponent {
   readonly areas = input<readonly Area[]>([]);
   readonly people = input<readonly Person[]>([]);
   readonly saving = input(false);
+  readonly showValidation = input(false);
   readonly submitted = output<void>();
   readonly cancelled = output<void>();
   readonly categories = categories;

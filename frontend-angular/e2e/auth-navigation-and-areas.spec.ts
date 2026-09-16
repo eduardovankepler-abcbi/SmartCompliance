@@ -8,12 +8,12 @@ interface DashboardOverviewResponse {
   timeGrouping: string;
 }
 
-async function login(page: Page, email: string) {
+async function login(page: Page, email: string, expectedUrl: RegExp = /\/app\/dashboard$/) {
   await page.goto('/login');
   await page.getByLabel('E-mail').fill(email);
   await page.getByLabel('Senha').fill('demo123');
   await page.getByRole('button', { name: 'Acessar', exact: true }).click();
-  await expect(page).toHaveURL(/\/app\/dashboard$/);
+  await expect(page).toHaveURL(expectedUrl);
 }
 
 function suggestedUserEmail(personName: string): string {
@@ -335,7 +335,7 @@ test('permite administrador registrar um incidente', async ({ page }) => {
   await page.getByLabel('Titulo').fill(title);
   await page.getByLabel('Descricao').fill('Descricao do incidente criada no teste E2E.');
   await page.getByRole('button', { name: 'Registrar relato' }).click();
-  await expect(page.getByText(title, { exact: true })).toBeVisible();
+  await expect(page.locator('.queue article').filter({ hasText: title })).toBeVisible();
 });
 
 test('gestor nao visualiza acoes de tratamento de incidentes', async ({ page }) => {
@@ -343,6 +343,30 @@ test('gestor nao visualiza acoes de tratamento de incidentes', async ({ page }) 
   await page.goto('/app/compliance');
   await expect(page.getByRole('heading', { name: 'Incidentes' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Tratar' })).toHaveCount(0);
+});
+
+test('colaborador acessa compliance sem carregar fila restrita', async ({ page }) => {
+  const restrictedRequests: string[] = [];
+
+  await page.route('**/api/incidents', async (route) => {
+    if (route.request().method() === 'GET') {
+      restrictedRequests.push(route.request().url());
+    }
+    await route.continue();
+  });
+  await page.route('**/api/audit-trail**', async (route) => {
+    restrictedRequests.push(route.request().url());
+    await route.continue();
+  });
+
+  await login(page, 'colaborador1@demo.local', /\/app\/compliance$/);
+  await page.goto('/app/compliance');
+
+  await expect(page.getByRole('heading', { name: 'Incidentes' })).toBeVisible();
+  await expect(page.getByLabel('Titulo')).toBeVisible();
+  await expect(page.getByText('Seu relato sera encaminhado para triagem da area responsavel.')).toBeVisible();
+  await expect(page.locator('[role="alert"]')).toHaveCount(0);
+  expect(restrictedRequests).toEqual([]);
 });
 
 test('permite administrador atualizar o tratamento de um incidente', async ({ page }) => {
