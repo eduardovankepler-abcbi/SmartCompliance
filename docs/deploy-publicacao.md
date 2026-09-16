@@ -10,7 +10,7 @@ Este projeto pode ser publicado sem depender da maquina local usando:
 
 ### Frontend
 
-- plataforma recomendada apos a migracao: `Render Static Site`
+- plataforma recomendada apos a migracao: `Vercel`
 - diretorio raiz do servico: `frontend-angular`
 - framework: `Angular`
 - build command: `npm install && npm run build -- --configuration=production`
@@ -57,7 +57,7 @@ Observacao:
 
 - em producao, `AUTH_SECRET` nao pode ficar no valor padrao
 - `PORT` normalmente e fornecida pela propria plataforma
-- o backend ja libera por padrao `localhost`, `127.0.0.1`, `smart-compliance-frontend*.vercel.app` e `smartcompliance*.vercel.app`
+- o backend ja libera por padrao `localhost`, `127.0.0.1`, `smart-compliance-angular*.vercel.app` e `smartcompliance*.vercel.app`
 
 ### Frontend
 

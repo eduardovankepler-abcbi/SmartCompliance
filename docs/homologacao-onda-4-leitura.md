@@ -71,7 +71,6 @@ Resultado:
 
 Validados via `fetch` do Node:
 
-- `https://smart-compliance-frontend.vercel.app`: HTTP `200`, `text/html`.
 - `https://smart-compliance-angular.vercel.app`: HTTP `200`, `text/html`.
 - `https://smartcompliance.onrender.com/health`: HTTP `200`, `application/json`.
 

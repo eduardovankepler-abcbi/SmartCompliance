@@ -4,7 +4,7 @@ Este roteiro organiza a validacao funcional do modulo 360 no ambiente publicado.
 
 ## Ambientes
 
-- Frontend publicado: `https://smart-compliance-frontend.vercel.app`
+- Frontend publicado: `https://smart-compliance-angular.vercel.app`
 - Backend publicado: `https://smartcompliance.onrender.com`
 - Health check: `https://smartcompliance.onrender.com/health`
 

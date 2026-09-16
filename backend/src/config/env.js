@@ -22,9 +22,7 @@ const DEFAULT_CORS_ORIGINS = [
   "http://localhost:4200",
   "http://localhost:5173",
   "http://127.0.0.1:5173",
-  "https://smart-compliance-frontend.vercel.app",
   "https://smart-compliance-angular*.vercel.app",
-  "https://smart-compliance-frontend*.vercel.app",
   "https://smartcompliance*.vercel.app"
 ];
 

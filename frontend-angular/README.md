@@ -4,9 +4,9 @@ Frontend oficial do SmartCompliance em Angular 21.
 
 ## Status
 
-- Producao oficial: `https://smart-compliance-frontend.vercel.app`
+- QA oficial: `https://smart-compliance-angular.vercel.app`
 - Projeto Vercel: `smart-compliance-angular`
-- Backend de producao: `https://smartcompliance.onrender.com`
+- Backend QA: `https://smartcompliance.onrender.com`
 - Frontend React em `../frontend/`: legado, mantido apenas para rollback temporario
 
 ## Desenvolvimento
@@ -32,7 +32,7 @@ Use `npm run parity:strict` como gate rapido de paridade migrada. Use `npm run e
 
 ```bash
 npx vercel --prod --yes
-npx vercel alias set <deployment-angular>.vercel.app smart-compliance-frontend.vercel.app
+npx vercel alias set <deployment-angular>.vercel.app smart-compliance-angular.vercel.app
 ```
 
-Sempre confirme que o dominio oficial serve Angular verificando `<app-root>` no HTML e ausencia de root React.
+Sempre confirme que o dominio oficial serve Angular verificando `<app-root>` no HTML e o titulo `Gestao Executiva` no dashboard.
