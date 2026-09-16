@@ -161,7 +161,10 @@ test('colaborador abre feedback e 360 sem carregar diretorio restrito', async ({
   await page.route('**/api/evaluations/feedback-requests', (route) => route.fulfill({ status: 200, json: [] }));
   await page.route('**/api/evaluations/received-feedback', (route) => route.fulfill({ status: 200, json: [] }));
   await page.route('**/api/evaluations/performance-360', (route) => route.fulfill({ status: 200, json: [] }));
-  await page.route('**/api/evaluations/responses', (route) => route.fulfill({ status: 200, json: { individualResponses: [], aggregateResponses: [], cycleAggregateResponses: [], reportSnapshots: [] } }));
+  await page.route('**/api/evaluations/responses', async (route) => {
+    restrictedRequests.push(route.request().url());
+    await route.fulfill({ status: 200, json: { individualResponses: [], aggregateResponses: [], cycleAggregateResponses: [], reportSnapshots: [] } });
+  });
 
   await login(page);
   await page.goto('/app/evaluations/self/insights/feedback');
