@@ -150,6 +150,27 @@ test('colaborador nao acessa rota profunda administrativa', async ({ page }) => 
   await expect(page.getByText('Nenhuma avaliacao atribuida ao seu usuario nesta modalidade.')).toBeVisible();
 });
 
+test('colaborador abre feedback e 360 sem carregar diretorio restrito', async ({ page }) => {
+  const restrictedRequests: string[] = [];
+  await page.route('**/api/people', async (route) => {
+    restrictedRequests.push(route.request().url());
+    await route.continue();
+  });
+  await page.route('**/api/evaluations/cycles', (route) => route.fulfill({ status: 200, json: [cycle] }));
+  await page.route('**/api/evaluations/assignments', (route) => route.fulfill({ status: 200, json: [] }));
+  await page.route('**/api/evaluations/feedback-requests', (route) => route.fulfill({ status: 200, json: [] }));
+  await page.route('**/api/evaluations/received-feedback', (route) => route.fulfill({ status: 200, json: [] }));
+  await page.route('**/api/evaluations/performance-360', (route) => route.fulfill({ status: 200, json: [] }));
+  await page.route('**/api/evaluations/responses', (route) => route.fulfill({ status: 200, json: { individualResponses: [], aggregateResponses: [], cycleAggregateResponses: [], reportSnapshots: [] } }));
+
+  await login(page);
+  await page.goto('/app/evaluations/self/insights/feedback');
+
+  await expect(page.getByRole('heading', { name: 'Escuta, reconhecimento e evolucao' })).toBeVisible();
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  expect(restrictedRequests).toEqual([]);
+});
+
 test('exibe erro quando Avaliacoes falha', async ({ page }) => {
   await login(page);
   await page.route('**/api/evaluations/cycles', (route) => route.fulfill({ status: 500, json: { error: 'Falha E2E em Avaliacoes.' } }));
