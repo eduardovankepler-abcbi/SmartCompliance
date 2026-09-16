@@ -8,7 +8,7 @@ export default defineConfig({
   timeout: 120000,
   reporter: 'list',
   use: {
-    baseURL: process.env.HOMOLOGATION_FRONTEND_BASE_URL || 'https://smart-compliance-frontend.vercel.app',
+    baseURL: process.env.HOMOLOGATION_FRONTEND_BASE_URL || 'https://smart-compliance-angular.vercel.app',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
   },
