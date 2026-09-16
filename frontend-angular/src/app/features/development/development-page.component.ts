@@ -183,6 +183,7 @@ export class DevelopmentPageComponent implements OnInit {
   readonly developmentAreaFilter = signal('all');
   readonly developmentPersonFilter = signal('all');
   readonly canViewOrganizationDevelopment = computed(() => ['admin', 'hr'].includes(this.auth.user()?.roleKey || ''));
+  readonly canLoadDirectoryData = computed(() => ['admin', 'hr', 'manager'].includes(this.auth.user()?.roleKey || ''));
   readonly canManageLearningIntegrations = computed(() => ['admin', 'hr'].includes(this.auth.user()?.roleKey || ''));
   readonly canApproveExtensions = computed(() => ['admin', 'hr', 'manager'].includes(this.auth.user()?.roleKey || ''));
   readonly directReportPeople = computed(() => this.peopleOptions().filter((person) => person.managerPersonId === this.auth.user()?.person?.id));
@@ -339,7 +340,7 @@ export class DevelopmentPageComponent implements OnInit {
   async load(): Promise<void> {
     this.loading.set(true); this.errorMessage.set('');
     try {
-      const data = await firstValueFrom(forkJoin({ records:this.api.listRecords(), plans:this.api.listPlans(), extensions:this.canApproveExtensions()?this.api.listPlanExtensions().pipe(catchError(() => of([] as DevelopmentPlanExtension[]))):of([] as DevelopmentPlanExtension[]), people:this.peopleApi.list().pipe(catchError(() => of([] as Person[]))), competencies:this.competenciesApi.list().pipe(catchError(() => of([] as Competency[]))) }));
+      const data = await firstValueFrom(forkJoin({ records:this.api.listRecords(), plans:this.api.listPlans(), extensions:this.canApproveExtensions()?this.api.listPlanExtensions().pipe(catchError(() => of([] as DevelopmentPlanExtension[]))):of([] as DevelopmentPlanExtension[]), people:this.canLoadDirectoryData()?this.peopleApi.list().pipe(catchError(() => of([] as Person[]))):of([] as Person[]), competencies:this.canLoadDirectoryData()?this.competenciesApi.list().pipe(catchError(() => of([] as Competency[]))):of([] as Competency[]) }));
       this.records.set(data.records); this.plans.set(data.plans); this.planExtensions.set(data.extensions); this.people.set(data.people); this.competencies.set(data.competencies);
       void this.loadLearningEvents();
     } catch (error) { this.setError(error, 'Falha ao carregar dados de desenvolvimento.'); }

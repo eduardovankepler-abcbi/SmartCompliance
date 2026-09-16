@@ -75,12 +75,24 @@ test('exibe erro quando o carregamento de desenvolvimento falha', async ({ page 
   await expect(page.getByRole('alert')).toContainText('Falha E2E em Desenvolvimento.');
 });
 
-test('colaborador nao visualiza a fila de integracoes de aprendizagem', async ({ page }) => {
+test('colaborador abre desenvolvimento sem carregar diretorio restrito', async ({ page }) => {
+  const restrictedRequests: string[] = [];
+  await page.route('**/api/people', async (route) => {
+    restrictedRequests.push(route.request().url());
+    await route.continue();
+  });
+  await page.route('**/api/competencies', async (route) => {
+    restrictedRequests.push(route.request().url());
+    await route.continue();
+  });
+
   await login(page, 'colaborador1@demo.local');
   await page.goto('/app/development');
 
   await expect(page.getByRole('heading', { name: 'Formacao e PDI' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Fila de revisao' })).toHaveCount(0);
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  expect(restrictedRequests).toEqual([]);
 });
 
 test('renderiza dados principais antes da fila de aprendizagem', async ({ page }) => {
