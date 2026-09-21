@@ -90,7 +90,7 @@ import { EmploymentType, Person, PersonPayload, PeopleService, WorkMode } from '
           @if (leadershipWarning()) { <p class="people__warning">{{ leadershipWarning() }}</p> }
           <div class="people__form-actions">
             <button type="button" class="people__secondary" (click)="cancelEdit()">Cancelar</button>
-            <button type="submit" [disabled]="isSaving() || areas().length === 0">
+            <button type="submit" (click)="showValidation.set(true)" [disabled]="isSaving() || areas().length === 0">
               {{ isSaving() ? 'Salvando...' : editingPerson() ? 'Salvar alteracoes' : 'Cadastrar pessoa' }}
             </button>
           </div>
@@ -164,7 +164,7 @@ import { EmploymentType, Person, PersonPayload, PeopleService, WorkMode } from '
                         @if (leadershipWarning()) { <p class="people__warning">{{ leadershipWarning() }}</p> }
                         <div class="people__form-actions">
                           <button type="button" class="people__secondary" (click)="cancelEdit()">Cancelar</button>
-                          <button type="submit" [disabled]="isSaving()">{{ isSaving() ? 'Salvando...' : 'Salvar vinculos' }}</button>
+                          <button type="submit" (click)="showValidation.set(true)" [disabled]="isSaving()">{{ isSaving() ? 'Salvando...' : 'Salvar vinculos' }}</button>
                         </div>
                       </form>
                     </td>
