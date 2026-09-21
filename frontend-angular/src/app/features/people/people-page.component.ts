@@ -86,7 +86,7 @@ import { EmploymentType, Person, PersonPayload, PeopleService, WorkMode } from '
               <option value="consultant">Consultor</option>
             </select>
           </label>
-          @if (form.touched && validationMessage()) { <p class="people__validation" role="alert">{{ validationMessage() }}</p> }
+          @if (showValidation() && validationMessage()) { <p class="people__validation" role="alert">{{ validationMessage() }}</p> }
           @if (leadershipWarning()) { <p class="people__warning">{{ leadershipWarning() }}</p> }
           <div class="people__form-actions">
             <button type="button" class="people__secondary" (click)="cancelEdit()">Cancelar</button>
@@ -160,7 +160,7 @@ import { EmploymentType, Person, PersonPayload, PeopleService, WorkMode } from '
                             <option value="consultant">Consultor</option>
                           </select>
                         </label>
-                        @if (form.touched && validationMessage()) { <p class="people__validation" role="alert">{{ validationMessage() }}</p> }
+                        @if (showValidation() && validationMessage()) { <p class="people__validation" role="alert">{{ validationMessage() }}</p> }
                         @if (leadershipWarning()) { <p class="people__warning">{{ leadershipWarning() }}</p> }
                         <div class="people__form-actions">
                           <button type="button" class="people__secondary" (click)="cancelEdit()">Cancelar</button>
@@ -218,6 +218,7 @@ export class PeoplePageComponent implements OnInit {
   readonly auditEntries = signal<AuditEntry[]>([]);
   readonly editingPerson = signal<Person | null>(null);
   readonly errorMessage = signal('');
+  readonly showValidation = signal(false);
   readonly isEditing = signal(false);
   readonly isLoading = signal(true);
   readonly isSaving = signal(false);
@@ -274,6 +275,7 @@ export class PeoplePageComponent implements OnInit {
 
   startCreate(): void {
     this.errorMessage.set('');
+    this.showValidation.set(false);
     this.editingPerson.set(null);
     this.form.reset({ name: '', roleTitle: '', area: this.areas()[0]?.name ?? '', workUnit: '', workMode: 'hybrid', managerPersonId: this.defaultManagerId(), isAreaManager: 'no', employmentType: 'internal' });
     this.isEditing.set(true);
@@ -281,6 +283,7 @@ export class PeoplePageComponent implements OnInit {
 
   startEdit(person: Person): void {
     this.errorMessage.set('');
+    this.showValidation.set(false);
     this.editingPerson.set(person);
     this.form.reset({ name: person.name, roleTitle: person.roleTitle, area: person.area, workUnit: person.workUnit || '', workMode: person.workMode || 'hybrid', managerPersonId: person.managerPersonId || '', isAreaManager: person.areaManagerPersonId === person.id ? 'yes' : 'no', employmentType: person.employmentType });
     this.isEditing.set(true);
@@ -288,15 +291,18 @@ export class PeoplePageComponent implements OnInit {
 
   cancelEdit(): void {
     this.isEditing.set(false);
+    this.showValidation.set(false);
     this.editingPerson.set(null);
     this.form.reset();
   }
 
   async save(): Promise<void> {
     if (this.form.invalid || this.validationMessage()) {
+      this.showValidation.set(true);
       this.form.markAllAsTouched();
       return;
     }
+    this.showValidation.set(false);
     this.errorMessage.set('');
     this.isSaving.set(true);
     try {
