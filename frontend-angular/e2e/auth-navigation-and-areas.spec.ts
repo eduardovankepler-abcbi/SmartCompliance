@@ -225,6 +225,16 @@ test('permite administrador criar uma competencia', async ({ page }) => {
   await expect(page.getByText(competencyName, { exact: true })).toBeVisible();
 });
 
+test('abre Pessoas sem alerta de validacao prematuro', async ({ page }) => {
+  await login(page, 'admin@demo.local');
+  await page.goto('/app/people');
+
+  await expect(page.getByRole('heading', { name: 'Pessoas' })).toBeVisible();
+  await expect(page.locator('[role="alert"]')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Cadastrar pessoa' }).click();
+  await expect(page.locator('[role="alert"]')).toContainText('Informe o nome da pessoa.');
+});
+
 test('permite administrador cadastrar uma pessoa com estrutura', async ({ page }) => {
   const personName = `Pessoa E2E ${Date.now()}`;
 

@@ -86,7 +86,7 @@ import { EmploymentType, Person, PersonPayload, PeopleService, WorkMode } from '
               <option value="consultant">Consultor</option>
             </select>
           </label>
-          @if (validationMessage()) { <p class="people__validation" role="alert">{{ validationMessage() }}</p> }
+          @if (form.touched && validationMessage()) { <p class="people__validation" role="alert">{{ validationMessage() }}</p> }
           @if (leadershipWarning()) { <p class="people__warning">{{ leadershipWarning() }}</p> }
           <div class="people__form-actions">
             <button type="button" class="people__secondary" (click)="cancelEdit()">Cancelar</button>
@@ -160,7 +160,7 @@ import { EmploymentType, Person, PersonPayload, PeopleService, WorkMode } from '
                             <option value="consultant">Consultor</option>
                           </select>
                         </label>
-                        @if (validationMessage()) { <p class="people__validation" role="alert">{{ validationMessage() }}</p> }
+                        @if (form.touched && validationMessage()) { <p class="people__validation" role="alert">{{ validationMessage() }}</p> }
                         @if (leadershipWarning()) { <p class="people__warning">{{ leadershipWarning() }}</p> }
                         <div class="people__form-actions">
                           <button type="button" class="people__secondary" (click)="cancelEdit()">Cancelar</button>
