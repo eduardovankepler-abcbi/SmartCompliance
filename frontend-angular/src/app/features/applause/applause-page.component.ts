@@ -32,7 +32,7 @@ import { ApplauseEntry, ApplausePayload, ApplauseRecipient, ApplauseService, App
             <span>{{ selectedReceiver() ? (selectedReceiver()!.area + ' · ' + (selectedReceiver()!.roleTitle || 'Cargo nao informado')) : 'O destaque sera ligado a uma pessoa do seu escopo.' }}</span>
             <p>{{ form.controls.category.value || 'Tipo de reconhecimento' }} · {{ form.controls.occasion.value || 'Contexto' }} · Diga o que a pessoa fez, qual foi o impacto concreto e por que esse comportamento merece ser repetido.</p>
           </aside>
-          @if (validationMessage()) { <p class="validation wide" role="alert">{{ validationMessage() }}</p> }
+          @if (form.touched && validationMessage()) { <p class="validation wide" role="alert">{{ validationMessage() }}</p> }
         </div>
         <button type="submit" [disabled]="saving() || !receiverOptions().length">{{ saving() ? 'Salvando...' : editing() ? 'Salvar alteracoes' : 'Registrar Aplause' }}</button>
       </form>

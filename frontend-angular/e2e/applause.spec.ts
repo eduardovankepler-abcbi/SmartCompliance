@@ -77,7 +77,7 @@ test('colaborador abre Aplause sem carregar diretorio restrito', async ({ page }
   await page.goto('/app/applause');
 
   await expect(page.getByRole('heading', { name: 'Reconhecimento entre pessoas' })).toBeVisible();
-  await expect(page.locator('.error[role="alert"]')).toHaveCount(0);
+  await expect(page.locator('[role="alert"]')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Editar' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Arquivar' })).toHaveCount(0);
   expect(restrictedRequests).toEqual([]);
