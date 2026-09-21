@@ -13,6 +13,14 @@ export function createApplauseRouter(store) {
     }
   });
 
+  router.get("/recipients", requireRoles("admin", "hr", "manager", "employee"), async (req, res, next) => {
+    try {
+      res.json(await store.getApplauseRecipients(req.auth.user));
+    } catch (error) {
+      next(error);
+    }
+  });
+
   router.post("/", requireRoles("admin", "hr", "manager", "employee"), async (req, res, next) => {
     const { receiverPersonId, category, impact, contextNote } = req.body;
 

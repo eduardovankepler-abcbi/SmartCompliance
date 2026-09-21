@@ -18,6 +18,20 @@ export interface ApplauseEntry {
   status: ApplauseStatus;
 }
 
+export interface ApplauseRecipient {
+  id: string;
+  name: string;
+  roleTitle: string;
+  area: string;
+  workUnit: string | null;
+  workMode: string | null;
+  managerPersonId: string | null;
+  managerName: string | null;
+  areaManagerPersonId: string | null;
+  areaManagerName: string | null;
+  employmentType: string;
+}
+
 export interface ApplausePayload {
   receiverPersonId: string;
   category: string;
@@ -31,6 +45,10 @@ export class ApplauseService {
 
   list(): Observable<ApplauseEntry[]> {
     return this.api.get<ApplauseEntry[]>('/api/applause');
+  }
+
+  recipients(): Observable<ApplauseRecipient[]> {
+    return this.api.get<ApplauseRecipient[]>('/api/applause/recipients');
   }
 
   create(payload: ApplausePayload): Observable<ApplauseEntry> {

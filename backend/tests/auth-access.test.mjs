@@ -804,6 +804,20 @@ export async function runAuthAccessRegression() {
       "Compliance nao deve acessar o workspace de avaliacoes"
     );
 
+    const employeeApplauseRecipients = await fetchJson(
+      "/api/applause/recipients",
+      getAuthHeader(employee.id)
+    );
+    assert.equal(
+      employeeApplauseRecipients.response.status,
+      200,
+      "Colaborador deve acessar destinatarios permitidos do Aplause"
+    );
+    assert.ok(
+      employeeApplauseRecipients.payload.every((item) => item.id !== employee.personId),
+      "Destinatarios do Aplause nao devem incluir a propria pessoa"
+    );
+
     const complianceApplause = await fetchJson(
       "/api/applause",
       getAuthHeader(compliance.id)
@@ -812,6 +826,16 @@ export async function runAuthAccessRegression() {
       complianceApplause.response.status,
       403,
       "Compliance nao deve acessar o workspace de Aplause"
+    );
+
+    const complianceApplauseRecipients = await fetchJson(
+      "/api/applause/recipients",
+      getAuthHeader(compliance.id)
+    );
+    assert.equal(
+      complianceApplauseRecipients.response.status,
+      403,
+      "Compliance nao deve acessar destinatarios do Aplause"
     );
 
     const employeeIncidentQueue = await fetchJson("/api/incidents", getAuthHeader(employee.id));

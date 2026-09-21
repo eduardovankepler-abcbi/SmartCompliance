@@ -14,6 +14,23 @@ export function createMemoryApplauseStore({
   assertValidApplauseStatus
 }) {
   return {
+    async getApplauseRecipients(actorUser) {
+      return db.people
+        .filter((person) => person.id !== actorUser.person.id)
+        .map((person) => ({
+          id: person.id,
+          name: person.name,
+          roleTitle: person.roleTitle || "",
+          area: person.area || "",
+          workUnit: person.workUnit || null,
+          workMode: person.workMode || null,
+          managerPersonId: person.managerPersonId || null,
+          managerName: person.managerName || null,
+          areaManagerPersonId: person.areaManagerPersonId || null,
+          areaManagerName: person.areaManagerName || null,
+          employmentType: person.employmentType || "internal"
+        }));
+    },
     async getApplauseEntries(actorUser) {
       const entries = db.applauseEntries.map((item) => {
         const sender = db.people.find((person) => person.id === item.senderPersonId);
@@ -142,6 +159,24 @@ export function createMysqlApplauseStore({
   assertValidApplauseStatus
 }) {
   return {
+    async getApplauseRecipients(actorUser) {
+      const people = await fetchPeopleRows(pool);
+      return people
+        .filter((person) => person.id !== actorUser.person.id)
+        .map((person) => ({
+          id: person.id,
+          name: person.name,
+          roleTitle: person.roleTitle || "",
+          area: person.area || "",
+          workUnit: person.workUnit || null,
+          workMode: person.workMode || null,
+          managerPersonId: person.managerPersonId || null,
+          managerName: person.managerName || null,
+          areaManagerPersonId: person.areaManagerPersonId || null,
+          areaManagerName: person.areaManagerName || null,
+          employmentType: person.employmentType || "internal"
+        }));
+    },
     async getApplauseEntries(actorUser) {
       const [rows] = await pool.query(
         `SELECT a.id, a.sender_person_id AS senderPersonId, a.receiver_person_id AS receiverPersonId,

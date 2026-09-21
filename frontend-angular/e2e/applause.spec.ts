@@ -66,11 +66,19 @@ test('exibe erro quando a consulta de Aplause falha', async ({ page }) => {
   await expect(page.locator('.error[role="alert"]')).toContainText('Falha E2E no Aplause.');
 });
 
-test('colaborador nao visualiza acoes administrativas do Aplause', async ({ page }) => {
+test('colaborador abre Aplause sem carregar diretorio restrito', async ({ page }) => {
+  const restrictedRequests: string[] = [];
+  await page.route('**/api/people', async (route) => {
+    restrictedRequests.push(route.request().url());
+    await route.continue();
+  });
+
   await login(page, 'colaborador1@demo.local');
   await page.goto('/app/applause');
 
   await expect(page.getByRole('heading', { name: 'Reconhecimento entre pessoas' })).toBeVisible();
+  await expect(page.locator('.error[role="alert"]')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Editar' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Arquivar' })).toHaveCount(0);
+  expect(restrictedRequests).toEqual([]);
 });

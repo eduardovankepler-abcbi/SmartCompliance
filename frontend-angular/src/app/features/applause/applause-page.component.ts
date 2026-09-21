@@ -7,8 +7,7 @@ import { AuthService } from '../../core/auth/auth.service';
 import { ApiError } from '../../core/http/api-error';
 import { AuditEntry, AuditService } from '../audit/audit.service';
 import { AuditTrailComponent } from '../audit/audit-trail.component';
-import { Person, PeopleService } from '../people/people.service';
-import { ApplauseEntry, ApplausePayload, ApplauseService, ApplauseStatus } from './applause.service';
+import { ApplauseEntry, ApplausePayload, ApplauseRecipient, ApplauseService, ApplauseStatus } from './applause.service';
 
 @Component({
   selector: 'app-applause-page',
@@ -56,7 +55,6 @@ import { ApplauseEntry, ApplausePayload, ApplauseService, ApplauseStatus } from 
 })
 export class ApplausePageComponent implements OnInit {
   private readonly api = inject(ApplauseService);
-  private readonly peopleApi = inject(PeopleService);
   private readonly auditApi = inject(AuditService);
   private readonly auth = inject(AuthService);
   private readonly fb = inject(FormBuilder);
@@ -64,7 +62,7 @@ export class ApplausePageComponent implements OnInit {
   readonly categories = ['Colaboracao', 'Apoio em momento critico', 'Resolucao de problema', 'Postura exemplar', 'Compartilhamento de conhecimento'];
   readonly occasions = ['Projeto', 'Reuniao', 'Entrega critica', 'Suporte ao time', 'Treinamento', 'Atendimento ao cliente', 'Outro'];
   readonly entries = signal<ApplauseEntry[]>([]);
-  readonly people = signal<Person[]>([]);
+  readonly people = signal<ApplauseRecipient[]>([]);
   readonly auditEntries = signal<AuditEntry[]>([]);
   readonly editing = signal<ApplauseEntry | null>(null);
   readonly loading = signal(true);
@@ -103,7 +101,7 @@ export class ApplausePageComponent implements OnInit {
 
   async load(): Promise<void> {
     this.loading.set(true); this.errorMessage.set('');
-    try { const auditRequest = this.canViewAudit() ? this.auditApi.list('applause').pipe(catchError(() => of([] as AuditEntry[]))) : of([] as AuditEntry[]); const data = await firstValueFrom(forkJoin({ entries:this.api.list(), people:this.peopleApi.list(), audit:auditRequest })); this.entries.set(data.entries); this.people.set(data.people); this.auditEntries.set(data.audit); if (!this.editing() && !this.form.controls.receiverPersonId.value) this.form.controls.receiverPersonId.setValue(this.receiverOptions()[0]?.id || ''); }
+    try { const auditRequest = this.canViewAudit() ? this.auditApi.list('applause').pipe(catchError(() => of([] as AuditEntry[]))) : of([] as AuditEntry[]); const data = await firstValueFrom(forkJoin({ entries:this.api.list(), people:this.api.recipients(), audit:auditRequest })); this.entries.set(data.entries); this.people.set(data.people); this.auditEntries.set(data.audit); if (!this.editing() && !this.form.controls.receiverPersonId.value) this.form.controls.receiverPersonId.setValue(this.receiverOptions()[0]?.id || ''); }
     catch (error) { this.setError(error, 'Falha ao carregar o Aplause.'); }
     finally { this.loading.set(false); }
   }
