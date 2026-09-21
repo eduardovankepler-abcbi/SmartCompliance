@@ -43,15 +43,22 @@ ON DUPLICATE KEY UPDATE
   description = VALUES(description),
   status = VALUES(status);
 
-INSERT INTO users (id, person_id, email, password_hash, role_key, status) VALUES
-('u1', 'p1', 'colaborador1@demo.local', SHA2('demo123', 256), 'employee', 'active'),
-('u2', 'p2', 'colaborador2@demo.local', SHA2('demo123', 256), 'employee', 'active'),
-('u3', 'p3', 'consultor1@demo.local', SHA2('demo123', 256), 'employee', 'active'),
-('u4', 'p4', 'gestor@demo.local', SHA2('demo123', 256), 'manager', 'active'),
-('u5', 'p5', 'admin@demo.local', SHA2('demo123', 256), 'admin', 'active'),
-('u6', 'p6', 'rh@demo.local', SHA2('demo123', 256), 'hr', 'active'),
-('u7', 'p7', 'compliance@demo.local', SHA2('demo123', 256), 'compliance', 'active')
-ON DUPLICATE KEY UPDATE email = VALUES(email);
+INSERT INTO users (id, person_id, email, password_hash, role_key, status, must_change_password, password_changed_at) VALUES
+('u1', 'p1', 'colaborador1@demo.local', SHA2('demo123', 256), 'employee', 'active', FALSE, NOW()),
+('u2', 'p2', 'colaborador2@demo.local', SHA2('demo123', 256), 'employee', 'active', FALSE, NOW()),
+('u3', 'p3', 'consultor1@demo.local', SHA2('demo123', 256), 'employee', 'active', FALSE, NOW()),
+('u4', 'p4', 'gestor@demo.local', SHA2('demo123', 256), 'manager', 'active', FALSE, NOW()),
+('u5', 'p5', 'admin@demo.local', SHA2('demo123', 256), 'admin', 'active', FALSE, NOW()),
+('u6', 'p6', 'rh@demo.local', SHA2('demo123', 256), 'hr', 'active', FALSE, NOW()),
+('u7', 'p7', 'compliance@demo.local', SHA2('demo123', 256), 'compliance', 'active', FALSE, NOW())
+ON DUPLICATE KEY UPDATE
+  person_id = VALUES(person_id),
+  email = VALUES(email),
+  password_hash = VALUES(password_hash),
+  role_key = VALUES(role_key),
+  status = VALUES(status),
+  must_change_password = VALUES(must_change_password),
+  password_changed_at = VALUES(password_changed_at);
 
 INSERT INTO evaluation_templates (id, name, description, manager_custom_questions_limit, scale_json) VALUES
 (
