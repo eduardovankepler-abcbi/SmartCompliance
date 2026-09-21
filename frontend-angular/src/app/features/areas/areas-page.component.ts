@@ -29,12 +29,12 @@ import { Area, AreasService } from './areas.service';
             Nome da area
             <input formControlName="name" autocomplete="off" />
           </label>
-          @if (validationMessage()) {
+          @if (showValidation() && validationMessage()) {
             <p class="areas__validation" role="alert">{{ validationMessage() }}</p>
           }
           <div class="areas__form-actions">
             <button type="button" class="areas__secondary" (click)="cancelEdit()">Cancelar</button>
-            <button type="submit" [disabled]="isSaving()">
+            <button type="submit" (click)="showValidation.set(true)" [disabled]="isSaving()">
               {{ isSaving() ? 'Salvando...' : selectedArea() ? 'Salvar alteracoes' : 'Cadastrar area' }}
             </button>
           </div>
@@ -227,6 +227,7 @@ export class AreasPageComponent implements OnInit {
 
   readonly areas = signal<Area[]>([]);
   readonly errorMessage = signal('');
+  readonly showValidation = signal(false);
   readonly isEditing = signal(false);
   readonly isLoading = signal(true);
   readonly isSaving = signal(false);
@@ -241,6 +242,7 @@ export class AreasPageComponent implements OnInit {
 
   startCreate(): void {
     this.errorMessage.set('');
+    this.showValidation.set(false);
     this.selectedArea.set(null);
     this.form.reset({ name: '' });
     this.isEditing.set(true);
@@ -248,6 +250,7 @@ export class AreasPageComponent implements OnInit {
 
   startEdit(area: Area): void {
     this.errorMessage.set('');
+    this.showValidation.set(false);
     this.selectedArea.set(area);
     this.form.reset({ name: area.name });
     this.isEditing.set(true);
@@ -255,6 +258,7 @@ export class AreasPageComponent implements OnInit {
 
   cancelEdit(): void {
     this.isEditing.set(false);
+    this.showValidation.set(false);
     this.selectedArea.set(null);
     this.form.reset({ name: '' });
   }
@@ -267,11 +271,13 @@ export class AreasPageComponent implements OnInit {
   }
 
   async save(): Promise<void> {
-    if (this.form.invalid) {
+    if (this.form.invalid || this.validationMessage()) {
+      this.showValidation.set(true);
       this.form.markAllAsTouched();
       return;
     }
 
+    this.showValidation.set(false);
     this.errorMessage.set('');
     this.isSaving.set(true);
 

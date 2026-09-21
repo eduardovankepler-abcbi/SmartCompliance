@@ -195,6 +195,22 @@ test('impede gestor de abrir o catalogo de competencias', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Pessoas' })).toBeVisible();
 });
 
+test('abre cadastros de areas e competencias sem alerta prematuro', async ({ page }) => {
+  await login(page, 'admin@demo.local');
+
+  await page.goto('/app/people/areas');
+  await page.getByRole('button', { name: 'Nova area' }).click();
+  await expect(page.locator('[role="alert"]')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Cadastrar area' }).click();
+  await expect(page.locator('[role="alert"]')).toContainText('Informe o nome da area.');
+
+  await page.goto('/app/people/competencies');
+  await page.getByRole('button', { name: 'Nova competencia' }).click();
+  await expect(page.locator('[role="alert"]')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Cadastrar competencia' }).click();
+  await expect(page.locator('[role="alert"]')).toContainText('Informe o nome da competencia.');
+});
+
 test('permite administrador criar uma area', async ({ page }) => {
   const areaName = `Area E2E ${Date.now()}`;
 

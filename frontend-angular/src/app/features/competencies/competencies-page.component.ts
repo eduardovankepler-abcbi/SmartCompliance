@@ -51,14 +51,14 @@ import {
             Descricao
             <textarea formControlName="description" rows="4"></textarea>
           </label>
-          @if (validationMessage()) {
+          @if (showValidation() && validationMessage()) {
             <p class="competencies__validation" role="alert">{{ validationMessage() }}</p>
           }
           <div class="competencies__form-actions">
             <button type="button" class="competencies__secondary" (click)="cancelEdit()">
               Cancelar
             </button>
-            <button type="submit" [disabled]="isSaving()">
+            <button type="submit" (click)="showValidation.set(true)" [disabled]="isSaving()">
               {{ isSaving() ? 'Salvando...' : selectedCompetency() ? 'Salvar alteracoes' : 'Cadastrar competencia' }}
             </button>
           </div>
@@ -151,6 +151,7 @@ export class CompetenciesPageComponent implements OnInit {
 
   readonly competencies = signal<Competency[]>([]);
   readonly errorMessage = signal('');
+  readonly showValidation = signal(false);
   readonly isEditing = signal(false);
   readonly isLoading = signal(true);
   readonly isSaving = signal(false);
@@ -176,6 +177,7 @@ export class CompetenciesPageComponent implements OnInit {
     }
 
     this.errorMessage.set('');
+    this.showValidation.set(false);
     this.selectedCompetency.set(null);
     this.form.reset({ name: '', key: '', description: '', status: 'active' });
     this.isEditing.set(true);
@@ -187,6 +189,7 @@ export class CompetenciesPageComponent implements OnInit {
     }
 
     this.errorMessage.set('');
+    this.showValidation.set(false);
     this.selectedCompetency.set(competency);
     this.form.reset({
       name: competency.name,
@@ -199,6 +202,7 @@ export class CompetenciesPageComponent implements OnInit {
 
   cancelEdit(): void {
     this.isEditing.set(false);
+    this.showValidation.set(false);
     this.selectedCompetency.set(null);
     this.form.reset({ name: '', key: '', description: '', status: 'active' });
   }
@@ -213,11 +217,13 @@ export class CompetenciesPageComponent implements OnInit {
   }
 
   async save(): Promise<void> {
-    if (!this.canManage() || this.form.invalid) {
+    if (!this.canManage() || this.form.invalid || this.validationMessage()) {
+      this.showValidation.set(true);
       this.form.markAllAsTouched();
       return;
     }
 
+    this.showValidation.set(false);
     this.errorMessage.set('');
     this.isSaving.set(true);
 
