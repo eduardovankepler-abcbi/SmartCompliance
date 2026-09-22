@@ -69,6 +69,27 @@ apiUrl: 'https://smartcompliance.onrender.com'
 
 ## Banco de dados
 
+### Implantacao das correcoes de seguranca e persistencia
+
+1. No Render, confirmar o servico, revisao publicada, disco montado e `DATA_DIR` efetivo.
+   A ausencia de disco no `render.yaml` nao comprova ausencia no painel.
+2. Antes de reiniciar, adicionar disco ou mudar `DATA_DIR`, preservar os JSONs atuais
+   da instancia em execucao. Adicionar disco dispara deploy e pode perder arquivos
+   do armazenamento efemero. Nao encerrar a instancia antes dessa preservacao.
+3. Confirmar que os arquivos preservados foram recuperados no diretorio persistente;
+   criar backup conjunto consistente de SQL e JSONs em janela sem gravacoes.
+   A homologacao local nao substitui essa verificacao dos dados de producao.
+4. Publicar backend e Angular na mesma janela: a troca de senha passa a devolver
+   token renovado. Sessoes antigas exigirao novo login. Nao executar seed ou testes
+   de escrita no banco real como parte da publicacao.
+5. Validar `/health`, login, troca de senha por conta de homologacao autorizada e
+   preservacao dos arquivos apos o deploy. Registrar a revisao realmente publicada.
+6. Se a validacao falhar, interromper a liberacao; reverter somente o codigo para
+   a revisao anterior, preservando o disco e os dados. Restore de producao exige
+   procedimento especifico e nao deve ser automatico.
+
+Referencia: [discos persistentes do Render](https://render.com/docs/disks).
+
 Antes de usar o backend publicado com `mysql`, execute:
 
 1. `backend/db/schema.sql`
@@ -82,9 +103,14 @@ Se voce ja tem um banco existente (tabelas ja criadas) e atualizou o codigo, apl
 
 Antes de aplicar migrations em banco existente, gere backup:
 
+Pare todas as instancias do backend antes do backup e da restauracao. A opcao
+`--backend-stopped` declara essa condicao; ela nao interrompe o servico automaticamente.
+Use o mesmo `DATA_DIR` do backend, em armazenamento persistente. Sem configuracao,
+o diretorio utilizado e `backend/.data`.
+
 ```bash
 cd backend
-npm run backup:mysql
+npm run backup:mysql -- --backend-stopped
 ```
 
 Em Windows ou servidores sem MySQL no `PATH`, configure `MYSQLDUMP_PATH` e
@@ -94,8 +120,20 @@ Para validar recuperacao em homologacao:
 
 ```bash
 cd backend
-npm run restore:mysql -- caminho/do/backup.sql
+npm run restore:mysql -- caminho/do/backup.sql --backend-stopped
 ```
+
+Preserve o SQL e o arquivo complementar `<backup.sql>.state.json` juntos: este ultimo
+contem bibliotecas e respostas anonimas. O restore verifica o conjunto antes de
+alterar o banco e rejeita backups SQL antigos sem o complemento. Nao reinicie o
+backend se a restauracao falhar; valide banco e arquivos em homologacao primeiro.
+
+Teste automatizado com MySQL temporario local: defina `SC_TEST_MYSQL_PORT` e execute
+`node backend/tests/mysql-backup-integration.test.mjs` a partir da raiz do projeto.
+O teste aceita apenas `127.0.0.1`, porta diferente de 3306 e servidor cujo diretorio
+seja `sc-mysql-homolog-<identificador hexadecimal>`. Usa dados sinteticos, compara
+todas as tabelas restauradas e os dois JSONs e verifica rejeicao de SQL corrompido.
+Nao utiliza `backend/.env`. Encerre a instancia temporaria ao terminar.
 
 Opcional:
 
@@ -186,3 +224,5 @@ Para evitar ambiguidade, o desenho operacional atual do projeto e:
 - `mysql` gerenciado externo
 
 Nao existe dependencia operacional da Railway no fluxo atual.
+
+
