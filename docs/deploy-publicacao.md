@@ -13,7 +13,8 @@ Este projeto pode ser publicado sem depender da maquina local usando:
 - plataforma recomendada apos a migracao: `Vercel`
 - diretorio raiz do servico: `frontend-angular`
 - framework: `Angular`
-- build command: `npm install && npm run build -- --configuration=production`
+- build QA na Vercel: `npm run build -- --configuration=homolog`
+- build producao local: `npm run build:production-local`
 - output directory: `dist/frontend-angular/browser`
 - SPA rewrite: `/*` para `/index.html`
 
@@ -61,11 +62,17 @@ Observacao:
 
 ### Frontend
 
-O Angular usa `src/environments/environment.production.ts` para apontar para o backend publico:
+O Angular usa dois alvos principais:
 
 ```ts
+// homologacao Vercel
 apiUrl: 'https://smartcompliance.onrender.com'
+
+// producao local
+apiUrl: '/api'
 ```
+
+Na producao local, o servidor web/proxy deve encaminhar `/api` para o backend Node.
 
 ## Banco de dados
 
@@ -90,10 +97,12 @@ apiUrl: 'https://smartcompliance.onrender.com'
 
 Referencia: [discos persistentes do Render](https://render.com/docs/disks).
 
-Antes de usar o backend publicado com `mysql`, execute:
+Antes de usar o backend publicado com `mysql`, execute a estrutura do banco:
 
 1. `backend/db/schema.sql`
-2. `backend/db/seed.sql`
+2. migrations pendentes aplicaveis ao banco existente
+
+Nao execute seed demo no banco definitivo. O `backend/db/seed.sql` e protegido por uma variavel de sessao e deve ficar restrito a QA/homologacao autorizada.
 
 Se voce ja tem um banco existente (tabelas ja criadas) e atualizou o codigo, aplique tambem:
 
@@ -162,10 +171,10 @@ Para homologar especificamente a frente de `questionarios individuais` em MySQL 
 1. Suba o codigo para um repositorio Git.
 2. Publique o backend no Render.
 3. Configure as variaveis de ambiente do backend.
-4. Execute `schema.sql` e `seed.sql` no banco.
+4. Execute `schema.sql` e migrations pendentes no banco. Use seed demo apenas em QA/homologacao autorizada.
 5. Valide o endpoint `GET /health`.
-6. Publique o frontend Angular como Static Site no Render, usando `frontend-angular`.
-7. Confira se o servico estatico usa `dist/frontend-angular/browser` como publish path.
+6. Para QA, publique o frontend Angular na Vercel usando `frontend-angular`.
+7. Para producao local, publique `dist/frontend-angular/browser` no servidor web local.
 8. Atualize `CORS_ORIGIN` ou `CORS_ADDITIONAL_ORIGINS` no backend com qualquer URL final do frontend fora dos dominios padrao.
 9. Rode um teste de login e navegacao completa.
 
@@ -202,7 +211,7 @@ Mas para nao depender da sua maquina de forma confiavel, o recomendado e:
 
 O principal ponto de atencao na publicacao e alinhar:
 
-- `VITE_API_URL`
+- proxy `/api` do frontend local para o backend
 - `CORS_ORIGIN`
 - `STORAGE_MODE=mysql`
 - `AUTH_SECRET`
@@ -212,16 +221,15 @@ Se esses 4 pontos estiverem corretos, o deploy tende a ser direto.
 ## Arquivos de apoio no projeto
 
 - `backend/.env.production.example`
-- `frontend/.env.production.example`
+- `docs/checklist-producao-local.md`
 - `render.yaml`
 
 ## Arquitetura publicada hoje
 
 Para evitar ambiguidade, o desenho operacional atual do projeto e:
 
-- `frontend-angular` no Render Static Site
-- `backend` no Render
-- `mysql` gerenciado externo
+- QA: `frontend-angular` na Vercel, `backend` no Render, `mysql` gerenciado externo
+- Producao local planejada: `frontend-angular` e `backend` no servidor local, com MySQL definitivo autorizado
 
 Nao existe dependencia operacional da Railway no fluxo atual.
 
