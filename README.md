@@ -86,12 +86,14 @@ Isso sobe backend + frontend localmente, abre o navegador headless do Playwright
 - avaliacao de satisfacao do colaborador
 - operacao e biblioteca de avaliacoes para RH
 
-6. Para usar MySQL:
+6. Para usar MySQL em desenvolvimento ou QA:
 
 - Crie um banco no MySQL.
 - Execute o script `backend/db/schema.sql`.
-- Execute o script `backend/db/seed.sql`.
+- Para dados demo autorizados, execute `backend/db/seed-qa-demo.sql` a partir da raiz do projeto.
 - Ajuste `STORAGE_MODE=mysql` e as variáveis do banco em `backend/.env`.
+
+Nao execute `backend/db/seed.sql` diretamente em producao real; ele contem dados e credenciais demo e e bloqueado por padrao.
 
 ## Login demo
 
