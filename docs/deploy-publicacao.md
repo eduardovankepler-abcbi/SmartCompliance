@@ -178,6 +178,36 @@ Para homologar especificamente a frente de `questionarios individuais` em MySQL 
 8. Atualize `CORS_ORIGIN` ou `CORS_ADDITIONAL_ORIGINS` no backend com qualquer URL final do frontend fora dos dominios padrao.
 9. Rode um teste de login e navegacao completa.
 
+## Rotina de QA apos deploy
+
+Depois de qualquer publicacao no Render ou na Vercel, rode as duas validacoes automatizadas abaixo antes de considerar o QA pronto para avaliacao manual.
+
+Backend Render + MySQL, somente leitura:
+
+```bash
+cd backend
+npm run homologate:wave4:readonly
+```
+
+Frontend Vercel publicado, com Chrome ou Edge local:
+
+```bash
+cd frontend-angular
+npm run smoke:published
+```
+
+Se o navegador nao estiver em um caminho padrao, informe:
+
+```bash
+CHROME_EXECUTABLE_PATH=<caminho-do-chrome-ou-edge> npm run smoke:published
+```
+
+Criterio para seguir:
+
+- os dois comandos precisam terminar com `status: passed`;
+- nao pode haver erro de console, warning relevante, chamada `/api` com 4xx/5xx inesperado ou token tecnico visivel como `undefined`, `null`, `NaN` ou `[object Object]`;
+- se qualquer item falhar, isole se e indisponibilidade externa ou bug antes de publicar nova correcao.
+
 ## Checklist de validacao
 
 - `GET /health` responde `status: ok`
@@ -232,5 +262,3 @@ Para evitar ambiguidade, o desenho operacional atual do projeto e:
 - Producao local planejada: `frontend-angular` e `backend` no servidor local, com MySQL definitivo autorizado
 
 Nao existe dependencia operacional da Railway no fluxo atual.
-
-
