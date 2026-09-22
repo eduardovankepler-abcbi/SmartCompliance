@@ -153,6 +153,104 @@ O proxy tambem deve:
 - permitir upload no tamanho definido pelo projeto;
 - nao expor `.env`, backups, logs ou diretorios internos.
 
+
+### Exemplo Nginx
+
+Adaptar `<DOMINIO_FINAL>`, `<FRONTEND_PUBLIC_DIR>` e `<PORT>`:
+
+```nginx
+server {
+  listen 443 ssl http2;
+  server_name <DOMINIO_FINAL>;
+
+  root <FRONTEND_PUBLIC_DIR>;
+  index index.html;
+
+  client_max_body_size 25m;
+
+  location = /health {
+    proxy_pass http://127.0.0.1:<PORT>/health;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
+
+  location /api/ {
+    proxy_pass http://127.0.0.1:<PORT>/api/;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
+
+  location / {
+    try_files $uri $uri/ /index.html;
+  }
+
+  location ~ /\.(env|git) {
+    deny all;
+  }
+}
+```
+
+### Exemplo Caddy
+
+Adaptar `<DOMINIO_FINAL>`, `<FRONTEND_PUBLIC_DIR>` e `<PORT>`:
+
+```caddyfile
+<DOMINIO_FINAL> {
+  root * <FRONTEND_PUBLIC_DIR>
+  encode gzip zstd
+
+  reverse_proxy /health 127.0.0.1:<PORT>
+  reverse_proxy /api/* 127.0.0.1:<PORT>
+
+  @static file
+  handle @static {
+    file_server
+  }
+
+  handle {
+    rewrite * /index.html
+    file_server
+  }
+}
+```
+
+### Exemplo IIS
+
+No IIS, configure o site apontando para `<FRONTEND_PUBLIC_DIR>` e use URL Rewrite + ARR:
+
+```xml
+<configuration>
+  <system.webServer>
+    <rewrite>
+      <rules>
+        <rule name="Backend health" stopProcessing="true">
+          <match url="^health$" />
+          <action type="Rewrite" url="http://127.0.0.1:<PORT>/health" />
+        </rule>
+        <rule name="Backend API" stopProcessing="true">
+          <match url="^api/(.*)" />
+          <action type="Rewrite" url="http://127.0.0.1:<PORT>/api/{R:1}" />
+        </rule>
+        <rule name="Angular SPA" stopProcessing="true">
+          <match url=".*" />
+          <conditions logicalGrouping="MatchAll">
+            <add input="{REQUEST_FILENAME}" matchType="IsFile" negate="true" />
+            <add input="{REQUEST_FILENAME}" matchType="IsDirectory" negate="true" />
+          </conditions>
+          <action type="Rewrite" url="/index.html" />
+        </rule>
+      </rules>
+    </rewrite>
+  </system.webServer>
+</configuration>
+```
+
+Antes de usar IIS, confirme que ARR proxy esta habilitado e que arquivos sensiveis como `.env`, backups e logs nao estao dentro do diretorio publico.
+
 ## 7. Iniciar backend
 
 A forma exata depende do gerenciador escolhido.
