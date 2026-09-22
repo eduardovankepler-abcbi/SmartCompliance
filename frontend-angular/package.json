@@ -17,7 +17,8 @@
     "parity:check": "node scripts/parity-matrix.mjs --fail-on-missing",
     "parity:strict": "node scripts/parity-matrix.mjs --fail-on-partial",
     "build:production-local": "ng build --configuration=production",
-    "build:homolog": "ng build --configuration=homolog"
+    "build:homolog": "ng build --configuration=homolog",
+    "smoke:published": "node scripts/published-smoke.mjs"
   },
   "private": true,
   "packageManager": "npm@10.9.8",
