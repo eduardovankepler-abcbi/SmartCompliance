@@ -180,20 +180,17 @@ Para homologar especificamente a frente de `questionarios individuais` em MySQL 
 
 ## Rotina de QA apos deploy
 
-Depois de qualquer publicacao no Render ou na Vercel, rode as duas validacoes automatizadas abaixo antes de considerar o QA pronto para avaliacao manual.
-
-Backend Render + MySQL, somente leitura:
+Depois de qualquer publicacao no Render ou na Vercel, rode o gate automatizado abaixo antes de considerar o QA pronto para avaliacao manual.
 
 ```bash
-cd backend
-npm run homologate:wave4:readonly
+npm run qa:published
 ```
 
-Frontend Vercel publicado, com Chrome ou Edge local:
+Esse comando executa, em sequencia:
 
 ```bash
-cd frontend-angular
-npm run smoke:published
+npm --prefix backend run homologate:wave4:readonly
+npm --prefix frontend-angular run smoke:published
 ```
 
 Se o navegador nao estiver em um caminho padrao, informe:
