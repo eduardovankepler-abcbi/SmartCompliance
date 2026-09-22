@@ -10,7 +10,8 @@
     "restore:mysql": "node scripts/mysql-restore.mjs",
     "homologate:wave3": "node scripts/homologate-wave3-api.mjs",
     "homologate:wave4:readonly": "node scripts/homologate-wave4-readonly.mjs",
-    "test": "node tests/regression.test.mjs"
+    "test": "node tests/regression.test.mjs",
+    "validate:production-config": "node scripts/validate-production-config.mjs"
   },
   "dependencies": {
     "cors": "^2.8.5",
