@@ -5,6 +5,7 @@ Objetivo: subir o Smart Compliance no servidor definitivo com frontend Angular e
 ## 1. Antes da janela
 
 - [ ] Preencher `docs/requisitos-servidor-local.md`.
+- [ ] Revisar `docs/roteiro-implantacao-servidor-local.md`.
 - [ ] Confirmar commit que sera implantado.
 - [ ] Confirmar URL final do sistema local.
 - [ ] Confirmar se o MySQL definitivo sera Aiven ou outro MySQL autorizado.
@@ -75,3 +76,4 @@ Considere a implantacao pronta para uso somente quando todos estes pontos estive
 - [ ] Manter versao anterior do backend disponivel.
 - [ ] Em falha de codigo, voltar backend/frontend para a revisao anterior.
 - [ ] Em falha de dados, nao improvisar restore: manter backend parado e restaurar apenas a partir de backup validado.
+
