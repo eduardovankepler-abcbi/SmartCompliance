@@ -91,6 +91,14 @@ if (!sslMode) {
   warnings.push("MYSQL_SSL_MODE nao configurado. Confirme se o MySQL definitivo exige SSL.");
 }
 
+const dataDir = requireValue("DATA_DIR", "DATA_DIR precisa apontar para armazenamento persistente no servidor definitivo.");
+const backupDir = requireValue("BACKUP_DIR", "BACKUP_DIR precisa apontar para armazenamento persistente de backups.");
+for (const [name, directory] of [["DATA_DIR", dataDir], ["BACKUP_DIR", backupDir]]) {
+  if (directory && !directory.startsWith("/") && !/^[A-Za-z]:[\\/]/.test(directory)) {
+    warnings.push(`${name} parece ser relativo. Confirme se aponta para armazenamento persistente.`);
+  }
+}
+
 if (errors.length > 0) {
   console.error(JSON.stringify({ status: "failed", errors, warnings }, null, 2));
   process.exit(1);
