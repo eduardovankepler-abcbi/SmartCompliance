@@ -15,7 +15,9 @@
     "visual:parity:report": "npm run visual:parity && npm run visual:report",
     "parity:matrix": "node scripts/parity-matrix.mjs",
     "parity:check": "node scripts/parity-matrix.mjs --fail-on-missing",
-    "parity:strict": "node scripts/parity-matrix.mjs --fail-on-partial"
+    "parity:strict": "node scripts/parity-matrix.mjs --fail-on-partial",
+    "build:production-local": "ng build --configuration=production",
+    "build:homolog": "ng build --configuration=homolog"
   },
   "private": true,
   "packageManager": "npm@10.9.8",
