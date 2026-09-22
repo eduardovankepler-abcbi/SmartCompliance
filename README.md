@@ -124,7 +124,7 @@ O projeto já possui validação local por testes, build do frontend e uma suít
 
 ## Publicação
 
-O frontend oficial publicado e o Angular em `https://smart-compliance-frontend.vercel.app`.
+O frontend oficial publicado e o Angular em `https://smart-compliance-angular.vercel.app`.
 O roteiro historico de publicacao está em `docs/deploy-publicacao.md`; para detalhes do corte React -> Angular, consulte `MIGRATION_HANDOFF.md`.
 
 Resumo operacional atual:
@@ -132,3 +132,11 @@ Resumo operacional atual:
 - frontend publicado na Vercel
 - backend publicado no Render
 - banco em MySQL gerenciado com `STORAGE_MODE=mysql`
+
+Depois de qualquer deploy em QA, rode:
+
+```bash
+npm run qa:published
+```
+
+Esse comando valida backend Render + frontend Vercel publicados.
