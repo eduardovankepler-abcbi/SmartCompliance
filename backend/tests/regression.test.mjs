@@ -5,6 +5,7 @@ const { tmpdir } = await import("node:os");
 const { join } = await import("node:path");
 process.env.DATA_DIR ||= await mkdtemp(join(tmpdir(), "smart-compliance-regression-"));
 
+await import("./security-config.test.mjs");
 const { runAuthAccessRegression } = await import("./auth-access.test.mjs");
 const { runEvaluationsRegression } = await import("./evaluations.test.mjs");
 const { runOperationsRegistryDevelopmentRegression } = await import("./operations-registry-development.test.mjs");

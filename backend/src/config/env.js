@@ -26,7 +26,7 @@ const DEFAULT_CORS_ORIGINS = [
   "https://smartcompliance*.vercel.app"
 ];
 
-function buildCorsOriginOption() {
+export function buildCorsOriginOption() {
   const canonical = process.env.CORS_ORIGIN;
   const legacy = process.env.CORS_ORIGINS;
   const additional = process.env.CORS_ADDITIONAL_ORIGINS;
@@ -36,7 +36,8 @@ function buildCorsOriginOption() {
     ...(legacy ? parseCsv(legacy) : []),
     ...(additional ? parseCsv(additional) : [])
   ];
-  const originRules = Array.from(new Set([...DEFAULT_CORS_ORIGINS, ...configured]));
+  const defaultOrigins = process.env.NODE_ENV === "production" ? [] : DEFAULT_CORS_ORIGINS;
+  const originRules = Array.from(new Set([...defaultOrigins, ...configured]));
   const matchers = originRules.map((rule) =>
     rule.includes("*") ? wildcardToRegex(rule) : rule
   );
