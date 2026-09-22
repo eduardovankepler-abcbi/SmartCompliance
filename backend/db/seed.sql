@@ -1,3 +1,17 @@
+SET @SMART_COMPLIANCE_ALLOW_DEMO_SEED = COALESCE(@SMART_COMPLIANCE_ALLOW_DEMO_SEED, 'false');
+
+DROP PROCEDURE IF EXISTS assert_smart_compliance_demo_seed_allowed;
+DELIMITER //
+CREATE PROCEDURE assert_smart_compliance_demo_seed_allowed()
+BEGIN
+  IF LOWER(@SMART_COMPLIANCE_ALLOW_DEMO_SEED) NOT IN ('1', 'true', 'yes', 'on') THEN
+    SIGNAL SQLSTATE '45000'
+      SET MESSAGE_TEXT = 'Seed demo bloqueado. Defina @SMART_COMPLIANCE_ALLOW_DEMO_SEED = true somente em QA/dev antes de executar este arquivo.';
+  END IF;
+END//
+DELIMITER ;
+CALL assert_smart_compliance_demo_seed_allowed();
+DROP PROCEDURE assert_smart_compliance_demo_seed_allowed;
 SET FOREIGN_KEY_CHECKS = 0;
 
 INSERT INTO people (id, name, role_title, area, work_unit, work_mode, manager_person_id, employment_type, satisfaction_score) VALUES
@@ -323,3 +337,4 @@ INSERT INTO audit_logs (id, category, action_key, entity_type, entity_id, entity
 ON DUPLICATE KEY UPDATE summary_text = VALUES(summary_text);
 
 SET FOREIGN_KEY_CHECKS = 1;
+
