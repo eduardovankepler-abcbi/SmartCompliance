@@ -40,6 +40,14 @@ try {
   const productionWithoutExplicitOrigin = buildCorsOriginOption();
   assert.equal(await resolveCors(productionWithoutExplicitOrigin, "https://smart-compliance-angular.vercel.app"), false);
 
+  process.env.CORS_ORIGIN = "https://https://smart-compliance-angular.vercel.app/";
+  const productionCorsWithDuplicatedScheme = buildCorsOriginOption();
+  assert.equal(
+    await resolveCors(productionCorsWithDuplicatedScheme, "https://smart-compliance-angular.vercel.app"),
+    true
+  );
+  assert.equal(await resolveCors(productionCorsWithDuplicatedScheme, "https://evil.example"), false);
+
   process.env.NODE_ENV = "development";
   const developmentCors = buildCorsOriginOption();
   assert.equal(await resolveCors(developmentCors, "https://smart-compliance-angular.vercel.app"), true);

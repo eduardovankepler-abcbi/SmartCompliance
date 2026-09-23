@@ -9,6 +9,16 @@ function parseCsv(value) {
     .filter(Boolean);
 }
 
+function normalizeCorsOriginRule(value) {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) {
+    return "";
+  }
+
+  const withoutDuplicatedScheme = trimmed.replace(/^(https?:\/\/)(?:https?:\/\/)+/i, "$1");
+  return withoutDuplicatedScheme.replace(/\/+$/, "");
+}
+
 function escapeRegExp(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -37,7 +47,9 @@ export function buildCorsOriginOption() {
     ...(additional ? parseCsv(additional) : [])
   ];
   const defaultOrigins = process.env.NODE_ENV === "production" ? [] : DEFAULT_CORS_ORIGINS;
-  const originRules = Array.from(new Set([...defaultOrigins, ...configured]));
+  const originRules = Array.from(
+    new Set([...defaultOrigins, ...configured].map(normalizeCorsOriginRule).filter(Boolean))
+  );
   const matchers = originRules.map((rule) =>
     rule.includes("*") ? wildcardToRegex(rule) : rule
   );

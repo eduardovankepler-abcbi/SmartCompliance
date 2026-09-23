@@ -58,7 +58,7 @@ Observacao:
 
 - em producao, `AUTH_SECRET` nao pode ficar no valor padrao
 - `PORT` normalmente e fornecida pela propria plataforma
-- o backend ja libera por padrao `localhost`, `127.0.0.1`, `smart-compliance-angular*.vercel.app` e `smartcompliance*.vercel.app`
+- em producao, configure explicitamente `CORS_ORIGIN=https://smart-compliance-angular.vercel.app` no backend; os curingas da Vercel ficam restritos a desenvolvimento
 
 ### Frontend
 

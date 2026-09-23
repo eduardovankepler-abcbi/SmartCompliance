@@ -82,6 +82,12 @@ if (origins.length === 0) {
 if (origins.some((origin) => origin === "*" || origin.includes("*"))) {
   errors.push("CORS de producao nao deve usar wildcard.");
 }
+if (origins.some((origin) => /^(https?:\/\/)(?:https?:\/\/)+/i.test(origin))) {
+  errors.push("CORS_ORIGIN contem protocolo duplicado. Use formato como https://frontend.example.com.");
+}
+if (origins.some((origin) => /\/$/.test(origin))) {
+  warnings.push("CORS_ORIGIN contem barra final. O backend normaliza, mas prefira origem sem barra final.");
+}
 if (origins.some((origin) => origin.includes("localhost") || origin.includes("127.0.0.1"))) {
   warnings.push("CORS contem localhost/127.0.0.1. Confirme se isso e intencional no servidor definitivo.");
 }
