@@ -70,10 +70,14 @@ export const routes: Routes = [
         path: 'development',
         loadComponent: () =>
           import('./features/development/development-page.component').then((m) => m.DevelopmentPageComponent),
+        data: { section: 'development' },
+        canActivate: [sectionAccessGuard],
       },
       {
         path: 'applause',
         loadComponent: () => import('./features/applause/applause-page.component').then((m) => m.ApplausePageComponent),
+        data: { section: 'applause' },
+        canActivate: [sectionAccessGuard],
       },
       {
         path: 'audit',
@@ -84,21 +88,29 @@ export const routes: Routes = [
         path: 'evaluations',
         pathMatch: 'full',
         redirectTo: 'evaluations/company/respond',
+        data: { section: 'evaluations' },
+        canActivate: [sectionAccessGuard],
       },
       {
         path: 'evaluations/:module',
         loadComponent: () =>
           import('./features/evaluations/evaluations-page.component').then((m) => m.EvaluationsPageComponent),
+        data: { section: 'evaluations' },
+        canActivate: [sectionAccessGuard],
       },
       {
         path: 'evaluations/:module/:workspace',
         loadComponent: () =>
           import('./features/evaluations/evaluations-page.component').then((m) => m.EvaluationsPageComponent),
+        data: { section: 'evaluations' },
+        canActivate: [sectionAccessGuard],
       },
       {
         path: 'evaluations/:module/:workspace/:detail',
         loadComponent: () =>
           import('./features/evaluations/evaluations-page.component').then((m) => m.EvaluationsPageComponent),
+        data: { section: 'evaluations' },
+        canActivate: [sectionAccessGuard],
       },
       {
         path: 'people',

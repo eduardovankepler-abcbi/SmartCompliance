@@ -8,7 +8,9 @@ export const sectionAccessGuard: CanActivateFn = (route) => {
   const auth = inject(AuthService);
   const router = inject(Router);
   const roleKey = auth.user()?.roleKey ?? null;
-  const section = getNavigationSection(route.paramMap.get('section'));
+  const routeSection = route.data['section'];
+  const sectionKey = typeof routeSection === 'string' ? routeSection : route.paramMap.get('section');
+  const section = getNavigationSection(sectionKey);
 
   if (section?.roles.includes(roleKey ?? '')) {
     return true;
