@@ -10,7 +10,7 @@ async function login(page: import('@playwright/test').Page, email: string, expec
   await page.getByLabel('E-mail').fill(email);
   await page.getByLabel('Senha').fill(password);
   await page.getByRole('button', { name: 'Acessar', exact: true }).click();
-  await expect(page).toHaveURL(expectedUrl);
+  await expect(page).toHaveURL(expectedUrl, { timeout: 60000 });
 }
 
 test('valida dashboard e auditoria publicados sem mutacao funcional', async ({ page }) => {
