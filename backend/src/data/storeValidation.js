@@ -41,6 +41,12 @@ export function assertCycleStatusTransition(currentStatus, nextStatus) {
   }
 }
 
+export function assertCycleConfigurationEditable(status) {
+  if (status !== CYCLE_STATUS.planning) {
+    throw new Error("A configuracao do ciclo so pode ser alterada durante o planejamento.");
+  }
+}
+
 export function assertValidIncidentClassification(classification) {
   if (!INCIDENT_CLASSIFICATION.includes(classification)) {
     throw new Error("Classificacao do caso invalida.");

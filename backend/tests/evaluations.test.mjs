@@ -1163,35 +1163,10 @@ export async function runEvaluationsRegression() {
       },
       admin
     );
-    await store.updateEvaluationCycleStatus(toggleCycle.id, "Liberado", admin);
-
-    const employeeAssignmentsForToggle = await store.getEvaluationAssignmentsForUser(employee.id);
-    const selfAssignmentForToggle = employeeAssignmentsForToggle.find(
-      (assignment) => assignment.cycleId === toggleCycle.id && assignment.relationshipType === "self"
-    );
-    assert.ok(selfAssignmentForToggle, "Novo ciclo precisa gerar assignment de autoavaliacao");
-
     await store.updateEvaluationCycleConfig(
       toggleCycle.id,
       { moduleAvailability: { self: false } },
       admin
-    );
-
-    const employeeAssignmentsAfterToggle = await store.getEvaluationAssignmentsForUser(employee.id);
-    assert.equal(
-      employeeAssignmentsAfterToggle.some((assignment) => assignment.id === selfAssignmentForToggle.id),
-      false,
-      "Assignment desativado nao pode aparecer para o colaborador"
-    );
-
-    const selfDetailAfterToggle = await store.getEvaluationAssignmentById(
-      selfAssignmentForToggle.id,
-      employee.id
-    );
-    assert.equal(
-      selfDetailAfterToggle,
-      null,
-      "Assignment desativado nao deve carregar detalhe"
     );
 
     const transversalConfigPatchResponse = await sendJson(
@@ -1228,6 +1203,24 @@ export async function runEvaluationsRegression() {
       toggleCycleStructureResponse.payload.transversal.config.defaultReviewersPerPerson,
       2,
       "Estrutura operacional deve refletir a configuracao transversal salva via rota"
+    );
+
+    await store.updateEvaluationCycleStatus(toggleCycle.id, "Liberado", admin);
+
+    await assert.rejects(
+      () => store.updateEvaluationCycleConfig(toggleCycle.id, { moduleAvailability: { self: true } }, admin),
+      /so pode ser alterada durante o planejamento/i,
+      "Ciclo liberado nao deve aceitar mudanca de modulo"
+    );
+    await assert.rejects(
+      () =>
+        store.updateEvaluationCycleConfig(
+          toggleCycle.id,
+          { complianceGraceDueDate: "2027-01-10" },
+          admin
+        ),
+      /so pode ser alterada durante o planejamento/i,
+      "Ciclo liberado nao deve aceitar mudanca de tolerancia"
     );
 
     const createdCycleStructure = await store.getEvaluationCycleParticipants(createdCycle.id);

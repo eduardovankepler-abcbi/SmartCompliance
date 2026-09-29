@@ -144,6 +144,7 @@ import {
 } from "./storeUsersDomain.js";
 import {
   assertCycleStatusTransition,
+  assertCycleConfigurationEditable,
   assertValidApplauseStatus,
   assertValidDevelopmentPlanProgressStatus,
   assertValidDevelopmentPlanStatus,
@@ -7422,6 +7423,7 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
       normalizeTransversalConfig,
       resolveCycleConfigUpdate,
       buildCycleConfigAuditDetail,
+      assertCycleConfigurationEditable,
       assertValidComplianceGraceDate,
       filterFeedbackRequestsForUser,
       assertCanCreateFeedbackRequest,
@@ -8893,6 +8895,7 @@ function buildMysqlStore(
       normalizeTransversalConfig,
       resolveCycleConfigUpdate,
       buildCycleConfigAuditDetail,
+      assertCycleConfigurationEditable,
       assertValidComplianceGraceDate,
       isOrgWideUser,
       isManagerUser,

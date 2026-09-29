@@ -3,8 +3,10 @@ import { createTestContext } from "./testContext.mjs";
 import { createMysqlApplauseStore } from "../src/data/storeApplauseOperations.js";
 import { createMysqlDevelopmentRecordStore } from "../src/data/storeDevelopmentRecordOperations.js";
 import { createMysqlDevelopmentPlanStore } from "../src/data/storeDevelopmentPlanOperations.js";
+import { createMysqlEvaluationWorkflowStore } from "../src/data/storeEvaluationWorkflowOperations.js";
 import { assertCanManageDevelopmentSubject } from "../src/data/storeGrowthDomain.js";
 import { isOrgWideUser, isManagerUser } from "../src/data/storeAccess.js";
+import { assertCycleConfigurationEditable } from "../src/data/storeValidation.js";
 
 export async function runOperationsRegistryDevelopmentRegression() {
   const context = await createTestContext();
@@ -77,6 +79,32 @@ export async function runOperationsRegistryDevelopmentRegression() {
     });
     await assert.rejects(mysqlPlans.updateDevelopmentPlan("foreign",
       { ...foreignPlan, personId: manager.personId, status: "active" }, actorManager), /PDI fora da equipe/);
+
+    const mysqlCycleConfigQueries = [];
+    const mysqlCycleWorkflow = createMysqlEvaluationWorkflowStore({
+      pool: {
+        async query(sql) {
+          mysqlCycleConfigQueries.push(sql);
+          return [[{ id: "cycle-released", title: "Ciclo liberado", status: "Liberado" }]];
+        }
+      },
+      assertCycleConfigurationEditable
+    });
+    await assert.rejects(
+      () =>
+        mysqlCycleWorkflow.updateEvaluationCycleConfig(
+          "cycle-released",
+          { moduleAvailability: { self: false } },
+          actorAdmin
+        ),
+      /so pode ser alterada durante o planejamento/i,
+      "Caminho MySQL deve negar configuracao de ciclo liberado"
+    );
+    assert.equal(
+      mysqlCycleConfigQueries.some((sql) => sql.includes("UPDATE evaluation_cycles")),
+      false,
+      "Caminho MySQL deve negar antes de atualizar o ciclo liberado"
+    );
 
     const mysqlApplauseStore = createMysqlApplauseStore({
       pool: {

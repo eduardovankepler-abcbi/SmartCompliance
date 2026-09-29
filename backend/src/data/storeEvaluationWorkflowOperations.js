@@ -20,6 +20,7 @@ export function createMemoryEvaluationWorkflowStore({
   normalizeTransversalConfig,
   resolveCycleConfigUpdate,
   buildCycleConfigAuditDetail,
+  assertCycleConfigurationEditable,
   assertValidComplianceGraceDate,
   filterFeedbackRequestsForUser,
   assertCanCreateFeedbackRequest,
@@ -122,6 +123,7 @@ export function createMemoryEvaluationWorkflowStore({
       if (!cycle) {
         throw new Error("Ciclo de avaliacao nao encontrado.");
       }
+      assertCycleConfigurationEditable(cycle.status);
 
       const currentModuleAvailability = normalizeCycleModuleAvailability(cycle.moduleAvailability);
       const cycleConfigUpdate = resolveCycleConfigUpdate(
@@ -303,6 +305,7 @@ export function createMysqlEvaluationWorkflowStore({
   normalizeTransversalConfig,
   resolveCycleConfigUpdate,
   buildCycleConfigAuditDetail,
+  assertCycleConfigurationEditable,
   assertValidComplianceGraceDate,
   isOrgWideUser,
   isManagerUser,
@@ -503,7 +506,7 @@ export function createMysqlEvaluationWorkflowStore({
       }
 
       const [rows] = await pool.query(
-        `SELECT id, title, due_date AS dueDate,
+        `SELECT id, title, status, due_date AS dueDate,
                 compliance_grace_due_date AS complianceGraceDueDate,
                 is_enabled AS isEnabled, enabled_relationships_json AS enabledRelationshipsJson, transversal_config_json AS transversalConfigJson
          FROM evaluation_cycles
@@ -515,6 +518,7 @@ export function createMysqlEvaluationWorkflowStore({
       if (!rows[0]) {
         throw new Error("Ciclo de avaliacao nao encontrado.");
       }
+      assertCycleConfigurationEditable(rows[0].status);
 
       const current = presentCycle(rows[0]);
       const cycleConfigUpdate = resolveCycleConfigUpdate(
