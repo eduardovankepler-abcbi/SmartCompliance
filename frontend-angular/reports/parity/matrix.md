@@ -1,10 +1,10 @@
 # Matriz automatizada de paridade
 
-Gerado em: 2026-07-31T10:55:20.820Z
+Gerado em: 2026-09-29T13:51:26.879Z
 
 Resumo: 11 cobertos, 0 parciais, 0 ausentes.
 
-Specs React detectados: 7. Specs Angular detectados: 9.
+Specs React detectados: 7. Specs Angular detectados: 10.
 
 Gate: falha em ausentes e parciais.
 

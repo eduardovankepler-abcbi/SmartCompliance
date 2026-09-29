@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-31T10:55:20.820Z",
+  "generatedAt": "2026-09-29T13:51:26.879Z",
   "summary": {
     "covered": 11,
     "partial": 0,
@@ -147,6 +147,7 @@
     "frontend-angular\\e2e\\evaluations-feedback.spec.ts",
     "frontend-angular\\e2e\\evaluations-library.spec.ts",
     "frontend-angular\\e2e\\evaluations-operations.spec.ts",
+    "frontend-angular\\e2e\\published-readonly.spec.ts",
     "frontend-angular\\e2e\\visual-parity.spec.ts"
   ],
   "rows": [
