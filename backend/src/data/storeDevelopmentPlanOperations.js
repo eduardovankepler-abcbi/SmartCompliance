@@ -10,6 +10,8 @@ export function createMemoryDevelopmentPlanStore({
   AUDIT_CATEGORIES,
   buildDevelopmentPlanAuditDetail,
   assertValidDevelopmentPlanStatus,
+  assertValidDevelopmentPlanExtensionDueDate,
+  assertDevelopmentPlanExtensionPending,
   assertCanReportDevelopmentPlanProgress,
   normalizeDevelopmentPlanProgressPayload,
   normalizeDevelopmentPlanCompliancePayload
@@ -181,6 +183,7 @@ export function createMemoryDevelopmentPlanStore({
       if (!plan.isComplianceRequired) {
         throw new Error("Extensao formal se aplica apenas a PDI obrigatorio.");
       }
+      assertValidDevelopmentPlanExtensionDueDate(plan.dueDate, payload.requestedDueDate);
       db.developmentPlanExtensions ||= [];
       const extension = {
         id: createId("development_plan_extension"),
@@ -214,6 +217,7 @@ export function createMemoryDevelopmentPlanStore({
       if (!extension) {
         throw new Error("Solicitacao de extensao nao encontrada.");
       }
+      assertDevelopmentPlanExtensionPending(extension.status);
       extension.status = payload.status;
       extension.decisionNote = String(payload.decisionNote || "").trim();
       extension.decidedByUserId = actorUser.id;
@@ -278,6 +282,8 @@ export function createMysqlDevelopmentPlanStore({
   AUDIT_CATEGORIES,
   buildDevelopmentPlanAuditDetail,
   assertValidDevelopmentPlanStatus,
+  assertValidDevelopmentPlanExtensionDueDate,
+  assertDevelopmentPlanExtensionPending,
   assertCanReportDevelopmentPlanProgress,
   normalizeDevelopmentPlanProgressPayload,
   normalizeDevelopmentPlanCompliancePayload,
@@ -556,7 +562,8 @@ export function createMysqlDevelopmentPlanStore({
     async requestDevelopmentPlanExtension(planId, payload, actorUser) {
       const [people] = await Promise.all([fetchPeopleRows(pool)]);
       const [[plan]] = await pool.query(
-        `SELECT id, person_id AS personId, is_compliance_required AS isComplianceRequired
+        `SELECT id, person_id AS personId, due_date AS dueDate,
+                is_compliance_required AS isComplianceRequired
          FROM development_plans
          WHERE id = ?`,
         [planId]
@@ -568,6 +575,7 @@ export function createMysqlDevelopmentPlanStore({
       if (!plan.isComplianceRequired) {
         throw new Error("Extensao formal se aplica apenas a PDI obrigatorio.");
       }
+      assertValidDevelopmentPlanExtensionDueDate(plan.dueDate, payload.requestedDueDate);
       const extension = {
         id: createId("development_plan_extension"),
         planId,
@@ -620,17 +628,18 @@ export function createMysqlDevelopmentPlanStore({
       }
       normalizeDevelopmentPlanCompliancePayload({ isComplianceRequired: true, personId: plan.personId }, actorUser, people, plan);
       const [[extension]] = await pool.query(
-        `SELECT id FROM development_plan_extensions WHERE id = ? AND plan_id = ?`,
+        `SELECT id, status FROM development_plan_extensions WHERE id = ? AND plan_id = ?`,
         [extensionId, planId]
       );
       if (!extension) {
         throw new Error("Solicitacao de extensao nao encontrada.");
       }
+      assertDevelopmentPlanExtensionPending(extension.status);
       const decidedAt = new Date().toISOString();
-      await pool.query(
+      const [updateResult] = await pool.query(
         `UPDATE development_plan_extensions
          SET status = ?, decided_by_user_id = ?, decided_at = ?, leader_area_name = ?, decision_note = ?
-         WHERE id = ? AND plan_id = ?`,
+         WHERE id = ? AND plan_id = ? AND status = 'pending'`,
         [
           payload.status,
           actorUser.id,
@@ -641,6 +650,9 @@ export function createMysqlDevelopmentPlanStore({
           planId
         ]
       );
+      if (updateResult.affectedRows !== 1) {
+        throw new Error("Solicitacao de extensao ja foi decidida.");
+      }
       const [[updated]] = await pool.query(
         `SELECT id, plan_id AS planId, requested_due_date AS requestedDueDate, reason, status,
                 requested_by_user_id AS requestedByUserId, requested_at AS requestedAt,

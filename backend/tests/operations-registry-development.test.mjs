@@ -7,7 +7,11 @@ import { createMysqlEvaluationWorkflowStore } from "../src/data/storeEvaluationW
 import { createMysqlEvaluationReadStore } from "../src/data/storeEvaluationReadOperations.js";
 import { assertCanManageDevelopmentSubject } from "../src/data/storeGrowthDomain.js";
 import { isOrgWideUser, isManagerUser } from "../src/data/storeAccess.js";
-import { assertCycleConfigurationEditable } from "../src/data/storeValidation.js";
+import {
+  assertCycleConfigurationEditable,
+  assertDevelopmentPlanExtensionPending,
+  assertValidDevelopmentPlanExtensionDueDate
+} from "../src/data/storeValidation.js";
 
 export async function runOperationsRegistryDevelopmentRegression() {
   const context = await createTestContext();
@@ -80,6 +84,68 @@ export async function runOperationsRegistryDevelopmentRegression() {
     });
     await assert.rejects(mysqlPlans.updateDevelopmentPlan("foreign",
       { ...foreignPlan, personId: manager.personId, status: "active" }, actorManager), /PDI fora da equipe/);
+
+    const mysqlExtensionQueries = [];
+    const mysqlExtensionStore = createMysqlDevelopmentPlanStore({
+      pool: {
+        async query(sql, params) {
+          mysqlExtensionQueries.push({ sql, params });
+          if (sql.includes("FROM development_plans")) {
+            return [[{
+              id: "plan-extension",
+              personId: employee.personId,
+              dueDate: "2030-01-10",
+              isComplianceRequired: true
+            }]];
+          }
+          if (sql.includes("SELECT id, status FROM development_plan_extensions")) {
+            return [[{ id: "extension-pending", status: "pending" }]];
+          }
+          if (sql.includes("UPDATE development_plan_extensions")) {
+            return [{ affectedRows: 0 }];
+          }
+          throw new Error(`Consulta MySQL inesperada: ${sql}`);
+        }
+      },
+      fetchPeopleRows: async () => [],
+      assertCanReportDevelopmentPlanProgress: () => {},
+      assertValidDevelopmentPlanExtensionDueDate,
+      assertDevelopmentPlanExtensionPending,
+      toMysqlDateTime: () => "2030-01-11 00:00:00",
+      normalizeDevelopmentPlanCompliancePayload: () => ({ isComplianceRequired: true })
+    });
+    await assert.rejects(
+      () =>
+        mysqlExtensionStore.requestDevelopmentPlanExtension(
+          "plan-extension",
+          { requestedDueDate: "2030-01-10", reason: "Prazo igual" },
+          actorAdmin
+        ),
+      /posterior ao prazo atual/i,
+      "Caminho MySQL deve negar extensao sem aumento real de prazo"
+    );
+    assert.equal(
+      mysqlExtensionQueries.some((item) => item.sql.includes("INSERT INTO development_plan_extensions")),
+      false,
+      "Caminho MySQL deve negar data invalida antes do INSERT"
+    );
+    await assert.rejects(
+      () =>
+        mysqlExtensionStore.decideDevelopmentPlanExtension(
+          "plan-extension",
+          "extension-pending",
+          { status: "approved", decisionNote: "Tentativa concorrente" },
+          actorAdmin
+        ),
+      /ja foi decidida/i,
+      "Caminho MySQL deve detectar decisao concorrente antes de sobrescrever a solicitacao"
+    );
+    assert.ok(
+      mysqlExtensionQueries.some((item) =>
+        item.sql.includes("AND status = 'pending'")
+      ),
+      "UPDATE MySQL deve condicionar a decisao ao status pendente"
+    );
 
     const mysqlCycleConfigQueries = [];
     const mysqlCycleWorkflow = createMysqlEvaluationWorkflowStore({
@@ -485,6 +551,23 @@ export async function runOperationsRegistryDevelopmentRegression() {
       "PDI obrigatorio vencido deve tirar colaborador de compliance"
     );
 
+    const invalidExtensionRequestResponse = await sendJson(
+      `/api/development/plans/${overdueMandatoryDevelopmentPlan.id}/extensions`,
+      {
+        method: "POST",
+        headers: getAuthHeader(manager.id),
+        body: {
+          requestedDueDate: "2020-08-15",
+          reason: "Tentativa com prazo igual ao atual."
+        }
+      }
+    );
+    assert.equal(
+      invalidExtensionRequestResponse.response.status,
+      400,
+      "Extensao deve exigir prazo posterior ao atual"
+    );
+
     const extensionRequestResponse = await sendJson(
       `/api/development/plans/${overdueMandatoryDevelopmentPlan.id}/extensions`,
       {
@@ -517,6 +600,23 @@ export async function runOperationsRegistryDevelopmentRegression() {
       extensionDecisionResponse.response.status,
       200,
       "Gestor deve aprovar extensao formal de PDI no seu escopo"
+    );
+
+    const repeatedExtensionDecisionResponse = await sendJson(
+      `/api/development/plans/${overdueMandatoryDevelopmentPlan.id}/extensions/${extensionRequestResponse.payload.id}`,
+      {
+        method: "PATCH",
+        headers: getAuthHeader(manager.id),
+        body: {
+          status: "rejected",
+          decisionNote: "Tentativa de sobrescrever decisao aprovada."
+        }
+      }
+    );
+    assert.equal(
+      repeatedExtensionDecisionResponse.response.status,
+      400,
+      "Decisao de extensao ja registrada nao pode ser sobrescrita"
     );
 
     const mandatoryPdiComplianceAfterExtension = await fetchJson(

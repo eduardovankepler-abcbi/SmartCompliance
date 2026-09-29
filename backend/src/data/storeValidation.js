@@ -95,6 +95,39 @@ export function assertValidDevelopmentPlanProgressStatus(status) {
   }
 }
 
+function parseDateOnly(value) {
+  const normalized = String(value || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
+    return null;
+  }
+
+  const date = new Date(`${normalized}T00:00:00.000Z`);
+  return Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== normalized
+    ? null
+    : date;
+}
+
+export function assertValidDevelopmentPlanExtensionDueDate(currentDueDate, requestedDueDate) {
+  const current = parseDateOnly(currentDueDate);
+  const requested = parseDateOnly(requestedDueDate);
+
+  if (!requested) {
+    throw new Error("Nova data de extensao invalida.");
+  }
+  if (!current) {
+    throw new Error("Prazo atual do PDI invalido.");
+  }
+  if (requested.getTime() <= current.getTime()) {
+    throw new Error("Novo prazo deve ser posterior ao prazo atual do PDI.");
+  }
+}
+
+export function assertDevelopmentPlanExtensionPending(status) {
+  if (status !== "pending") {
+    throw new Error("Solicitacao de extensao ja foi decidida.");
+  }
+}
+
 export function assertValidApplauseStatus(status) {
   if (!APPLAUSE_STATUS_OPTIONS.includes(status)) {
     throw new Error("Status do Aplause invalido.");
