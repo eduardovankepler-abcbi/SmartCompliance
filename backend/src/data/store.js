@@ -1630,6 +1630,20 @@ function preparePublishedCustomLibraryUpdate(existingLibrary, payload = {}) {
   };
 }
 
+function createCustomLibraryVersion(existingLibrary, payload, createId) {
+  const updatedLibrary = preparePublishedCustomLibraryUpdate(existingLibrary, payload);
+  const createdAt = new Date().toISOString();
+
+  return {
+    ...updatedLibrary,
+    id: createId("library"),
+    versionNumber: Number(existingLibrary.versionNumber || 1) + 1,
+    versionedFromLibraryId: existingLibrary.id,
+    createdAt,
+    updatedAt: createdAt
+  };
+}
+
 function normalizeCycleModuleAvailability(value) {
   if (!value) {
     return { ...DEFAULT_CYCLE_MODULE_AVAILABILITY };
@@ -7139,6 +7153,7 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
       evaluationLibrary,
       buildEvaluationLibraryPayload,
       preparePublishedCustomLibraryUpdate,
+      createCustomLibraryVersion,
       ensureManualEvaluationLibrary,
       assertHrCanManageEvaluationQuestions,
       prepareManualEvaluationQuestionMutation,
@@ -8284,6 +8299,7 @@ function buildMysqlStore(
       evaluationLibrary,
       buildEvaluationLibraryPayload,
       preparePublishedCustomLibraryUpdate,
+      createCustomLibraryVersion,
       ensureManualEvaluationLibrary,
       assertHrCanManageEvaluationQuestions,
       prepareManualEvaluationQuestionMutation,

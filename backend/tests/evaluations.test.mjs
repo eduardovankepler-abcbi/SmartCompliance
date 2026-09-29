@@ -309,6 +309,47 @@ export async function runEvaluationsRegression() {
       "Ciclo deve carregar o template da biblioteca publicada"
     );
 
+    const versionedLibrary = await store.updateCustomLibrary(
+      publishedLibrary.id,
+      {
+        name: "Biblioteca customizada de teste revisada",
+        description: "Nova versao para ciclos futuros.",
+        templates: publishedLibrary.templates.map((template) => ({
+          ...template,
+          modelName: "Biblioteca de satisfacao revisada",
+          questions: template.questions.map((question) => ({
+            ...question,
+            prompt: "Pergunta revisada que so vale para novos ciclos."
+          }))
+        }))
+      }
+    );
+    assert.notEqual(
+      versionedLibrary.id,
+      publishedLibrary.id,
+      "Biblioteca vinculada a ciclo deve gerar uma nova versao"
+    );
+    assert.equal(versionedLibrary.versionNumber, 2, "Nova versao deve incrementar a versao");
+    assert.equal(
+      versionedLibrary.versionedFromLibraryId,
+      publishedLibrary.id,
+      "Nova versao deve manter a origem"
+    );
+    const cycleTemplateAfterLibraryVersion = await store.getEvaluationTemplateForCycleRelationship(
+      createdCycle.id,
+      "company"
+    );
+    assert.equal(
+      cycleTemplateAfterLibraryVersion.modelName,
+      "Biblioteca de satisfacao customizada",
+      "Ciclo existente deve manter o template da versao original"
+    );
+    assert.notEqual(
+      cycleTemplateAfterLibraryVersion.questions[0].prompt,
+      versionedLibrary.templates[0].questions[0].prompt,
+      "Perguntas da nova versao nao podem alterar o ciclo existente"
+    );
+
     const selfTemplateFallback = await store.getEvaluationTemplateForCycleRelationship(
       createdCycle.id,
       "self"

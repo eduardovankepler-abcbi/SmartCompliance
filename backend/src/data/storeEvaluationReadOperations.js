@@ -37,6 +37,7 @@ export function createMemoryEvaluationReadStore({
   evaluationLibrary,
   buildEvaluationLibraryPayload,
   preparePublishedCustomLibraryUpdate,
+  createCustomLibraryVersion,
   ensureManualEvaluationLibrary,
   assertHrCanManageEvaluationQuestions,
   prepareManualEvaluationQuestionMutation,
@@ -143,6 +144,8 @@ export function createMemoryEvaluationReadStore({
 
       const published = {
         id: createId("library"),
+        versionNumber: 1,
+        versionedFromLibraryId: null,
         name: payload.name,
         description: payload.description || "",
         sourceFileName: draft.fileName,
@@ -165,12 +168,17 @@ export function createMemoryEvaluationReadStore({
         throw new Error("Biblioteca customizada nao encontrada.");
       }
 
-      const updatedLibrary = preparePublishedCustomLibraryUpdate(
-        customLibraryState.published[libraryIndex],
-        payload
-      );
+      const existingLibrary = customLibraryState.published[libraryIndex];
+      const isUsedByCycle = db.cycles.some((cycle) => cycle.libraryId === libraryId);
+      const updatedLibrary = isUsedByCycle
+        ? createCustomLibraryVersion(existingLibrary, payload, createId)
+        : preparePublishedCustomLibraryUpdate(existingLibrary, payload);
 
-      customLibraryState.published[libraryIndex] = updatedLibrary;
+      if (isUsedByCycle) {
+        customLibraryState.published.unshift(updatedLibrary);
+      } else {
+        customLibraryState.published[libraryIndex] = updatedLibrary;
+      }
       await saveCustomLibraryState(customLibraryState);
       return updatedLibrary;
     },
@@ -420,6 +428,7 @@ export function createMysqlEvaluationReadStore({
   evaluationLibrary,
   buildEvaluationLibraryPayload,
   preparePublishedCustomLibraryUpdate,
+  createCustomLibraryVersion,
   ensureManualEvaluationLibrary,
   assertHrCanManageEvaluationQuestions,
   prepareManualEvaluationQuestionMutation,
@@ -589,6 +598,8 @@ export function createMysqlEvaluationReadStore({
 
       const published = {
         id: createId("library"),
+        versionNumber: 1,
+        versionedFromLibraryId: null,
         name: payload.name,
         description: payload.description || "",
         sourceFileName: draft.fileName,
@@ -611,12 +622,20 @@ export function createMysqlEvaluationReadStore({
         throw new Error("Biblioteca customizada nao encontrada.");
       }
 
-      const updatedLibrary = preparePublishedCustomLibraryUpdate(
-        customLibraryState.published[libraryIndex],
-        payload
+      const [cycleRows] = await pool.query(
+        `SELECT id FROM evaluation_cycles WHERE library_id = ? LIMIT 1`,
+        [libraryId]
       );
+      const existingLibrary = customLibraryState.published[libraryIndex];
+      const updatedLibrary = cycleRows[0]
+        ? createCustomLibraryVersion(existingLibrary, payload, createId)
+        : preparePublishedCustomLibraryUpdate(existingLibrary, payload);
 
-      customLibraryState.published[libraryIndex] = updatedLibrary;
+      if (cycleRows[0]) {
+        customLibraryState.published.unshift(updatedLibrary);
+      } else {
+        customLibraryState.published[libraryIndex] = updatedLibrary;
+      }
       await saveCustomLibraryState(customLibraryState);
       return updatedLibrary;
     },

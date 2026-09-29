@@ -178,7 +178,7 @@ export interface EvaluationLibrary {
 
 export interface CustomLibraryDraft { id: string; fileName: string; createdAt: string; errors: string[]; summary: { templates: number; questions: number; [key: string]: number }; templates: CustomLibraryTemplate[]; }
 export interface CustomLibraryTemplate { id?: string; relationshipType: string; key?: string; modelName: string; description: string; policy?: Record<string, unknown>; questions: EvaluationQuestion[]; }
-export interface CustomEvaluationLibrary { id: string; name: string; description: string; sourceFileName?: string; createdAt?: string; updatedAt?: string; templateCount: number; questionCount: number; templates: CustomLibraryTemplate[]; }
+export interface CustomEvaluationLibrary { id: string; name: string; description: string; sourceFileName?: string; createdAt?: string; updatedAt?: string; versionNumber?: number; versionedFromLibraryId?: string | null; templateCount: number; questionCount: number; templates: CustomLibraryTemplate[]; }
 
 export interface LibraryQuestionPayload {
   relationshipType: string;

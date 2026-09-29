@@ -4,6 +4,7 @@ import { createMysqlApplauseStore } from "../src/data/storeApplauseOperations.js
 import { createMysqlDevelopmentRecordStore } from "../src/data/storeDevelopmentRecordOperations.js";
 import { createMysqlDevelopmentPlanStore } from "../src/data/storeDevelopmentPlanOperations.js";
 import { createMysqlEvaluationWorkflowStore } from "../src/data/storeEvaluationWorkflowOperations.js";
+import { createMysqlEvaluationReadStore } from "../src/data/storeEvaluationReadOperations.js";
 import { assertCanManageDevelopmentSubject } from "../src/data/storeGrowthDomain.js";
 import { isOrgWideUser, isManagerUser } from "../src/data/storeAccess.js";
 import { assertCycleConfigurationEditable } from "../src/data/storeValidation.js";
@@ -104,6 +105,47 @@ export async function runOperationsRegistryDevelopmentRegression() {
       mysqlCycleConfigQueries.some((sql) => sql.includes("UPDATE evaluation_cycles")),
       false,
       "Caminho MySQL deve negar antes de atualizar o ciclo liberado"
+    );
+
+    const mysqlCustomLibraryState = {
+      drafts: [],
+      published: [{ id: "library-used", name: "Biblioteca original", versionNumber: 1, templates: [] }]
+    };
+    const mysqlCustomLibraryStore = createMysqlEvaluationReadStore({
+      pool: {
+        async query(sql, params) {
+          assert.match(sql, /SELECT id FROM evaluation_cycles/i);
+          assert.deepEqual(params, ["library-used"]);
+          return [[{ id: "cycle-using-library" }]];
+        }
+      },
+      createId: () => "library-version-2",
+      customLibraryState: mysqlCustomLibraryState,
+      saveCustomLibraryState: async () => {},
+      preparePublishedCustomLibraryUpdate(existing, payload) {
+        return { ...existing, name: payload.name };
+      },
+      createCustomLibraryVersion(existing, payload, createId) {
+        return {
+          ...existing,
+          name: payload.name,
+          id: createId("library"),
+          versionNumber: 2,
+          versionedFromLibraryId: existing.id
+        };
+      }
+    });
+    const mysqlVersionedLibrary = await mysqlCustomLibraryStore.updateCustomLibrary(
+      "library-used",
+      { name: "Biblioteca revisada" }
+    );
+    assert.equal(mysqlVersionedLibrary.id, "library-version-2");
+    assert.equal(mysqlCustomLibraryState.published.length, 2);
+    assert.equal(mysqlCustomLibraryState.published[1].name, "Biblioteca original");
+    assert.equal(
+      mysqlCustomLibraryState.published[0].versionedFromLibraryId,
+      "library-used",
+      "Caminho MySQL deve preservar a biblioteca usada e criar a nova versao"
     );
 
     const mysqlApplauseStore = createMysqlApplauseStore({

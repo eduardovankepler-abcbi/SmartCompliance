@@ -166,7 +166,8 @@ const routedRelationshipKeys = new Set([
                   } @else {
                     <strong>{{item.name}}</strong>
                     <p>{{item.description || 'Sem descricao.'}}</p>
-                    <small>{{item.templateCount}} templates · {{item.questionCount}} perguntas · {{item.sourceFileName || 'edicao manual'}}</small>
+                    <small>Versao {{item.versionNumber || 1}} · {{item.templateCount}} templates · {{item.questionCount}} perguntas · {{item.sourceFileName || 'edicao manual'}}</small>
+                    @if(item.versionedFromLibraryId){<small>Nova versao criada a partir de uma biblioteca vinculada a ciclo.</small>}
                     <button class="secondary" type="button" (click)="editCustomLibrary(item)">Editar</button>
                   }
                 </article>
