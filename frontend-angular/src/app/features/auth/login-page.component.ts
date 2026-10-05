@@ -173,7 +173,7 @@ export class LoginPageComponent {
     try {
       const { email, password } = this.form.getRawValue();
       const user = await this.auth.login(email, password);
-      await this.router.navigateByUrl(user.mustChangePassword ? '/change-password' : '/app/dashboard');
+      await this.router.navigateByUrl(user.mustChangePassword ? '/change-password' : '/app');
     } catch (error) {
       this.errorMessage.set(
         error instanceof ApiError ? error.message : 'Nao foi possivel iniciar a sessao.',
