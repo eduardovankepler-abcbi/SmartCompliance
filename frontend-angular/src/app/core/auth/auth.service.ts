@@ -18,7 +18,7 @@ export class AuthService {
   ) {}
 
   restoreSession(): Promise<void> {
-    if (!this.restorePromise) {
+    if (!this.restorePromise || (!this.user() && this.tokenStorage.getToken())) {
       this.restorePromise = this.loadSession();
     }
 

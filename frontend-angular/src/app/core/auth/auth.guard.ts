@@ -3,9 +3,13 @@ import { CanActivateFn, Router } from '@angular/router';
 
 import { AuthService } from './auth.service';
 
-export const authGuard: CanActivateFn = () => {
+export const authGuard: CanActivateFn = async () => {
   const auth = inject(AuthService);
   const router = inject(Router);
+  if (!auth.user()) {
+    await auth.restoreSession();
+  }
+
   const user = auth.user();
 
   if (!user) {

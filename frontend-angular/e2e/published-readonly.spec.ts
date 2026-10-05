@@ -25,6 +25,16 @@ test('valida dashboard e auditoria publicados sem mutacao funcional', async ({ p
   await expect(page.getByLabel('Eventos de auditoria')).toBeVisible();
 });
 
+test('restaura a sessao antes de proteger o workspace publicado', async ({ page }) => {
+  await page.goto('/login');
+  await page.getByLabel('E-mail').fill(adminEmail);
+  await page.getByLabel('Senha').fill(password);
+  await page.getByRole('button', { name: 'Acessar', exact: true }).click();
+
+  await expect(page).toHaveURL(/\/app\/dashboard$/, { timeout: 60000 });
+  await expect(page.locator('#dashboard-title')).toHaveText('Gestao Executiva');
+});
+
 test('bloqueia colaborador no dashboard publicado', async ({ page }) => {
   await login(page, employeeEmail, /\/app\/compliance$/);
 
