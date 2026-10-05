@@ -12,13 +12,14 @@ export class App {
 
   constructor() {
     this.router.events.subscribe((event) => {
-      const detail = event as { url?: string; urlAfterRedirects?: string; reason?: string };
+      const detail = event as { url?: string; urlAfterRedirects?: string; reason?: string; error?: unknown };
       console.log('[router-event]', {
         type: event.constructor.name,
         eventType: event.type,
         url: detail.url ?? null,
         finalUrl: detail.urlAfterRedirects ?? null,
         reason: detail.reason ?? null,
+        error: detail.error instanceof Error ? detail.error.message : String(detail.error ?? ''),
         detail: event.toString(),
       });
     });
