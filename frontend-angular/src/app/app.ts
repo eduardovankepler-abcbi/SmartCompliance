@@ -15,9 +15,11 @@ export class App {
       const detail = event as { url?: string; urlAfterRedirects?: string; reason?: string };
       console.log('[router-event]', {
         type: event.constructor.name,
+        eventType: event.type,
         url: detail.url ?? null,
         finalUrl: detail.urlAfterRedirects ?? null,
         reason: detail.reason ?? null,
+        detail: event.toString(),
       });
     });
   }
