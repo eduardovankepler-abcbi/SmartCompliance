@@ -20,6 +20,7 @@ export class App {
         finalUrl: detail.urlAfterRedirects ?? null,
         reason: detail.reason ?? null,
         error: detail.error instanceof Error ? detail.error.message : String(detail.error ?? ''),
+        errorStack: detail.error instanceof Error ? detail.error.stack ?? '' : '',
         detail: event.toString(),
       });
     });
