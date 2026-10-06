@@ -233,6 +233,7 @@ export function createMysqlDevelopmentRecordStore({
 
       const archivedAt =
         payload.status === "archived" ? toMysqlDateTime(new Date()) : null;
+      const completedAt = String(payload.completedAt).slice(0, 10);
       await pool.query(
         `UPDATE development_records
          SET person_id = ?, record_type = ?, title = ?, provider_name = ?, completed_at = ?,
@@ -243,7 +244,7 @@ export function createMysqlDevelopmentRecordStore({
           payload.recordType,
           payload.title,
           payload.providerName,
-          payload.completedAt,
+          completedAt,
           payload.skillSignal,
           payload.notes,
           payload.status,
@@ -270,6 +271,7 @@ export function createMysqlDevelopmentRecordStore({
       return {
         id: recordId,
         ...payload,
+        completedAt,
         archivedAt,
         personName: person?.name || ""
       };
