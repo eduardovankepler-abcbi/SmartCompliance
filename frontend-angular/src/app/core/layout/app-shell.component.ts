@@ -1,20 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import {
-  LucideChevronLeft,
-  LucideChevronRight,
-  LucideClipboardCheck,
-  LucideLayoutDashboard,
-  LucideLogOut,
-  LucideMoon,
-  LucideRefreshCw,
-  LucideShieldAlert,
-  LucideSparkles,
-  LucideSun,
-  LucideTrendingUp,
-  LucideUserCog,
-  LucideUsers,
-} from '@lucide/angular';
 import { filter } from 'rxjs';
 
 import { AuthService } from '../auth/auth.service';
@@ -29,19 +14,6 @@ const THEME_STORAGE_KEY = 'smartCompliance.theme';
     RouterLink,
     RouterLinkActive,
     RouterOutlet,
-    LucideChevronLeft,
-    LucideChevronRight,
-    LucideClipboardCheck,
-    LucideLayoutDashboard,
-    LucideLogOut,
-    LucideMoon,
-    LucideRefreshCw,
-    LucideShieldAlert,
-    LucideSparkles,
-    LucideSun,
-    LucideTrendingUp,
-    LucideUserCog,
-    LucideUsers,
   ],
   template: `
     <div class="shell" [class.shell--collapsed]="isSidebarCollapsed()">
@@ -67,9 +39,9 @@ const THEME_STORAGE_KEY = 'smartCompliance.theme';
             [title]="sidebarToggleLabel()"
           >
             @if (isSidebarCollapsed()) {
-              <svg lucideChevronRight aria-hidden="true" />
+              <span aria-hidden="true">›</span>
             } @else {
-              <svg lucideChevronLeft aria-hidden="true" />
+              <span aria-hidden="true">‹</span>
             }
           </button>
         </div>
@@ -89,32 +61,7 @@ const THEME_STORAGE_KEY = 'smartCompliance.theme';
                     [title]="section.label"
                   >
                     <span class="sidebar__link-mark">
-                      @switch (section.key) {
-                        @case ('dashboard') {
-                          <svg lucideLayoutDashboard aria-hidden="true" />
-                        }
-                        @case ('compliance') {
-                          <svg lucideShieldAlert aria-hidden="true" />
-                        }
-                        @case ('evaluations') {
-                          <svg lucideClipboardCheck aria-hidden="true" />
-                        }
-                        @case ('development') {
-                          <svg lucideTrendingUp aria-hidden="true" />
-                        }
-                        @case ('applause') {
-                          <svg lucideSparkles aria-hidden="true" />
-                        }
-                        @case ('audit') {
-                          <svg lucideClipboardCheck aria-hidden="true" />
-                        }
-                        @case ('people') {
-                          <svg lucideUsers aria-hidden="true" />
-                        }
-                        @case ('users') {
-                          <svg lucideUserCog aria-hidden="true" />
-                        }
-                      }
+                      <span aria-hidden="true">{{ navigationIcon(section.key) }}</span>
                     </span>
                     <span class="sidebar__link-label">{{ section.label }}</span>
                   </a>
@@ -150,19 +97,19 @@ const THEME_STORAGE_KEY = 'smartCompliance.theme';
               [title]="themeToggleLabel()"
             >
               @if (isDarkTheme()) {
-                <svg lucideSun aria-hidden="true" />
+                <span aria-hidden="true">☀</span>
                 <span>Claro</span>
               } @else {
-                <svg lucideMoon aria-hidden="true" />
+                <span aria-hidden="true">☾</span>
                 <span>Escuro</span>
               }
             </button>
             <button type="button" (click)="refresh()" aria-label="Atualizar dados" title="Atualizar dados">
-              <svg lucideRefreshCw aria-hidden="true" />
+              <span aria-hidden="true">↻</span>
               <span>Atualizar</span>
             </button>
             <button type="button" (click)="logout()" aria-label="Sair" title="Sair">
-              <svg lucideLogOut aria-hidden="true" />
+              <span aria-hidden="true">↪</span>
               <span>Sair</span>
             </button>
             <div class="topbar__avatar" [attr.aria-label]="profileSummary()" [title]="profileSummary()">
@@ -210,6 +157,21 @@ export class AppShellComponent {
     const user = this.auth.user();
     return `${user?.person?.name || user?.email || 'Usuario'} · ${user?.roleKey || 'perfil'}`;
   });
+
+  protected navigationIcon(section: string): string {
+    const icons: Record<string, string> = {
+      dashboard: '▦',
+      compliance: '⚠',
+      evaluations: '✓',
+      development: '↗',
+      applause: '✦',
+      audit: '✓',
+      people: '●',
+      users: '◉',
+    };
+
+    return icons[section] ?? '•';
+  }
 
   constructor() {
     this.applyThemeClass();
