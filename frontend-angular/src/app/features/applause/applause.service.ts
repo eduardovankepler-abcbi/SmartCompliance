@@ -37,6 +37,7 @@ export interface ApplausePayload {
   category: string;
   impact: string;
   contextNote: string;
+  statusReason?: string;
 }
 
 @Injectable({ providedIn: 'root' })

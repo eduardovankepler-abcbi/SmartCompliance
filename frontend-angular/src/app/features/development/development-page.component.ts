@@ -32,7 +32,7 @@ const progressLabels: Record<string, string> = {
     <section class="development" aria-labelledby="development-title">
       <header class="development__header">
         <div><p>Desenvolvimento</p><h1 id="development-title">Formacao e PDI</h1><span>Registre aprendizados e acompanhe planos dentro do seu escopo.</span></div>
-        <div class="actions"><button type="button" (click)="openRecordForm()">Novo registro</button><button type="button" (click)="openPlanForm()">Novo PDI</button><button class="secondary" type="button" (click)="load()" [disabled]="loading()">Atualizar</button></div>
+        <div class="actions"><button type="button" (click)="openRecordForm()">Novo registro</button>@if (canManagePlans()) { <button type="button" (click)="openPlanForm()">Novo PDI</button> }<button class="secondary" type="button" (click)="load()" [disabled]="loading()">Atualizar</button></div>
       </header>
 
       @if (errorMessage()) { <div class="error" role="alert"><span>{{ errorMessage() }}</span><button class="secondary" type="button" (click)="errorMessage.set('')">Fechar</button></div> }
@@ -132,7 +132,7 @@ const progressLabels: Record<string, string> = {
           @if (!activePlans().length) { <p class="state">Nenhum PDI ativo no seu escopo.</p> }
           @else { <div class="cards">@for (plan of activePlans(); track plan.id) {
             <article class="card"><div class="card__top"><div><strong>{{ plan.focusTitle }}</strong><span>{{ plan.personName }}</span></div><span class="badge">{{ plan.isComplianceRequired ? 'Compliance obrigatorio' : progressLabel(plan.progressStatus) }}</span></div><p>{{ plan.actionText }}</p><dl><div><dt>Prazo</dt><dd>{{ plan.dueDate | date:'dd/MM/yyyy' }}</dd></div><div><dt>Competencia</dt><dd>{{ plan.competencyName || 'Nao vinculada' }}</dd></div><div><dt>Evidencia esperada</dt><dd>{{ plan.expectedEvidence }}</dd></div></dl>@if (plan.progressNote) { <small>Ultimo andamento: {{ plan.progressNote }}</small> }
-              <div class="card-actions"><button class="secondary" type="button" (click)="openPlanForm(plan)">Editar</button><button class="secondary" type="button" (click)="openProgressForm(plan)">Andamento</button>@if (plan.isComplianceRequired) { <button class="secondary" type="button" (click)="openExtensionForm(plan)">Solicitar extensao</button> }<button class="danger" type="button" (click)="archivePlan(plan)">Arquivar</button></div>
+              <div class="card-actions">@if (canManagePlans()) { <button class="secondary" type="button" (click)="openPlanForm(plan)">Editar</button> }<button class="secondary" type="button" (click)="openProgressForm(plan)">Andamento</button>@if (plan.isComplianceRequired) { <button class="secondary" type="button" (click)="openExtensionForm(plan)">Solicitar extensao</button> }@if (canManagePlans()) { <button class="danger" type="button" (click)="archivePlan(plan)">Arquivar</button> }</div>
               @if (progressPlan()?.id === plan.id) { <form class="progress-form" [formGroup]="progressForm" (ngSubmit)="saveProgress(plan)"><label>Status<select formControlName="progressStatus"><option value="not_started">Nao iniciado</option><option value="in_progress">Em andamento</option><option value="blocked">Bloqueado</option><option value="done">Concluido</option></select></label><label>Nota<input formControlName="progressNote" /></label><button type="submit" [disabled]="saving()">Salvar andamento</button><button class="secondary" type="button" (click)="progressPlan.set(null)">Cancelar</button></form> }
               @if (extensionPlan()?.id === plan.id) { <form class="progress-form" [formGroup]="extensionForm" (ngSubmit)="requestExtension(plan)"><label>Novo prazo solicitado<input type="date" formControlName="requestedDueDate" /></label><label>Justificativa<input formControlName="reason" /></label><button type="submit" [disabled]="saving()">Enviar extensao</button><button class="secondary" type="button" (click)="extensionPlan.set(null)">Cancelar</button></form> }
             </article>
@@ -185,6 +185,7 @@ export class DevelopmentPageComponent implements OnInit {
   readonly canViewOrganizationDevelopment = computed(() => ['admin', 'hr'].includes(this.auth.user()?.roleKey || ''));
   readonly canLoadDirectoryData = computed(() => ['admin', 'hr', 'manager'].includes(this.auth.user()?.roleKey || ''));
   readonly canManageLearningIntegrations = computed(() => ['admin', 'hr'].includes(this.auth.user()?.roleKey || ''));
+  readonly canManagePlans = computed(() => ['admin', 'hr', 'manager'].includes(this.auth.user()?.roleKey || ''));
   readonly canApproveExtensions = computed(() => ['admin', 'hr', 'manager'].includes(this.auth.user()?.roleKey || ''));
   readonly directReportPeople = computed(() => this.peopleOptions().filter((person) => person.managerPersonId === this.auth.user()?.person?.id));
   readonly canViewTeamDevelopment = computed(() => this.auth.user()?.roleKey === 'manager' || this.directReportPeople().length > 0);

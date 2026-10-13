@@ -9,7 +9,7 @@ import { Incident, IncidentFindingStatus, IncidentStatus, UpdateIncidentPayload 
   template: `
     <div class="treatment">
       <label>Classificacao <select [value]="incident().classification" #classification>@for (item of classifications; track item) { <option [value]="item">{{ item }}</option> }</select></label>
-      <label>Status <select [value]="incident().status" #status>@for (item of statuses; track item) { <option [value]="item">{{ item }}</option> }</select></label>
+      <label>Status <select [value]="incident().status" #status>@for (item of availableStatuses(); track item) { <option [value]="item">{{ item }}</option> }</select></label>
       <label>Area responsavel <select [value]="selectedArea()" #area (change)="changeArea(area.value, assignee)">@for (item of areas(); track item.id) { <option [value]="item.name">{{ item.name }}</option> }</select></label>
       <label>Responsavel designado <select [value]="incident().assignedPersonId || ''" #assignee><option value="">Nao definido</option>@for (person of peopleForArea(); track person.id) { <option [value]="person.id">{{ person.name }}</option> }</select></label>
       <label>Colaborador envolvido <select [value]="incident().subjectPersonId || ''" #subject><option value="">Nao definido</option>@for (person of people(); track person.id) { <option [value]="person.id">{{ person.name }}</option> }</select></label>
@@ -28,12 +28,20 @@ export class IncidentTreatmentFormComponent {
   readonly cancelled = output<void>();
   readonly selectedArea = signal('');
   readonly classifications = ['Conduta e Relacionamento', 'Integridade e Etica', 'Assedio e Respeito', 'Fraude e Desvio', 'Processos e Controles', 'Nao classificado'];
-  readonly statuses: IncidentStatus[] = ['Em triagem', 'Em apuracao', 'Aguardando retorno', 'Concluido'];
   readonly findings: Array<{ value: IncidentFindingStatus; label: string }> = [{ value: 'pending', label: 'Em apuracao' }, { value: 'substantiated', label: 'Procedente' }, { value: 'unsubstantiated', label: 'Improcedente' }];
 
   constructor() { effect(() => this.selectedArea.set(this.incident().responsibleArea)); }
 
   peopleForArea(): Person[] { return this.people().filter((person) => person.area === this.selectedArea()); }
+  availableStatuses(): IncidentStatus[] {
+    const transitions: Record<IncidentStatus, IncidentStatus[]> = {
+      'Em triagem': ['Em triagem', 'Em apuracao'],
+      'Em apuracao': ['Em apuracao', 'Aguardando retorno', 'Concluido'],
+      'Aguardando retorno': ['Aguardando retorno', 'Em apuracao', 'Concluido'],
+      Concluido: ['Concluido']
+    };
+    return transitions[this.incident().status] || [this.incident().status];
+  }
   changeArea(areaName: string, assignee: HTMLSelectElement): void {
     this.selectedArea.set(areaName);
     const area = this.areas().find((item) => item.name === areaName);

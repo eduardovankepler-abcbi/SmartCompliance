@@ -24,9 +24,10 @@ import { ApplauseEntry, ApplausePayload, ApplauseRecipient, ApplauseService, App
           <label>Quem recebe<select formControlName="receiverPersonId"><option value="">Selecione uma pessoa</option>@for (person of receiverOptions(); track person.id) { <option [value]="person.id">{{ person.name }}</option> }</select></label>
           <label>Contexto<select formControlName="occasion">@for (occasion of occasions; track occasion) { <option [value]="occasion">{{ occasion }}</option> }</select></label>
           <label>Tipo de reconhecimento<select formControlName="category">@for (category of categories; track category) { <option [value]="category">{{ category }}</option> }</select></label>
-          @if (editing()) { <label>Status<select formControlName="status"><option value="Validado">Validado</option><option value="Em revisao">Em revisao</option><option value="Arquivado">Arquivado</option></select></label> }
+          @if (editing()) { <label>Status<select formControlName="status"><option value="Validado">Validado</option>@if (canAdministerLifecycle()) { <option value="Em revisao">Em revisao</option> }<option value="Arquivado">Arquivado</option></select></label> }
           <label class="wide">Impacto gerado<input formControlName="impact" placeholder="Ex.: destravou uma entrega critica" /></label>
           <label class="wide">Descricao do reconhecimento<textarea rows="5" formControlName="contextNote" placeholder="Explique o que aconteceu e por que merece destaque."></textarea><small>Use pelo menos 20 caracteres.</small></label>
+          @if (requiresStatusReason()) { <label class="wide">Justificativa da alteracao de status<textarea rows="3" formControlName="statusReason" placeholder="Explique o motivo do arquivamento ou da restauracao."></textarea></label> }
           <aside class="guidance wide" aria-live="polite">
             <strong>{{ selectedReceiver()?.name || 'Selecione quem recebera o reconhecimento' }}</strong>
             <span>{{ selectedReceiver() ? (selectedReceiver()!.area + ' · ' + (selectedReceiver()!.roleTitle || 'Cargo nao informado')) : 'O destaque sera ligado a uma pessoa do seu escopo.' }}</span>
@@ -40,9 +41,9 @@ import { ApplauseEntry, ApplausePayload, ApplauseRecipient, ApplauseService, App
       @if (loading()) { <p class="state">Carregando reconhecimentos...</p> }
       @else {
         <div class="metrics"><article><strong>{{ activeEntries().length }}</strong><span>Reconhecimentos ativos</span></article><article><strong>{{ receivedCount() }}</strong><span>Recebidos por voce</span></article><article><strong>{{ sentCount() }}</strong><span>Enviados por voce</span></article></div>
-        <section class="panel" aria-labelledby="entries-title"><div class="panel__heading"><div><p>Historico</p><h2 id="entries-title">Reconhecimentos</h2></div><span>{{ activeEntries().length }} no seu escopo</span></div>
-          @if (!activeEntries().length) { <p class="state">Nenhum reconhecimento encontrado no seu escopo.</p> }
-          @else { <div class="cards">@for (entry of activeEntries(); track entry.id) { <article class="card"><div class="card__top"><div><strong>{{ entry.senderName }} → {{ entry.receiverName }}</strong><span>{{ entry.createdAt | date:'dd/MM/yyyy' }}</span></div><span class="badge">{{ entry.status }}</span></div><h3>{{ entry.category }}</h3><p class="impact">{{ entry.impact }}</p><p>{{ entry.contextNote }}</p>@if (canManage()) { <div class="card-actions"><button class="secondary" type="button" (click)="edit(entry)">Editar</button><button class="danger" type="button" (click)="archive(entry)">Arquivar</button></div> }</article> }</div> }
+        <section class="panel" aria-labelledby="entries-title"><div class="panel__heading"><div><p>Historico</p><h2 id="entries-title">Reconhecimentos</h2></div><span>{{ visibleEntries().length }} no seu escopo</span></div>
+          @if (!visibleEntries().length) { <p class="state">Nenhum reconhecimento encontrado no seu escopo.</p> }
+          @else { <div class="cards">@for (entry of visibleEntries(); track entry.id) { <article class="card"><div class="card__top"><div><strong>{{ entry.senderName }} → {{ entry.receiverName }}</strong><span>{{ entry.createdAt | date:'dd/MM/yyyy' }}</span></div><span class="badge">{{ entry.status }}</span></div><h3>{{ entry.category }}</h3><p class="impact">{{ entry.impact }}</p><p>{{ entry.contextNote }}</p>@if (canManage() && (entry.status !== 'Arquivado' || canAdministerLifecycle())) { <div class="card-actions"><button class="secondary" type="button" (click)="edit(entry)">{{ entry.status === 'Arquivado' ? 'Restaurar' : 'Editar' }}</button></div> }</article> }</div> }
         </section>
       }
 
@@ -69,33 +70,30 @@ export class ApplausePageComponent implements OnInit {
   readonly saving = signal(false);
   readonly errorMessage = signal('');
   readonly canManage = computed(() => ['admin', 'hr', 'manager'].includes(this.auth.user()?.roleKey || ''));
+  readonly canAdministerLifecycle = computed(() => ['admin', 'hr'].includes(this.auth.user()?.roleKey || ''));
   readonly canViewAudit = computed(() => ['admin', 'hr', 'manager'].includes(this.auth.user()?.roleKey || ''));
   readonly receiverOptions = computed(() => this.people().filter((person) => person.id !== this.auth.user()?.person?.id));
   readonly selectedReceiver = computed(() => this.receiverOptions().find((person) => person.id === this.form.controls.receiverPersonId.value) || null);
   readonly activeEntries = computed(() => this.entries().filter((entry) => entry.status !== 'Arquivado'));
+  readonly visibleEntries = computed(() => this.canAdministerLifecycle() ? this.entries() : this.activeEntries());
   readonly receivedCount = computed(() => this.activeEntries().filter((entry) => entry.receiverPersonId === this.auth.user()?.person?.id).length);
   readonly sentCount = computed(() => this.activeEntries().filter((entry) => entry.senderPersonId === this.auth.user()?.person?.id).length);
-  readonly form = this.fb.nonNullable.group({ receiverPersonId:['', Validators.required], occasion:['Projeto', Validators.required], category:['Colaboracao', Validators.required], impact:['', Validators.required], contextNote:['', [Validators.required, Validators.minLength(20)]], status:['Validado' as ApplauseStatus, Validators.required] });
+  readonly form = this.fb.nonNullable.group({ receiverPersonId:['', Validators.required], occasion:['Projeto', Validators.required], category:['Colaboracao', Validators.required], impact:['', Validators.required], contextNote:['', [Validators.required, Validators.minLength(20)]], status:['Validado' as ApplauseStatus, Validators.required], statusReason:[''] });
 
   ngOnInit(): void { void this.load(); }
-  edit(entry: ApplauseEntry): void { this.editing.set(entry); const parsed = this.parseContext(entry.contextNote); this.form.reset({ receiverPersonId:entry.receiverPersonId, occasion:parsed.occasion, category:entry.category, impact:entry.impact, contextNote:parsed.note, status:entry.status }); }
-  resetForm(): void { this.editing.set(null); this.form.reset({ receiverPersonId:this.receiverOptions()[0]?.id || '', occasion:'Projeto', category:'Colaboracao', impact:'', contextNote:'', status:'Validado' }); }
-  validationMessage(): string { const value = this.form.getRawValue(); if (!value.receiverPersonId) return 'Selecione quem recebera o reconhecimento.'; if (!value.impact.trim()) return 'Informe o impacto gerado.'; if (value.contextNote.trim().length < 20) return 'Descreva o reconhecimento com pelo menos 20 caracteres.'; return ''; }
+  edit(entry: ApplauseEntry): void { this.editing.set(entry); const parsed = this.parseContext(entry.contextNote); this.form.reset({ receiverPersonId:entry.receiverPersonId, occasion:parsed.occasion, category:entry.category, impact:entry.impact, contextNote:parsed.note, status:entry.status, statusReason:'' }); }
+  resetForm(): void { this.editing.set(null); this.form.reset({ receiverPersonId:this.receiverOptions()[0]?.id || '', occasion:'Projeto', category:'Colaboracao', impact:'', contextNote:'', status:'Validado', statusReason:'' }); }
+  requiresStatusReason(): boolean { const editing = this.editing(); if (!editing) return false; return editing.status !== this.form.controls.status.value && (editing.status === 'Arquivado' || this.form.controls.status.value === 'Arquivado'); }
+  validationMessage(): string { const value = this.form.getRawValue(); if (!value.receiverPersonId) return 'Selecione quem recebera o reconhecimento.'; if (!value.impact.trim()) return 'Informe o impacto gerado.'; if (value.contextNote.trim().length < 20) return 'Descreva o reconhecimento com pelo menos 20 caracteres.'; if (this.requiresStatusReason() && !value.statusReason.trim()) return 'Informe a justificativa da alteracao de status.'; return ''; }
 
   async save(): Promise<void> {
     if (this.form.invalid) { this.form.markAllAsTouched(); return; }
     const value = this.form.getRawValue();
-    const payload: ApplausePayload = { receiverPersonId:value.receiverPersonId, category:value.category, impact:value.impact, contextNote:`[Contexto: ${value.occasion}] ${value.contextNote.trim()}` };
+    if (this.validationMessage()) { this.form.markAllAsTouched(); return; }
+    const payload: ApplausePayload = { receiverPersonId:value.receiverPersonId, category:value.category, impact:value.impact, contextNote:`[Contexto: ${value.occasion}] ${value.contextNote.trim()}`, statusReason:value.statusReason.trim() || undefined };
     this.saving.set(true); this.errorMessage.set('');
     try { const editing = this.editing(); if (editing) await firstValueFrom(this.api.update(editing.id, { ...payload, status:value.status })); else await firstValueFrom(this.api.create(payload)); this.resetForm(); await this.load(); }
     catch (error) { this.setError(error, 'Falha ao salvar o reconhecimento.'); }
-    finally { this.saving.set(false); }
-  }
-
-  async archive(entry: ApplauseEntry): Promise<void> {
-    this.saving.set(true); this.errorMessage.set('');
-    try { await firstValueFrom(this.api.update(entry.id, { receiverPersonId:entry.receiverPersonId, category:entry.category, impact:entry.impact, contextNote:entry.contextNote, status:'Arquivado' })); await this.load(); }
-    catch (error) { this.setError(error, 'Falha ao arquivar o reconhecimento.'); }
     finally { this.saving.set(false); }
   }
 
