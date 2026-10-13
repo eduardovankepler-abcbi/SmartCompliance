@@ -230,6 +230,65 @@ export async function runEvaluationsRegression() {
       "Template retornado para o assignment deve refletir o questionario individual"
     );
 
+    const competingQuestionnaire = await store.createEvaluationQuestionnaire(
+      {
+        cycleId: "c1",
+        revieweePersonId: employee.personId,
+        relationshipType: "self",
+        title: "Tentativa de segunda autoavaliacao",
+        description: "Nao pode substituir o questionario individual ja publicado."
+      },
+      hr
+    );
+    await buildQuestionnaireQuestions(competingQuestionnaire.id, 1, hr);
+    await assert.rejects(
+      () => store.publishEvaluationQuestionnaire(competingQuestionnaire.id, hr),
+      /Ja existe questionario publicado/i,
+      "Publicacao concorrente nao deve substituir questionario ja publicado"
+    );
+    await assert.rejects(
+      () => store.archiveEvaluationQuestionnaire(createdQuestionnaire.id, hr),
+      /avaliacoes pendentes/i,
+      "Questionario com assignment pendente nao deve ser arquivado"
+    );
+
+    await store.submitEvaluationAssignment({
+      assignmentId: selfAssignmentWithQuestionnaire.id,
+      reviewerUserId: employee.id,
+      answers: individualizedTemplate.questions.map((question) => ({
+        questionId: question.id,
+        score: 3,
+        evidenceNote: "",
+        textValue: "",
+        selectedOptions: []
+      })),
+      strengthsNote: "Autoavaliacao concluida para preservar a versao publicada.",
+      developmentNote: "Sem acoes adicionais neste cenario de regressao."
+    });
+    await store.archiveEvaluationQuestionnaire(createdQuestionnaire.id, hr);
+
+    const replacementQuestionnaire = await store.createEvaluationQuestionnaire(
+      {
+        cycleId: "c1",
+        revieweePersonId: employee.personId,
+        relationshipType: "self",
+        title: "Autoavaliacao substituta",
+        description: "Nova versao para validar preservacao do historico submetido."
+      },
+      hr
+    );
+    await buildQuestionnaireQuestions(replacementQuestionnaire.id, 1, hr);
+    await store.publishEvaluationQuestionnaire(replacementQuestionnaire.id, hr);
+    const submittedAssignmentAfterReplacement = await store.getEvaluationAssignmentById(
+      selfAssignmentWithQuestionnaire.id,
+      employee.id
+    );
+    assert.equal(
+      submittedAssignmentAfterReplacement.questionnaireId,
+      createdQuestionnaire.id,
+      "Assignment enviado deve manter a referencia do questionario respondido"
+    );
+
     const customLibraryDraft = await store.importCustomLibraryDraft({
       fileName: "biblioteca-customizada.xlsx",
       createdByUserId: admin.id,
@@ -1191,6 +1250,22 @@ export async function runEvaluationsRegression() {
     assert.ok(
       acknowledgementResponse.payload.revieweeAcknowledgedAt,
       "Registro de retorno do colaborador deve armazenar data"
+    );
+    const repeatedAcknowledgementResponse = await sendJson(
+      `/api/evaluations/responses/${managerSubmission.id}/acknowledgement`,
+      {
+        method: "PATCH",
+        headers: getAuthHeader(managerRevieweeEmployee.id),
+        body: {
+          status: "agreed",
+          note: "Tentativa de substituir o aceite anterior."
+        }
+      }
+    );
+    assert.equal(
+      repeatedAcknowledgementResponse.response.status,
+      400,
+      "Aceite de feedback ja registrado nao pode ser sobrescrito"
     );
 
     const toggleCycle = await store.createEvaluationCycle(

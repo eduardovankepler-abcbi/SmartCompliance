@@ -86,8 +86,7 @@ export async function runOperationsRegistryDevelopmentRegression() {
       { ...foreignPlan, personId: manager.personId, status: "active" }, actorManager), /PDI fora da equipe/);
 
     const mysqlExtensionQueries = [];
-    const mysqlExtensionStore = createMysqlDevelopmentPlanStore({
-      pool: {
+    const mysqlExtensionPool = {
         async query(sql, params) {
           mysqlExtensionQueries.push({ sql, params });
           if (sql.includes("FROM development_plans")) {
@@ -105,10 +104,22 @@ export async function runOperationsRegistryDevelopmentRegression() {
             return [{ affectedRows: 0 }];
           }
           throw new Error(`Consulta MySQL inesperada: ${sql}`);
+        },
+        async getConnection() {
+          return {
+            query: this.query.bind(this),
+            async beginTransaction() {},
+            async commit() {},
+            async rollback() {},
+            release() {}
+          };
         }
-      },
+      };
+    const mysqlExtensionStore = createMysqlDevelopmentPlanStore({
+      pool: mysqlExtensionPool,
       fetchPeopleRows: async () => [],
       assertCanReportDevelopmentPlanProgress: () => {},
+      assertDevelopmentPlanProgressEditable: () => {},
       assertValidDevelopmentPlanExtensionDueDate,
       assertDevelopmentPlanExtensionPending,
       toMysqlDateTime: () => "2030-01-11 00:00:00",
@@ -308,28 +319,42 @@ export async function runOperationsRegistryDevelopmentRegression() {
           },
           compliance
         ),
-      /motivo de conclusao/i,
-      "Conclusao de caso deve exigir motivo"
+      /Transicao de status/i,
+      "Caso em triagem nao deve ser concluido diretamente"
     );
 
-    const closedIncident = await store.updateIncident(
+    const incidentInInvestigation = await store.updateIncident(
       createdIncident.id,
       {
         classification: "Conduta e Relacionamento",
-        status: "Concluido",
+        status: "Em apuracao",
         responsibleArea: "Compliance",
         assignedPersonId: compliance.personId,
-        closureNote: "Caso analisado e encerrado na regressao."
+        findingStatus: "pending",
+        closureNote: ""
       },
       compliance
     );
-    assert.equal(closedIncident.status, "Concluido", "Caso deve permitir conclusao com motivo");
-    assert.ok(closedIncident.closedAt, "Caso concluido deve registrar data de fechamento");
-    assert.equal(
-      closedIncident.closureNote,
-      "Caso analisado e encerrado na regressao.",
-      "Caso concluido deve preservar motivo de fechamento"
+    assert.equal(incidentInInvestigation.status, "Em apuracao", "Caso deve entrar em apuracao antes do encerramento");
+
+    await assert.rejects(
+      () =>
+        store.updateIncident(
+          createdIncident.id,
+          {
+            classification: "Conduta e Relacionamento",
+            status: "Concluido",
+            responsibleArea: "Compliance",
+            assignedPersonId: compliance.personId,
+            findingStatus: "pending",
+            closureNote: "Caso ainda sem decisao de procedencia."
+          },
+          compliance
+        ),
+      /procedencia/i,
+      "Conclusao deve exigir decisao de procedencia"
     );
+
     const evidence = await store.addIncidentEvidence(
       createdIncident.id,
       {
@@ -342,6 +367,43 @@ export async function runOperationsRegistryDevelopmentRegression() {
     );
     assert.equal(evidence.fileName, "relatorio.txt", "Evidencia deve preservar nome seguro");
     assert.equal(evidence.mimeType, "text/plain", "Evidencia deve preservar tipo permitido");
+
+    const closedIncident = await store.updateIncident(
+      createdIncident.id,
+      {
+        classification: "Conduta e Relacionamento",
+        status: "Concluido",
+        responsibleArea: "Compliance",
+        assignedPersonId: compliance.personId,
+        findingStatus: "unsubstantiated",
+        closureNote: "Caso analisado e encerrado na regressao."
+      },
+      compliance
+    );
+    assert.equal(closedIncident.status, "Concluido", "Caso deve permitir conclusao com motivo");
+    assert.ok(closedIncident.closedAt, "Caso concluido deve registrar data de fechamento");
+    assert.equal(
+      closedIncident.closureNote,
+      "Caso analisado e encerrado na regressao.",
+      "Caso concluido deve preservar motivo de fechamento"
+    );
+    await assert.rejects(
+      () =>
+        store.updateIncident(
+          createdIncident.id,
+          {
+            classification: "Conduta e Relacionamento",
+            status: "Em apuracao",
+            responsibleArea: "Compliance",
+            assignedPersonId: compliance.personId,
+            findingStatus: "unsubstantiated",
+            closureNote: "Tentativa de reabrir caso concluido."
+          },
+          compliance
+        ),
+      /Transicao de status/i,
+      "Caso concluido deve permanecer somente para leitura"
+    );
     const evidences = await store.listIncidentEvidences(createdIncident.id, compliance);
     assert.ok(
       evidences.some((item) => item.id === evidence.id),
@@ -443,6 +505,24 @@ export async function runOperationsRegistryDevelopmentRegression() {
       "Colaborador nao deve estruturar o proprio PDI"
     );
 
+    await assert.rejects(
+      () =>
+        store.createDevelopmentPlan(
+          {
+            personId: managerRevieweeEmployee.personId,
+            cycleId: createdCycle.id,
+            competencyId: "cmp_communication",
+            focusTitle: "PDI com prazo invalido",
+            actionText: "Este registro deve ser bloqueado antes de persistir.",
+            dueDate: "2026-99-99",
+            expectedEvidence: "Nao deve ser persistido."
+          },
+          manager
+        ),
+      /Prazo do PDI invalido/,
+      "PDI deve exigir prazo valido"
+    );
+
     const createdDevelopmentPlan = await store.createDevelopmentPlan(
       {
         personId: managerRevieweeEmployee.personId,
@@ -454,27 +534,6 @@ export async function runOperationsRegistryDevelopmentRegression() {
         expectedEvidence: "Atas publicadas e feedback do gestor sobre clareza."
       },
       manager
-    );
-
-    const completedDevelopmentPlan = await store.updateDevelopmentPlan(
-      createdDevelopmentPlan.id,
-      {
-        personId: managerRevieweeEmployee.personId,
-        cycleId: createdCycle.id,
-        competencyId: "cmp_communication",
-        focusTitle: "Evoluir comunicacao com stakeholders",
-        actionText: "Conduzir checkpoints quinzenais com pauta e resumo de riscos.",
-        dueDate: "2026-08-15",
-        expectedEvidence: "Atas publicadas e feedback do gestor sobre clareza.",
-        status: "completed"
-      },
-      manager
-    );
-
-    assert.equal(
-      completedDevelopmentPlan.status,
-      "completed",
-      "Gestor deve poder concluir o PDI do reporte"
     );
 
     const progressDevelopmentPlan = await store.updateDevelopmentPlanProgress(
@@ -518,11 +577,49 @@ export async function runOperationsRegistryDevelopmentRegression() {
       "API deve retornar o andamento atualizado do PDI"
     );
 
+    await store.updateDevelopmentPlanProgress(
+      createdDevelopmentPlan.id,
+      { progressStatus: "done", progressNote: "Evidencias validadas pelo gestor." },
+      managerRevieweeEmployee
+    );
+    const completedDevelopmentPlan = await store.updateDevelopmentPlan(
+      createdDevelopmentPlan.id,
+      {
+        personId: managerRevieweeEmployee.personId,
+        cycleId: createdCycle.id,
+        competencyId: "cmp_communication",
+        focusTitle: "Evoluir comunicacao com stakeholders",
+        actionText: "Conduzir checkpoints quinzenais com pauta e resumo de riscos.",
+        dueDate: "2026-08-15",
+        expectedEvidence: "Atas publicadas e feedback do gestor sobre clareza.",
+        status: "completed"
+      },
+      manager
+    );
+    assert.equal(completedDevelopmentPlan.status, "completed", "Gestor deve concluir PDI com andamento concluido");
+    await assert.rejects(
+      () => store.updateDevelopmentPlanProgress(createdDevelopmentPlan.id, { progressStatus: "blocked" }, managerRevieweeEmployee),
+      /PDI ativo/,
+      "PDI concluido nao deve aceitar novo andamento"
+    );
+
     const employeeDevelopmentPlans = await store.getDevelopmentPlans(managerRevieweeEmployee);
     assert.ok(
       employeeDevelopmentPlans.some((plan) => plan.id === createdDevelopmentPlan.id),
       "Colaborador deve visualizar o proprio PDI"
     );
+    const employeePlanCreationResponse = await sendJson("/api/development/plans", {
+      method: "POST",
+      headers: getAuthHeader(managerRevieweeEmployee.id),
+      body: {
+        personId: managerRevieweeEmployee.personId,
+        focusTitle: "Tentativa sem permissao",
+        actionText: "Deve ser recusada pela rota antes da regra de dominio.",
+        dueDate: "2026-12-31",
+        expectedEvidence: "Nao aplicavel."
+      }
+    });
+    assert.equal(employeePlanCreationResponse.response.status, 403, "Colaborador nao deve receber permissao de estruturar PDI");
 
     const overdueMandatoryDevelopmentPlan = await store.createDevelopmentPlan(
       {
@@ -555,7 +652,7 @@ export async function runOperationsRegistryDevelopmentRegression() {
       `/api/development/plans/${overdueMandatoryDevelopmentPlan.id}/extensions`,
       {
         method: "POST",
-        headers: getAuthHeader(manager.id),
+        headers: getAuthHeader(managerRevieweeEmployee.id),
         body: {
           requestedDueDate: "2020-08-15",
           reason: "Tentativa com prazo igual ao atual."
@@ -582,7 +679,7 @@ export async function runOperationsRegistryDevelopmentRegression() {
     assert.equal(
       extensionRequestResponse.response.status,
       201,
-      "Gestor deve solicitar extensao formal para PDI obrigatorio"
+      "Colaborador deve solicitar extensao do proprio PDI obrigatorio"
     );
 
     const extensionDecisionResponse = await sendJson(
@@ -601,6 +698,10 @@ export async function runOperationsRegistryDevelopmentRegression() {
       200,
       "Gestor deve aprovar extensao formal de PDI no seu escopo"
     );
+    const planAfterExtension = (await store.getDevelopmentPlans(manager)).find(
+      (plan) => plan.id === overdueMandatoryDevelopmentPlan.id
+    );
+    assert.equal(planAfterExtension.dueDate, "2099-12-31", "Extensao aprovada deve atualizar o prazo do PDI");
 
     const repeatedExtensionDecisionResponse = await sendJson(
       `/api/development/plans/${overdueMandatoryDevelopmentPlan.id}/extensions/${extensionRequestResponse.payload.id}`,
@@ -640,6 +741,22 @@ export async function runOperationsRegistryDevelopmentRegression() {
       contextNote: "Reconhecimento criado para validar manutencao administrativa do modulo."
     });
 
+    await assert.rejects(
+      store.updateApplauseEntry(
+        createdApplause.id,
+        {
+          receiverPersonId: manager.personId,
+          category: "Resolucao de problema",
+          impact: "Apoio refinado para investigacao de causa raiz.",
+          contextNote: "Registro revisado no fluxo administrativo.",
+          status: "Arquivado"
+        },
+        admin
+      ),
+      /justificativa para arquivar/,
+      "Arquivamento precisa registrar justificativa"
+    );
+
     const updatedApplause = await store.updateApplauseEntry(
       createdApplause.id,
       {
@@ -647,9 +764,10 @@ export async function runOperationsRegistryDevelopmentRegression() {
         category: "Resolucao de problema",
         impact: "Apoio refinado para investigacao de causa raiz.",
         contextNote: "Registro revisado no fluxo administrativo.",
-        status: "Arquivado"
+        status: "Arquivado",
+        statusReason: "Reconhecimento registrado em duplicidade."
       },
-      admin
+      manager
     );
 
     assert.equal(
@@ -662,6 +780,31 @@ export async function runOperationsRegistryDevelopmentRegression() {
       "Resolucao de problema",
       "Aplause deve permitir atualizacao de categoria"
     );
+
+    await assert.rejects(
+      store.updateApplauseEntry(
+        createdApplause.id,
+        { ...updatedApplause, status: "Validado", statusReason: "Correcao solicitada." },
+        manager
+      ),
+      /so pode ser restaurado para Validado por administrador ou RH/,
+      "Gestor nao pode restaurar Aplause arquivado"
+    );
+    await assert.rejects(
+      store.updateApplauseEntry(
+        createdApplause.id,
+        { ...updatedApplause, status: "Validado" },
+        admin
+      ),
+      /justificativa para restaurar/,
+      "Restauracao administrativa precisa registrar justificativa"
+    );
+    const restoredApplause = await store.updateApplauseEntry(
+      createdApplause.id,
+      { ...updatedApplause, status: "Validado", statusReason: "Duplicidade confirmada como inexistente." },
+      admin
+    );
+    assert.equal(restoredApplause.status, "Validado", "Admin pode restaurar Aplause com justificativa");
 
     const createdArea = await store.createArea(
       {
@@ -1122,12 +1265,41 @@ export async function runOperationsRegistryDevelopmentRegression() {
             cycleId: workContextCycle.id,
             providerPersonIds: [rioPerson.id],
             contextNote:
+              "Colaboramos em uma frente compartilhada e o ciclo ainda esta em planejamento."
+          },
+          employeeActor
+        ),
+      /ciclo liberado/i,
+      "Feedback direto nao deve ser solicitado antes da liberacao do ciclo"
+    );
+    await store.updateEvaluationCycleStatus(workContextCycle.id, "Liberado", admin);
+    await assert.rejects(
+      () =>
+        store.createFeedbackRequest(
+          {
+            cycleId: workContextCycle.id,
+            providerPersonIds: [rioPerson.id],
+            contextNote:
               "Colaboramos em uma frente compartilhada e quero validar a restricao de unidade."
           },
           employeeActor
         ),
       /mesma unidade/i,
       "Feedback direto deve respeitar a mesma unidade de trabalho"
+    );
+    const sameUnitFeedbackRequest = await store.createFeedbackRequest(
+      {
+        cycleId: workContextCycle.id,
+        providerPersonIds: [productPerson.id],
+        contextNote:
+          "Colaboramos na mesma unidade e quero receber feedback sobre a entrega conjunta."
+      },
+      employeeActor
+    );
+    assert.equal(
+      sameUnitFeedbackRequest.status,
+      "pending",
+      "Feedback direto deve aceitar pessoas da mesma unidade de trabalho"
     );
 
     const overdueCycle = await store.createEvaluationCycle(

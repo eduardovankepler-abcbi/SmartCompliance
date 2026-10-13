@@ -667,6 +667,10 @@ export function createMysqlEvaluationWorkflowStore({
     async createFeedbackRequest(payload, actorUser) {
       const people = await fetchPeopleRows(pool);
       const users = await fetchUserRows(pool);
+      const actorWithPerson = {
+        ...actorUser,
+        person: people.find((person) => person.id === actorUser.personId) || actorUser.person
+      };
       const dbSnapshot = {
         people,
         users,
@@ -679,11 +683,15 @@ export function createMysqlEvaluationWorkflowStore({
           )
           .then(([rows]) => rows)
       };
-      const providerPersonIds = assertCanCreateFeedbackRequest(dbSnapshot, actorUser, payload);
+      const providerPersonIds = assertCanCreateFeedbackRequest(
+        dbSnapshot,
+        actorWithPerson,
+        payload
+      );
 
       const request = prepareFeedbackRequest({
         payload,
-        actorUser,
+        actorUser: actorWithPerson,
         createId,
         requestedAt: toMysqlDateTime(new Date())
       });
