@@ -102,6 +102,8 @@ import {
 import {
   assertIncidentCreatePayload,
   assertIncidentUpdatePayload,
+  assertIncidentStatusTransition,
+  assertIncidentCanClose,
   buildIncidentAuditDetail,
   buildIncidentProtocol,
   calculateIncidentDueAt,
@@ -149,6 +151,10 @@ import {
   assertValidDevelopmentPlanProgressStatus,
   assertValidDevelopmentPlanExtensionDueDate,
   assertDevelopmentPlanExtensionPending,
+  assertValidDevelopmentPlanDueDate,
+  assertDevelopmentPlanStatusTransition,
+  assertDevelopmentPlanStatusProgressConsistency,
+  assertDevelopmentPlanProgressEditable,
   assertValidDevelopmentPlanStatus,
   assertValidDevelopmentRecordStatus,
   assertValidFeedbackRequestStatus,
@@ -6026,8 +6032,8 @@ function assertCanCreateFeedbackRequest(db, actorUser, payload) {
     throw new Error("Ciclo de avaliacao nao encontrado.");
   }
 
-  if (cycle.status === CYCLE_STATUS.closed) {
-    throw new Error("Nao e possivel solicitar feedback em ciclo encerrado.");
+  if (cycle.status !== CYCLE_STATUS.released) {
+    throw new Error("Feedback direto so pode ser solicitado em ciclo liberado.");
   }
 
   for (const providerPersonId of uniqueProviderIds) {
@@ -7035,6 +7041,7 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         assertValidIncidentArea,
         assertValidIncidentAssignee
       });
+      assertIncidentStatusTransition(incident.status, payload.status);
       assertValidIncidentSubject(db.people, payload.subjectPersonId);
       const incidentRouting = resolveIncidentAssignment({
         areas: db.areas,
@@ -7042,6 +7049,14 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         payload
       });
       const finding = normalizeIncidentFindingPayload(payload, actorUser);
+      if (payload.status === "Concluido") {
+        assertIncidentCanClose({
+          payload: { ...payload, findingStatus: finding.findingStatus },
+          assignedPersonId: incidentRouting.assignedPersonId,
+          hasEvidence: (db.incidentEvidences || []).some((item) => item.incidentId === incidentId)
+        });
+      }
+      const previousStatus = incident.status;
 
       incident.classification = payload.classification;
       incident.status = payload.status;
@@ -7061,7 +7076,7 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
 
       pushAuditLog(db.auditLogs, {
         category: AUDIT_CATEGORIES.incident,
-        action: "updated",
+        action: previousStatus === incident.status ? "updated" : "status_changed",
         entityType: "incident",
         entityId: incident.id,
         entityLabel: incident.title,
@@ -7069,6 +7084,7 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
         summary: `Caso atualizado: ${incident.title}`,
         detail: buildIncidentAuditDetail({
           status: incident.status,
+          previousStatus,
           classification: incident.classification,
           responsibleArea: incident.responsibleArea,
           assignedTo: incident.assignedTo,
@@ -7527,6 +7543,10 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
       AUDIT_CATEGORIES,
       buildDevelopmentPlanAuditDetail,
       assertValidDevelopmentPlanStatus,
+      assertValidDevelopmentPlanDueDate,
+      assertDevelopmentPlanStatusTransition,
+      assertDevelopmentPlanStatusProgressConsistency,
+      assertDevelopmentPlanProgressEditable,
       assertValidDevelopmentPlanExtensionDueDate,
       assertDevelopmentPlanExtensionPending,
       assertCanReportDevelopmentPlanProgress,
@@ -8105,6 +8125,17 @@ function buildMysqlStore(
       }
 
       const [areas, people] = await Promise.all([fetchAreaRows(pool), fetchPeopleRows(pool)]);
+      const [rows] = await pool.query(
+        `SELECT id, status
+         FROM incident_reports
+         WHERE id = ?
+         LIMIT 1`,
+        [incidentId]
+      );
+      const currentIncident = rows[0];
+      if (!currentIncident) {
+        throw new Error("Caso de compliance nao encontrado.");
+      }
       assertIncidentUpdatePayload({
         areas,
         people,
@@ -8112,20 +8143,20 @@ function buildMysqlStore(
         assertValidIncidentArea,
         assertValidIncidentAssignee
       });
+      assertIncidentStatusTransition(currentIncident.status, payload.status);
       assertValidIncidentSubject(people, payload.subjectPersonId);
       const incidentRouting = resolveIncidentAssignment({ areas, people, payload });
       const finding = normalizeIncidentFindingPayload(payload, actorUser);
-
-      const [rows] = await pool.query(
-        `SELECT id
-         FROM incident_reports
-         WHERE id = ?
-         LIMIT 1`,
-        [incidentId]
-      );
-
-      if (!rows[0]) {
-        throw new Error("Caso de compliance nao encontrado.");
+      if (payload.status === "Concluido") {
+        const [evidences] = await pool.query(
+          `SELECT id FROM incident_evidences WHERE incident_id = ? LIMIT 1`,
+          [incidentId]
+        );
+        assertIncidentCanClose({
+          payload: { ...payload, findingStatus: finding.findingStatus },
+          assignedPersonId: incidentRouting.assignedPersonId,
+          hasEvidence: Boolean(evidences[0])
+        });
       }
 
       await pool.query(
@@ -8166,7 +8197,7 @@ function buildMysqlStore(
 
       await insertAuditLog(pool, {
         category: AUDIT_CATEGORIES.incident,
-        action: "updated",
+        action: currentIncident.status === payload.status ? "updated" : "status_changed",
         entityType: "incident",
         entityId: incidentId,
         entityLabel: updatedRows[0].title,
@@ -8174,6 +8205,7 @@ function buildMysqlStore(
         summary: `Caso atualizado: ${updatedRows[0].title}`,
         detail: buildIncidentAuditDetail({
           status: updatedRows[0].status,
+          previousStatus: currentIncident.status,
           classification: updatedRows[0].classification,
           responsibleArea: updatedRows[0].responsibleArea,
           assignedTo: updatedRows[0].assignedTo,
@@ -9022,6 +9054,10 @@ function buildMysqlStore(
       AUDIT_CATEGORIES,
       buildDevelopmentPlanAuditDetail,
       assertValidDevelopmentPlanStatus,
+      assertValidDevelopmentPlanDueDate,
+      assertDevelopmentPlanStatusTransition,
+      assertDevelopmentPlanStatusProgressConsistency,
+      assertDevelopmentPlanProgressEditable,
       assertValidDevelopmentPlanExtensionDueDate,
       assertDevelopmentPlanExtensionPending,
       assertCanReportDevelopmentPlanProgress,

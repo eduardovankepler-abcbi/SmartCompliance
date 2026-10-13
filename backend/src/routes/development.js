@@ -155,7 +155,7 @@ export function createDevelopmentRouter(store) {
     }
   });
 
-  router.post("/plans", requireRoles("admin", "hr", "manager", "employee"), async (req, res, next) => {
+  router.post("/plans", requireRoles("admin", "hr", "manager"), async (req, res, next) => {
     const {
       personId,
       cycleId,
@@ -194,7 +194,7 @@ export function createDevelopmentRouter(store) {
 
   router.patch(
     "/plans/:planId",
-    requireRoles("admin", "hr", "manager", "employee"),
+    requireRoles("admin", "hr", "manager"),
     async (req, res, next) => {
     const { planId } = req.params;
     const {
@@ -288,7 +288,7 @@ export function createDevelopmentRouter(store) {
 
   router.post(
     "/plans/:planId/extensions",
-    requireRoles("admin", "hr", "manager"),
+    requireRoles("admin", "hr", "manager", "employee"),
     async (req, res) => {
       const { requestedDueDate, reason } = req.body || {};
       if (!requestedDueDate || !reason) {

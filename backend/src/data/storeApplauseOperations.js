@@ -1,5 +1,49 @@
 import { toMysqlDateTime } from "./mysqlDateTime.js";
 
+function isApplauseAdministrator(actorUser) {
+  return ["admin", "hr"].includes(actorUser?.roleKey);
+}
+
+function assertApplauseLifecycleTransition(currentStatus, nextStatus, actorUser, statusReason) {
+  const changed = currentStatus !== nextStatus;
+  const reason = typeof statusReason === "string" ? statusReason.trim() : "";
+
+  if (currentStatus === "Arquivado") {
+    if (!changed) {
+      throw new Error("Aplause arquivado nao pode ser alterado sem restauracao administrativa.");
+    }
+    if (nextStatus !== "Validado" || !isApplauseAdministrator(actorUser)) {
+      throw new Error("Aplause arquivado so pode ser restaurado para Validado por administrador ou RH.");
+    }
+    if (!reason) {
+      throw new Error("Informe a justificativa para restaurar o Aplause.");
+    }
+    return;
+  }
+
+  if (currentStatus === "Em revisao" && !isApplauseAdministrator(actorUser)) {
+    throw new Error("Aplause em revisao so pode ser tratado por administrador ou RH.");
+  }
+
+  if (nextStatus === "Em revisao" && !isApplauseAdministrator(actorUser)) {
+    throw new Error("Somente administrador ou RH pode encaminhar Aplause para revisao.");
+  }
+
+  if (changed && nextStatus === "Arquivado" && !reason) {
+    throw new Error("Informe a justificativa para arquivar o Aplause.");
+  }
+}
+
+function buildAuditDetail(buildApplauseAuditDetail, applause, sender, receiver, statusReason) {
+  const baseDetail = buildApplauseAuditDetail({
+    category: applause.category,
+    senderName: sender?.name,
+    receiverName: receiver?.name
+  });
+  const reason = typeof statusReason === "string" ? statusReason.trim() : "";
+  return reason ? `${baseDetail} · Justificativa: ${reason}` : baseDetail;
+}
+
 export function createMemoryApplauseStore({
   db,
   createId,
@@ -107,6 +151,8 @@ export function createMemoryApplauseStore({
         getTeamPeople
       });
       assertValidApplauseStatus(payload.status);
+      const previousStatus = applause.status;
+      assertApplauseLifecycleTransition(previousStatus, payload.status, actorUser, payload.statusReason);
 
       applause.receiverPersonId = payload.receiverPersonId;
       applause.category = payload.category;
@@ -118,7 +164,7 @@ export function createMemoryApplauseStore({
       const receiver = db.people.find((person) => person.id === applause.receiverPersonId);
       pushAuditLog(db.auditLogs, {
         category: AUDIT_CATEGORIES.applause,
-        action: payload.status === "Arquivado" ? "archived" : "updated",
+        action: payload.status === "Arquivado" ? "archived" : previousStatus === "Arquivado" ? "restored" : "updated",
         entityType: "applause_entry",
         entityId: applause.id,
         entityLabel: applause.category,
@@ -126,12 +172,10 @@ export function createMemoryApplauseStore({
         summary:
           payload.status === "Arquivado"
             ? `Aplause arquivado para ${receiver?.name || "colaborador"}`
+            : previousStatus === "Arquivado"
+              ? `Aplause restaurado para ${receiver?.name || "colaborador"}`
             : `Aplause atualizado para ${receiver?.name || "colaborador"}`,
-        detail: buildApplauseAuditDetail({
-          category: applause.category,
-          senderName: sender?.name,
-          receiverName: receiver?.name
-        })
+        detail: buildAuditDetail(buildApplauseAuditDetail, applause, sender, receiver, payload.statusReason)
       });
 
       return {
@@ -295,6 +339,7 @@ export function createMysqlApplauseStore({
         getTeamPeople
       });
       assertValidApplauseStatus(payload.status);
+      assertApplauseLifecycleTransition(applause.status, payload.status, actorUser, payload.statusReason);
 
       await pool.query(
         `UPDATE applause_entries
@@ -314,7 +359,7 @@ export function createMysqlApplauseStore({
       const receiver = people.find((person) => person.id === payload.receiverPersonId);
       await insertAuditLog(pool, {
         category: AUDIT_CATEGORIES.applause,
-        action: payload.status === "Arquivado" ? "archived" : "updated",
+        action: payload.status === "Arquivado" ? "archived" : applause.status === "Arquivado" ? "restored" : "updated",
         entityType: "applause_entry",
         entityId: applauseId,
         entityLabel: payload.category,
@@ -322,17 +367,25 @@ export function createMysqlApplauseStore({
         summary:
           payload.status === "Arquivado"
             ? `Aplause arquivado para ${receiver?.name || "colaborador"}`
+            : applause.status === "Arquivado"
+              ? `Aplause restaurado para ${receiver?.name || "colaborador"}`
             : `Aplause atualizado para ${receiver?.name || "colaborador"}`,
-        detail: buildApplauseAuditDetail({
-          category: payload.category,
-          senderName: sender?.name,
-          receiverName: receiver?.name
-        })
+        detail: buildAuditDetail(
+          buildApplauseAuditDetail,
+          { ...applause, category: payload.category },
+          sender,
+          receiver,
+          payload.statusReason
+        )
       });
 
       return {
         ...applause,
-        ...payload,
+        receiverPersonId: payload.receiverPersonId,
+        category: payload.category,
+        impact: payload.impact,
+        contextNote: payload.contextNote,
+        status: payload.status,
         id: applauseId,
         senderPersonId: applause.senderPersonId,
         createdAt: applause.createdAt,

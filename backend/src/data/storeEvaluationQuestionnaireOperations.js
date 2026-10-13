@@ -235,6 +235,27 @@ function validateQuestionnairePublication(questionnaire, questions) {
   }
 }
 
+function assertNoPublishedQuestionnaireForScope(questionnaires, questionnaire) {
+  const existing = questionnaires.find(
+    (item) =>
+      item.id !== questionnaire.id &&
+      item.status === QUESTIONNAIRE_STATUS.published &&
+      item.cycleId === questionnaire.cycleId &&
+      item.revieweePersonId === questionnaire.revieweePersonId &&
+      item.relationshipType === questionnaire.relationshipType
+  );
+
+  if (existing) {
+    throw new Error("Ja existe questionario publicado para este ciclo, pessoa e modalidade.");
+  }
+}
+
+function assertQuestionnaireCanBeArchived(assignments, questionnaireId) {
+  if (assignments.some((assignment) => assignment.questionnaireId === questionnaireId && assignment.status !== "submitted")) {
+    throw new Error("Nao e possivel arquivar questionario com avaliacoes pendentes.");
+  }
+}
+
 function filterQuestionnaires(questionnaires, filters = {}) {
   return questionnaires.filter((questionnaire) => {
     if (filters.cycleId && questionnaire.cycleId !== filters.cycleId) {
@@ -396,6 +417,7 @@ export function createMemoryEvaluationQuestionnaireStore({
       if (!questionnaire) {
         throw new Error("Questionario individual nao encontrado.");
       }
+      assertQuestionnaireCanBeArchived(db.assignments, questionnaireId);
       questionnaire.status = QUESTIONNAIRE_STATUS.archived;
       questionnaire.updatedByUserId = actorUser.id;
       questionnaire.updatedAt = new Date().toISOString();
@@ -587,6 +609,7 @@ export function createMemoryEvaluationQuestionnaireStore({
       }
       const questions = getQuestionnaireQuestions(questionnaireId);
       validateQuestionnairePublication(questionnaire, questions);
+      assertNoPublishedQuestionnaireForScope(db.questionnaires, questionnaire);
       questionnaire.status = QUESTIONNAIRE_STATUS.published;
       questionnaire.questionCount = questions.length;
       questionnaire.publishedAt = new Date().toISOString();
@@ -596,7 +619,8 @@ export function createMemoryEvaluationQuestionnaireStore({
         if (
           assignment.cycleId === questionnaire.cycleId &&
           assignment.revieweePersonId === questionnaire.revieweePersonId &&
-          assignment.relationshipType === questionnaire.relationshipType
+          assignment.relationshipType === questionnaire.relationshipType &&
+          assignment.status !== "submitted"
         ) {
           assignment.questionnaireId = questionnaire.id;
         }
@@ -906,6 +930,16 @@ export function createMysqlEvaluationQuestionnaireStore({
     async archiveEvaluationQuestionnaire(questionnaireId, actorUser) {
       assertCanManageEvaluationQuestionnaires(actorUser, guards);
       const current = await this.getEvaluationQuestionnaireById(questionnaireId, actorUser);
+      const [pendingAssignments] = await pool.query(
+        `SELECT id
+         FROM evaluation_assignments
+         WHERE questionnaire_id = ? AND status <> 'submitted'
+         LIMIT 1`,
+        [questionnaireId]
+      );
+      if (pendingAssignments[0]) {
+        throw new Error("Nao e possivel arquivar questionario com avaliacoes pendentes.");
+      }
       const updatedAt = toMysqlDateTime(new Date());
       await pool.query(
         `UPDATE evaluation_questionnaires
@@ -1184,6 +1218,23 @@ export function createMysqlEvaluationQuestionnaireStore({
       const connection = await pool.getConnection();
       try {
         await connection.beginTransaction();
+        const [existingPublished] = await connection.query(
+          `SELECT id
+           FROM evaluation_questionnaires
+           WHERE cycle_id = ? AND reviewee_person_id = ? AND relationship_type = ?
+             AND status = ? AND id <> ?
+           FOR UPDATE`,
+          [
+            current.cycleId,
+            current.revieweePersonId,
+            current.relationshipType,
+            QUESTIONNAIRE_STATUS.published,
+            questionnaireId
+          ]
+        );
+        if (existingPublished[0]) {
+          throw new Error("Ja existe questionario publicado para este ciclo, pessoa e modalidade.");
+        }
         await connection.query(
           `UPDATE evaluation_questionnaires
            SET status = ?, question_count = ?, published_at = ?, updated_by_user_id = ?, updated_at = ?
@@ -1200,7 +1251,8 @@ export function createMysqlEvaluationQuestionnaireStore({
         await connection.query(
           `UPDATE evaluation_assignments
            SET questionnaire_id = ?
-           WHERE cycle_id = ? AND reviewee_person_id = ? AND relationship_type = ?`,
+           WHERE cycle_id = ? AND reviewee_person_id = ? AND relationship_type = ?
+             AND status <> 'submitted'`,
           [questionnaireId, current.cycleId, current.revieweePersonId, current.relationshipType]
         );
         await insertAuditLog(connection, {

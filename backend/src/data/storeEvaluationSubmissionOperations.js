@@ -117,6 +117,9 @@ export function createMemoryEvaluationSubmissionStore({
       if (submission.revieweePersonId !== actorUser?.person?.id) {
         throw new Error("Usuario nao autorizado a responder este feedback.");
       }
+      if (submission.revieweeAcknowledgementStatus) {
+        throw new Error("A confirmacao de leitura deste feedback ja foi registrada.");
+      }
 
       const acknowledgement = validateFeedbackAcknowledgementPayload(payload);
       submission.revieweeAcknowledgementStatus = acknowledgement.status;
@@ -335,6 +338,7 @@ export function createMysqlEvaluationSubmissionStore({
       const acknowledgement = validateFeedbackAcknowledgementPayload(payload);
       const [rows] = await pool.query(
         `SELECT s.id, s.assignment_id AS assignmentId, s.reviewee_person_id AS revieweePersonId,
+                s.reviewee_acknowledgement_status AS revieweeAcknowledgementStatus,
                 a.relationship_type AS relationshipType
          FROM evaluation_submissions s
          JOIN evaluation_assignments a ON a.id = s.assignment_id
@@ -352,15 +356,18 @@ export function createMysqlEvaluationSubmissionStore({
       if (rows[0].revieweePersonId !== actorUser?.person?.id) {
         throw new Error("Usuario nao autorizado a responder este feedback.");
       }
+      if (rows[0].revieweeAcknowledgementStatus) {
+        throw new Error("A confirmacao de leitura deste feedback ja foi registrada.");
+      }
 
       const acknowledgedAt = new Date().toISOString();
       const connection = await pool.getConnection();
       try {
         await connection.beginTransaction();
-        await connection.query(
+        const [updateResult] = await connection.query(
           `UPDATE evaluation_submissions
            SET reviewee_acknowledgement_status = ?, reviewee_acknowledgement_note = ?, reviewee_acknowledged_at = ?
-           WHERE id = ?`,
+           WHERE id = ? AND reviewee_acknowledgement_status IS NULL`,
           [
             acknowledgement.status,
             acknowledgement.note,
@@ -368,6 +375,9 @@ export function createMysqlEvaluationSubmissionStore({
             submissionId
           ]
         );
+        if (!updateResult.affectedRows) {
+          throw new Error("A confirmacao de leitura deste feedback ja foi registrada.");
+        }
 
         await insertAuditLog(connection, {
           category: AUDIT_CATEGORIES.cycle,

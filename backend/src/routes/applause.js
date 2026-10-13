@@ -48,7 +48,7 @@ export function createApplauseRouter(store) {
     requireRoles("admin", "hr", "manager", "employee"),
     async (req, res, next) => {
     const { applauseId } = req.params;
-    const { receiverPersonId, category, impact, contextNote, status } = req.body;
+    const { receiverPersonId, category, impact, contextNote, status, statusReason } = req.body;
 
     if (!receiverPersonId || !category || !impact || !contextNote || !status) {
       return badRequest(res, "Campos obrigatorios do Aplause nao informados.");
@@ -62,7 +62,8 @@ export function createApplauseRouter(store) {
           category,
           impact,
           contextNote,
-          status
+          status,
+          statusReason
         },
         req.auth.user
       );

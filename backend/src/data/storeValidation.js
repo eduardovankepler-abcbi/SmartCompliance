@@ -107,6 +107,41 @@ function parseDateOnly(value) {
     : date;
 }
 
+export function assertValidDevelopmentPlanDueDate(value) {
+  if (!parseDateOnly(value)) {
+    throw new Error("Prazo do PDI invalido.");
+  }
+}
+
+export function assertDevelopmentPlanStatusTransition(currentStatus, nextStatus) {
+  assertValidDevelopmentPlanStatus(nextStatus);
+
+  const allowedTransitions = {
+    active: ["active", "completed", "archived"],
+    completed: ["completed", "archived"],
+    archived: ["archived"]
+  };
+
+  if (!(allowedTransitions[currentStatus] || []).includes(nextStatus)) {
+    throw new Error("Transicao de status do PDI nao permitida.");
+  }
+}
+
+export function assertDevelopmentPlanStatusProgressConsistency(status, progressStatus) {
+  assertValidDevelopmentPlanStatus(status);
+  assertValidDevelopmentPlanProgressStatus(progressStatus);
+
+  if (status === "completed" && progressStatus !== "done") {
+    throw new Error("PDI concluido exige andamento concluido.");
+  }
+}
+
+export function assertDevelopmentPlanProgressEditable(status) {
+  if (status !== "active") {
+    throw new Error("Andamento so pode ser atualizado em PDI ativo.");
+  }
+}
+
 export function assertValidDevelopmentPlanExtensionDueDate(currentDueDate, requestedDueDate) {
   const current = parseDateOnly(currentDueDate);
   const requested = parseDateOnly(requestedDueDate);

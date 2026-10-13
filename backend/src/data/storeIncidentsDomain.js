@@ -96,11 +96,36 @@ export function assertIncidentUpdatePayload({
 }) {
   assertValidIncidentClassification(payload.classification);
   assertValidIncidentStatus(payload.status);
-  if (payload.status === "Concluido" && !String(payload.closureNote || "").trim()) {
-    throw new Error("Informe o motivo de conclusao do caso.");
-  }
   assertValidIncidentArea(areas, payload.responsibleArea);
   assertValidIncidentAssignee(people, payload.assignedPersonId);
+}
+
+export function assertIncidentStatusTransition(currentStatus, nextStatus) {
+  const allowedTransitions = {
+    "Em triagem": ["Em triagem", "Em apuracao"],
+    "Em apuracao": ["Em apuracao", "Aguardando retorno", "Concluido"],
+    "Aguardando retorno": ["Aguardando retorno", "Em apuracao", "Concluido"],
+    Concluido: []
+  };
+
+  if (!(allowedTransitions[currentStatus] || []).includes(nextStatus)) {
+    throw new Error("Transicao de status do caso nao permitida.");
+  }
+}
+
+export function assertIncidentCanClose({ payload, assignedPersonId, hasEvidence }) {
+  if (!String(payload.closureNote || "").trim()) {
+    throw new Error("Informe o motivo de conclusao do caso.");
+  }
+  if (payload.findingStatus === "pending") {
+    throw new Error("Defina a procedencia do caso antes de concluir.");
+  }
+  if (!assignedPersonId) {
+    throw new Error("Defina um responsavel antes de concluir o caso.");
+  }
+  if (!hasEvidence) {
+    throw new Error("Anexe ao menos uma evidencia antes de concluir o caso.");
+  }
 }
 
 export function buildIncidentAuditDetail({
@@ -108,12 +133,14 @@ export function buildIncidentAuditDetail({
   responsibleArea,
   assignedTo,
   status = null,
+  previousStatus = null,
   protocol = null,
   closureNote = null
 }) {
   const prefix = protocol ? `${protocol} · ` : "";
   if (status) {
-    return `${prefix}${status} · ${classification} · Area: ${responsibleArea} · Responsavel: ${assignedTo}${closureNote ? ` · Fechamento: ${closureNote}` : ""}`;
+    const transition = previousStatus && previousStatus !== status ? `${previousStatus} → ${status} · ` : "";
+    return `${prefix}${transition}${classification} · Area: ${responsibleArea} · Responsavel: ${assignedTo}${closureNote ? ` · Fechamento: ${closureNote}` : ""}`;
   }
 
   return `${prefix}${classification} · Area: ${responsibleArea} · Responsavel inicial: ${assignedTo}`;

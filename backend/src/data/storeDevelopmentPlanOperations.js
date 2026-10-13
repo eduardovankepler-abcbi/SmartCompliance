@@ -10,6 +10,10 @@ export function createMemoryDevelopmentPlanStore({
   AUDIT_CATEGORIES,
   buildDevelopmentPlanAuditDetail,
   assertValidDevelopmentPlanStatus,
+  assertValidDevelopmentPlanDueDate,
+  assertDevelopmentPlanStatusTransition,
+  assertDevelopmentPlanStatusProgressConsistency,
+  assertDevelopmentPlanProgressEditable,
   assertValidDevelopmentPlanExtensionDueDate,
   assertDevelopmentPlanExtensionPending,
   assertCanReportDevelopmentPlanProgress,
@@ -39,6 +43,7 @@ export function createMemoryDevelopmentPlanStore({
     },
     async createDevelopmentPlan(payload, actorUser) {
       assertCanCreateDevelopmentPlan(actorUser, db.people, payload.personId);
+      assertValidDevelopmentPlanDueDate(payload.dueDate);
       if (payload.cycleId && !db.cycles.some((item) => item.id === payload.cycleId)) {
         throw new Error("Ciclo do PDI nao encontrado.");
       }
@@ -101,7 +106,12 @@ export function createMemoryDevelopmentPlanStore({
 
       assertCanCreateDevelopmentPlan(actorUser, db.people, plan.personId);
       assertCanCreateDevelopmentPlan(actorUser, db.people, payload.personId);
-      assertValidDevelopmentPlanStatus(payload.status);
+      assertValidDevelopmentPlanDueDate(payload.dueDate);
+      assertDevelopmentPlanStatusTransition(plan.status || "active", payload.status);
+      assertDevelopmentPlanStatusProgressConsistency(
+        payload.status,
+        plan.progressStatus || "not_started"
+      );
       if (payload.cycleId && !db.cycles.some((item) => item.id === payload.cycleId)) {
         throw new Error("Ciclo do PDI nao encontrado.");
       }
@@ -183,6 +193,7 @@ export function createMemoryDevelopmentPlanStore({
       if (!plan.isComplianceRequired) {
         throw new Error("Extensao formal se aplica apenas a PDI obrigatorio.");
       }
+      assertDevelopmentPlanProgressEditable(plan.status || "active");
       assertValidDevelopmentPlanExtensionDueDate(plan.dueDate, payload.requestedDueDate);
       db.developmentPlanExtensions ||= [];
       const extension = {
@@ -218,11 +229,29 @@ export function createMemoryDevelopmentPlanStore({
         throw new Error("Solicitacao de extensao nao encontrada.");
       }
       assertDevelopmentPlanExtensionPending(extension.status);
+      assertDevelopmentPlanProgressEditable(plan.status || "active");
+      const previousDueDate = plan.dueDate;
+      if (payload.status === "approved") {
+        plan.dueDate = extension.requestedDueDate;
+      }
       extension.status = payload.status;
       extension.decisionNote = String(payload.decisionNote || "").trim();
       extension.decidedByUserId = actorUser.id;
       extension.decidedAt = new Date().toISOString();
       extension.leaderAreaName = actorUser.person?.area || extension.leaderAreaName || null;
+      if (payload.status === "approved") {
+        const person = db.people.find((item) => item.id === plan.personId);
+        pushAuditLog(db.auditLogs, {
+          category: AUDIT_CATEGORIES.development,
+          action: "plan_extension_approved",
+          entityType: "development_plan",
+          entityId: plan.id,
+          entityLabel: plan.focusTitle,
+          actorUser,
+          summary: `Extensao de prazo aprovada para ${person?.name || "pessoa"}`,
+          detail: `Prazo anterior: ${previousDueDate} · Novo prazo: ${plan.dueDate}`
+        });
+      }
       return extension;
     },
     async updateDevelopmentPlanProgress(planId, payload, actorUser) {
@@ -232,6 +261,7 @@ export function createMemoryDevelopmentPlanStore({
       }
 
       assertCanReportDevelopmentPlanProgress(actorUser, db.people, plan);
+      assertDevelopmentPlanProgressEditable(plan.status || "active");
       const progress = normalizeDevelopmentPlanProgressPayload(payload);
       const previousStatus = plan.progressStatus || "not_started";
       const occurredAt = new Date().toISOString();
@@ -282,6 +312,10 @@ export function createMysqlDevelopmentPlanStore({
   AUDIT_CATEGORIES,
   buildDevelopmentPlanAuditDetail,
   assertValidDevelopmentPlanStatus,
+  assertValidDevelopmentPlanDueDate,
+  assertDevelopmentPlanStatusTransition,
+  assertDevelopmentPlanStatusProgressConsistency,
+  assertDevelopmentPlanProgressEditable,
   assertValidDevelopmentPlanExtensionDueDate,
   assertDevelopmentPlanExtensionPending,
   assertCanReportDevelopmentPlanProgress,
@@ -329,6 +363,7 @@ export function createMysqlDevelopmentPlanStore({
         fetchCompetencyRows(pool)
       ]);
       assertCanCreateDevelopmentPlan(actorUser, people, payload.personId);
+      assertValidDevelopmentPlanDueDate(payload.dueDate);
 
       if (payload.cycleId) {
         const [[cycle]] = await pool.query(
@@ -436,7 +471,7 @@ export function createMysqlDevelopmentPlanStore({
         fetchCompetencyRows(pool)
       ]);
       const [[existingPlan]] = await pool.query(
-        `SELECT id, person_id AS personId, created_by_user_id AS createdByUserId,
+        `SELECT id, person_id AS personId, status, created_by_user_id AS createdByUserId,
                 created_at AS createdAt, progress_status AS progressStatus,
                 progress_note AS progressNote, progress_updated_at AS progressUpdatedAt,
                 is_compliance_required AS isComplianceRequired,
@@ -453,7 +488,12 @@ export function createMysqlDevelopmentPlanStore({
 
       assertCanCreateDevelopmentPlan(actorUser, people, existingPlan.personId);
       assertCanCreateDevelopmentPlan(actorUser, people, payload.personId || existingPlan.personId);
-      assertValidDevelopmentPlanStatus(payload.status);
+      assertValidDevelopmentPlanDueDate(payload.dueDate);
+      assertDevelopmentPlanStatusTransition(existingPlan.status || "active", payload.status);
+      assertDevelopmentPlanStatusProgressConsistency(
+        payload.status,
+        existingPlan.progressStatus || "not_started"
+      );
 
       if (payload.cycleId) {
         const [[cycle]] = await pool.query(
@@ -562,7 +602,7 @@ export function createMysqlDevelopmentPlanStore({
     async requestDevelopmentPlanExtension(planId, payload, actorUser) {
       const [people] = await Promise.all([fetchPeopleRows(pool)]);
       const [[plan]] = await pool.query(
-        `SELECT id, person_id AS personId, due_date AS dueDate,
+        `SELECT id, person_id AS personId, status, due_date AS dueDate,
                 is_compliance_required AS isComplianceRequired
          FROM development_plans
          WHERE id = ?`,
@@ -575,6 +615,7 @@ export function createMysqlDevelopmentPlanStore({
       if (!plan.isComplianceRequired) {
         throw new Error("Extensao formal se aplica apenas a PDI obrigatorio.");
       }
+      assertDevelopmentPlanProgressEditable(plan.status || "active");
       assertValidDevelopmentPlanExtensionDueDate(plan.dueDate, payload.requestedDueDate);
       const extension = {
         id: createId("development_plan_extension"),
@@ -616,7 +657,7 @@ export function createMysqlDevelopmentPlanStore({
       }
       const people = await fetchPeopleRows(pool);
       const [[plan]] = await pool.query(
-        `SELECT id, person_id AS personId, is_compliance_required AS isComplianceRequired,
+        `SELECT id, person_id AS personId, focus_title AS focusTitle, status, due_date AS dueDate, is_compliance_required AS isComplianceRequired,
                 compliance_required_at AS complianceRequiredAt,
                 compliance_required_by_user_id AS complianceRequiredByUserId
          FROM development_plans
@@ -626,6 +667,7 @@ export function createMysqlDevelopmentPlanStore({
       if (!plan) {
         throw new Error("PDI nao encontrado.");
       }
+      assertDevelopmentPlanProgressEditable(plan.status || "active");
       normalizeDevelopmentPlanCompliancePayload({ isComplianceRequired: true, personId: plan.personId }, actorUser, people, plan);
       const [[extension]] = await pool.query(
         `SELECT id, status FROM development_plan_extensions WHERE id = ? AND plan_id = ?`,
@@ -636,22 +678,49 @@ export function createMysqlDevelopmentPlanStore({
       }
       assertDevelopmentPlanExtensionPending(extension.status);
       const decidedAt = new Date().toISOString();
-      const [updateResult] = await pool.query(
-        `UPDATE development_plan_extensions
-         SET status = ?, decided_by_user_id = ?, decided_at = ?, leader_area_name = ?, decision_note = ?
-         WHERE id = ? AND plan_id = ? AND status = 'pending'`,
-        [
-          payload.status,
-          actorUser.id,
-          toMysqlDateTime(decidedAt),
-          actorUser.person?.area || null,
-          String(payload.decisionNote || "").trim(),
-          extensionId,
-          planId
-        ]
-      );
-      if (updateResult.affectedRows !== 1) {
-        throw new Error("Solicitacao de extensao ja foi decidida.");
+      const connection = await pool.getConnection();
+      try {
+        await connection.beginTransaction();
+        const [updateResult] = await connection.query(
+          `UPDATE development_plan_extensions
+           SET status = ?, decided_by_user_id = ?, decided_at = ?, leader_area_name = ?, decision_note = ?
+           WHERE id = ? AND plan_id = ? AND status = 'pending'`,
+          [
+            payload.status,
+            actorUser.id,
+            toMysqlDateTime(decidedAt),
+            actorUser.person?.area || null,
+            String(payload.decisionNote || "").trim(),
+            extensionId,
+            planId
+          ]
+        );
+        if (updateResult.affectedRows !== 1) {
+          throw new Error("Solicitacao de extensao ja foi decidida.");
+        }
+        if (payload.status === "approved") {
+          await connection.query(
+            `UPDATE development_plans SET due_date = ? WHERE id = ?`,
+            [extension.requestedDueDate, planId]
+          );
+          const person = people.find((item) => item.id === plan.personId);
+          await insertAuditLog(connection, {
+            category: AUDIT_CATEGORIES.development,
+            action: "plan_extension_approved",
+            entityType: "development_plan",
+            entityId: planId,
+            entityLabel: plan.focusTitle || "PDI",
+            actorUser,
+            summary: `Extensao de prazo aprovada para ${person?.name || "pessoa"}`,
+            detail: `Prazo anterior: ${plan.dueDate} · Novo prazo: ${extension.requestedDueDate}`
+          });
+        }
+        await connection.commit();
+      } catch (error) {
+        await connection.rollback();
+        throw error;
+      } finally {
+        connection.release();
       }
       const [[updated]] = await pool.query(
         `SELECT id, plan_id AS planId, requested_due_date AS requestedDueDate, reason, status,
@@ -691,6 +760,7 @@ export function createMysqlDevelopmentPlanStore({
       }
 
       assertCanReportDevelopmentPlanProgress(actorUser, people, plan);
+      assertDevelopmentPlanProgressEditable(plan.status || "active");
       const progress = normalizeDevelopmentPlanProgressPayload(payload);
       const progressUpdatedAt = toMysqlDateTime(new Date());
 

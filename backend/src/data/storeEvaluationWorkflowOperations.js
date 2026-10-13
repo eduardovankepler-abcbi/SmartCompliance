@@ -1,5 +1,12 @@
 import { toMysqlDateTime } from "./mysqlDateTime.js";
 
+import { createHash } from "node:crypto";
+
+function feedbackAssignmentLockKey(cycleId, reviewerUserId, revieweePersonId) {
+  const source = [cycleId, reviewerUserId, revieweePersonId].join(":");
+  return `feedback-assignment:${createHash("sha256").update(source).digest("hex").slice(0, 40)}`;
+}
+
 export function createMemoryEvaluationWorkflowStore({
   db,
   createId,
@@ -214,14 +221,13 @@ export function createMemoryEvaluationWorkflowStore({
         throw new Error("A solicitacao ja foi tratada.");
       }
 
-      request.status = payload.status;
-      request.decidedAt = new Date().toISOString();
-      request.decidedByUserId = actorUser.id;
-
       if (payload.status === FEEDBACK_REQUEST_STATUS.approved) {
         const cycle = db.cycles.find((item) => item.id === request.cycleId);
         if (!cycle) {
           throw new Error("Ciclo de avaliacao nao encontrado.");
+        }
+        if (cycle.status !== CYCLE_STATUS.released) {
+          throw new Error("Feedback direto so pode ser aprovado em ciclo liberado.");
         }
         if (!isCycleRelationshipEnabled(cycle, "peer")) {
           throw new Error("Feedback direto esta desativado neste ciclo.");
@@ -258,6 +264,10 @@ export function createMemoryEvaluationWorkflowStore({
           item.assignmentId = createdAssignment?.id || null;
         }
       }
+
+      request.status = payload.status;
+      request.decidedAt = new Date().toISOString();
+      request.decidedByUserId = actorUser.id;
 
       pushAuditLog(db.auditLogs, {
         category: AUDIT_CATEGORIES.feedbackRequest,
@@ -741,7 +751,7 @@ export function createMysqlEvaluationWorkflowStore({
       const [requestRows] = await pool.query(
         `SELECT r.id, r.cycle_id AS cycleId, r.requester_user_id AS requesterUserId,
                 r.reviewee_person_id AS revieweePersonId, r.status, r.context_note AS contextNote,
-                c.due_date AS dueDate
+                c.due_date AS dueDate, c.status AS cycleStatus
          FROM evaluation_feedback_requests r
          JOIN evaluation_cycles c ON c.id = r.cycle_id
          WHERE r.id = ?
@@ -754,6 +764,12 @@ export function createMysqlEvaluationWorkflowStore({
       if (requestRows[0].status !== FEEDBACK_REQUEST_STATUS.pending) {
         throw new Error("A solicitacao ja foi tratada.");
       }
+      if (
+        payload.status === FEEDBACK_REQUEST_STATUS.approved &&
+        requestRows[0].cycleStatus !== CYCLE_STATUS.released
+      ) {
+        throw new Error("Feedback direto so pode ser aprovado em ciclo liberado.");
+      }
 
       const [itemRows] = await pool.query(
         `SELECT i.id, i.provider_person_id AS providerPersonId
@@ -763,14 +779,18 @@ export function createMysqlEvaluationWorkflowStore({
       );
 
       const connection = await pool.getConnection();
+      const acquiredLocks = [];
       try {
         await connection.beginTransaction();
-        await connection.query(
+        const [requestUpdate] = await connection.query(
           `UPDATE evaluation_feedback_requests
            SET status = ?, decided_at = ?, decided_by_user_id = ?
-           WHERE id = ?`,
+           WHERE id = ? AND status = 'pending'`,
           [payload.status, toMysqlDateTime(new Date()), actorUser.id, requestId]
         );
+        if (!requestUpdate.affectedRows) {
+          throw new Error("A solicitacao ja foi tratada.");
+        }
 
         if (payload.status === FEEDBACK_REQUEST_STATUS.approved) {
           if (supportsCycleConfig) {
@@ -790,7 +810,9 @@ export function createMysqlEvaluationWorkflowStore({
           }
 
           const users = await fetchUserRows(pool);
-          for (const item of itemRows) {
+          for (const item of [...itemRows].sort((left, right) =>
+            String(left.providerPersonId).localeCompare(String(right.providerPersonId))
+          )) {
             const reviewerUser = users.find(
               (user) => user.personId === item.providerPersonId && user.status === "active"
             );
@@ -798,22 +820,42 @@ export function createMysqlEvaluationWorkflowStore({
               continue;
             }
 
-            const assignmentId = createId("assignment");
-            await connection.query(
-              `INSERT INTO evaluation_assignments
-               (id, cycle_id, reviewer_user_id, reviewee_person_id, relationship_type, project_context,
-                collaboration_context, status, due_date)
-               VALUES (?, ?, ?, ?, 'peer', ?, ?, 'pending', ?)`,
-              [
-                assignmentId,
-                requestRows[0].cycleId,
-                reviewerUser.id,
-                requestRows[0].revieweePersonId,
-                "Feedback direto solicitado",
-                requestRows[0].contextNote,
-                requestRows[0].dueDate
-              ]
+            const lockKey = feedbackAssignmentLockKey(
+              requestRows[0].cycleId,
+              reviewerUser.id,
+              requestRows[0].revieweePersonId
             );
+            const [lockRows] = await connection.query("SELECT GET_LOCK(?, 5) AS acquired", [lockKey]);
+            if (Number(lockRows[0]?.acquired) !== 1) {
+              throw new Error("Nao foi possivel reservar o feedback direto. Tente novamente.");
+            }
+            acquiredLocks.push(lockKey);
+
+            const [existingAssignments] = await connection.query(
+              `SELECT id FROM evaluation_assignments
+               WHERE cycle_id = ? AND reviewer_user_id = ? AND reviewee_person_id = ?
+                 AND relationship_type = 'peer'
+               LIMIT 1`,
+              [requestRows[0].cycleId, reviewerUser.id, requestRows[0].revieweePersonId]
+            );
+            const assignmentId = existingAssignments[0]?.id || createId("assignment");
+            if (!existingAssignments[0]) {
+              await connection.query(
+                `INSERT INTO evaluation_assignments
+                 (id, cycle_id, reviewer_user_id, reviewee_person_id, relationship_type, project_context,
+                  collaboration_context, status, due_date)
+                 VALUES (?, ?, ?, ?, 'peer', ?, ?, 'pending', ?)`,
+                [
+                  assignmentId,
+                  requestRows[0].cycleId,
+                  reviewerUser.id,
+                  requestRows[0].revieweePersonId,
+                  "Feedback direto solicitado",
+                  requestRows[0].contextNote,
+                  requestRows[0].dueDate
+                ]
+              );
+            }
             await connection.query(
               `UPDATE evaluation_feedback_request_items
                SET assignment_id = ?
@@ -842,6 +884,9 @@ export function createMysqlEvaluationWorkflowStore({
         await connection.rollback();
         throw error;
       } finally {
+        for (const lockKey of acquiredLocks.reverse()) {
+          await connection.query("SELECT RELEASE_LOCK(?)", [lockKey]).catch(() => {});
+        }
         connection.release();
       }
 
