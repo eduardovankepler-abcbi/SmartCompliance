@@ -667,9 +667,10 @@ export function createMysqlEvaluationWorkflowStore({
     async createFeedbackRequest(payload, actorUser) {
       const people = await fetchPeopleRows(pool);
       const users = await fetchUserRows(pool);
+      const actorPersonId = actorUser.personId || actorUser.person?.id;
       const actorWithPerson = {
         ...actorUser,
-        person: people.find((person) => person.id === actorUser.personId) || actorUser.person
+        person: people.find((person) => person.id === actorPersonId) || actorUser.person
       };
       const dbSnapshot = {
         people,
