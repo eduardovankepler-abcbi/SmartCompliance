@@ -4,6 +4,7 @@ import { env } from "../config/env.js";
 import { logger } from "../observability/logger.js";
 import { badRequest } from "./helpers.js";
 import { createUserToken } from "../auth/token.js";
+import { hashSecurityValue } from "../data/storeSecurity.js";
 
 const MAX_TRACKED_LOGIN_ATTEMPTS = 10000;
 
@@ -24,6 +25,7 @@ function normalizeEmail(email) {
 }
 
 export function createLoginRateLimiter({
+  store,
   loginWindowMs = env.auth.loginWindowMs,
   loginLockMs = env.auth.loginLockMs,
   maxFailedLogins = env.auth.maxFailedLogins,
@@ -31,6 +33,10 @@ export function createLoginRateLimiter({
 } = {}) {
   const attempts = new Map();
   const maxFailedLoginsByIp = maxFailedLogins * 4;
+
+  function getScopeHash(scope, value) {
+    return hashSecurityValue(`${scope}:${value}`);
+  }
 
   function pruneExpiredAttempts(now) {
     attempts.forEach((state, key) => {
@@ -40,65 +46,73 @@ export function createLoginRateLimiter({
     });
   }
 
-  function getState(key, now) {
-    const current = attempts.get(key);
-
-    if (current && (current.windowEndsAt >= now || current.lockedUntil > now)) {
-      return current;
+  function recordMemoryFailure(scopeHash, limit, now) {
+    pruneExpiredAttempts(now);
+    let state = attempts.get(scopeHash);
+    if (!state && attempts.size >= maxEntries) {
+      return now + loginLockMs;
     }
-
-    if (attempts.size >= maxEntries) {
-      return {
-        failedAttempts: maxFailedLogins,
-        windowEndsAt: now + loginWindowMs,
-        lockedUntil: now + loginLockMs,
-        overflow: true
-      };
+    if (!state || (state.windowEndsAt < now && state.lockedUntil < now)) {
+      state = { failedAttempts: 0, windowEndsAt: now + loginWindowMs, lockedUntil: 0 };
     }
-
-    const fresh = { failedAttempts: 0, windowEndsAt: now + loginWindowMs, lockedUntil: 0 };
-    attempts.set(key, fresh);
-    return fresh;
+    state.failedAttempts += 1;
+    if (state.failedAttempts >= limit) {
+      state.lockedUntil = now + loginLockMs;
+    }
+    attempts.set(scopeHash, state);
+    return state.lockedUntil;
   }
 
-  function getStates(ip, email, now = Date.now()) {
-    pruneExpiredAttempts(now);
-    const normalizedEmail = normalizeEmail(email);
-    return [
-      { scope: "ip", state: getState(`ip:${ip}`, now) },
-      { scope: "account", state: getState(`account:${normalizedEmail}`, now) }
-    ];
+  async function getLockedUntilForScope(scopeHash, now) {
+    if (!store?.getLoginRateLimit) {
+      pruneExpiredAttempts(now);
+      return attempts.get(scopeHash)?.lockedUntil || 0;
+    }
+    return (await store.getLoginRateLimit(scopeHash, now))?.lockedUntil || 0;
+  }
+
+  async function recordFailureForScope(scopeHash, limit, now) {
+    if (!store?.recordLoginRateLimitFailure) {
+      return recordMemoryFailure(scopeHash, limit, now);
+    }
+    return store.recordLoginRateLimitFailure(scopeHash, {
+      now,
+      windowMs: loginWindowMs,
+      lockMs: loginLockMs,
+      maxFailedLogins: limit,
+      maxEntries
+    });
   }
 
   return {
-    getLockedUntil(ip, email, now = Date.now()) {
-      pruneExpiredAttempts(now);
-      return Math.max(
-        attempts.get(`ip:${ip}`)?.lockedUntil || 0,
-        attempts.get(`account:${normalizeEmail(email)}`)?.lockedUntil || 0
-      );
+    async getLockedUntil(ip, email, now = Date.now()) {
+      const [ipLockedUntil, accountLockedUntil] = await Promise.all([
+        getLockedUntilForScope(getScopeHash("ip", ip), now),
+        getLockedUntilForScope(getScopeHash("account", normalizeEmail(email)), now)
+      ]);
+      return Math.max(ipLockedUntil, accountLockedUntil);
     },
-    recordFailure(ip, email, now = Date.now()) {
-      const states = getStates(ip, email, now);
-      for (const { scope, state } of states) {
-        if (state.overflow) continue;
-        state.failedAttempts += 1;
-        const limit = scope === "ip" ? maxFailedLoginsByIp : maxFailedLogins;
-        if (state.failedAttempts >= limit) {
-          state.lockedUntil = now + loginLockMs;
-        }
+    async recordFailure(ip, email, now = Date.now()) {
+      const [ipLockedUntil, accountLockedUntil] = await Promise.all([
+        recordFailureForScope(getScopeHash("ip", ip), maxFailedLoginsByIp, now),
+        recordFailureForScope(getScopeHash("account", normalizeEmail(email)), maxFailedLogins, now)
+      ]);
+      return Math.max(ipLockedUntil, accountLockedUntil);
+    },
+    async clearAccount(email) {
+      const scopeHash = getScopeHash("account", normalizeEmail(email));
+      if (!store?.clearLoginRateLimit) {
+        attempts.delete(scopeHash);
+        return;
       }
-      return Math.max(...states.map(({ state }) => state.lockedUntil));
-    },
-    clearAccount(email) {
-      attempts.delete(`account:${normalizeEmail(email)}`);
+      await store.clearLoginRateLimit(scopeHash);
     }
   };
 }
 
 export function createAuthRouter(store) {
   const router = Router();
-  const loginRateLimiter = createLoginRateLimiter();
+  const loginRateLimiter = createLoginRateLimiter({ store });
 
   router.post("/login", async (req, res, next) => {
     const { email, password } = req.body;
@@ -111,7 +125,7 @@ export function createAuthRouter(store) {
 
     try {
       const clientIp = getClientIp(req);
-      const lockedUntil = loginRateLimiter.getLockedUntil(clientIp, email);
+      const lockedUntil = await loginRateLimiter.getLockedUntil(clientIp, email);
       if (lockedUntil > Date.now()) {
         const retryAfterSeconds = Math.max(
           1,
@@ -130,7 +144,7 @@ export function createAuthRouter(store) {
 
       const user = await store.authenticateUser(email, password);
       if (!user) {
-        const lockedUntilAfterFailure = loginRateLimiter.recordFailure(clientIp, email);
+        const lockedUntilAfterFailure = await loginRateLimiter.recordFailure(clientIp, email);
         if (lockedUntilAfterFailure > Date.now()) {
           logger.warn("auth.login.locked", {
             requestId: req.requestId,
@@ -140,7 +154,7 @@ export function createAuthRouter(store) {
         return res.status(401).json({ error: "Credenciais invalidas." });
       }
 
-      loginRateLimiter.clearAccount(email);
+      await loginRateLimiter.clearAccount(email);
       await store.recordAuthEvent?.("login_success", user, `IP: ${clientIp}`);
 
       let token;

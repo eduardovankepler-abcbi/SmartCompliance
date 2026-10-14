@@ -3,8 +3,10 @@ import crypto from "crypto";
 export const createId = (prefix) =>
   `${prefix}_${crypto.randomBytes(6).toString("base64url")}`;
 
-export const hashSessionId = (value) =>
+export const hashSecurityValue = (value) =>
   crypto.createHash("sha256").update(String(value || "")).digest("hex");
+
+export const hashSessionId = hashSecurityValue;
 
 export function hashPassword(value) {
   const salt = crypto.randomBytes(16).toString("hex");

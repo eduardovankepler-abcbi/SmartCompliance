@@ -19,10 +19,10 @@ export async function runAuthAccessRegression() {
     maxEntries: 3
   });
   const limiterNow = 1000;
-  rateLimiter.recordFailure("198.51.100.10", "user@example.test", limiterNow);
-  rateLimiter.recordFailure("198.51.100.10", "user@example.test", limiterNow);
+  await rateLimiter.recordFailure("198.51.100.10", "user@example.test", limiterNow);
+  await rateLimiter.recordFailure("198.51.100.10", "user@example.test", limiterNow);
   assert.ok(
-    rateLimiter.getLockedUntil("198.51.100.11", "user@example.test", limiterNow) > limiterNow,
+    (await rateLimiter.getLockedUntil("198.51.100.11", "user@example.test", limiterNow)) > limiterNow,
     "Alternar IP nao deve contornar o bloqueio da conta"
   );
   const ipLimiter = createLoginRateLimiter({
@@ -32,10 +32,10 @@ export async function runAuthAccessRegression() {
     maxEntries: 10
   });
   for (const email of ["a@example.test", "b@example.test", "c@example.test", "d@example.test", "e@example.test", "f@example.test", "g@example.test", "h@example.test"]) {
-    ipLimiter.recordFailure("198.51.100.12", email, limiterNow);
+    await ipLimiter.recordFailure("198.51.100.12", email, limiterNow);
   }
   assert.ok(
-    ipLimiter.getLockedUntil("198.51.100.12", "novo@example.test", limiterNow) > limiterNow,
+    (await ipLimiter.getLockedUntil("198.51.100.12", "novo@example.test", limiterNow)) > limiterNow,
     "Alternar contas nao deve contornar o bloqueio do IP"
   );
   const boundedLimiter = createLoginRateLimiter({
@@ -44,10 +44,49 @@ export async function runAuthAccessRegression() {
     maxFailedLogins: 2,
     maxEntries: 2
   });
-  boundedLimiter.recordFailure("198.51.100.13", "one@example.test", limiterNow);
+  await boundedLimiter.recordFailure("198.51.100.13", "one@example.test", limiterNow);
   assert.ok(
-    boundedLimiter.recordFailure("198.51.100.14", "two@example.test", limiterNow) > limiterNow,
+    (await boundedLimiter.recordFailure("198.51.100.14", "two@example.test", limiterNow)) > limiterNow,
     "Teto de memoria deve bloquear novas chaves sem descartar bloqueios existentes"
+  );
+  const distributedStates = new Map();
+  const distributedLimiter = createLoginRateLimiter({
+    loginWindowMs: 1000,
+    loginLockMs: 5000,
+    maxFailedLogins: 2,
+    store: {
+      async getLoginRateLimit(key) {
+        return distributedStates.get(key) || null;
+      },
+      async recordLoginRateLimitFailure(key, options) {
+        const state = distributedStates.get(key) || {
+          failedAttempts: 0,
+          windowEndsAt: options.now + options.windowMs,
+          lockedUntil: 0
+        };
+        state.failedAttempts += 1;
+        if (state.failedAttempts >= options.maxFailedLogins) {
+          state.lockedUntil = options.now + options.lockMs;
+        }
+        distributedStates.set(key, state);
+        return state.lockedUntil;
+      },
+      async clearLoginRateLimit(key) {
+        distributedStates.delete(key);
+      }
+    }
+  });
+  await distributedLimiter.recordFailure("198.51.100.15", "shared@example.test", limiterNow);
+  await distributedLimiter.recordFailure("198.51.100.15", "shared@example.test", limiterNow);
+  assert.ok(
+    (await distributedLimiter.getLockedUntil("198.51.100.16", "shared@example.test", limiterNow)) > limiterNow,
+    "O armazenamento compartilhado deve bloquear a conta entre IPs"
+  );
+  await distributedLimiter.clearAccount("shared@example.test");
+  assert.equal(
+    await distributedLimiter.getLockedUntil("198.51.100.16", "shared@example.test", limiterNow),
+    0,
+    "Login valido deve limpar somente o bloqueio da conta"
   );
 
   const secureHash = hashPassword("TesteSenha123");

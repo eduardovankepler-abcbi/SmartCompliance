@@ -136,7 +136,7 @@ import {
   createMemoryRegistryStore,
   createMysqlRegistryStore
 } from "./storeRegistryOperations.js";
-import { createId, hashPassword, hashSessionId, verifyPasswordHash } from "./storeSecurity.js";
+import { createId, hashPassword, hashSecurityValue, hashSessionId, verifyPasswordHash } from "./storeSecurity.js";
 import {
   assertProductionPasswordPolicy,
   assertPersonHasNoLinkedUser,
@@ -2140,6 +2140,30 @@ async function ensureMysqlSessionRevocationSupport(pool) {
       revoked_at DATETIME NOT NULL,
       KEY idx_revoked_sessions_expires_at (expires_at),
       FOREIGN KEY (user_id) REFERENCES users(id)
+    )`
+  ]);
+}
+
+async function detectMysqlLoginRateLimitSupport(pool) {
+  const missingColumns = await getMysqlMissingColumns(pool, "login_rate_limits", [
+    "scope_hash",
+    "failed_attempts",
+    "window_ends_at",
+    "locked_until",
+    "updated_at"
+  ]);
+  return missingColumns.length === 0;
+}
+
+async function ensureMysqlLoginRateLimitSupport(pool) {
+  return ensureMysqlTables(pool, detectMysqlLoginRateLimitSupport, [
+    `CREATE TABLE IF NOT EXISTS login_rate_limits (
+      scope_hash CHAR(64) PRIMARY KEY,
+      failed_attempts INT UNSIGNED NOT NULL,
+      window_ends_at DATETIME NOT NULL,
+      locked_until DATETIME NULL,
+      updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      KEY idx_login_rate_limits_expiration (window_ends_at, locked_until)
     )`
   ]);
 }
@@ -6829,6 +6853,15 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
   }
   db.cycles.forEach((cycle) => hydrateCycleStructure(db, cycle.id));
   const revokedSessions = new Map();
+  const loginRateLimits = new Map();
+
+  function pruneLoginRateLimits(now = Date.now()) {
+    loginRateLimits.forEach((state, scopeHash) => {
+      if (state.windowEndsAt < now && state.lockedUntil < now) {
+        loginRateLimits.delete(scopeHash);
+      }
+    });
+  }
 
   function pruneRevokedSessions(now = Date.now()) {
     revokedSessions.forEach((expiresAt, sessionHash) => {
@@ -6855,6 +6888,36 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
       }
       pruneRevokedSessions();
       revokedSessions.set(hashSessionId(sessionId), expiration);
+    },
+    async getLoginRateLimit(scopeHash, now = Date.now()) {
+      pruneLoginRateLimits(now);
+      const state = loginRateLimits.get(scopeHash);
+      return state ? { ...state } : null;
+    },
+    async recordLoginRateLimitFailure(scopeHash, {
+      now = Date.now(),
+      windowMs,
+      lockMs,
+      maxFailedLogins,
+      maxEntries
+    }) {
+      pruneLoginRateLimits(now);
+      let state = loginRateLimits.get(scopeHash);
+      if (!state && loginRateLimits.size >= maxEntries) {
+        return now + lockMs;
+      }
+      if (!state || (state.windowEndsAt < now && state.lockedUntil < now)) {
+        state = { failedAttempts: 0, windowEndsAt: now + windowMs, lockedUntil: 0 };
+      }
+      state.failedAttempts += 1;
+      if (state.failedAttempts >= maxFailedLogins) {
+        state.lockedUntil = now + lockMs;
+      }
+      loginRateLimits.set(scopeHash, state);
+      return state.lockedUntil;
+    },
+    async clearLoginRateLimit(scopeHash) {
+      loginRateLimits.delete(scopeHash);
     },
     async findUserByEmail(email) {
       return db.users.find((item) => item.email.toLowerCase() === email.toLowerCase()) || null;
@@ -7628,7 +7691,8 @@ function buildMysqlStore(
     supportsLearningIntegrations,
     supportsIndividualQuestionnaires,
     supportsProgressHistory,
-    supportsSessionRevocation
+    supportsSessionRevocation,
+    supportsLoginRateLimit
   } = {}
 ) {
   return {
@@ -7730,6 +7794,100 @@ function buildMysqlStore(
          ON DUPLICATE KEY UPDATE expires_at = VALUES(expires_at), revoked_at = VALUES(revoked_at)`,
         [hashSessionId(sessionId), userId, toMysqlDateTime(expiration.toISOString()), now]
       );
+    },
+    async getLoginRateLimit(scopeHash, now = Date.now()) {
+      if (!supportsLoginRateLimit) {
+        throw new Error("Limitacao de tentativas de login indisponivel.");
+      }
+      const [rows] = await pool.query(
+        `SELECT failed_attempts AS failedAttempts,
+                UNIX_TIMESTAMP(window_ends_at) * 1000 AS windowEndsAt,
+                COALESCE(UNIX_TIMESTAMP(locked_until) * 1000, 0) AS lockedUntil
+         FROM login_rate_limits
+         WHERE scope_hash = ?
+         LIMIT 1`,
+        [scopeHash]
+      );
+      const state = rows[0] || null;
+      if (!state || (Number(state.windowEndsAt) < now && Number(state.lockedUntil) < now)) {
+        return null;
+      }
+      return {
+        failedAttempts: Number(state.failedAttempts),
+        windowEndsAt: Number(state.windowEndsAt),
+        lockedUntil: Number(state.lockedUntil)
+      };
+    },
+    async recordLoginRateLimitFailure(scopeHash, {
+      now = Date.now(),
+      windowMs,
+      lockMs,
+      maxFailedLogins,
+      maxEntries
+    }) {
+      if (!supportsLoginRateLimit) {
+        throw new Error("Limitacao de tentativas de login indisponivel.");
+      }
+      const connection = await pool.getConnection();
+      try {
+        await connection.beginTransaction();
+        const nowSql = toMysqlDateTime(new Date(now));
+        await connection.query(
+          `DELETE FROM login_rate_limits
+           WHERE window_ends_at < ? AND (locked_until IS NULL OR locked_until < ?)`,
+          [nowSql, nowSql]
+        );
+        const [rows] = await connection.query(
+          `SELECT failed_attempts AS failedAttempts,
+                  UNIX_TIMESTAMP(window_ends_at) * 1000 AS windowEndsAt,
+                  COALESCE(UNIX_TIMESTAMP(locked_until) * 1000, 0) AS lockedUntil
+           FROM login_rate_limits
+           WHERE scope_hash = ?
+           FOR UPDATE`,
+          [scopeHash]
+        );
+        let state = rows[0];
+        if (!state) {
+          const [countRows] = await connection.query("SELECT COUNT(*) AS total FROM login_rate_limits");
+          if (Number(countRows[0]?.total || 0) >= maxEntries) {
+            await connection.commit();
+            return now + lockMs;
+          }
+          state = { failedAttempts: 0, windowEndsAt: now + windowMs, lockedUntil: 0 };
+        } else if (Number(state.windowEndsAt) < now && Number(state.lockedUntil) < now) {
+          state = { failedAttempts: 0, windowEndsAt: now + windowMs, lockedUntil: 0 };
+        }
+        const failedAttempts = Number(state.failedAttempts) + 1;
+        const lockedUntil = failedAttempts >= maxFailedLogins ? now + lockMs : Number(state.lockedUntil || 0);
+        await connection.query(
+          `INSERT INTO login_rate_limits
+            (scope_hash, failed_attempts, window_ends_at, locked_until)
+           VALUES (?, ?, ?, ?)
+           ON DUPLICATE KEY UPDATE
+             failed_attempts = VALUES(failed_attempts),
+             window_ends_at = VALUES(window_ends_at),
+             locked_until = VALUES(locked_until)`,
+          [
+            scopeHash,
+            failedAttempts,
+            toMysqlDateTime(new Date(Number(state.windowEndsAt))),
+            lockedUntil ? toMysqlDateTime(new Date(lockedUntil)) : null
+          ]
+        );
+        await connection.commit();
+        return lockedUntil;
+      } catch (error) {
+        await connection.rollback();
+        throw error;
+      } finally {
+        connection.release();
+      }
+    },
+    async clearLoginRateLimit(scopeHash) {
+      if (!supportsLoginRateLimit) {
+        throw new Error("Limitacao de tentativas de login indisponivel.");
+      }
+      await pool.query("DELETE FROM login_rate_limits WHERE scope_hash = ?", [scopeHash]);
     },
     async findUserByEmail(email) {
       try {
@@ -9200,6 +9358,7 @@ export async function createStore() {
     supportsCycleConfig,
     _supportsAuthHardening,
     supportsSessionRevocation,
+    supportsLoginRateLimit,
     _supportsIncidentMaturity,
     _supportsIncidentEvidence,
     supportsFeedbackAcknowledgement,
@@ -9215,6 +9374,7 @@ export async function createStore() {
       ensureMysqlCycleConfigSupport(pool),
       ensureMysqlAuthHardeningSupport(pool),
       ensureMysqlSessionRevocationSupport(pool),
+      ensureMysqlLoginRateLimitSupport(pool),
       ensureMysqlIncidentMaturitySupport(pool),
       ensureMysqlIncidentEvidenceSupport(pool),
       ensureMysqlFeedbackAcknowledgementSupport(pool),
@@ -9229,6 +9389,9 @@ export async function createStore() {
   if (!supportsSessionRevocation) {
     throw new Error("Tabela de revogacao de sessao indisponivel.");
   }
+  if (!supportsLoginRateLimit) {
+    throw new Error("Tabela de limitacao de tentativas de login indisponivel.");
+  }
   return buildMysqlStore(pool, customLibraryState, anonymousResponseState, {
     supportsCycleConfig,
     supportsFeedbackAcknowledgement,
@@ -9237,6 +9400,7 @@ export async function createStore() {
     supportsLearningIntegrations,
     supportsIndividualQuestionnaires,
     supportsProgressHistory,
-    supportsSessionRevocation
+    supportsSessionRevocation,
+    supportsLoginRateLimit
   });
 }
