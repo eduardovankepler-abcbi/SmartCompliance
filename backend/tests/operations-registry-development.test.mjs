@@ -12,8 +12,38 @@ import {
   assertDevelopmentPlanExtensionPending,
   assertValidDevelopmentPlanExtensionDueDate
 } from "../src/data/storeValidation.js";
+import { normalizeIncidentEvidenceFile } from "../src/data/storeIncidentsDomain.js";
 
 export async function runOperationsRegistryDevelopmentRegression() {
+  assert.doesNotThrow(() => normalizeIncidentEvidenceFile({
+    originalname: "relatorio.pdf",
+    mimetype: "application/pdf",
+    size: 8,
+    buffer: Buffer.from("%PDF-1.7")
+  }), "PDF com assinatura valida deve ser aceito");
+  assert.doesNotThrow(() => normalizeIncidentEvidenceFile({
+    originalname: "foto.jpg",
+    mimetype: "image/jpeg",
+    size: 4,
+    buffer: Buffer.from([0xff, 0xd8, 0xff, 0xd9])
+  }), "JPEG com assinatura valida deve ser aceito");
+  assert.doesNotThrow(() => normalizeIncidentEvidenceFile({
+    originalname: "imagem.png",
+    mimetype: "image/png",
+    size: 8,
+    buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+  }), "PNG com assinatura valida deve ser aceito");
+  assert.throws(
+    () => normalizeIncidentEvidenceFile({
+      originalname: "disfarce.txt",
+      mimetype: "text/plain",
+      size: 4,
+      buffer: Buffer.from([0x4d, 0x5a, 0x00, 0x90])
+    }),
+    /conteudo da evidencia/i,
+    "Conteudo binario com MIME de texto deve ser bloqueado"
+  );
+
   const context = await createTestContext();
 
   try {
