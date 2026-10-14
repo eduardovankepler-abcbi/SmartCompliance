@@ -5,7 +5,7 @@ import { logger } from "../observability/logger.js";
 import { badRequest } from "./helpers.js";
 import { createUserToken } from "../auth/token.js";
 
-const loginAttempts = new Map();
+const MAX_TRACKED_LOGIN_ATTEMPTS = 10000;
 
 function getClientIp(req) {
   if (Array.isArray(req.ips) && req.ips.length > 0) {
@@ -19,38 +19,86 @@ function getClientIp(req) {
   return "unknown";
 }
 
-function getClientKey(req, email) {
-  return `${getClientIp(req)}:${String(email || "").trim().toLowerCase()}`;
+function normalizeEmail(email) {
+  return String(email || "").trim().toLowerCase();
 }
 
-function pruneExpiredLoginAttempts(now = Date.now()) {
-  loginAttempts.forEach((state, key) => {
-    if (state.windowEndsAt < now && state.lockedUntil < now) {
-      loginAttempts.delete(key);
+export function createLoginRateLimiter({
+  loginWindowMs = env.auth.loginWindowMs,
+  loginLockMs = env.auth.loginLockMs,
+  maxFailedLogins = env.auth.maxFailedLogins,
+  maxEntries = MAX_TRACKED_LOGIN_ATTEMPTS
+} = {}) {
+  const attempts = new Map();
+  const maxFailedLoginsByIp = maxFailedLogins * 4;
+
+  function pruneExpiredAttempts(now) {
+    attempts.forEach((state, key) => {
+      if (state.windowEndsAt < now && state.lockedUntil < now) {
+        attempts.delete(key);
+      }
+    });
+  }
+
+  function getState(key, now) {
+    const current = attempts.get(key);
+
+    if (current && (current.windowEndsAt >= now || current.lockedUntil > now)) {
+      return current;
     }
-  });
-}
 
-function getRateLimitState(key) {
-  const now = Date.now();
-  pruneExpiredLoginAttempts(now);
-  const current = loginAttempts.get(key);
+    if (attempts.size >= maxEntries) {
+      return {
+        failedAttempts: maxFailedLogins,
+        windowEndsAt: now + loginWindowMs,
+        lockedUntil: now + loginLockMs,
+        overflow: true
+      };
+    }
 
-  if (!current || (current.windowEndsAt < now && current.lockedUntil <= now)) {
-    const fresh = {
-      failedAttempts: 0,
-      windowEndsAt: now + env.auth.loginWindowMs,
-      lockedUntil: 0
-    };
-    loginAttempts.set(key, fresh);
+    const fresh = { failedAttempts: 0, windowEndsAt: now + loginWindowMs, lockedUntil: 0 };
+    attempts.set(key, fresh);
     return fresh;
   }
 
-  return current;
+  function getStates(ip, email, now = Date.now()) {
+    pruneExpiredAttempts(now);
+    const normalizedEmail = normalizeEmail(email);
+    return [
+      { scope: "ip", state: getState(`ip:${ip}`, now) },
+      { scope: "account", state: getState(`account:${normalizedEmail}`, now) }
+    ];
+  }
+
+  return {
+    getLockedUntil(ip, email, now = Date.now()) {
+      pruneExpiredAttempts(now);
+      return Math.max(
+        attempts.get(`ip:${ip}`)?.lockedUntil || 0,
+        attempts.get(`account:${normalizeEmail(email)}`)?.lockedUntil || 0
+      );
+    },
+    recordFailure(ip, email, now = Date.now()) {
+      const states = getStates(ip, email, now);
+      for (const { scope, state } of states) {
+        if (state.overflow) continue;
+        state.failedAttempts += 1;
+        const limit = scope === "ip" ? maxFailedLoginsByIp : maxFailedLogins;
+        if (state.failedAttempts >= limit) {
+          state.lockedUntil = now + loginLockMs;
+        }
+      }
+      return Math.max(...states.map(({ state }) => state.lockedUntil));
+    },
+    clearAccount(email) {
+      attempts.delete(`account:${normalizeEmail(email)}`);
+    }
+  };
 }
 
 export function createAuthRouter(store) {
   const router = Router();
+  const loginRateLimiter = createLoginRateLimiter();
 
   router.post("/login", async (req, res, next) => {
     const { email, password } = req.body;
@@ -62,12 +110,12 @@ export function createAuthRouter(store) {
     }
 
     try {
-      const clientKey = getClientKey(req, email);
-      const state = getRateLimitState(clientKey);
-      if (state.lockedUntil > Date.now()) {
+      const clientIp = getClientIp(req);
+      const lockedUntil = loginRateLimiter.getLockedUntil(clientIp, email);
+      if (lockedUntil > Date.now()) {
         const retryAfterSeconds = Math.max(
           1,
-          Math.ceil((state.lockedUntil - Date.now()) / 1000)
+          Math.ceil((lockedUntil - Date.now()) / 1000)
         );
         res.setHeader("Retry-After", String(retryAfterSeconds));
         logger.warn("auth.login.rate_limited", {
@@ -82,20 +130,18 @@ export function createAuthRouter(store) {
 
       const user = await store.authenticateUser(email, password);
       if (!user) {
-        state.failedAttempts += 1;
-        if (state.failedAttempts >= env.auth.maxFailedLogins) {
-          state.lockedUntil = Date.now() + env.auth.loginLockMs;
+        const lockedUntilAfterFailure = loginRateLimiter.recordFailure(clientIp, email);
+        if (lockedUntilAfterFailure > Date.now()) {
           logger.warn("auth.login.locked", {
             requestId: req.requestId,
-            ip: getClientIp(req),
-            failedAttempts: state.failedAttempts
+            ip: clientIp
           });
         }
         return res.status(401).json({ error: "Credenciais invalidas." });
       }
 
-      loginAttempts.delete(clientKey);
-      await store.recordAuthEvent?.("login_success", user, `IP: ${getClientIp(req)}`);
+      loginRateLimiter.clearAccount(email);
+      await store.recordAuthEvent?.("login_success", user, `IP: ${clientIp}`);
 
       let token;
       try {

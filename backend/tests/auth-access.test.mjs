@@ -4,8 +4,47 @@ import crypto from "node:crypto";
 import { hashPassword, verifyPasswordHash } from "../src/data/storeSecurity.js";
 import { env } from "../src/config/env.js";
 import { createUserToken } from "../src/auth/token.js";
+import { createLoginRateLimiter } from "../src/routes/auth.js";
 
 export async function runAuthAccessRegression() {
+  const rateLimiter = createLoginRateLimiter({
+    loginWindowMs: 1000,
+    loginLockMs: 5000,
+    maxFailedLogins: 2,
+    maxEntries: 3
+  });
+  const limiterNow = 1000;
+  rateLimiter.recordFailure("198.51.100.10", "user@example.test", limiterNow);
+  rateLimiter.recordFailure("198.51.100.10", "user@example.test", limiterNow);
+  assert.ok(
+    rateLimiter.getLockedUntil("198.51.100.11", "user@example.test", limiterNow) > limiterNow,
+    "Alternar IP nao deve contornar o bloqueio da conta"
+  );
+  const ipLimiter = createLoginRateLimiter({
+    loginWindowMs: 1000,
+    loginLockMs: 5000,
+    maxFailedLogins: 2,
+    maxEntries: 10
+  });
+  for (const email of ["a@example.test", "b@example.test", "c@example.test", "d@example.test", "e@example.test", "f@example.test", "g@example.test", "h@example.test"]) {
+    ipLimiter.recordFailure("198.51.100.12", email, limiterNow);
+  }
+  assert.ok(
+    ipLimiter.getLockedUntil("198.51.100.12", "novo@example.test", limiterNow) > limiterNow,
+    "Alternar contas nao deve contornar o bloqueio do IP"
+  );
+  const boundedLimiter = createLoginRateLimiter({
+    loginWindowMs: 1000,
+    loginLockMs: 5000,
+    maxFailedLogins: 2,
+    maxEntries: 2
+  });
+  boundedLimiter.recordFailure("198.51.100.13", "one@example.test", limiterNow);
+  assert.ok(
+    boundedLimiter.recordFailure("198.51.100.14", "two@example.test", limiterNow) > limiterNow,
+    "Teto de memoria deve bloquear novas chaves sem descartar bloqueios existentes"
+  );
+
   const secureHash = hashPassword("TesteSenha123");
   assert.ok(secureHash.length <= 128, "Hash deve caber no schema existente");
   assert.notEqual(secureHash, hashPassword("TesteSenha123"), "Cada senha deve receber salt aleatorio");
