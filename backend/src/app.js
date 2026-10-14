@@ -1,4 +1,5 @@
 import cors from "cors";
+import crypto from "crypto";
 import express from "express";
 import { requireAuth } from "./auth/middleware.js";
 import { env } from "./config/env.js";
@@ -32,7 +33,7 @@ export function createApp(store) {
   app.use((req, res, next) => {
     const requestId =
       req.headers["x-request-id"] ||
-      `req_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+      `req_${crypto.randomUUID()}`;
     req.requestId = String(requestId);
     res.setHeader("X-Request-Id", req.requestId);
     res.setHeader("X-Content-Type-Options", "nosniff");

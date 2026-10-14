@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { assertProductionStorageConfiguration, buildCorsOriginOption } from "../src/config/env.js";
+import { createId } from "../src/data/storeSecurity.js";
 
 async function resolveCors(corsOrigin, origin) {
   if (typeof corsOrigin === "string") {
@@ -69,6 +70,13 @@ try {
     /MYSQL_PASSWORD/
   );
   assert.doesNotThrow(() => assertProductionStorageConfiguration({ nodeEnv: "development", storageMode: "memory" }, {}));
+
+  const generatedIds = new Set(Array.from({ length: 1000 }, () => createId("development_plan_progress")));
+  assert.equal(generatedIds.size, 1000, "IDs gerados devem ser distintos na amostra");
+  assert.ok(
+    [...generatedIds].every((id) => /^development_plan_progress_[A-Za-z0-9_-]{8}$/.test(id)),
+    "IDs devem preservar o formato compativel com o schema"
+  );
 } finally {
   if (originalNodeEnv === undefined) delete process.env.NODE_ENV; else process.env.NODE_ENV = originalNodeEnv;
   if (originalCorsOrigin === undefined) delete process.env.CORS_ORIGIN; else process.env.CORS_ORIGIN = originalCorsOrigin;

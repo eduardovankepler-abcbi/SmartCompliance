@@ -1,7 +1,7 @@
 import crypto from "crypto";
 
 export const createId = (prefix) =>
-  `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
+  `${prefix}_${crypto.randomBytes(6).toString("base64url")}`;
 
 export function hashPassword(value) {
   const salt = crypto.randomBytes(16).toString("hex");
