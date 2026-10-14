@@ -88,8 +88,6 @@ export const routes: Routes = [
         path: 'evaluations',
         pathMatch: 'full',
         redirectTo: 'evaluations/company/respond',
-        data: { section: 'evaluations' },
-        canActivate: [sectionAccessGuard],
       },
       {
         path: 'evaluations/:module',
