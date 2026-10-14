@@ -54,12 +54,7 @@ export function createApp(store) {
       res.json({
         status: "ok",
         ready: databaseReady,
-        checkedAt,
-        uptimeSeconds: Math.round(process.uptime()),
-        environment: env.nodeEnv,
-        version: env.appVersion,
-        storageMode: env.storageMode,
-        ...storeHealth
+        checkedAt
       });
     } catch (error) {
       logger.error("healthcheck.failed", {
@@ -70,12 +65,7 @@ export function createApp(store) {
       res.status(503).json({
         status: "degraded",
         ready: false,
-        checkedAt,
-        uptimeSeconds: Math.round(process.uptime()),
-        environment: env.nodeEnv,
-        version: env.appVersion,
-        storageMode: env.storageMode,
-        database: "unavailable"
+        checkedAt
       });
     }
   });

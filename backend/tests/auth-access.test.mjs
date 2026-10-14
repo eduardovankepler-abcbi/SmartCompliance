@@ -27,6 +27,11 @@ export async function runAuthAccessRegression() {
     assert.equal(health.payload.status, "ok", "Healthcheck deve indicar status ok");
     assert.equal(health.payload.ready, true, "Healthcheck deve indicar prontidao operacional");
     assert.ok(health.payload.checkedAt, "Healthcheck deve informar horario da verificacao");
+    assert.deepEqual(
+      Object.keys(health.payload).sort(),
+      ["checkedAt", "ready", "status"],
+      "Healthcheck publico deve expor somente dados minimos de readiness"
+    );
     assert.ok(
       health.response.headers.get("x-request-id"),
       "Healthcheck deve devolver X-Request-Id para rastreio operacional"

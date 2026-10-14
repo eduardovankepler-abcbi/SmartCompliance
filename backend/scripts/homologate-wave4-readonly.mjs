@@ -148,8 +148,7 @@ async function main() {
           health: {
             status: health.status,
             ready: health.ready,
-            storageMode: health.storageMode,
-            database: health.database || null
+            checkedAt: health.checkedAt
           },
           checks: {
             adminDashboardCards: adminDashboard.cards.length,
