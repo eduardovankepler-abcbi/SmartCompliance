@@ -5,8 +5,13 @@ import { hashPassword, verifyPasswordHash } from "../src/data/storeSecurity.js";
 import { env } from "../src/config/env.js";
 import { createUserToken, verifyToken } from "../src/auth/token.js";
 import { createLoginRateLimiter } from "../src/routes/auth.js";
+import { shouldSendHsts } from "../src/app.js";
 
 export async function runAuthAccessRegression() {
+  assert.equal(shouldSendHsts("production", true), true, "HTTPS em producao deve receber HSTS");
+  assert.equal(shouldSendHsts("production", false), false, "HTTP nao deve receber HSTS");
+  assert.equal(shouldSendHsts("development", true), false, "Desenvolvimento nao deve receber HSTS");
+
   const rateLimiter = createLoginRateLimiter({
     loginWindowMs: 1000,
     loginLockMs: 5000,

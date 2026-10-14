@@ -18,6 +18,10 @@ import { createPeopleRouter } from "./routes/people.js";
 import { createSummaryRouter } from "./routes/summary.js";
 import { createUsersRouter } from "./routes/users.js";
 
+export function shouldSendHsts(nodeEnv, isSecure) {
+  return nodeEnv === "production" && isSecure;
+}
+
 export function createApp(store) {
   const app = express();
 
@@ -41,6 +45,9 @@ export function createApp(store) {
     res.setHeader("Referrer-Policy", "no-referrer");
     res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
     res.setHeader("Cross-Origin-Resource-Policy", "same-site");
+    if (shouldSendHsts(env.nodeEnv, req.secure)) {
+      res.setHeader("Strict-Transport-Security", "max-age=31536000");
+    }
     next();
   });
   app.use("/api", (_req, res, next) => {
