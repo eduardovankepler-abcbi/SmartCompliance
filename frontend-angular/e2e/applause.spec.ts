@@ -44,8 +44,11 @@ test('administrador arquiva um Aplause', async ({ page }) => {
   await page.getByRole('button', { name: 'Registrar Aplause' }).click();
 
   const card = page.locator('.card').filter({ hasText: impact });
-  await card.getByRole('button', { name: 'Arquivar' }).click();
-  await expect(card).toHaveCount(0);
+  await card.getByRole('button', { name: 'Editar' }).click();
+  await page.getByLabel('Status').selectOption('Arquivado');
+  await page.getByLabel('Justificativa da alteracao de status').fill('Arquivamento validado pelo cenário E2E.');
+  await page.getByRole('button', { name: 'Salvar alteracoes' }).click();
+  await expect(card).toContainText('Arquivado');
 });
 
 test('exibe estado vazio quando nao ha reconhecimentos', async ({ page }) => {

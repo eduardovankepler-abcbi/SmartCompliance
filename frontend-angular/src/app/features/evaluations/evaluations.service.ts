@@ -294,6 +294,7 @@ export class EvaluationsService {
   forceTransversalPairing(id: string, payload: { reviewerUserId: string; revieweePersonId: string; reason: string }): Observable<EvaluationCycleStructure> { return this.api.post(`/api/evaluations/cycles/${id}/transversal-pairings/force`, payload); }
   blockTransversalPairing(cycleId: string, pairingId: string, reason: string): Observable<EvaluationCycleStructure> { return this.api.post(`/api/evaluations/cycles/${cycleId}/transversal-pairings/${pairingId}/block`, { reason }); }
   listFeedbackRequests(): Observable<EvaluationFeedbackRequest[]> { return this.api.get('/api/evaluations/feedback-requests'); }
+  listFeedbackProviderCandidates(): Observable<Array<{ id: string; name: string; area: string }>> { return this.api.get('/api/evaluations/feedback-provider-candidates'); }
   createFeedbackRequest(payload: { cycleId: string; providerPersonIds: string[]; contextNote: string }): Observable<EvaluationFeedbackRequest> { return this.api.post('/api/evaluations/feedback-requests', payload); }
   reviewFeedbackRequest(id: string, status: 'approved' | 'rejected'): Observable<EvaluationFeedbackRequest> { return this.api.patch(`/api/evaluations/feedback-requests/${id}`, { status }); }
   listReceivedFeedback(): Observable<ReceivedManagerFeedback[]> { return this.api.get('/api/evaluations/received-feedback'); }

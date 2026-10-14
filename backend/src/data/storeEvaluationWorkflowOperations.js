@@ -172,6 +172,13 @@ export function createMemoryEvaluationWorkflowStore({
     async getFeedbackRequests(actorUser) {
       return filterFeedbackRequestsForUser(db, actorUser);
     },
+    async getFeedbackProviderCandidates(actorUser) {
+      const actorPersonId = actorUser.person?.id || actorUser.personId;
+      const actor = db.people.find((person) => person.id === actorPersonId);
+      if (!actor) return [];
+      const activePersonIds = new Set(db.users.filter((user) => user.status === "active").map((user) => user.personId));
+      return db.people.filter((person) => person.id !== actor.id && person.workUnit === actor.workUnit && activePersonIds.has(person.id)).map((person) => ({ id: person.id, name: person.name, area: person.area }));
+    },
     async createFeedbackRequest(payload, actorUser) {
       const providerPersonIds = assertCanCreateFeedbackRequest(db, actorUser, payload);
 
@@ -663,6 +670,14 @@ export function createMysqlEvaluationWorkflowStore({
       }
 
       return requests.filter((item) => item.requesterUserId === actorUser.id);
+    },
+    async getFeedbackProviderCandidates(actorUser) {
+      const actorPersonId = actorUser.person?.id || actorUser.personId;
+      const [people, users] = await Promise.all([fetchPeopleRows(pool), fetchUserRows(pool)]);
+      const actor = people.find((person) => person.id === actorPersonId);
+      if (!actor) return [];
+      const activePersonIds = new Set(users.filter((user) => user.status === "active").map((user) => user.personId));
+      return people.filter((person) => person.id !== actor.id && person.workUnit === actor.workUnit && activePersonIds.has(person.id)).map((person) => ({ id: person.id, name: person.name, area: person.area }));
     },
     async createFeedbackRequest(payload, actorUser) {
       const people = await fetchPeopleRows(pool);

@@ -516,6 +516,10 @@ export function createEvaluationsRouter(store) {
     }
   });
 
+  router.get("/feedback-provider-candidates", requireRoles("admin", "hr", "manager", "employee"), async (req, res, next) => {
+    try { res.json(await store.getFeedbackProviderCandidates(req.auth.user)); } catch (error) { next(error); }
+  });
+
   router.post("/feedback-requests", requireRoles("admin", "hr", "manager", "employee"), async (req, res) => {
     const { cycleId, providerPersonIds, contextNote } = req.body;
 

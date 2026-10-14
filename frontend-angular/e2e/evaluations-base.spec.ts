@@ -125,7 +125,7 @@ test('filtra avaliacoes pela modalidade da rota', async ({ page }) => {
   await expect(page.getByText('Pessoa Gestor E2E')).toBeVisible();
   await expect(page.getByText('Pessoa Avaliada E2E')).toHaveCount(0);
   await expect(page.locator('.metrics')).toContainText('1');
-  await page.getByRole('button', { name: /Autoavaliacao/ }).click();
+  await page.getByLabel('Modalidade').selectOption('self');
   await expect(page).toHaveURL(/\/app\/evaluations\/self\/respond$/);
   await expect(page.getByText('Pessoa Avaliada E2E')).toBeVisible();
   await expect(page.getByText('Pessoa Gestor E2E')).toHaveCount(0);

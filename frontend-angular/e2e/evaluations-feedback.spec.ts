@@ -49,6 +49,7 @@ async function mockBase(page: Page) {
   await page.route('**/api/evaluations/assignments', r=>r.fulfill({status:200,json:[]}));
   await page.route('**/api/evaluations/responses', r=>r.fulfill({status:200,json:{individualResponses:[],aggregateResponses:[],cycleAggregateResponses:[],reportSnapshots:[]}}));
   await page.route('**/api/people', r=>r.fulfill({status:200,json:people}));
+  await page.route('**/api/evaluations/feedback-provider-candidates', r=>r.fulfill({status:200,json:people.slice(1)}));
 }
 
 test('colaborador solicita feedback e confirma leitura do gestor', async ({ page }) => {
@@ -92,6 +93,7 @@ test('evita chamadas duplicadas da pagina mae em insights direto', async ({ page
   await page.route('**/api/evaluations/assignments', r=>{assignmentsCalls+=1;return r.fulfill({status:200,json:assignments});});
   await page.route('**/api/evaluations/responses', r=>r.fulfill({status:200,json:responsesBundle}));
   await page.route('**/api/people', r=>r.fulfill({status:200,json:people}));
+  await page.route('**/api/evaluations/feedback-provider-candidates', r=>r.fulfill({status:200,json:people.slice(1)}));
   await page.route('**/api/evaluations/feedback-requests**',r=>r.fulfill({status:200,json:[]}));
   await page.route('**/api/evaluations/performance-360',r=>r.fulfill({status:200,json:reviews}));
   await page.goto('/app/evaluations/manager/insights/360');
