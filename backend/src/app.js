@@ -43,6 +43,10 @@ export function createApp(store) {
     res.setHeader("Cross-Origin-Resource-Policy", "same-site");
     next();
   });
+  app.use("/api", (_req, res, next) => {
+    res.setHeader("Cache-Control", "no-store");
+    next();
+  });
   app.use(express.json({ limit: "50kb" }));
 
   app.get("/health", async (_req, res) => {

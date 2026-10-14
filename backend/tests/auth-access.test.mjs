@@ -95,6 +95,11 @@ export async function runAuthAccessRegression() {
       "Rate limit nao deve contaminar logins validos de outro usuario"
     );
     assert.ok(validManagerLogin.payload.token, "Login valido deve emitir token");
+    assert.equal(
+      validManagerLogin.response.headers.get("cache-control"),
+      "no-store",
+      "Resposta de login com token nao deve ser armazenada em cache"
+    );
 
     const hrResponses = await fetchJson(
       "/api/evaluations/responses",
@@ -104,6 +109,11 @@ export async function runAuthAccessRegression() {
     assert.ok(
       Array.isArray(hrResponses.payload.individualResponses),
       "Bundle de respostas deve ser retornado para RH"
+    );
+    assert.equal(
+      hrResponses.response.headers.get("cache-control"),
+      "no-store",
+      "Dados autenticados nao devem ser armazenados em cache"
     );
 
     const complianceResponses = await fetchJson(
