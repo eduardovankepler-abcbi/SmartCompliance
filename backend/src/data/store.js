@@ -136,7 +136,7 @@ import {
   createMemoryRegistryStore,
   createMysqlRegistryStore
 } from "./storeRegistryOperations.js";
-import { createId, hashPassword, verifyPasswordHash } from "./storeSecurity.js";
+import { createId, hashPassword, hashSessionId, verifyPasswordHash } from "./storeSecurity.js";
 import {
   assertProductionPasswordPolicy,
   assertPersonHasNoLinkedUser,
@@ -2119,6 +2119,29 @@ async function ensureMysqlAuthHardeningSupport(pool) {
     ],
     detectMysqlAuthHardeningSupport
   );
+}
+
+async function detectMysqlSessionRevocationSupport(pool) {
+  const missingColumns = await getMysqlMissingColumns(pool, "revoked_sessions", [
+    "session_hash",
+    "user_id",
+    "expires_at",
+    "revoked_at"
+  ]);
+  return missingColumns.length === 0;
+}
+
+async function ensureMysqlSessionRevocationSupport(pool) {
+  return ensureMysqlTables(pool, detectMysqlSessionRevocationSupport, [
+    `CREATE TABLE IF NOT EXISTS revoked_sessions (
+      session_hash CHAR(64) PRIMARY KEY,
+      user_id VARCHAR(36) NOT NULL,
+      expires_at DATETIME NOT NULL,
+      revoked_at DATETIME NOT NULL,
+      KEY idx_revoked_sessions_expires_at (expires_at),
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    )`
+  ]);
 }
 
 async function detectMysqlIncidentMaturitySupport(pool) {
@@ -6805,12 +6828,33 @@ function buildMemoryStore(customLibraryState, anonymousResponseState) {
     db.learningIntegrationEvents = [];
   }
   db.cycles.forEach((cycle) => hydrateCycleStructure(db, cycle.id));
+  const revokedSessions = new Map();
+
+  function pruneRevokedSessions(now = Date.now()) {
+    revokedSessions.forEach((expiresAt, sessionHash) => {
+      if (expiresAt <= now) {
+        revokedSessions.delete(sessionHash);
+      }
+    });
+  }
 
   return {
     async checkHealth() {
       return {
         database: "memory"
       };
+    },
+    async isSessionRevoked(sessionId) {
+      pruneRevokedSessions();
+      return revokedSessions.has(hashSessionId(sessionId));
+    },
+    async revokeSession(sessionId, expiresAt) {
+      const expiration = Number(expiresAt);
+      if (!sessionId || !Number.isFinite(expiration) || expiration <= Date.now()) {
+        return;
+      }
+      pruneRevokedSessions();
+      revokedSessions.set(hashSessionId(sessionId), expiration);
     },
     async findUserByEmail(email) {
       return db.users.find((item) => item.email.toLowerCase() === email.toLowerCase()) || null;
@@ -7583,7 +7627,8 @@ function buildMysqlStore(
     supportsPairings,
     supportsLearningIntegrations,
     supportsIndividualQuestionnaires,
-    supportsProgressHistory
+    supportsProgressHistory,
+    supportsSessionRevocation
   } = {}
 ) {
   return {
@@ -7655,6 +7700,36 @@ function buildMysqlStore(
           missingAnswerQuestionnaireColumns.length === 0 ? "ok" : "incomplete",
         missingAnswerQuestionnaireColumns
       };
+    },
+    async isSessionRevoked(sessionId) {
+      if (!sessionId || !supportsSessionRevocation) {
+        return Boolean(sessionId);
+      }
+      const [rows] = await pool.query(
+        `SELECT 1
+         FROM revoked_sessions
+         WHERE session_hash = ? AND expires_at > ?
+         LIMIT 1`,
+        [hashSessionId(sessionId), toMysqlDateTime(new Date().toISOString())]
+      );
+      return Boolean(rows[0]);
+    },
+    async revokeSession(sessionId, expiresAt, userId) {
+      const expiration = new Date(Number(expiresAt));
+      if (!supportsSessionRevocation || !sessionId || !userId || Number.isNaN(expiration.getTime())) {
+        throw new Error("Revogacao de sessao indisponivel.");
+      }
+      if (expiration.getTime() <= Date.now()) {
+        return;
+      }
+      const now = toMysqlDateTime(new Date().toISOString());
+      await pool.query("DELETE FROM revoked_sessions WHERE expires_at <= ?", [now]);
+      await pool.query(
+        `INSERT INTO revoked_sessions (session_hash, user_id, expires_at, revoked_at)
+         VALUES (?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE expires_at = VALUES(expires_at), revoked_at = VALUES(revoked_at)`,
+        [hashSessionId(sessionId), userId, toMysqlDateTime(expiration.toISOString()), now]
+      );
     },
     async findUserByEmail(email) {
       try {
@@ -9124,6 +9199,7 @@ export async function createStore() {
   const [
     supportsCycleConfig,
     _supportsAuthHardening,
+    supportsSessionRevocation,
     _supportsIncidentMaturity,
     _supportsIncidentEvidence,
     supportsFeedbackAcknowledgement,
@@ -9138,6 +9214,7 @@ export async function createStore() {
     await Promise.all([
       ensureMysqlCycleConfigSupport(pool),
       ensureMysqlAuthHardeningSupport(pool),
+      ensureMysqlSessionRevocationSupport(pool),
       ensureMysqlIncidentMaturitySupport(pool),
       ensureMysqlIncidentEvidenceSupport(pool),
       ensureMysqlFeedbackAcknowledgementSupport(pool),
@@ -9149,6 +9226,9 @@ export async function createStore() {
       ensureMysqlLearningIntegrationSupport(pool),
       ensureMysqlIndividualQuestionnaireSupport(pool)
     ]);
+  if (!supportsSessionRevocation) {
+    throw new Error("Tabela de revogacao de sessao indisponivel.");
+  }
   return buildMysqlStore(pool, customLibraryState, anonymousResponseState, {
     supportsCycleConfig,
     supportsFeedbackAcknowledgement,
@@ -9156,6 +9236,7 @@ export async function createStore() {
     supportsPairings,
     supportsLearningIntegrations,
     supportsIndividualQuestionnaires,
-    supportsProgressHistory
+    supportsProgressHistory,
+    supportsSessionRevocation
   });
 }

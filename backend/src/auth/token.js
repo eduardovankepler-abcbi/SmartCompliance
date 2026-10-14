@@ -2,6 +2,9 @@ import crypto from "crypto";
 import { env } from "../config/env.js";
 import { verifyPasswordHash } from "../data/storeSecurity.js";
 
+export const TOKEN_ISSUER = "smart-compliance";
+export const TOKEN_AUDIENCE = "smart-compliance-api";
+
 function encode(value) {
   return Buffer.from(JSON.stringify(value)).toString("base64url");
 }
@@ -31,6 +34,9 @@ function safeCompare(left, right) {
 export function createToken(payload) {
   const body = {
     ...payload,
+    jti: crypto.randomUUID(),
+    iss: TOKEN_ISSUER,
+    aud: TOKEN_AUDIENCE,
     iat: Date.now(),
     exp: Date.now() + 1000 * 60 * 60 * 12
   };
@@ -69,6 +75,17 @@ export function verifyToken(token) {
   try {
     const payload = decode(encodedPayload);
     if (!payload?.exp || payload.exp < Date.now()) {
+      return null;
+    }
+
+    const usesCurrentTokenFormat = Boolean(payload.jti || payload.iss || payload.aud);
+    if (
+      usesCurrentTokenFormat &&
+      (payload.iss !== TOKEN_ISSUER ||
+        payload.aud !== TOKEN_AUDIENCE ||
+        typeof payload.jti !== "string" ||
+        !payload.jti)
+    ) {
       return null;
     }
 

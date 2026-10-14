@@ -3,7 +3,7 @@ import { createTestContext } from "./testContext.mjs";
 import crypto from "node:crypto";
 import { hashPassword, verifyPasswordHash } from "../src/data/storeSecurity.js";
 import { env } from "../src/config/env.js";
-import { createUserToken } from "../src/auth/token.js";
+import { createUserToken, verifyToken } from "../src/auth/token.js";
 import { createLoginRateLimiter } from "../src/routes/auth.js";
 
 export async function runAuthAccessRegression() {
@@ -134,10 +134,22 @@ export async function runAuthAccessRegression() {
       "Rate limit nao deve contaminar logins validos de outro usuario"
     );
     assert.ok(validManagerLogin.payload.token, "Login valido deve emitir token");
+    const managerToken = verifyToken(validManagerLogin.payload.token);
+    assert.ok(managerToken?.jti, "Login valido deve emitir identificador de sessao");
+    assert.equal(managerToken?.iss, "smart-compliance", "Token deve registrar emissor esperado");
+    assert.equal(managerToken?.aud, "smart-compliance-api", "Token deve registrar audiencia esperada");
     assert.equal(
       validManagerLogin.response.headers.get("cache-control"),
       "no-store",
       "Resposta de login com token nao deve ser armazenada em cache"
+    );
+    const managerHeaders = { Authorization: `Bearer ${validManagerLogin.payload.token}` };
+    const logout = await sendJson("/api/auth/logout", { headers: managerHeaders });
+    assert.equal(logout.response.status, 204, "Logout deve encerrar a sessao atual");
+    assert.equal(
+      (await fetchJson("/api/auth/me", managerHeaders)).response.status,
+      401,
+      "Token revogado por logout nao deve acessar a API"
     );
 
     const hrResponses = await fetchJson(

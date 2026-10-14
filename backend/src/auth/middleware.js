@@ -14,6 +14,9 @@ export function requireAuth(store, { allowPasswordChange = false } = {}) {
       if (!payload?.userId) {
         return res.status(401).json({ error: "Token invalido ou expirado." });
       }
+      if (payload.jti && await store.isSessionRevoked(payload.jti)) {
+        return res.status(401).json({ error: "Sessao encerrada. Entre novamente." });
+      }
 
       const user = await store.getUserById(payload.userId);
       if (!user || user.status !== "active") {
@@ -30,7 +33,8 @@ export function requireAuth(store, { allowPasswordChange = false } = {}) {
       }
 
       req.auth = {
-        user
+        user,
+        token: payload
       };
       next();
     } catch (error) {

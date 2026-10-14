@@ -172,6 +172,19 @@ export function createAuthRouter(store) {
     res.json(req.auth.user);
   });
 
+  router.post("/logout", requireAuth(store, { allowPasswordChange: true }), async (req, res, next) => {
+    try {
+      const { jti, exp } = req.auth.token;
+      if (jti) {
+        await store.revokeSession(jti, exp, req.auth.user.id);
+      }
+      await store.recordAuthEvent?.("logout", req.auth.user, `IP: ${getClientIp(req)}`);
+      res.status(204).end();
+    } catch (error) {
+      next(error);
+    }
+  });
+
   router.post("/change-password", requireAuth(store, { allowPasswordChange: true }), async (req, res) => {
     const { currentPassword, nextPassword } = req.body;
     if (!currentPassword || !nextPassword) {
