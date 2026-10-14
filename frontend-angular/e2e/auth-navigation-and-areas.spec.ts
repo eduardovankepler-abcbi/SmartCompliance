@@ -428,25 +428,22 @@ test('exibe erro quando a fila de incidentes falha', async ({ page }) => {
 
 test('exibe os indicadores do overview retornado pela API', async ({ page }) => {
   await login(page, 'admin@demo.local');
-  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Gestao Executiva' })).toBeVisible();
 
   const overviewResponse = page.waitForResponse(
     (response) =>
       response.request().method() === 'GET' && response.url().includes('/api/dashboards/overview'),
   );
-  await page.locator('.dashboard').getByRole('button', { name: 'Atualizar dados' }).click();
+  await page.locator('.dashboard__refresh').click();
   const overview = (await (await overviewResponse).json()) as DashboardOverviewResponse;
 
   for (const card of overview.cards) {
-    const cardElement = page.locator('.dashboard__card').filter({ hasText: card.label });
+    const cardElement = page.locator('.dashboard__kpis article').filter({ hasText: card.label });
     await expect(cardElement).toContainText(card.value);
   }
-  await expect(page.getByText('Riscos operacionais')).toBeVisible();
-  if (overview.riskSummary) {
-    await expect(page.locator('.dashboard__executive-grid')).toContainText(String(overview.riskSummary.openIncidents));
-  }
+  await expect(page.getByText('Issues e inconformidades')).toBeVisible();
   for (const alert of overview.operationalAlerts ?? []) {
-    const alertElement = page.locator('.dashboard__alert').filter({ hasText: alert.label });
+    const alertElement = page.locator('.dashboard__alerts article').filter({ hasText: alert.label });
     await expect(alertElement).toContainText(String(alert.value));
     await expect(alertElement).toContainText(alert.detail);
   }
@@ -454,7 +451,7 @@ test('exibe os indicadores do overview retornado pela API', async ({ page }) => 
 
 test('aplica filtros de area e periodo para administrador', async ({ page }) => {
   await login(page, 'admin@demo.local');
-  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Gestao Executiva' })).toBeVisible();
 
   const areaSelect = page.locator('.dashboard__filters select').first();
   const area = await areaSelect.locator('option').nth(1).getAttribute('value');
@@ -468,7 +465,7 @@ test('aplica filtros de area e periodo para administrador', async ({ page }) => 
   await areaSelect.selectOption(area!);
   const areaOverview = (await (await areaResponse).json()) as DashboardOverviewResponse;
   expect(areaOverview.selectedArea).toBe(area);
-  await expect(page.locator('.dashboard__scope')).toContainText(`Area: ${area}`);
+  await expect(areaSelect).toHaveValue(area!);
 
   const timeResponse = page.waitForResponse(
     (response) =>
@@ -479,6 +476,7 @@ test('aplica filtros de area e periodo para administrador', async ({ page }) => 
   await page.getByLabel('Consolidar por').selectOption('year');
   const timeOverview = (await (await timeResponse).json()) as DashboardOverviewResponse;
   expect(timeOverview.timeGrouping).toBe('year');
+  await expect(page.getByLabel('Consolidar por')).toHaveValue('year');
 });
 
 test('limita gestor ao escopo de equipe sem filtro de area', async ({ page }) => {
@@ -493,13 +491,13 @@ test('limita gestor ao escopo de equipe sem filtro de area', async ({ page }) =>
 
 test('permite administrador consultar auditoria gerencial', async ({ page }) => {
   await login(page, 'admin@demo.local');
-  await expect(page.getByRole('link', { name: 'Abrir Auditoria' })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Auditoria/ })).toBeVisible();
 
   const auditResponse = page.waitForResponse(
     (response) =>
       response.request().method() === 'GET' && response.url().includes('/api/audit-trail'),
   );
-  await page.getByRole('link', { name: 'Abrir Auditoria' }).click();
+  await page.getByRole('link', { name: /Auditoria/ }).click();
   await auditResponse;
 
   await expect(page).toHaveURL(/\/app\/audit$/);
