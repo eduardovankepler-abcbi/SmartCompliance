@@ -1,9 +1,10 @@
 import { createApp } from "./app.js";
-import { env } from "./config/env.js";
+import { assertProductionStorageConfiguration, env } from "./config/env.js";
 import { createStore } from "./data/store.js";
 import { logger } from "./observability/logger.js";
 
 async function bootstrap() {
+  assertProductionStorageConfiguration();
   const store = await createStore();
   const app = createApp(store);
 

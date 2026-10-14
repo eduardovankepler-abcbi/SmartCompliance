@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { buildCorsOriginOption } from "../src/config/env.js";
+import { assertProductionStorageConfiguration, buildCorsOriginOption } from "../src/config/env.js";
 
 async function resolveCors(corsOrigin, origin) {
   if (typeof corsOrigin === "string") {
@@ -51,6 +51,24 @@ try {
   process.env.NODE_ENV = "development";
   const developmentCors = buildCorsOriginOption();
   assert.equal(await resolveCors(developmentCors, "https://smart-compliance-angular.vercel.app"), true);
+
+  const productionConfig = { nodeEnv: "production", storageMode: "mysql" };
+  const validMysqlRuntime = {
+    MYSQL_HOST: "mysql.internal",
+    MYSQL_USER: "app_user",
+    MYSQL_PASSWORD: "strong-password",
+    MYSQL_DATABASE: "smart_compliance"
+  };
+  assert.doesNotThrow(() => assertProductionStorageConfiguration(productionConfig, validMysqlRuntime));
+  assert.throws(
+    () => assertProductionStorageConfiguration({ nodeEnv: "production", storageMode: "memory" }, validMysqlRuntime),
+    /STORAGE_MODE=mysql/
+  );
+  assert.throws(
+    () => assertProductionStorageConfiguration(productionConfig, { ...validMysqlRuntime, MYSQL_PASSWORD: "" }),
+    /MYSQL_PASSWORD/
+  );
+  assert.doesNotThrow(() => assertProductionStorageConfiguration({ nodeEnv: "development", storageMode: "memory" }, {}));
 } finally {
   if (originalNodeEnv === undefined) delete process.env.NODE_ENV; else process.env.NODE_ENV = originalNodeEnv;
   if (originalCorsOrigin === undefined) delete process.env.CORS_ORIGIN; else process.env.CORS_ORIGIN = originalCorsOrigin;

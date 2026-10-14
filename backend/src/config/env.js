@@ -187,6 +187,28 @@ export const env = {
   }
 };
 
+export function assertProductionStorageConfiguration(config = env, runtime = process.env) {
+  if (config.nodeEnv !== "production") {
+    return;
+  }
+
+  if (config.storageMode !== "mysql") {
+    throw new Error("STORAGE_MODE=mysql e obrigatorio em producao.");
+  }
+
+  const required = [
+    ["MYSQL_HOST ou DB_HOST", runtime.MYSQL_HOST || runtime.DB_HOST],
+    ["MYSQL_USER ou DB_USER", runtime.MYSQL_USER || runtime.DB_USER],
+    ["MYSQL_PASSWORD ou DB_PASSWORD", runtime.MYSQL_PASSWORD || runtime.DB_PASSWORD],
+    ["MYSQL_DATABASE ou DB_NAME", runtime.MYSQL_DATABASE || runtime.DB_NAME]
+  ];
+  const missing = required.filter(([, value]) => !String(value || "").trim()).map(([name]) => name);
+
+  if (missing.length > 0) {
+    throw new Error(`Configuracao MySQL obrigatoria em producao ausente: ${missing.join(", ")}.`);
+  }
+}
+
 if (env.nodeEnv === "production" && env.authSecret === "smart-compliance-dev-secret") {
   throw new Error("AUTH_SECRET precisa ser configurado em producao.");
 }
