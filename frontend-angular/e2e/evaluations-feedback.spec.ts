@@ -116,7 +116,7 @@ test('exibe respostas individuais e agregadas em insights', async ({ page }) => 
   await expect(page.getByText('Excelente articulacao.')).toHaveCount(0);
   await expect(page.getByText('Uma ou mais respostas foram anonimizadas para proteger o respondente.')).toBeVisible();
   await expect(page.getByText('Colaboracao: Resposta protegida')).toBeVisible();
-  await page.getByRole('button',{name:/Empresa/}).click();
+  await page.getByLabel('Modalidade').selectOption('company');
   await expect(page).toHaveURL(/\/app\/evaluations\/company\/insights$/);
   await page.getByRole('button',{name:'360 e insights'}).click();
   await expect(page.getByRole('heading',{name:'Dashboard executivo'})).toBeVisible();
