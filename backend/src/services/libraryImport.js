@@ -35,6 +35,8 @@ const DEFAULT_CONFIDENTIALITY = {
 
 const VALID_INPUT_TYPES = ["scale", "text", "multi-select"];
 const VALID_SCALE_PROFILES = Object.keys(evaluationScaleProfiles);
+const MAX_LIBRARY_IMPORT_ROWS = 500;
+const MAX_LIBRARY_IMPORT_COLUMNS = 64;
 const TEMPLATE_COLUMNS = [
   "relationship_type",
   "template_name",
@@ -219,8 +221,17 @@ function parseCsvBuffer(buffer) {
   }
 
   const headers = parseCsvLine(lines[0]);
+  if (headers.length > MAX_LIBRARY_IMPORT_COLUMNS) {
+    throw new Error(`Arquivo excede o limite de ${MAX_LIBRARY_IMPORT_COLUMNS} colunas.`);
+  }
+  if (lines.length - 1 > MAX_LIBRARY_IMPORT_ROWS) {
+    throw new Error(`Arquivo excede o limite de ${MAX_LIBRARY_IMPORT_ROWS} linhas.`);
+  }
   return lines.slice(1).map((line) => {
     const values = parseCsvLine(line);
+    if (values.length > MAX_LIBRARY_IMPORT_COLUMNS) {
+      throw new Error(`Arquivo excede o limite de ${MAX_LIBRARY_IMPORT_COLUMNS} colunas.`);
+    }
     return Object.fromEntries(headers.map((header, index) => [header, values[index] || ""]));
   });
 }
@@ -238,12 +249,21 @@ async function parseWorkbookBuffer(buffer) {
   const headers = headerRow.values
     .slice(1)
     .map((value) => String(value || "").trim());
+  if (headers.length > MAX_LIBRARY_IMPORT_COLUMNS) {
+    throw new Error(`Arquivo excede o limite de ${MAX_LIBRARY_IMPORT_COLUMNS} colunas.`);
+  }
+  if (worksheet.rowCount - 1 > MAX_LIBRARY_IMPORT_ROWS) {
+    throw new Error(`Arquivo excede o limite de ${MAX_LIBRARY_IMPORT_ROWS} linhas.`);
+  }
 
   worksheet.eachRow((row, rowNumber) => {
     if (rowNumber === 1) {
       return;
     }
     const values = row.values.slice(1);
+    if (values.length > MAX_LIBRARY_IMPORT_COLUMNS) {
+      throw new Error(`Arquivo excede o limite de ${MAX_LIBRARY_IMPORT_COLUMNS} colunas.`);
+    }
     const mapped = Object.fromEntries(
       headers.map((header, index) => [header, values[index] ?? ""])
     );

@@ -2,11 +2,19 @@ import { Router } from "express";
 import { requireAuth } from "../auth/middleware.js";
 import { env } from "../config/env.js";
 import { logger } from "../observability/logger.js";
-import { badRequest } from "./helpers.js";
+import { badRequest, safeErrorMessage } from "./helpers.js";
 import { createUserToken } from "../auth/token.js";
 import { hashSecurityValue } from "../data/storeSecurity.js";
 
 const MAX_TRACKED_LOGIN_ATTEMPTS = 10000;
+
+function setSessionCookie(res, token) {
+  res.cookie(env.auth.cookieName, token, { httpOnly: true, secure: env.auth.cookieSecure, sameSite: env.auth.cookieSameSite, maxAge: 12 * 60 * 60 * 1000, path: "/" });
+}
+
+function clearSessionCookie(res) {
+  res.clearCookie(env.auth.cookieName, { httpOnly: true, secure: env.auth.cookieSecure, sameSite: env.auth.cookieSameSite, path: "/" });
+}
 
 function getClientIp(req) {
   if (Array.isArray(req.ips) && req.ips.length > 0) {
@@ -165,8 +173,8 @@ export function createAuthRouter(store) {
         throw error;
       }
 
+      setSessionCookie(res, token);
       res.json({
-        token,
         user
       });
     } catch (error) {
@@ -193,6 +201,7 @@ export function createAuthRouter(store) {
         await store.revokeSession(jti, exp, req.auth.user.id);
       }
       await store.recordAuthEvent?.("logout", req.auth.user, `IP: ${getClientIp(req)}`);
+      clearSessionCookie(res);
       res.status(204).end();
     } catch (error) {
       next(error);
@@ -210,9 +219,11 @@ export function createAuthRouter(store) {
         currentPassword,
         nextPassword
       });
-      res.json({ ...user, token: await createUserToken(store, user, String(nextPassword).trim()) });
+      const token = await createUserToken(store, user, String(nextPassword).trim());
+      setSessionCookie(res, token);
+      res.json(user);
     } catch (error) {
-      res.status(400).json({ error: error.message || "Falha ao alterar senha." });
+      res.status(400).json({ error: safeErrorMessage(error, "Falha ao alterar senha.") });
     }
   });
 

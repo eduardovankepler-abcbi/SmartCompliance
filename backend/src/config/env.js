@@ -30,8 +30,10 @@ function wildcardToRegex(pattern) {
 
 const DEFAULT_CORS_ORIGINS = [
   "http://localhost:4200",
+  "http://localhost:4201",
   "http://localhost:5173",
   "http://127.0.0.1:5173",
+  "http://127.0.0.1:4201",
   "https://smart-compliance-angular*.vercel.app",
   "https://smartcompliance*.vercel.app"
 ];
@@ -171,7 +173,14 @@ export const env = {
   auth: {
     loginWindowMs: parsePositiveInteger(process.env.AUTH_LOGIN_WINDOW_MS, 10 * 60 * 1000),
     loginLockMs: parsePositiveInteger(process.env.AUTH_LOGIN_LOCK_MS, 15 * 60 * 1000),
-    maxFailedLogins: parsePositiveInteger(process.env.AUTH_MAX_FAILED_LOGINS, 5)
+    maxFailedLogins: parsePositiveInteger(process.env.AUTH_MAX_FAILED_LOGINS, 5),
+    cookieName: process.env.AUTH_COOKIE_NAME || "smart_compliance_session",
+    cookieSameSite: String(process.env.AUTH_COOKIE_SAME_SITE || (process.env.NODE_ENV === "production" ? "none" : "lax")).toLowerCase(),
+    cookieSecure: parseBoolean(process.env.AUTH_COOKIE_SECURE, process.env.NODE_ENV === "production")
+  },
+  upload: {
+    windowMs: parsePositiveInteger(process.env.UPLOAD_RATE_WINDOW_MS, 10 * 60 * 1000),
+    maxRequests: parsePositiveInteger(process.env.UPLOAD_RATE_MAX_REQUESTS, 10)
   },
   mysql: {
     host: process.env.MYSQL_HOST || process.env.DB_HOST || "localhost",
@@ -206,6 +215,32 @@ export function assertProductionStorageConfiguration(config = env, runtime = pro
 
   if (missing.length > 0) {
     throw new Error(`Configuracao MySQL obrigatoria em producao ausente: ${missing.join(", ")}.`);
+  }
+
+  const mysqlHost = String(runtime.MYSQL_HOST || runtime.DB_HOST || "").trim().toLowerCase();
+  const localMysqlHosts = new Set(["localhost", "127.0.0.1", "::1"]);
+  if (!localMysqlHosts.has(mysqlHost)) {
+    const sslMode = String(runtime.MYSQL_SSL_MODE || runtime.DB_SSL_MODE || "disabled")
+      .trim()
+      .toLowerCase();
+    const rejectUnauthorized = String(
+      runtime.MYSQL_SSL_REJECT_UNAUTHORIZED ?? runtime.DB_SSL_REJECT_UNAUTHORIZED ?? ""
+    )
+      .trim()
+      .toLowerCase();
+    const ca =
+      runtime.MYSQL_SSL_CA ||
+      runtime.DB_SSL_CA ||
+      runtime.MYSQL_SSL_CA_PEM ||
+      runtime.DB_SSL_CA_PEM ||
+      "";
+
+    if (sslMode !== "verify-full" || rejectUnauthorized !== "true" || !String(ca).trim()) {
+      throw new Error(
+        "MySQL remoto em producao requer MYSQL_SSL_MODE=verify-full, " +
+          "MYSQL_SSL_REJECT_UNAUTHORIZED=true e MYSQL_SSL_CA ou MYSQL_SSL_CA_PEM."
+      );
+    }
   }
 }
 

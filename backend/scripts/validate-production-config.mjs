@@ -92,9 +92,31 @@ if (origins.some((origin) => origin.includes("localhost") || origin.includes("12
   warnings.push("CORS contem localhost/127.0.0.1. Confirme se isso e intencional no servidor definitivo.");
 }
 
-const sslMode = valueOf("MYSQL_SSL_MODE", "DB_SSL_MODE");
-if (!sslMode) {
-  warnings.push("MYSQL_SSL_MODE nao configurado. Confirme se o MySQL definitivo exige SSL.");
+const sslMode = valueOf("MYSQL_SSL_MODE", "DB_SSL_MODE").toLowerCase();
+const sslRejectUnauthorized = valueOf(
+  "MYSQL_SSL_REJECT_UNAUTHORIZED",
+  "DB_SSL_REJECT_UNAUTHORIZED"
+).toLowerCase();
+const sslCa = valueOf("MYSQL_SSL_CA", "DB_SSL_CA", "MYSQL_SSL_CA_PEM", "DB_SSL_CA_PEM");
+const localMysqlHosts = new Set(["localhost", "127.0.0.1", "::1"]);
+
+if (!localMysqlHosts.has(mysqlHost.toLowerCase())) {
+  if (sslMode !== "verify-full") {
+    errors.push("MYSQL_SSL_MODE precisa ser verify-full para MySQL remoto.");
+  }
+  if (sslRejectUnauthorized !== "true") {
+    errors.push("MYSQL_SSL_REJECT_UNAUTHORIZED precisa ser true para MySQL remoto.");
+  }
+  if (!sslCa) {
+    errors.push("MYSQL_SSL_CA ou MYSQL_SSL_CA_PEM precisa conter a CA do MySQL remoto.");
+  }
+} else if (sslMode === "disabled" || !sslMode) {
+  warnings.push("MySQL local sem TLS. Mantenha o banco inacessivel pela rede externa.");
+}
+
+const autoMigrateDb = valueOf("AUTO_MIGRATE_DB").toLowerCase();
+if (!["false", "0", "no", "off"].includes(autoMigrateDb)) {
+  errors.push("AUTO_MIGRATE_DB precisa ser false no servidor definitivo.");
 }
 
 const dataDir = requireValue("DATA_DIR", "DATA_DIR precisa apontar para armazenamento persistente no servidor definitivo.");

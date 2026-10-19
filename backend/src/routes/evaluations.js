@@ -1,12 +1,13 @@
 import { Router } from "express";
 import multer from "multer";
 import { requireRoles } from "../auth/middleware.js";
+import { env } from "../config/env.js";
 import {
   buildLibraryTemplateWorkbook,
   parseLibraryFile,
   validateImportedLibraryRows
 } from "../services/libraryImport.js";
-import { badRequest } from "./helpers.js";
+import { badRequest, createRequestRateLimiter, safeErrorMessage } from "./helpers.js";
 
 export function createEvaluationsRouter(store) {
   const router = Router();
@@ -15,6 +16,10 @@ export function createEvaluationsRouter(store) {
     limits: {
       fileSize: 1024 * 1024 * 2
     }
+  });
+  const limitCustomLibraryImport = createRequestRateLimiter({
+    windowMs: env.upload.windowMs,
+    maxRequests: env.upload.maxRequests
   });
 
   router.get("/template", requireRoles("admin", "hr", "manager", "employee"), async (_req, res, next) => {
@@ -39,7 +44,7 @@ export function createEvaluationsRouter(store) {
         await store.createEvaluationLibraryQuestion(req.body || {}, req.auth.user)
       );
     } catch (error) {
-      res.status(400).json({ error: error.message || "Falha ao criar pergunta de avaliacao." });
+      res.status(400).json({ error: safeErrorMessage(error, "Falha ao criar pergunta de avaliacao.") });
     }
   });
 
@@ -53,7 +58,7 @@ export function createEvaluationsRouter(store) {
         )
       );
     } catch (error) {
-      res.status(400).json({ error: error.message || "Falha ao atualizar pergunta de avaliacao." });
+      res.status(400).json({ error: safeErrorMessage(error, "Falha ao atualizar pergunta de avaliacao.") });
     }
   });
 
@@ -61,7 +66,7 @@ export function createEvaluationsRouter(store) {
     try {
       res.json(await store.deleteEvaluationLibraryQuestion(req.params.questionId, req.auth.user));
     } catch (error) {
-      res.status(400).json({ error: error.message || "Falha ao remover pergunta de avaliacao." });
+      res.status(400).json({ error: safeErrorMessage(error, "Falha ao remover pergunta de avaliacao.") });
     }
   });
 
@@ -76,7 +81,7 @@ export function createEvaluationsRouter(store) {
         )
       );
     } catch (error) {
-      res.status(400).json({ error: error.message || "Falha ao reordenar perguntas." });
+      res.status(400).json({ error: safeErrorMessage(error, "Falha ao reordenar perguntas.") });
     }
   });
 
@@ -100,7 +105,7 @@ export function createEvaluationsRouter(store) {
     } catch (error) {
       res
         .status(400)
-        .json({ error: error.message || "Falha ao carregar questionarios individuais." });
+        .json({ error: safeErrorMessage(error, "Falha ao carregar questionarios individuais.") });
     }
   });
 
@@ -112,7 +117,7 @@ export function createEvaluationsRouter(store) {
     } catch (error) {
       res
         .status(400)
-        .json({ error: error.message || "Falha ao carregar questionario individual." });
+        .json({ error: safeErrorMessage(error, "Falha ao carregar questionario individual.") });
     }
   });
 
@@ -123,7 +128,7 @@ export function createEvaluationsRouter(store) {
     } catch (error) {
       res
         .status(400)
-        .json({ error: error.message || "Falha ao criar questionario individual." });
+        .json({ error: safeErrorMessage(error, "Falha ao criar questionario individual.") });
     }
   });
 
@@ -138,7 +143,7 @@ export function createEvaluationsRouter(store) {
     } catch (error) {
       res
         .status(400)
-        .json({ error: error.message || "Falha ao atualizar questionario individual." });
+        .json({ error: safeErrorMessage(error, "Falha ao atualizar questionario individual.") });
     }
   });
 
@@ -153,7 +158,7 @@ export function createEvaluationsRouter(store) {
       } catch (error) {
         res
           .status(400)
-          .json({ error: error.message || "Falha ao publicar questionario individual." });
+          .json({ error: safeErrorMessage(error, "Falha ao publicar questionario individual.") });
       }
     }
   );
@@ -169,7 +174,7 @@ export function createEvaluationsRouter(store) {
       } catch (error) {
         res
           .status(400)
-          .json({ error: error.message || "Falha ao arquivar questionario individual." });
+          .json({ error: safeErrorMessage(error, "Falha ao arquivar questionario individual.") });
       }
     }
   );
@@ -189,7 +194,7 @@ export function createEvaluationsRouter(store) {
       } catch (error) {
         res
           .status(400)
-          .json({ error: error.message || "Falha ao adicionar pergunta ao questionario." });
+          .json({ error: safeErrorMessage(error, "Falha ao adicionar pergunta ao questionario.") });
       }
     }
   );
@@ -209,7 +214,7 @@ export function createEvaluationsRouter(store) {
       } catch (error) {
         res
           .status(400)
-          .json({ error: error.message || "Falha ao atualizar pergunta do questionario." });
+          .json({ error: safeErrorMessage(error, "Falha ao atualizar pergunta do questionario.") });
       }
     }
   );
@@ -225,7 +230,7 @@ export function createEvaluationsRouter(store) {
       } catch (error) {
         res
           .status(400)
-          .json({ error: error.message || "Falha ao remover pergunta do questionario." });
+          .json({ error: safeErrorMessage(error, "Falha ao remover pergunta do questionario.") });
       }
     }
   );
@@ -245,7 +250,7 @@ export function createEvaluationsRouter(store) {
       } catch (error) {
         res
           .status(400)
-          .json({ error: error.message || "Falha ao reordenar perguntas do questionario." });
+          .json({ error: safeErrorMessage(error, "Falha ao reordenar perguntas do questionario.") });
       }
     }
   );
@@ -272,7 +277,7 @@ export function createEvaluationsRouter(store) {
 
       res.status(201).json(cycle);
     } catch (error) {
-      res.status(400).json({ error: error.message || "Falha ao abrir ciclo." });
+      res.status(400).json({ error: safeErrorMessage(error, "Falha ao abrir ciclo.") });
     }
   });
 
@@ -295,7 +300,7 @@ export function createEvaluationsRouter(store) {
       } catch (error) {
         res
           .status(400)
-          .json({ error: error.message || "Falha ao atualizar status do ciclo." });
+          .json({ error: safeErrorMessage(error, "Falha ao atualizar status do ciclo.") });
       }
     }
   );
@@ -328,7 +333,7 @@ export function createEvaluationsRouter(store) {
       } catch (error) {
         res
           .status(400)
-          .json({ error: error.message || "Falha ao configurar ciclo." });
+          .json({ error: safeErrorMessage(error, "Falha ao configurar ciclo.") });
       }
     }
   );
@@ -343,7 +348,7 @@ export function createEvaluationsRouter(store) {
       } catch (error) {
         res
           .status(400)
-          .json({ error: error.message || "Falha ao carregar participantes do ciclo." });
+          .json({ error: safeErrorMessage(error, "Falha ao carregar participantes do ciclo.") });
       }
     }
   );
@@ -358,7 +363,7 @@ export function createEvaluationsRouter(store) {
       } catch (error) {
         res
           .status(400)
-          .json({ error: error.message || "Falha ao notificar inadimplentes do ciclo." });
+          .json({ error: safeErrorMessage(error, "Falha ao notificar inadimplentes do ciclo.") });
       }
     }
   );
@@ -382,7 +387,7 @@ export function createEvaluationsRouter(store) {
       } catch (error) {
         res
           .status(400)
-          .json({ error: error.message || "Falha ao ajustar pareamento transversal." });
+          .json({ error: safeErrorMessage(error, "Falha ao ajustar pareamento transversal.") });
       }
     }
   );
@@ -407,7 +412,7 @@ export function createEvaluationsRouter(store) {
       } catch (error) {
         res
           .status(400)
-          .json({ error: error.message || "Falha ao bloquear pareamento transversal." });
+          .json({ error: safeErrorMessage(error, "Falha ao bloquear pareamento transversal.") });
       }
     }
   );
@@ -503,7 +508,7 @@ export function createEvaluationsRouter(store) {
     } catch (error) {
       res
         .status(400)
-        .json({ error: error.message || "Falha ao registrar retorno do colaborador." });
+        .json({ error: safeErrorMessage(error, "Falha ao registrar retorno do colaborador.") });
     }
     }
   );
@@ -536,7 +541,7 @@ export function createEvaluationsRouter(store) {
     } catch (error) {
       res
         .status(400)
-        .json({ error: error.message || "Falha ao registrar solicitacao de feedback." });
+        .json({ error: safeErrorMessage(error, "Falha ao registrar solicitacao de feedback.") });
     }
   });
 
@@ -559,7 +564,7 @@ export function createEvaluationsRouter(store) {
       } catch (error) {
         res
           .status(400)
-          .json({ error: error.message || "Falha ao tratar solicitacao de feedback." });
+          .json({ error: safeErrorMessage(error, "Falha ao tratar solicitacao de feedback.") });
       }
     }
   );
@@ -588,6 +593,7 @@ export function createEvaluationsRouter(store) {
   router.post(
     "/custom-libraries/import",
     requireRoles("admin", "hr"),
+    limitCustomLibraryImport,
     upload.single("file"),
     async (req, res) => {
       if (!req.file) {
@@ -607,7 +613,7 @@ export function createEvaluationsRouter(store) {
 
         res.status(201).json(draft);
       } catch (error) {
-        res.status(400).json({ error: error.message || "Falha ao importar biblioteca." });
+        res.status(400).json({ error: safeErrorMessage(error, "Falha ao importar biblioteca.") });
       }
     }
   );
@@ -630,7 +636,7 @@ export function createEvaluationsRouter(store) {
         });
         res.status(201).json(library);
       } catch (error) {
-        res.status(400).json({ error: error.message || "Falha ao publicar biblioteca." });
+        res.status(400).json({ error: safeErrorMessage(error, "Falha ao publicar biblioteca.") });
       }
     }
   );
@@ -649,7 +655,7 @@ export function createEvaluationsRouter(store) {
         );
         res.json(library);
       } catch (error) {
-        res.status(400).json({ error: error.message || "Falha ao atualizar biblioteca." });
+        res.status(400).json({ error: safeErrorMessage(error, "Falha ao atualizar biblioteca.") });
       }
     }
   );
@@ -674,7 +680,7 @@ export function createEvaluationsRouter(store) {
     } catch (error) {
       res
         .status(400)
-        .json({ error: error.message || "Falha ao enviar avaliacao." });
+        .json({ error: safeErrorMessage(error, "Falha ao enviar avaliacao.") });
     }
   });
 

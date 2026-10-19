@@ -2,7 +2,6 @@ import { Injectable, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
 import { ApiClient } from '../http/api-client.service';
-import { TokenStorageService } from './token-storage.service';
 import { AuthUser, LoginResponse } from './auth.models';
 
 @Injectable({ providedIn: 'root' })
@@ -14,11 +13,10 @@ export class AuthService {
 
   constructor(
     private readonly api: ApiClient,
-    private readonly tokenStorage: TokenStorageService,
   ) {}
 
   restoreSession(): Promise<void> {
-    if (!this.restorePromise || (!this.user() && this.tokenStorage.getToken())) {
+    if (!this.restorePromise || !this.user()) {
       this.restorePromise = this.loadSession();
     }
 
@@ -30,38 +28,29 @@ export class AuthService {
       this.api.post<LoginResponse>('/api/auth/login', { email, password }),
     );
 
-    this.tokenStorage.setToken(response.token);
     this.user.set(response.user);
     return response.user;
   }
 
   async changePassword(currentPassword: string, nextPassword: string): Promise<AuthUser> {
     const user = await firstValueFrom(
-      this.api.post<AuthUser & { token: string }>('/api/auth/change-password', { currentPassword, nextPassword }),
+      this.api.post<AuthUser>('/api/auth/change-password', { currentPassword, nextPassword }),
     );
 
-    const { token, ...updatedUser } = user;
-    this.tokenStorage.setToken(token);
-    this.user.set(updatedUser);
-    return updatedUser;
+    this.user.set(user);
+    return user;
   }
 
   logout(): void {
-    this.tokenStorage.clearToken();
+    void firstValueFrom(this.api.post<void>('/api/auth/logout')).catch(() => undefined);
     this.user.set(null);
   }
 
   private async loadSession(): Promise<void> {
-    if (!this.tokenStorage.getToken()) {
-      this.isRestoringSession.set(false);
-      return;
-    }
-
     try {
       const user = await firstValueFrom(this.api.get<AuthUser>('/api/auth/me'));
       this.user.set(user);
     } catch {
-      this.tokenStorage.clearToken();
       this.user.set(null);
     } finally {
       this.isRestoringSession.set(false);

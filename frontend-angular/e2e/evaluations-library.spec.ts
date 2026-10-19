@@ -37,4 +37,4 @@ test('normaliza slug legado de questionarios',async({page})=>{
   await expect(page.getByRole('heading',{name:'Rascunhos e publicacao'})).toBeVisible();
 });
 
-test('administrador visualiza biblioteca sem controles de mutacao',async({page})=>{await login(page,'admin@demo.local');await page.goto('/app/evaluations/company/library/manager');await expect(page.getByRole('heading',{name:'Biblioteca de perguntas'})).toBeVisible();await expect(page).toHaveURL(/\/app\/evaluations\/manager\/library\/manager$/);await expect(page.getByRole('button',{name:'Nova pergunta'})).toHaveCount(0);});
+test('administrador visualiza biblioteca sem controles de mutacao',async({page})=>{await login(page,'admin@demo.local');await page.goto('/app/evaluations/company/library/manager');await expect(page.getByRole('heading',{name:'Biblioteca de perguntas'})).toBeVisible();await expect(page).toHaveURL(/\/app\/evaluations\/company\/library\/manager$/);await expect(page.getByRole('button',{name:'Nova pergunta'})).toHaveCount(0);});

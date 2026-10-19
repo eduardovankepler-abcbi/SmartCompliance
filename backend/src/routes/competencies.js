@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { requireRoles } from "../auth/middleware.js";
-import { badRequest } from "./helpers.js";
+import { badRequest, safeErrorMessage } from "./helpers.js";
 
 export function createCompetenciesRouter(store) {
   const router = Router();
@@ -32,7 +32,7 @@ export function createCompetenciesRouter(store) {
       );
       res.status(201).json(competency);
     } catch (error) {
-      res.status(400).json({ error: error.message || "Falha ao cadastrar competencia." });
+      res.status(400).json({ error: safeErrorMessage(error, "Falha ao cadastrar competencia.") });
     }
   });
 
@@ -56,7 +56,7 @@ export function createCompetenciesRouter(store) {
       );
       res.json(competency);
     } catch (error) {
-      res.status(400).json({ error: error.message || "Falha ao atualizar competencia." });
+      res.status(400).json({ error: safeErrorMessage(error, "Falha ao atualizar competencia.") });
     }
   });
 

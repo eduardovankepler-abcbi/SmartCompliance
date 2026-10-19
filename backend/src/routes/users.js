@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { PERMISSIONS } from "../auth/permissions.js";
 import { requireRoles } from "../auth/middleware.js";
-import { badRequest } from "./helpers.js";
+import { badRequest, safeErrorMessage } from "./helpers.js";
 
 export function createUsersRouter(store) {
   const router = Router();
@@ -28,7 +28,7 @@ export function createUsersRouter(store) {
       );
       res.status(201).json(user);
     } catch (error) {
-      res.status(400).json({ error: error.message || "Falha ao cadastrar usuario." });
+      res.status(400).json({ error: safeErrorMessage(error, "Falha ao cadastrar usuario.") });
     }
   });
 
@@ -47,7 +47,7 @@ export function createUsersRouter(store) {
       );
       res.json(user);
     } catch (error) {
-      res.status(400).json({ error: error.message || "Falha ao atualizar usuario." });
+      res.status(400).json({ error: safeErrorMessage(error, "Falha ao atualizar usuario.") });
     }
   });
 

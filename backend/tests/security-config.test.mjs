@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { assertProductionStorageConfiguration, buildCorsOriginOption } from "../src/config/env.js";
 import { createId } from "../src/data/storeSecurity.js";
+import { createRequestRateLimiter, safeErrorMessage } from "../src/routes/helpers.js";
+import { parseLibraryFile } from "../src/services/libraryImport.js";
 
 async function resolveCors(corsOrigin, origin) {
   if (typeof corsOrigin === "string") {
@@ -22,6 +28,38 @@ const originalNodeEnv = process.env.NODE_ENV;
 const originalCorsOrigin = process.env.CORS_ORIGIN;
 const originalCorsOrigins = process.env.CORS_ORIGINS;
 const originalAdditionalOrigins = process.env.CORS_ADDITIONAL_ORIGINS;
+
+function runProductionConfigValidation(overrides = {}) {
+  const workspace = mkdtempSync(join(tmpdir(), "smart-compliance-production-config-"));
+  try {
+    return spawnSync(process.execPath, ["scripts/validate-production-config.mjs"], {
+      cwd: new URL("..", import.meta.url),
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        NODE_ENV: "production",
+        STORAGE_MODE: "mysql",
+        AUTH_SECRET: "a-unique-secret-with-at-least-thirty-two-characters",
+        PORT: "4000",
+        MYSQL_HOST: "mysql.example.internal",
+        MYSQL_PORT: "3306",
+        MYSQL_USER: "app_user",
+        MYSQL_PASSWORD: "strong-password",
+        MYSQL_DATABASE: "smart_compliance",
+        MYSQL_SSL_MODE: "verify-full",
+        MYSQL_SSL_REJECT_UNAUTHORIZED: "true",
+        MYSQL_SSL_CA_PEM: "test-ca",
+        AUTO_MIGRATE_DB: "false",
+        CORS_ORIGIN: "https://smart.example.com",
+        DATA_DIR: join(workspace, "data"),
+        BACKUP_DIR: join(workspace, "backups"),
+        ...overrides
+      }
+    });
+  } finally {
+    rmSync(workspace, { recursive: true, force: true });
+  }
+}
 
 try {
   process.env.NODE_ENV = "production";
@@ -58,7 +96,10 @@ try {
     MYSQL_HOST: "mysql.internal",
     MYSQL_USER: "app_user",
     MYSQL_PASSWORD: "strong-password",
-    MYSQL_DATABASE: "smart_compliance"
+    MYSQL_DATABASE: "smart_compliance",
+    MYSQL_SSL_MODE: "verify-full",
+    MYSQL_SSL_REJECT_UNAUTHORIZED: "true",
+    MYSQL_SSL_CA_PEM: "test-ca"
   };
   assert.doesNotThrow(() => assertProductionStorageConfiguration(productionConfig, validMysqlRuntime));
   assert.throws(
@@ -69,7 +110,69 @@ try {
     () => assertProductionStorageConfiguration(productionConfig, { ...validMysqlRuntime, MYSQL_PASSWORD: "" }),
     /MYSQL_PASSWORD/
   );
+  assert.throws(
+    () => assertProductionStorageConfiguration(productionConfig, {
+      ...validMysqlRuntime,
+      MYSQL_SSL_REJECT_UNAUTHORIZED: "false"
+    }),
+    /MySQL remoto em producao requer/
+  );
+  assert.doesNotThrow(() => assertProductionStorageConfiguration(productionConfig, {
+    ...validMysqlRuntime,
+    MYSQL_HOST: "127.0.0.1",
+    MYSQL_SSL_MODE: "disabled",
+    MYSQL_SSL_REJECT_UNAUTHORIZED: "",
+    MYSQL_SSL_CA_PEM: ""
+  }));
+  assert.equal(
+    safeErrorMessage(new Error("ER_ACCESS_DENIED_ERROR: access denied"), "Falha ao salvar."),
+    "Falha ao salvar."
+  );
+  assert.equal(
+    safeErrorMessage(new Error("Nome da area e obrigatorio."), "Falha ao salvar."),
+    "Nome da area e obrigatorio."
+  );
+  const limiter = createRequestRateLimiter({ windowMs: 60000, maxRequests: 1 });
+  const firstResponse = { setHeader() {}, status() { return this; }, json() {} };
+  let firstRequestNext = false;
+  limiter({ auth: { user: { id: "u1" } }, ip: "127.0.0.1" }, firstResponse, () => { firstRequestNext = true; });
+  assert.equal(firstRequestNext, true);
+  let blockedStatus = 0;
+  limiter({ auth: { user: { id: "u1" } }, ip: "127.0.0.1" }, {
+    setHeader() {}, status(code) { blockedStatus = code; return this; }, json() {}
+  }, () => {});
+  assert.equal(blockedStatus, 429);
+  const oversizedLibraryCsv = Buffer.from(
+    `relationship_type,prompt_text\n${Array.from({ length: 501 }, () => "self,Pergunta").join("\n")}`
+  );
+  await assert.rejects(
+    () => parseLibraryFile({ originalname: "biblioteca.csv", buffer: oversizedLibraryCsv }),
+    /limite de 500 linhas/
+  );
   assert.doesNotThrow(() => assertProductionStorageConfiguration({ nodeEnv: "development", storageMode: "memory" }, {}));
+
+  const strictRemoteMysql = runProductionConfigValidation();
+  assert.equal(strictRemoteMysql.status, 0, strictRemoteMysql.stderr);
+
+  const insecureRemoteMysql = runProductionConfigValidation({
+    MYSQL_SSL_MODE: "required",
+    MYSQL_SSL_REJECT_UNAUTHORIZED: "false",
+    MYSQL_SSL_CA_PEM: ""
+  });
+  assert.notEqual(insecureRemoteMysql.status, 0);
+  assert.match(insecureRemoteMysql.stderr, /MYSQL_SSL_MODE precisa ser verify-full/);
+
+  const automaticMigration = runProductionConfigValidation({ AUTO_MIGRATE_DB: "true" });
+  assert.notEqual(automaticMigration.status, 0);
+  assert.match(automaticMigration.stderr, /AUTO_MIGRATE_DB precisa ser false/);
+
+  const localMysql = runProductionConfigValidation({
+    MYSQL_HOST: "127.0.0.1",
+    MYSQL_SSL_MODE: "disabled",
+    MYSQL_SSL_REJECT_UNAUTHORIZED: "",
+    MYSQL_SSL_CA_PEM: ""
+  });
+  assert.equal(localMysql.status, 0, localMysql.stderr);
 
   const generatedIds = new Set(Array.from({ length: 1000 }, () => createId("development_plan_progress")));
   assert.equal(generatedIds.size, 1000, "IDs gerados devem ser distintos na amostra");

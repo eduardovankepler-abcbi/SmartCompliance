@@ -3,7 +3,8 @@ import multer from "multer";
 import { PERMISSIONS } from "../auth/permissions.js";
 import { requireRoles } from "../auth/middleware.js";
 import { INCIDENT_EVIDENCE_MAX_BYTES } from "../data/storeIncidentsDomain.js";
-import { badRequest } from "./helpers.js";
+import { badRequest, createRequestRateLimiter, safeErrorMessage } from "./helpers.js";
+import { env } from "../config/env.js";
 
 export function createIncidentsRouter(store) {
   const router = Router();
@@ -12,6 +13,10 @@ export function createIncidentsRouter(store) {
     limits: {
       fileSize: INCIDENT_EVIDENCE_MAX_BYTES
     }
+  });
+  const limitEvidenceUpload = createRequestRateLimiter({
+    windowMs: env.upload.windowMs,
+    maxRequests: env.upload.maxRequests
   });
 
   router.get("/", requireRoles(...PERMISSIONS.incidentQueue), async (req, res, next) => {
@@ -56,7 +61,7 @@ export function createIncidentsRouter(store) {
 
       res.status(201).json(incident);
     } catch (error) {
-      res.status(400).json({ error: error.message || "Falha ao registrar relato." });
+      res.status(400).json({ error: safeErrorMessage(error, "Falha ao registrar relato.") });
     }
   });
 
@@ -88,7 +93,7 @@ export function createIncidentsRouter(store) {
       } catch (error) {
         res
           .status(400)
-          .json({ error: error.message || "Falha ao atualizar o caso de compliance." });
+          .json({ error: safeErrorMessage(error, "Falha ao atualizar o caso de compliance.") });
       }
     }
   );
@@ -108,6 +113,7 @@ export function createIncidentsRouter(store) {
   router.post(
     "/:incidentId/evidences",
     requireRoles(...PERMISSIONS.incidentQueue),
+    limitEvidenceUpload,
     upload.single("file"),
     async (req, res) => {
       try {
@@ -118,7 +124,7 @@ export function createIncidentsRouter(store) {
         );
         res.status(201).json(evidence);
       } catch (error) {
-        res.status(400).json({ error: error.message || "Falha ao anexar evidencia." });
+        res.status(400).json({ error: safeErrorMessage(error, "Falha ao anexar evidencia.") });
       }
     }
   );
@@ -140,7 +146,7 @@ export function createIncidentsRouter(store) {
         );
         res.send(evidence.content);
       } catch (error) {
-        res.status(404).json({ error: error.message || "Evidencia nao encontrada." });
+        res.status(404).json({ error: safeErrorMessage(error, "Evidencia nao encontrada.") });
       }
     }
   );

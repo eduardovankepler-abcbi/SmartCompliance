@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { requireRoles } from "../auth/middleware.js";
-import { badRequest } from "./helpers.js";
+import { badRequest, safeErrorMessage } from "./helpers.js";
 
 export function createApplauseRouter(store) {
   const router = Router();
@@ -39,7 +39,7 @@ export function createApplauseRouter(store) {
 
       res.status(201).json(applause);
     } catch (error) {
-      res.status(400).json({ error: error.message || "Falha ao registrar Aplause." });
+      res.status(400).json({ error: safeErrorMessage(error, "Falha ao registrar Aplause.") });
     }
   });
 
@@ -70,7 +70,7 @@ export function createApplauseRouter(store) {
 
       res.json(applause);
     } catch (error) {
-      res.status(400).json({ error: error.message || "Falha ao atualizar Aplause." });
+      res.status(400).json({ error: safeErrorMessage(error, "Falha ao atualizar Aplause.") });
     }
     }
   );

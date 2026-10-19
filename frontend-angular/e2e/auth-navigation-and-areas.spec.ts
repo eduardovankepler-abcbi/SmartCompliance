@@ -140,7 +140,9 @@ test('exige troca de senha no primeiro acesso antes de abrir o workspace', async
   });
   expect(adminLogin.ok()).toBeTruthy();
   const admin = await adminLogin.json();
-  const headers = { Authorization: 'Bearer ' + admin.token };
+  const cookie = adminLogin.headers()['set-cookie']?.split(';')[0];
+  expect(cookie).toBeTruthy();
+  const headers = { Cookie: cookie! };
   const email = 'temporario-' + Date.now() + '@empresa.local';
   const createdPerson = await request.post(api + '/api/people', {
     headers, data: { name: email, roleTitle: 'Analista E2E', area: admin.user.person.area,
@@ -157,7 +159,7 @@ test('exige troca de senha no primeiro acesso antes de abrir o workspace', async
   await page.getByLabel('Senha').fill('demo123');
   await page.getByRole('button', { name: 'Acessar', exact: true }).click();
   await expect(page).toHaveURL(/\/change-password$/);
-  const oldToken = await page.evaluate(() => localStorage.getItem('smart-compliance-token'));
+  expect(await page.evaluate(() => localStorage.getItem('smart-compliance-token'))).toBeNull();
   await page.goto('/app/dashboard');
   await expect(page).toHaveURL(/\/change-password$/);
   await page.getByLabel('Senha atual').fill('demo123');
@@ -165,12 +167,7 @@ test('exige troca de senha no primeiro acesso antes de abrir o workspace', async
   await page.getByLabel('Confirmar nova senha').fill('novaSenha123');
   await page.getByRole('button', { name: 'Atualizar senha' }).click();
   await expect(page).toHaveURL(/\/app\/compliance$/);
-  const renewedToken = await page.evaluate(() => localStorage.getItem('smart-compliance-token'));
-  expect(renewedToken).toBeTruthy();
-  expect(renewedToken).not.toBe(oldToken);
-  expect((await request.get(api + '/api/auth/me', {
-    headers: { Authorization: 'Bearer ' + oldToken },
-  })).status()).toBe(401);
+  expect(await page.evaluate(() => localStorage.getItem('smart-compliance-token'))).toBeNull();
   await page.reload();
   await expect(page).toHaveURL(/\/app\/compliance$/);
 });

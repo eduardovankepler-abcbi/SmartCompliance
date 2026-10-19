@@ -22,6 +22,21 @@ export function shouldSendHsts(nodeEnv, isSecure) {
   return nodeEnv === "production" && isSecure;
 }
 
+export function hasTrustedMutationOrigin(origin, corsOrigin = env.corsOrigin) {
+  if (!origin) {
+    return true;
+  }
+  if (typeof corsOrigin === "string") {
+    return corsOrigin === origin;
+  }
+
+  let allowed = false;
+  corsOrigin(origin, (error, result) => {
+    allowed = !error && result === true;
+  });
+  return allowed;
+}
+
 export function createApp(store) {
   const app = express();
 
@@ -31,9 +46,19 @@ export function createApp(store) {
   }
   app.use(
     cors({
-      origin: env.corsOrigin
+      origin: env.corsOrigin,
+      credentials: true
     })
   );
+  app.use("/api", (req, res, next) => {
+    if (
+      !["GET", "HEAD", "OPTIONS"].includes(req.method) &&
+      !hasTrustedMutationOrigin(req.headers.origin)
+    ) {
+      return res.status(403).json({ error: "Origem da solicitacao nao autorizada." });
+    }
+    next();
+  });
   app.use((req, res, next) => {
     const requestId =
       req.headers["x-request-id"] ||

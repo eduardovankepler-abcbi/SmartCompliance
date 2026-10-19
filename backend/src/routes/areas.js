@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { requireRoles } from "../auth/middleware.js";
-import { badRequest } from "./helpers.js";
+import { badRequest, safeErrorMessage } from "./helpers.js";
 
 export function createAreasRouter(store) {
   const router = Router();
@@ -30,7 +30,7 @@ export function createAreasRouter(store) {
       );
       res.status(201).json(area);
     } catch (error) {
-      res.status(400).json({ error: error.message || "Falha ao cadastrar area." });
+      res.status(400).json({ error: safeErrorMessage(error, "Falha ao cadastrar area.") });
     }
   });
 
@@ -52,7 +52,7 @@ export function createAreasRouter(store) {
       );
       res.json(area);
     } catch (error) {
-      res.status(400).json({ error: error.message || "Falha ao atualizar area." });
+      res.status(400).json({ error: safeErrorMessage(error, "Falha ao atualizar area.") });
     }
   });
 

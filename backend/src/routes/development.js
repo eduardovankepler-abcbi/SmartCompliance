@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { requireRoles } from "../auth/middleware.js";
-import { badRequest } from "./helpers.js";
+import { badRequest, safeErrorMessage } from "./helpers.js";
 
 export function createDevelopmentRouter(store) {
   const router = Router();
@@ -19,7 +19,7 @@ export function createDevelopmentRouter(store) {
       res.status(202).json(result);
     } catch (error) {
       res.status(400).json({
-        error: error.message || "Falha ao receber cursos e treinamentos da integracao."
+        error: safeErrorMessage(error, "Falha ao receber cursos e treinamentos da integracao.")
       });
     }
   });
@@ -34,7 +34,7 @@ export function createDevelopmentRouter(store) {
       res.json(result);
     } catch (error) {
       res.status(400).json({
-        error: error.message || "Falha ao aplicar curso ou treinamento da integracao."
+        error: safeErrorMessage(error, "Falha ao aplicar curso ou treinamento da integracao.")
       });
     }
   });
@@ -87,7 +87,7 @@ export function createDevelopmentRouter(store) {
     } catch (error) {
       res
         .status(400)
-        .json({ error: error.message || "Falha ao registrar desenvolvimento." });
+        .json({ error: safeErrorMessage(error, "Falha ao registrar desenvolvimento.") });
     }
   });
 
@@ -142,7 +142,7 @@ export function createDevelopmentRouter(store) {
     } catch (error) {
       res
         .status(400)
-        .json({ error: error.message || "Falha ao atualizar desenvolvimento." });
+        .json({ error: safeErrorMessage(error, "Falha ao atualizar desenvolvimento.") });
     }
     }
   );
@@ -188,7 +188,7 @@ export function createDevelopmentRouter(store) {
 
       res.status(201).json(plan);
     } catch (error) {
-      res.status(400).json({ error: error.message || "Falha ao registrar PDI." });
+      res.status(400).json({ error: safeErrorMessage(error, "Falha ao registrar PDI.") });
     }
   });
 
@@ -239,7 +239,7 @@ export function createDevelopmentRouter(store) {
 
       res.json(plan);
     } catch (error) {
-      res.status(400).json({ error: error.message || "Falha ao atualizar PDI." });
+      res.status(400).json({ error: safeErrorMessage(error, "Falha ao atualizar PDI.") });
     }
     }
   );
@@ -269,7 +269,7 @@ export function createDevelopmentRouter(store) {
     } catch (error) {
       res
         .status(400)
-        .json({ error: error.message || "Falha ao atualizar andamento do PDI." });
+        .json({ error: safeErrorMessage(error, "Falha ao atualizar andamento do PDI.") });
     }
     }
   );
@@ -305,7 +305,7 @@ export function createDevelopmentRouter(store) {
       } catch (error) {
         res
           .status(400)
-          .json({ error: error.message || "Falha ao solicitar extensao do PDI." });
+          .json({ error: safeErrorMessage(error, "Falha ao solicitar extensao do PDI.") });
       }
     }
   );
@@ -330,7 +330,7 @@ export function createDevelopmentRouter(store) {
       } catch (error) {
         res
           .status(400)
-          .json({ error: error.message || "Falha ao decidir extensao do PDI." });
+          .json({ error: safeErrorMessage(error, "Falha ao decidir extensao do PDI.") });
       }
     }
   );

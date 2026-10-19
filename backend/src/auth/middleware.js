@@ -1,10 +1,17 @@
 import { credentialVersion, verifyToken } from "./token.js";
+import { env } from "../config/env.js";
+
+function getCookie(req, name) {
+  return String(req.headers.cookie || "").split(";").map((item) => item.trim())
+    .find((item) => item.startsWith(`${name}=`))?.slice(name.length + 1) || "";
+}
 
 export function requireAuth(store, { allowPasswordChange = false } = {}) {
   return async (req, res, next) => {
     try {
       const header = req.headers.authorization || "";
-      const [, token] = header.split(" ");
+      const [, bearerToken] = header.split(" ");
+      const token = getCookie(req, env.auth.cookieName) || bearerToken;
 
       if (!token) {
         return res.status(401).json({ error: "Autenticacao obrigatoria." });

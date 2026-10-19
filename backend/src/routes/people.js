@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { PERMISSIONS } from "../auth/permissions.js";
 import { requireRoles } from "../auth/middleware.js";
-import { badRequest } from "./helpers.js";
+import { badRequest, safeErrorMessage } from "./helpers.js";
 
 export function createPeopleRouter(store) {
   const router = Router();
@@ -46,7 +46,7 @@ export function createPeopleRouter(store) {
       );
       res.status(201).json(person);
     } catch (error) {
-      res.status(400).json({ error: error.message || "Falha ao cadastrar pessoa." });
+      res.status(400).json({ error: safeErrorMessage(error, "Falha ao cadastrar pessoa.") });
     }
   });
 
@@ -83,7 +83,7 @@ export function createPeopleRouter(store) {
       );
       res.json(person);
     } catch (error) {
-      res.status(400).json({ error: error.message || "Falha ao atualizar pessoa." });
+      res.status(400).json({ error: safeErrorMessage(error, "Falha ao atualizar pessoa.") });
     }
   });
 

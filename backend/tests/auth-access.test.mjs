@@ -3,14 +3,22 @@ import { createTestContext } from "./testContext.mjs";
 import crypto from "node:crypto";
 import { hashPassword, verifyPasswordHash } from "../src/data/storeSecurity.js";
 import { env } from "../src/config/env.js";
-import { createUserToken, verifyToken } from "../src/auth/token.js";
+import { createUserToken } from "../src/auth/token.js";
 import { createLoginRateLimiter } from "../src/routes/auth.js";
-import { shouldSendHsts } from "../src/app.js";
+import { hasTrustedMutationOrigin, shouldSendHsts } from "../src/app.js";
+
+function getSessionHeaders(response) {
+  const cookie = response.headers.get("set-cookie")?.split(";")[0];
+  assert.ok(cookie, "Login deve devolver cookie de sessao");
+  return { Cookie: cookie };
+}
 
 export async function runAuthAccessRegression() {
   assert.equal(shouldSendHsts("production", true), true, "HTTPS em producao deve receber HSTS");
   assert.equal(shouldSendHsts("production", false), false, "HTTP nao deve receber HSTS");
   assert.equal(shouldSendHsts("development", true), false, "Desenvolvimento nao deve receber HSTS");
+  assert.equal(hasTrustedMutationOrigin("http://localhost:4200"), true, "Origem de QA local deve ser aceita");
+  assert.equal(hasTrustedMutationOrigin("https://maliciosa.example"), false, "Origem nao configurada deve ser recusada");
 
   const rateLimiter = createLoginRateLimiter({
     loginWindowMs: 1000,
@@ -136,6 +144,16 @@ export async function runAuthAccessRegression() {
     );
     assert.ok(managerPerson, "Pessoa do gestor demo obrigatoria");
 
+    const rejectedCrossSiteMutation = await sendJson("/api/people", {
+      headers: {
+        ...(await getAuthHeader(admin.id)),
+        Origin: "https://maliciosa.example"
+      },
+      body: {}
+    });
+    assert.equal(rejectedCrossSiteMutation.response.status, 403,
+      "Operacao mutavel com cookie ou credencial nao deve aceitar origem nao confiavel");
+
     for (let attempt = 1; attempt <= 5; attempt += 1) {
       const invalidLogin = await sendJson("/api/auth/login", {
         body: {
@@ -177,17 +195,16 @@ export async function runAuthAccessRegression() {
       200,
       "Rate limit nao deve contaminar logins validos de outro usuario"
     );
-    assert.ok(validManagerLogin.payload.token, "Login valido deve emitir token");
-    const managerToken = verifyToken(validManagerLogin.payload.token);
-    assert.ok(managerToken?.jti, "Login valido deve emitir identificador de sessao");
-    assert.equal(managerToken?.iss, "smart-compliance", "Token deve registrar emissor esperado");
-    assert.equal(managerToken?.aud, "smart-compliance-api", "Token deve registrar audiencia esperada");
+    assert.equal(validManagerLogin.payload.token, undefined, "Login nao deve expor token ao cliente JavaScript");
+    const managerHeaders = getSessionHeaders(validManagerLogin.response);
+    assert.match(validManagerLogin.response.headers.get("set-cookie"), /HttpOnly/i, "Cookie de sessao deve ser HttpOnly");
     assert.equal(
       validManagerLogin.response.headers.get("cache-control"),
       "no-store",
       "Resposta de login com token nao deve ser armazenada em cache"
     );
-    const managerHeaders = { Authorization: `Bearer ${validManagerLogin.payload.token}` };
+    assert.equal((await fetchJson("/api/auth/me", managerHeaders)).response.status, 200,
+      "Cookie de sessao deve autenticar a API");
     const logout = await sendJson("/api/auth/logout", { headers: managerHeaders });
     assert.equal(logout.response.status, 204, "Logout deve encerrar a sessao atual");
     assert.equal(
@@ -433,14 +450,12 @@ export async function runAuthAccessRegression() {
       true,
       "Usuario criado por gestor deve ser sinalizado para trocar senha"
     );
-    const temporaryHeaders = { Authorization: `Bearer ${temporaryPasswordLogin.payload.token}` };
+    const temporaryHeaders = getSessionHeaders(temporaryPasswordLogin.response);
     assert.equal((await fetchJson("/api/development/records", temporaryHeaders)).response.status, 403,
       "Senha temporaria nao deve permitir acesso aos modulos");
 
     const changedOwnPassword = await sendJson("/api/auth/change-password", {
-      headers: {
-        Authorization: `Bearer ${temporaryPasswordLogin.payload.token}`
-      },
+      headers: temporaryHeaders,
       body: {
         currentPassword: "demo123",
         nextPassword: "novaSenha123"
@@ -458,7 +473,7 @@ export async function runAuthAccessRegression() {
     );
     assert.equal((await fetchJson("/api/auth/me", temporaryHeaders)).response.status, 401,
       "Troca de senha deve revogar o token anterior");
-    const renewedHeaders = { Authorization: `Bearer ${changedOwnPassword.payload.token}` };
+    const renewedHeaders = getSessionHeaders(changedOwnPassword.response);
     assert.equal((await fetchJson("/api/development/records", renewedHeaders)).response.status, 200,
       "Sessao renovada deve permitir continuar apos trocar senha");
     const changedUser = changedOwnPassword.payload;
