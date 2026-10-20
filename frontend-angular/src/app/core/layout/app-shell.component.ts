@@ -1,4 +1,5 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs';
 
@@ -126,6 +127,7 @@ const THEME_STORAGE_KEY = 'smartCompliance.theme';
 export class AppShellComponent {
   protected readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly destroyRef = inject(DestroyRef);
   protected readonly activePath = signal(this.router.url);
   protected readonly isSidebarCollapsed = signal(
     localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) === 'true',
@@ -175,7 +177,10 @@ export class AppShellComponent {
 
   constructor() {
     this.applyThemeClass();
-    this.router.events.pipe(filter((event) => event instanceof NavigationEnd)).subscribe(() => {
+    this.router.events.pipe(
+      filter((event) => event instanceof NavigationEnd),
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe(() => {
       this.activePath.set(this.router.url);
     });
   }

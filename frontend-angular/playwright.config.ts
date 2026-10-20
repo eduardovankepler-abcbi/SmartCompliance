@@ -1,8 +1,15 @@
 import { defineConfig, devices } from '@playwright/test';
+import { existsSync } from 'node:fs';
 
 const BACKEND_PORT = 4001;
 const FRONTEND_PORT = 4201;
-const chromiumExecutablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
+const chromiumExecutablePath = [
+  process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
+  'C:/Program Files/Google/Chrome/Application/chrome.exe',
+  'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
+  'C:/Program Files/Microsoft/Edge/Application/msedge.exe',
+  'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
+].find((candidate) => candidate && existsSync(candidate));
 
 export default defineConfig({
   testDir: './e2e',
