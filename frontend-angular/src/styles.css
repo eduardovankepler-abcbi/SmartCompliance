@@ -491,22 +491,6 @@ body.theme-dark .sidebar__brand-card,
 :root:not(.theme-dark) .integration-metrics article,
 :root:not(.theme-dark) .panel,
 :root:not(.theme-dark) .card,
-:root:not(.theme-dark) .people__modules article,
-:root:not(.theme-dark) .people__steps article,
-:root:not(.theme-dark) .people__form,
-:root:not(.theme-dark) .people__table-wrap,
-:root:not(.theme-dark) .users .journey div,
-:root:not(.theme-dark) .users .steps article,
-:root:not(.theme-dark) .users form,
-:root:not(.theme-dark) .users .table,
-:root:not(.theme-dark) .users .inline-edit {
-  color: var(--abc-text) !important;
-  background: var(--abc-surface) !important;
-  border-color: var(--abc-border) !important;
-  box-shadow: 0 1px 2px rgb(15 23 42 / 4%), 0 8px 20px rgb(15 23 42 / 4%) !important;
-}
-
-:root:not(.theme-dark) .people__steps article,
 :root:not(.theme-dark) .steps article,
 :root:not(.theme-dark) .inline-row td {
   color: var(--abc-text) !important;
@@ -539,7 +523,6 @@ body.theme-dark .sidebar__brand-card,
   border-color: #FECACA !important;
 }
 
-:root:not(.theme-dark) .people__warning,
 :root:not(.theme-dark) [class*="__warning"] {
   color: #92400E !important;
   background: #FFFBEB !important;
