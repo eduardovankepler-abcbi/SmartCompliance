@@ -119,6 +119,9 @@ export function createMemoryEvaluationReadStore({
     async getEvaluationLibrary() {
       return buildEvaluationLibraryPayload(customLibraryState.published);
     },
+    async listCustomLibraryDrafts() {
+      return customLibraryState.drafts.map((draft) => ({ ...draft }));
+    },
     async importCustomLibraryDraft(payload) {
       const draft = {
         id: createId("library_draft"),
@@ -572,6 +575,9 @@ export function createMysqlEvaluationReadStore({
     },
     async getEvaluationLibrary() {
       return buildEvaluationLibraryPayload(customLibraryState.published);
+    },
+    async listCustomLibraryDrafts() {
+      return customLibraryState.drafts.map((draft) => ({ ...draft }));
     },
     async importCustomLibraryDraft(payload) {
       const draft = {

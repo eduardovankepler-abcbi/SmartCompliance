@@ -301,6 +301,7 @@ export class EvaluationsService {
   acknowledgeFeedback(id: string, status: 'agreed' | 'disagreed', note: string): Observable<ReceivedManagerFeedback> { return this.api.patch(`/api/evaluations/responses/${id}/acknowledgement`, { status, note }); }
   listResponses(): Observable<EvaluationResponsesBundle> { return this.api.get('/api/evaluations/responses'); }
   listPerformance360(): Observable<Performance360Review[]> { return this.api.get('/api/evaluations/performance-360'); }
+  listCustomLibraryDrafts(): Observable<CustomLibraryDraft[]> { return this.api.get('/api/evaluations/custom-libraries/drafts'); }
   downloadCustomLibraryTemplate(): Observable<Blob> { return this.api.getBlob('/api/evaluations/custom-libraries/template'); }
   importCustomLibrary(file: File): Observable<CustomLibraryDraft> { const form=new FormData(); form.append('file',file); return this.api.postForm('/api/evaluations/custom-libraries/import',form); }
   publishCustomLibrary(payload: { draftId: string; name: string; description: string }): Observable<CustomEvaluationLibrary> { return this.api.post('/api/evaluations/custom-libraries/publish',payload); }

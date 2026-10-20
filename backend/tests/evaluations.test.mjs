@@ -332,6 +332,12 @@ export async function runEvaluationsRegression() {
       }
     });
 
+    const persistedDrafts = await store.listCustomLibraryDrafts();
+    assert.ok(
+      persistedDrafts.some((draft) => draft.id === customLibraryDraft.id),
+      "Rascunho de biblioteca deve poder ser recuperado apos recarregar a tela"
+    );
+
     const publishedLibrary = await store.publishCustomLibraryDraft({
       draftId: customLibraryDraft.id,
       name: "Biblioteca customizada de teste",

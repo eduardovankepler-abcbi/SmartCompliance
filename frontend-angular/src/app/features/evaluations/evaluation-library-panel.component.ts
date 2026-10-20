@@ -1,3 +1,4 @@
+import { DatePipe } from '@angular/common';
 import { Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -36,7 +37,7 @@ const routedRelationshipKeys = new Set([
 
 @Component({
   selector: 'app-evaluation-library-panel',
-  imports: [ReactiveFormsModule],
+  imports: [DatePipe, ReactiveFormsModule],
   template: `
     <section class="panel" aria-labelledby="library-title">
       <header>
@@ -133,6 +134,9 @@ const routedRelationshipKeys = new Set([
               <label>Arquivo CSV ou XLSX<input type="file" accept=".csv,.xlsx" (change)="chooseFile($any($event.target).files?.[0])" /></label>
               <button type="button" [disabled]="!selectedFile() || saving()" (click)="importFile()">Importar e validar</button>
             </div>
+            @if(drafts().length){
+              <section class="custom"><h3>Rascunhos pendentes</h3><div class="published">@for(item of drafts();track item.id){<article><strong>{{item.fileName}}</strong><small>{{item.summary.templates || item.templates.length}} templates · {{item.summary.questions}} perguntas · {{item.createdAt | date:'short'}}</small><button class="secondary" type="button" (click)="selectDraft(item)">Retomar rascunho</button></article>}</div></section>
+            }
             @if(draft();as item){
               <article class="draft">
                 <strong>{{item.fileName}}</strong>
@@ -200,6 +204,7 @@ export class EvaluationLibraryPanelComponent implements OnInit {
   readonly editingId = signal('');
   readonly selectedFile = signal<File | null>(null);
   readonly draft = signal<CustomLibraryDraft | null>(null);
+  readonly drafts = signal<CustomLibraryDraft[]>([]);
   readonly editingLibraryId = signal('');
 
   readonly canEdit = computed(() => this.auth.user()?.roleKey === 'hr');
@@ -336,6 +341,12 @@ export class EvaluationLibraryPanelComponent implements OnInit {
     this.draft.set(null);
   }
 
+  selectDraft(draft: CustomLibraryDraft): void {
+    this.draft.set(draft);
+    this.selectedFile.set(null);
+    this.publishForm.reset({ name: draft.fileName.replace(/\.[^.]+$/, ''), description: '' });
+  }
+
   async downloadTemplate(): Promise<void> {
     this.saving.set(true);
     this.errorMessage.set('');
@@ -359,8 +370,8 @@ export class EvaluationLibraryPanelComponent implements OnInit {
     if (!file) return;
     await this.mutateCustom(async () => {
       const draft = await firstValueFrom(this.api.importCustomLibrary(file));
-      this.draft.set(draft);
-      this.publishForm.reset({ name: file.name.replace(/\.[^.]+$/, ''), description: '' });
+      this.drafts.update((items) => [draft, ...items.filter((item) => item.id !== draft.id)]);
+      this.selectDraft(draft);
     });
   }
 
@@ -404,8 +415,12 @@ export class EvaluationLibraryPanelComponent implements OnInit {
   private async load(): Promise<void> {
     this.loading.set(true);
     try {
-      const data = await firstValueFrom(this.api.getLibrary());
+      const [data, drafts] = await Promise.all([
+        firstValueFrom(this.api.getLibrary()),
+        this.canManageCustom() ? firstValueFrom(this.api.listCustomLibraryDrafts()) : Promise.resolve([])
+      ]);
       this.library.set(data);
+      this.drafts.set(drafts);
       const routeKey = this.routeRelationshipKey();
       if (routeKey) this.relationshipType.set(routeKey);
       else if (!data.questionGroups.some((g) => g.key === this.relationshipType())) this.relationshipType.set(data.questionGroups[0]?.key || 'manager');

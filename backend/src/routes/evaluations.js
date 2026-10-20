@@ -570,6 +570,18 @@ export function createEvaluationsRouter(store) {
   );
 
   router.get(
+    "/custom-libraries/drafts",
+    requireRoles("admin", "hr"),
+    async (_req, res, next) => {
+      try {
+        res.json(await store.listCustomLibraryDrafts());
+      } catch (error) {
+        next(error);
+      }
+    }
+  );
+
+  router.get(
     "/custom-libraries/template",
     requireRoles("admin", "hr"),
     async (_req, res, next) => {
