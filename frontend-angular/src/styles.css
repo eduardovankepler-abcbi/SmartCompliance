@@ -479,14 +479,6 @@ body.theme-dark .sidebar__brand-card,
   color-scheme: light;
 }
 
-:root:not(.theme-dark) .dashboard__filters,
-:root:not(.theme-dark) .dashboard__command,
-:root:not(.theme-dark) .dashboard__executive,
-:root:not(.theme-dark) .dashboard__scope div,
-:root:not(.theme-dark) .dashboard__card,
-:root:not(.theme-dark) .dashboard__summary article,
-:root:not(.theme-dark) .dashboard__chart-card,
-:root:not(.theme-dark) .dashboard__recommendations article,
 :root:not(.theme-dark) .incident-form,
 :root:not(.theme-dark) .incident-form__triage,
 :root:not(.theme-dark) .queue,
@@ -514,10 +506,6 @@ body.theme-dark .sidebar__brand-card,
   box-shadow: 0 1px 2px rgb(15 23 42 / 4%), 0 8px 20px rgb(15 23 42 / 4%) !important;
 }
 
-:root:not(.theme-dark) .dashboard__executive-grid article,
-:root:not(.theme-dark) .dashboard__priorities article,
-:root:not(.theme-dark) .dashboard__quick-actions article,
-:root:not(.theme-dark) .dashboard__comparison-grid div,
 :root:not(.theme-dark) .people__steps article,
 :root:not(.theme-dark) .steps article,
 :root:not(.theme-dark) .inline-row td {
