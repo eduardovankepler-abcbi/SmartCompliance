@@ -479,10 +479,6 @@ body.theme-dark .sidebar__brand-card,
   color-scheme: light;
 }
 
-:root:not(.theme-dark) .incident-form,
-:root:not(.theme-dark) .incident-form__triage,
-:root:not(.theme-dark) .queue,
-:root:not(.theme-dark) .queue article,
 :root:not(.theme-dark) .trail-panel,
 :root:not(.theme-dark) .trail-panel__hero article,
 :root:not(.theme-dark) .trail-panel__metrics article,
