@@ -9,9 +9,11 @@ await import("./security-config.test.mjs");
 const { runAuthAccessRegression } = await import("./auth-access.test.mjs");
 const { runEvaluationsRegression } = await import("./evaluations.test.mjs");
 const { runOperationsRegistryDevelopmentRegression } = await import("./operations-registry-development.test.mjs");
+const { runLibraryImportContractRegression } = await import("./library-import-contract.test.mjs");
 
 await runAuthAccessRegression();
 await runEvaluationsRegression();
 await runOperationsRegistryDevelopmentRegression();
+await runLibraryImportContractRegression();
 
 console.log("Backend regression tests passed.");

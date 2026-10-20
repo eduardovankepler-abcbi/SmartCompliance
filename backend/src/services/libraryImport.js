@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import ExcelJS from "exceljs";
+import XlsxPopulate from "xlsx-populate";
 import {
   evaluationLibrary,
   evaluationScaleProfiles,
@@ -237,164 +237,63 @@ function parseCsvBuffer(buffer) {
 }
 
 async function parseWorkbookBuffer(buffer) {
-  const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.load(buffer);
-  const worksheet = workbook.worksheets[0];
-  if (!worksheet) {
+  const workbook = await XlsxPopulate.fromDataAsync(buffer);
+  const worksheet = workbook.sheet(0);
+  const values = worksheet?.usedRange()?.value() || [];
+  const matrix = Array.isArray(values[0]) ? values : [values];
+  if (!matrix.length || !matrix[0]?.length) {
     return [];
   }
 
-  const rows = [];
-  const headerRow = worksheet.getRow(1);
-  const headers = headerRow.values
-    .slice(1)
-    .map((value) => String(value || "").trim());
+  const headers = matrix[0].map((value) => String(value || "").trim());
   if (headers.length > MAX_LIBRARY_IMPORT_COLUMNS) {
     throw new Error(`Arquivo excede o limite de ${MAX_LIBRARY_IMPORT_COLUMNS} colunas.`);
   }
-  if (worksheet.rowCount - 1 > MAX_LIBRARY_IMPORT_ROWS) {
+  const dataRows = matrix.slice(1);
+  if (dataRows.length > MAX_LIBRARY_IMPORT_ROWS) {
     throw new Error(`Arquivo excede o limite de ${MAX_LIBRARY_IMPORT_ROWS} linhas.`);
   }
 
-  worksheet.eachRow((row, rowNumber) => {
-    if (rowNumber === 1) {
-      return;
-    }
-    const values = row.values.slice(1);
+  return dataRows.map((values) => {
     if (values.length > MAX_LIBRARY_IMPORT_COLUMNS) {
       throw new Error(`Arquivo excede o limite de ${MAX_LIBRARY_IMPORT_COLUMNS} colunas.`);
     }
-    const mapped = Object.fromEntries(
-      headers.map((header, index) => [header, values[index] ?? ""])
-    );
-    rows.push(mapped);
+    return Object.fromEntries(headers.map((header, index) => [header, values[index] ?? ""]));
   });
-
-  return rows;
 }
 
+function writeWorksheetRows(worksheet, columns, rows, width) {
+  columns.forEach((column, columnIndex) => {
+    const cell = worksheet.cell(1, columnIndex + 1);
+    cell.value(column);
+    cell.style("bold", true);
+    worksheet.column(columnIndex + 1).width(width);
+  });
+  rows.forEach((row, rowIndex) => {
+    columns.forEach((column, columnIndex) => {
+      worksheet.cell(rowIndex + 2, columnIndex + 1).value(row[column] ?? "");
+    });
+  });
+}
 export async function buildLibraryTemplateWorkbook() {
-  const workbook = new ExcelJS.Workbook();
-  const sheet = workbook.addWorksheet("biblioteca_template");
-  const referenceSheet = workbook.addWorksheet("referencias");
-
-  sheet.addRow(TEMPLATE_COLUMNS);
-  sheet.getRow(1).font = { bold: true };
-  sheet.columns = TEMPLATE_COLUMNS.map((key) => ({
-    header: key,
-    key,
-    width: 24
-  }));
-
-  sheet.addRows([
-    {
-      relationship_type: "self",
-      template_name: "Autoavaliacao personalizada",
-      description: "Modelo importado para autoavaliacao.",
-      confidentiality: "private-to-employee-and-manager",
-      scale_profile: "agreement",
-      manager_custom_questions_limit: 0,
-      section_key: "desempenho",
-      section_title: "Desempenho e Entregas",
-      section_description: "Bloco de desempenho individual.",
-      dimension_key: "delivery",
-      dimension_title: "Cumprimento de prazos",
-      prompt_text: "Cumpro minhas tarefas e entregas dentro dos prazos estabelecidos.",
-      helper_text: "Considere o periodo mais recente.",
-      input_type: "scale",
-      option_values: "",
-      sort_order: 1,
-      is_required: "true",
-      visibility: "private",
-      collect_evidence_on_extreme: "false"
-    },
-    {
-      relationship_type: "company",
-      template_name: "Pesquisa institucional personalizada",
-      description: "Modelo importado para leitura institucional.",
-      confidentiality: "manager-confidential",
-      scale_profile: "agreement",
-      manager_custom_questions_limit: 0,
-      section_key: "final",
-      section_title: "Consideracoes Finais",
-      section_description: "Bloco para sugestoes abertas.",
-      dimension_key: "final-comments",
-      dimension_title: "Sugestoes gerais",
-      prompt_text: "Deixe aqui sua sugestao de melhoria.",
-      helper_text: "Texto livre do colaborador.",
-      input_type: "text",
-      option_values: "",
-      sort_order: 2,
-      is_required: "true",
-      visibility: "shared",
-      collect_evidence_on_extreme: "false"
-    },
-    {
-      relationship_type: "company",
-      template_name: "Pesquisa institucional personalizada",
-      description: "Modelo importado para leitura institucional.",
-      confidentiality: "manager-confidential",
-      scale_profile: "agreement",
-      manager_custom_questions_limit: 0,
-      section_key: "satisfacao",
-      section_title: "Satisfacao profissional",
-      section_description: "Bloco de fatores de satisfacao.",
-      dimension_key: "satisfaction",
-      dimension_title: "Fatores de satisfacao",
-      prompt_text: "O que mais te satisfaz profissionalmente?",
-      helper_text: "Escolha quantas opcoes forem necessarias.",
-      input_type: "multi-select",
-      option_values:
-        "Trabalho home office|Flexibilidade nos horarios|Crescimento financeiro|Desenvolvimento profissional|Ambiente de trabalho",
-      sort_order: 3,
-      is_required: "true",
-      visibility: "shared",
-      collect_evidence_on_extreme: "false"
-    }
-  ]);
-
-  referenceSheet.columns = [
-    { header: "campo", key: "field", width: 28 },
-    { header: "valores_permitidos", key: "allowed", width: 48 },
-    { header: "observacao", key: "note", width: 56 }
-  ];
-  referenceSheet.getRow(1).font = { bold: true };
-  referenceSheet.addRows([
-    {
-      field: "relationship_type",
-      allowed: VALID_RELATIONSHIPS.join(", "),
-      note: "Define qual fluxo da avaliacao recebera as perguntas."
-    },
-    {
-      field: "input_type",
-      allowed: VALID_INPUT_TYPES.join(", "),
-      note: "scale usa a escala do template; text usa texto livre; multi-select usa option_values."
-    },
-    {
-      field: "scale_profile",
-      allowed: VALID_SCALE_PROFILES.join(", "),
-      note: "agreement para Concordo/Discordo; satisfaction para Muito insatisfeito/Muito satisfeito."
-    },
-    {
-      field: "visibility",
-      allowed: "shared, private, confidential",
-      note: "Mantem a leitura alinhada ao tipo de avaliacao."
-    },
-    {
-      field: "option_values",
-      allowed: "valor 1|valor 2|valor 3",
-      note: "Preencha apenas para input_type = multi-select."
-    },
-    {
-      field: "collect_evidence_on_extreme",
-      allowed: "true, false",
-      note: "Quando true, notas extremas exigem comentario complementar."
-    }
-  ]);
-
-  return workbook.xlsx.writeBuffer();
+  const workbook = await XlsxPopulate.fromBlankAsync();
+  const sheet = workbook.sheet(0).name("biblioteca_template");
+  const referenceSheet = workbook.addSheet("referencias");
+  writeWorksheetRows(sheet, TEMPLATE_COLUMNS, [
+    { relationship_type: "self", template_name: "Autoavaliacao personalizada", description: "Modelo importado para autoavaliacao.", confidentiality: "private-to-employee-and-manager", scale_profile: "agreement", manager_custom_questions_limit: 0, section_key: "desempenho", section_title: "Desempenho e Entregas", section_description: "Bloco de desempenho individual.", dimension_key: "delivery", dimension_title: "Cumprimento de prazos", prompt_text: "Cumpro minhas tarefas e entregas dentro dos prazos estabelecidos.", helper_text: "Considere o periodo mais recente.", input_type: "scale", option_values: "", sort_order: 1, is_required: "true", visibility: "private", collect_evidence_on_extreme: "false" },
+    { relationship_type: "company", template_name: "Pesquisa institucional personalizada", description: "Modelo importado para leitura institucional.", confidentiality: "manager-confidential", scale_profile: "agreement", manager_custom_questions_limit: 0, section_key: "final", section_title: "Consideracoes Finais", section_description: "Bloco para sugestoes abertas.", dimension_key: "final-comments", dimension_title: "Sugestoes gerais", prompt_text: "Deixe aqui sua sugestao de melhoria.", helper_text: "Texto livre do colaborador.", input_type: "text", option_values: "", sort_order: 2, is_required: "true", visibility: "shared", collect_evidence_on_extreme: "false" },
+    { relationship_type: "company", template_name: "Pesquisa institucional personalizada", description: "Modelo importado para leitura institucional.", confidentiality: "manager-confidential", scale_profile: "agreement", manager_custom_questions_limit: 0, section_key: "satisfacao", section_title: "Satisfacao profissional", section_description: "Bloco de fatores de satisfacao.", dimension_key: "satisfaction", dimension_title: "Fatores de satisfacao", prompt_text: "O que mais te satisfaz profissionalmente?", helper_text: "Escolha quantas opcoes forem necessarias.", input_type: "multi-select", option_values: "Trabalho home office|Flexibilidade nos horarios|Crescimento financeiro|Desenvolvimento profissional|Ambiente de trabalho", sort_order: 3, is_required: "true", visibility: "shared", collect_evidence_on_extreme: "false" }
+  ], 24);
+  writeWorksheetRows(referenceSheet, ["campo", "valores_permitidos", "observacao"], [
+    { campo: "relationship_type", valores_permitidos: VALID_RELATIONSHIPS.join(", "), observacao: "Define qual fluxo da avaliacao recebera as perguntas." },
+    { campo: "input_type", valores_permitidos: VALID_INPUT_TYPES.join(", "), observacao: "scale usa a escala do template; text usa texto livre; multi-select usa option_values." },
+    { campo: "scale_profile", valores_permitidos: VALID_SCALE_PROFILES.join(", "), observacao: "agreement para Concordo/Discordo; satisfaction para Muito insatisfeito/Muito satisfeito." },
+    { campo: "visibility", valores_permitidos: "shared, private, confidential", observacao: "Mantem a leitura alinhada ao tipo de avaliacao." },
+    { campo: "option_values", valores_permitidos: "valor 1|valor 2|valor 3", observacao: "Preencha apenas para input_type = multi-select." },
+    { campo: "collect_evidence_on_extreme", valores_permitidos: "true, false", observacao: "Quando true, notas extremas exigem comentario complementar." }
+  ], 48);
+  return workbook.outputAsync();
 }
-
 export async function parseLibraryFile(file) {
   const extension = String(file.originalname || "")
     .toLowerCase()
