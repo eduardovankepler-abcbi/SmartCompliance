@@ -122,7 +122,10 @@ export function createApp(store) {
   app.use("/api/analytics", createAnalyticsRouter(store));
 
   app.use((error, req, res, _next) => {
-    if (error.type === "entity.parse.failed") {
+    if (
+      error.type === "entity.parse.failed" ||
+      (error.status === 400 && req.is("application/json"))
+    ) {
       return res.status(400).json({ error: "JSON invalido." });
     }
     if (error.type === "entity.too.large" || error.code === "LIMIT_FILE_SIZE") {

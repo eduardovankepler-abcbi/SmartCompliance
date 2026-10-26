@@ -20,5 +20,10 @@
     "test": "npm --prefix backend run test && npm --prefix frontend-angular run parity:strict",
     "verify": "npm run test && npm run build:frontend",
     "qa:published": "npm --prefix backend run homologate:wave4:readonly && npm --prefix frontend-angular run smoke:published"
+  },
+  "overrides": {
+    "express@4.22.3": {
+      "body-parser": "1.20.9"
+    }
   }
 }

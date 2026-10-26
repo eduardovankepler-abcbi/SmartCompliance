@@ -26,12 +26,15 @@ function suggestedUserEmail(personName: string): string {
     .replace(/\.{2,}/g, '.')}@empresa.local`;
 }
 
-test('restaura a sessao apos atualizar a pagina', async ({ page }) => {
+test('Atualizar dados recarrega o dashboard e restaura a sessao', async ({ page }) => {
   await login(page, 'admin@demo.local');
   await expect(page).toHaveURL(/\/app\/dashboard$/);
   await expect(page.locator('#dashboard-title')).toHaveText('Gestao Executiva');
 
-  await page.reload();
+  await Promise.all([
+    page.waitForEvent('load'),
+    page.getByRole('button', { name: 'Atualizar dados' }).click(),
+  ]);
 
   await expect(page).toHaveURL(/\/app\/dashboard$/);
   await expect(page.locator('#dashboard-title')).toHaveText('Gestao Executiva');

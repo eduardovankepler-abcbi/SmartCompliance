@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { createTestContext } from "./testContext.mjs";
 import crypto from "node:crypto";
+import { gzipSync } from "node:zlib";
 import { hashPassword, verifyPasswordHash } from "../src/data/storeSecurity.js";
 import { env } from "../src/config/env.js";
 import { createUserToken } from "../src/auth/token.js";
@@ -989,6 +990,22 @@ export async function runAuthAccessRegression() {
       "Colaborador autenticado deve conseguir registrar relato de compliance"
     );
 
+    const evidenceForm = new FormData();
+    evidenceForm.append(
+      "file",
+      new Blob(["evidencia de teste"], { type: "text/plain" }),
+      "evidencia.txt"
+    );
+    const uploadedEvidence = await fetch(
+      `${context.baseUrl}/api/incidents/${employeeCreatedIncident.payload.id}/evidences`,
+      {
+        method: "POST",
+        headers: await getAuthHeader(compliance.id),
+        body: evidenceForm
+      }
+    );
+    assert.equal(uploadedEvidence.status, 201, "Upload multipart valido deve ser aceito");
+
     const employeeAudit = await fetchJson(
       "/api/audit-trail",
       getAuthHeader(employee.id)
@@ -1038,6 +1055,20 @@ export async function runAuthAccessRegression() {
       method: "POST", headers: { "Content-Type": "application/json" }, body: "{"
     });
     assert.equal(malformed.status, 400);
+    const compressedWithTrailingBytes = Buffer.concat([
+      gzipSync(Buffer.from(JSON.stringify({ email: "admin@demo.local", password: "invalid" }))),
+      Buffer.from("conteudo-excedente")
+    ]);
+    const malformedCompressed = await fetch(`${context.baseUrl}/api/auth/login`, {
+      method: "POST",
+      headers: { "Content-Encoding": "gzip", "Content-Type": "application/json" },
+      body: compressedWithTrailingBytes
+    });
+    assert.equal(
+      malformedCompressed.status,
+      400,
+      "JSON comprimido com bytes excedentes deve ser rejeitado"
+    );
     const oversized = await sendJson("/api/auth/login", { body: { email: "x".repeat(60000), password: "x" } });
     assert.equal(oversized.response.status, 413);
     const validHeaders = await getAuthHeader(admin.id);
