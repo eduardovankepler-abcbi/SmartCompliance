@@ -1,3 +1,3 @@
 export const environment = {
-  apiUrl: 'https://smartcompliance.onrender.com',
+  apiUrl: 'https://smartcompliance-1.onrender.com',
 };

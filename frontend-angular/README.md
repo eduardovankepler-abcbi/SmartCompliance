@@ -6,7 +6,7 @@ Frontend oficial do SmartCompliance em Angular 21.
 
 - QA oficial: `https://smart-compliance-angular.vercel.app`
 - Projeto Vercel: `smart-compliance-angular`
-- Backend QA: `https://smartcompliance.onrender.com`
+- Backend QA: `https://smartcompliance-1.onrender.com`
 - Frontend React em `../frontend/`: legado, mantido apenas para rollback temporario
 
 ## Desenvolvimento

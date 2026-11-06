@@ -1,8 +1,10 @@
 import { Injectable, signal } from '@angular/core';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, timeout } from 'rxjs';
 
 import { ApiClient } from '../http/api-client.service';
 import { AuthUser, LoginResponse } from './auth.models';
+
+const SESSION_RESTORE_TIMEOUT_MS = 10_000;
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -48,7 +50,11 @@ export class AuthService {
 
   private async loadSession(): Promise<void> {
     try {
-      const user = await firstValueFrom(this.api.get<AuthUser>('/api/auth/me'));
+      const user = await firstValueFrom(
+        this.api.get<AuthUser>('/api/auth/me').pipe(
+          timeout({ first: SESSION_RESTORE_TIMEOUT_MS }),
+        ),
+      );
       this.user.set(user);
     } catch {
       this.user.set(null);
